@@ -1,5 +1,5 @@
 begin;
-select plan(16);
+select plan(22);
 
 create extension if not exists "basejump-supabase_test_helpers" with schema tests;
 select tests.create_supabase_user('rls-owner');
@@ -7,18 +7,18 @@ select tests.create_supabase_user('rls-other');
 
 select tests.authenticate_as('rls-owner');
 
-insert into public.spaces (id, owner_id, name)
-values ('11000000-0000-0000-0000-000000000001', auth.uid(), 'Owner space');
+insert into public.spaces (id, owner_id, name, updated_at)
+values ('11000000-0000-0000-0000-000000000001', auth.uid(), 'Owner space', '2000-01-01 00:00:00+00');
 
-insert into public.boxes (id, public_id, box_code, owner_id, space_id, name, location, visibility)
+insert into public.boxes (id, public_id, box_code, owner_id, space_id, name, location, visibility, updated_at)
 values
-  ('21000000-0000-0000-0000-000000000001', '31000000-0000-0000-0000-000000000001', 'SUPPLIED-PUBLIC', auth.uid(), '11000000-0000-0000-0000-000000000001', 'Owner public box', 'Living room', 'public'),
-  ('21000000-0000-0000-0000-000000000002', '31000000-0000-0000-0000-000000000002', 'SUPPLIED-PRIVATE', auth.uid(), '11000000-0000-0000-0000-000000000001', 'Owner private box', 'Closet', 'private');
+  ('21000000-0000-0000-0000-000000000001', '31000000-0000-0000-0000-000000000001', 'SUPPLIED-PUBLIC', auth.uid(), '11000000-0000-0000-0000-000000000001', 'Owner public box', 'Living room', 'public', '2000-01-01 00:00:00+00'),
+  ('21000000-0000-0000-0000-000000000002', '31000000-0000-0000-0000-000000000002', 'SUPPLIED-PRIVATE', auth.uid(), '11000000-0000-0000-0000-000000000001', 'Owner private box', 'Closet', 'private', '2000-01-01 00:00:00+00');
 
-insert into public.items (id, box_id, name)
+insert into public.items (id, box_id, name, updated_at)
 values
-  ('41000000-0000-0000-0000-000000000001', '21000000-0000-0000-0000-000000000001', 'Owner public item'),
-  ('41000000-0000-0000-0000-000000000002', '21000000-0000-0000-0000-000000000002', 'Owner private item');
+  ('41000000-0000-0000-0000-000000000001', '21000000-0000-0000-0000-000000000001', 'Owner public item', '2000-01-01 00:00:00+00'),
+  ('41000000-0000-0000-0000-000000000002', '21000000-0000-0000-0000-000000000002', 'Owner private item', '2000-01-01 00:00:00+00');
 
 select tests.authenticate_as('rls-other');
 
@@ -72,6 +72,60 @@ select lives_ok(
   $$update public.boxes set name = 'Owner updated box' where id = '21000000-0000-0000-0000-000000000003'$$,
   'the owner can update their own box'
 );
+select is(
+  (select action::text
+   from public.activity_logs
+   where entity_type = 'box'
+     and entity_id = '21000000-0000-0000-0000-000000000001'),
+  'create',
+  'an insert activity is mapped to the create audit action'
+);
+select is(
+  (select snapshot ? 'cover_object_key'
+   from public.activity_logs
+   where entity_type = 'box'
+     and entity_id = '21000000-0000-0000-0000-000000000001'),
+  false,
+  'box activity snapshots omit cover object keys'
+);
+select is(
+  (select snapshot ? 'image_object_key'
+   from public.activity_logs
+   where entity_type = 'item'
+     and entity_id = '41000000-0000-0000-0000-000000000001'),
+  false,
+  'item activity snapshots omit image object keys'
+);
+
+update public.spaces
+set description = 'Updated space'
+where id = '11000000-0000-0000-0000-000000000001';
+select ok(
+  (select updated_at > '2000-01-01 00:00:00+00'::timestamptz
+   from public.spaces
+   where id = '11000000-0000-0000-0000-000000000001'),
+  'updating a space advances updated_at'
+);
+
+update public.boxes
+set location = 'Updated living room'
+where id = '21000000-0000-0000-0000-000000000001';
+select ok(
+  (select updated_at > '2000-01-01 00:00:00+00'::timestamptz
+   from public.boxes
+   where id = '21000000-0000-0000-0000-000000000001'),
+  'updating a box advances updated_at'
+);
+
+update public.items
+set description = 'Updated item'
+where id = '41000000-0000-0000-0000-000000000001';
+select ok(
+  (select updated_at > '2000-01-01 00:00:00+00'::timestamptz
+   from public.items
+   where id = '41000000-0000-0000-0000-000000000001'),
+  'updating an item advances updated_at'
+);
 select throws_ok(
   $$insert into public.boxes (id, owner_id, space_id, name)
     values ('21000000-0000-0000-0000-000000000004', auth.uid(), '12000000-0000-0000-0000-000000000001', 'Cross-space box')$$,
@@ -107,7 +161,7 @@ select throws_ok(
 );
 select is(
   (select count(*)::integer from public.activity_logs where actor_id = auth.uid()),
-  7,
+  10,
   'the owner can read activity logs created by their actions'
 );
 

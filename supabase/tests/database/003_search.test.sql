@@ -35,13 +35,14 @@ select tests.authenticate_as('search-owner');
 
 select has_function('public', 'search_my_items', array['text'], 'search_my_items accepts text');
 select is(
-  (select row(item_id, item_name, quantity, box_public_id, box_name, space_name, location)::text
+  (select row(item_id, item_name, quantity, box_id, box_public_id, box_name, space_name, location)::text
    from public.search_my_items('needle')
    where item_id = '43000000-0000-0000-0000-000000000001'),
   (select row(
     '43000000-0000-0000-0000-000000000001'::uuid,
     'Needle Newest'::text,
     7,
+    '23000000-0000-0000-0000-000000000001'::uuid,
     public_id,
     'Owner search box'::text,
     'Owner search space'::text,
@@ -49,7 +50,7 @@ select is(
   )::text
    from public.boxes
    where id = '23000000-0000-0000-0000-000000000001'),
-  'owner search returns the item with generated public ID, box, space, location, and quantity'
+  'owner search returns all item, box, space, location, and quantity fields'
 );
 select ok(
   not exists (
