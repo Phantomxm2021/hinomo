@@ -79,6 +79,16 @@ test('centers the dashboard on finding items, room totals, and recent activity',
   expect(screen.getAllByRole('link', { name: '扫码查看' })).toHaveLength(1)
   expect(screen.getByRole('link', { name: '扫码查看' })).toHaveClass('scan-icon-button')
   expect(screen.queryByText('生成新的收纳二维码')).not.toBeInTheDocument()
+
+  expect(screen.getByLabelText('收纳概览')).toHaveClass('sm:grid-cols-3')
+  expect(screen.getByRole('region', { name: '按房间查看' }).querySelector('div.grid')).toHaveClass(
+    'sm:grid-cols-2',
+    'xl:grid-cols-4',
+  )
+  expect(screen.getByRole('region', { name: '最近的箱子' }).querySelector('div.grid')).toHaveClass(
+    'md:grid-cols-2',
+    'xl:grid-cols-3',
+  )
 })
 
 test('shows loading semantics while dashboard data is pending', () => {

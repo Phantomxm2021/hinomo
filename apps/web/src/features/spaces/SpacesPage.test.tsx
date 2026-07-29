@@ -73,6 +73,7 @@ test('keeps the create editor closed until the prominent action is used', async 
 
   const dialog = screen.getByRole('dialog', { name: '创建空间' })
   expect(dialog).toHaveAttribute('aria-modal', 'true')
+  expect(dialog).toHaveClass('bg-surface', 'sm:max-w-lg')
   const nameInput = within(dialog).getByLabelText('空间名称')
   expect(nameInput).toHaveValue('')
   expect(nameInput).toHaveFocus()
