@@ -211,7 +211,7 @@ on public.activity_logs (box_id, created_at desc);
 
 create index items_search_text_trgm_idx
 on public.items
-using gin ((pg_catalog.lower(pg_catalog.concat_ws(' ', name, category, description))) extensions.gin_trgm_ops);
+using gin ((pg_catalog.lower(coalesce(name, '') || ' ' || coalesce(category, '') || ' ' || coalesce(description, ''))) extensions.gin_trgm_ops);
 
 create function public.search_my_items(p_query text)
 returns table (
@@ -243,7 +243,7 @@ as $$
   join public.spaces as spaces on spaces.id = boxes.space_id
   where boxes.owner_id = auth.uid()
     and nullif(pg_catalog.btrim(p_query), '') is not null
-    and pg_catalog.lower(pg_catalog.concat_ws(' ', items.name, items.category, items.description))
+    and pg_catalog.lower(coalesce(items.name, '') || ' ' || coalesce(items.category, '') || ' ' || coalesce(items.description, ''))
       ilike '%' || pg_catalog.lower(pg_catalog.btrim(p_query)) || '%'
   order by items.updated_at desc, items.name
   limit 100;
