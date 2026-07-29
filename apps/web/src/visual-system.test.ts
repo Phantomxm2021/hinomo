@@ -5,6 +5,38 @@ import { resolve } from 'node:path'
 import { expect, test } from 'vitest'
 
 const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+const viteConfig = readFileSync(resolve(process.cwd(), 'vite.config.ts'), 'utf8')
+const indexHtml = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8')
+
+test('defines the approved Tailwind warm-family theme', () => {
+  expect(css.startsWith('@import "tailwindcss";')).toBe(true)
+  for (const token of [
+    '--color-canvas: #f8f2e8;',
+    '--color-surface: #fffdf8;',
+    '--color-sidebar: #f0e3d3;',
+    '--color-ink: #30271e;',
+    '--color-muted: #756a5e;',
+    '--color-brand: #df6538;',
+    '--color-brand-strong: #c95229;',
+    '--color-success: #71896f;',
+    '--color-danger: #b42318;',
+    '--color-line: #e3d5c5;',
+    '--color-placeholder: #ead7c2;',
+    '--breakpoint-lg: 64rem;',
+  ]) expect(css).toContain(token)
+})
+
+test('does not restore the rejected dark-purple theme', () => {
+  expect(css).not.toContain('@media (prefers-color-scheme: dark)')
+  expect(css).not.toMatch(/#(?:6946e8|ad97ff|7c3aed)/i)
+})
+
+test('uses the warm-family colors in PWA and browser metadata', () => {
+  expect(viteConfig).toContain("theme_color: '#df6538'")
+  expect(viteConfig).toContain("background_color: '#f8f2e8'")
+  expect(viteConfig).not.toContain("theme_color: '#7c3aed'")
+  expect(indexHtml).toContain('<meta name="theme-color" content="#df6538" />')
+})
 
 test('defines the integrated dashboard and authentication visual system', () => {
   expect(css).toContain('.dashboard-hero {')
