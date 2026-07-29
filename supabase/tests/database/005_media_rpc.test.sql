@@ -1,5 +1,5 @@
 begin;
-select plan(30);
+select plan(31);
 
 create extension if not exists "basejump-supabase_test_helpers" with schema tests;
 
@@ -37,6 +37,7 @@ create temporary table media_rpc_state (
   other_box_public_id uuid,
   cover_upload_id uuid,
   cover_key text,
+  cover_upload_url text,
   item_upload_id uuid,
   item_key text,
   private_upload_id uuid,
@@ -99,7 +100,8 @@ with created as (
 )
 update media_rpc_state as state
 set cover_upload_id = created.upload_id,
-    cover_key = created.object_key
+    cover_key = created.object_key,
+    cover_upload_url = created.upload_url
 from created;
 
 select ok(
@@ -112,11 +114,12 @@ select ok(
   'owner upload uses captured generated ids and returns an owner-scoped JPEG object key'
 );
 select ok(
-  (select upload_url like 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com/nomo-test-bucket/%'
-       and upload_url like '%X-Amz-SignedHeaders=content-type%3Bhost%'
-   from media_rpc_state as state
-   cross join lateral public.create_media_upload(state.public_box_id, null, 'cover', 'image/png', 1)),
-  'owner upload returns a PUT presigned URL'
+  (select cover_upload_id is not null
+       and cover_key is not null
+       and cover_upload_url like 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com/nomo-test-bucket/%'
+       and cover_upload_url like '%X-Amz-SignedHeaders=content-type%3Bhost%'
+   from media_rpc_state),
+  'one owner upload session returns its id, object key, and PUT presigned URL'
 );
 
 select tests.clear_authentication();
@@ -174,6 +177,11 @@ select throws_ok(
   $$insert into public.boxes(owner_id, space_id, name, cover_object_key, cover_mime_type, cover_size_bytes)
       values (auth.uid(), '51000000-0000-0000-0000-000000000001', 'Direct media insert', 'direct/cover', 'image/jpeg', 1)$$,
   '42501', null, 'authenticated clients cannot insert box media columns directly'
+);
+select throws_ok(
+  $$insert into public.items(box_id, name, image_object_key, image_mime_type, image_size_bytes)
+      values ('61000000-0000-0000-0000-000000000001', 'Direct item media insert', 'direct/item', 'image/jpeg', 1)$$,
+  '42501', null, 'authenticated clients cannot insert item media columns directly'
 );
 select throws_ok(
   $$update public.boxes set cover_object_key = 'direct/cover', cover_mime_type = 'image/jpeg', cover_size_bytes = 1
