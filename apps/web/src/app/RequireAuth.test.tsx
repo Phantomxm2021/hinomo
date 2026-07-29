@@ -1,12 +1,15 @@
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import {
   createMemoryRouter,
   RouterProvider,
   useLocation,
 } from 'react-router-dom'
-import { expect, test } from 'vitest'
+import { afterEach, expect, test } from 'vitest'
+import type { Session } from '@supabase/supabase-js'
 import { AuthProvider } from '../features/auth/AuthProvider'
 import { RequireAuth } from './RequireAuth'
+
+afterEach(cleanup)
 
 function LoginProbe() {
   const location = useLocation()
@@ -20,7 +23,7 @@ function LoginProbe() {
   )
 }
 
-test('redirects an anonymous user to login and preserves the target', async () => {
+function renderAppAt(path: string, session: Session | null) {
   const router = createMemoryRouter(
     [
       { path: '/login', element: <LoginProbe /> },
@@ -30,15 +33,33 @@ test('redirects an anonymous user to login and preserves the target', async () =
         children: [{ path: '*', element: <h1>箱子</h1> }],
       },
     ],
-    { initialEntries: ['/app/boxes'] },
+    { initialEntries: [path] },
   )
 
-  render(
-    <AuthProvider session={null}>
+  return render(
+    <AuthProvider session={session}>
       <RouterProvider router={router} />
     </AuthProvider>,
   )
+}
+
+test('redirects an anonymous user to login and preserves the target', async () => {
+  renderAppAt('/app/boxes', null)
 
   expect(await screen.findByRole('heading', { name: '登录' })).toBeInTheDocument()
   expect(screen.getByTestId('return-to')).toHaveTextContent('/app/boxes')
+})
+
+test('preserves query and hash in the login return target', async () => {
+  renderAppAt('/app/boxes?sort=name#media', null)
+
+  expect(await screen.findByTestId('return-to')).toHaveTextContent(
+    '/app/boxes?sort=name#media',
+  )
+})
+
+test('renders the protected outlet for an authenticated session', async () => {
+  renderAppAt('/app/boxes', { access_token: 'test-token' } as Session)
+
+  expect(await screen.findByRole('heading', { name: '箱子' })).toBeInTheDocument()
 })
