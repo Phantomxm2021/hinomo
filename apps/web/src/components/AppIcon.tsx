@@ -85,13 +85,16 @@ const iconPaths: Record<AppIconName, ReactNode> = {
 
 type AppIconProps = Omit<SVGProps<SVGSVGElement>, 'children'> & {
   name: AppIconName
+  size?: number
 }
 
-export function AppIcon({ name, className, ...props }: AppIconProps) {
+export function AppIcon({ name, size = 20, className, ...props }: AppIconProps) {
   return (
     <svg
       {...props}
       className={className ? `app-icon ${className}` : 'app-icon'}
+      width={size}
+      height={size}
       aria-hidden="true"
       focusable="false"
       viewBox="0 0 24 24"

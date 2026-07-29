@@ -304,6 +304,7 @@ input[type="search"]:focus {
   display: flex;
   flex-direction: column;
   gap: 42px;
+  overflow-y: auto;
   border-right: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface) 76%, transparent);
   backdrop-filter: blur(18px);
@@ -356,8 +357,6 @@ input[type="search"]:focus {
 }
 
 .app-icon {
-  width: 24px;
-  height: 24px;
   display: block;
 }
 
@@ -784,7 +783,7 @@ code {
 
   .app-content {
     margin-left: 0;
-    padding: 24px 20px calc(104px + env(safe-area-inset-bottom));
+    padding: 24px 20px calc(128px + env(safe-area-inset-bottom));
   }
 
   .mobile-nav {
@@ -828,6 +827,10 @@ code {
     color: #fff;
     background: var(--color-accent);
     box-shadow: var(--shadow-float);
+  }
+
+  .mobile-scan-action.active .nav-icon {
+    box-shadow: 0 0 0 4px var(--accent-bg), var(--shadow-float);
   }
 
   .mobile-scan-action .nav-label {
