@@ -10,6 +10,7 @@ let snapshot: AuthContextValue = {
   isPasswordRecovery: false,
 }
 let recoveryUserId: string | null = null
+let recoveryAccessToken: string | null = null
 let authEventCount = 0
 const listeners = new Set<Listener>()
 
@@ -24,11 +25,13 @@ function publish(nextSnapshot: AuthContextValue) {
 
 function clearRecovery() {
   recoveryUserId = null
+  recoveryAccessToken = null
 }
 
 function receiveAuthEvent(event: AuthChangeEvent, session: Session | null) {
   authEventCount += 1
   const userId = sessionUserId(session)
+  const accessToken = session?.access_token ?? null
 
   if (!session || event === 'SIGNED_OUT') {
     clearRecovery()
@@ -36,16 +39,26 @@ function receiveAuthEvent(event: AuthChangeEvent, session: Session | null) {
     return
   }
 
-  if (event === 'PASSWORD_RECOVERY' && userId) {
+  if (event === 'PASSWORD_RECOVERY' && userId && accessToken) {
     recoveryUserId = userId
-  } else if (!userId || userId !== recoveryUserId) {
+    recoveryAccessToken = accessToken
+  } else if (recoveryUserId && recoveryAccessToken) {
+    if (!userId || userId !== recoveryUserId || !accessToken) {
+      clearRecovery()
+    } else if (event === 'TOKEN_REFRESHED') {
+      recoveryAccessToken = accessToken
+    } else if (accessToken !== recoveryAccessToken) {
+      clearRecovery()
+    }
+  } else {
     clearRecovery()
   }
 
   publish({
     session,
     loading: false,
-    isPasswordRecovery: recoveryUserId !== null && userId === recoveryUserId,
+    isPasswordRecovery:
+      recoveryUserId === userId && recoveryAccessToken === accessToken,
   })
 }
 

@@ -72,19 +72,48 @@ describe('auth session store', () => {
     expect(screen.getByText('密码恢复')).toBeInTheDocument()
   })
 
-  it('keeps recovery state across same-user auth refresh events', async () => {
+  it('keeps recovery state for same-token sign-in and initial-session events', async () => {
     mockGetSession.mockReturnValue(new Promise(() => undefined))
     const store = await import('./auth-session-store')
 
     emit('PASSWORD_RECOVERY', session('user-1', 'recovery-token'))
-    for (const event of [
-      'SIGNED_IN',
-      'TOKEN_REFRESHED',
-      'USER_UPDATED',
-    ] as AuthChangeEvent[]) {
-      emit(event, session('user-1', `${event}-token`))
+    for (const event of ['SIGNED_IN', 'INITIAL_SESSION'] as AuthChangeEvent[]) {
+      emit(event, session('user-1', 'recovery-token'))
       expect(store.getAuthSessionSnapshot().isPasswordRecovery).toBe(true)
     }
+  })
+
+  it('clears recovery state for a same-user sign-in with a new token', async () => {
+    mockGetSession.mockReturnValue(new Promise(() => undefined))
+    const store = await import('./auth-session-store')
+    emit('PASSWORD_RECOVERY', session('user-1', 'recovery-token'))
+
+    emit('SIGNED_IN', session('user-1', 'ordinary-login-token'))
+
+    expect(store.getAuthSessionSnapshot().isPasswordRecovery).toBe(false)
+  })
+
+  it('updates the recovery token on refresh and accepts that token on sign-in', async () => {
+    mockGetSession.mockReturnValue(new Promise(() => undefined))
+    const store = await import('./auth-session-store')
+    emit('PASSWORD_RECOVERY', session('user-1', 'recovery-token'))
+
+    emit('TOKEN_REFRESHED', session('user-1', 'refreshed-token'))
+    emit('SIGNED_IN', session('user-1', 'refreshed-token'))
+
+    expect(store.getAuthSessionSnapshot().isPasswordRecovery).toBe(true)
+  })
+
+  it('keeps user updates only when they belong to the current token chain', async () => {
+    mockGetSession.mockReturnValue(new Promise(() => undefined))
+    const store = await import('./auth-session-store')
+    emit('PASSWORD_RECOVERY', session('user-1', 'recovery-token'))
+
+    emit('USER_UPDATED', session('user-1', 'recovery-token'))
+    expect(store.getAuthSessionSnapshot().isPasswordRecovery).toBe(true)
+
+    emit('USER_UPDATED', session('user-1', 'unrelated-token'))
+    expect(store.getAuthSessionSnapshot().isPasswordRecovery).toBe(false)
   })
 
   it('clears recovery state on sign out', async () => {
