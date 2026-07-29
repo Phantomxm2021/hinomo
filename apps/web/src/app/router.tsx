@@ -15,13 +15,19 @@ import { SpacesPage } from '../features/spaces/SpacesPage'
 import { AppShell } from './AppShell'
 import { RequireAuth } from './RequireAuth'
 import { RootEntry } from './RootEntry'
+import { AuthLayout } from './AuthLayout'
 
 export const router = createBrowserRouter([
   { path: '/', element: <RootEntry /> },
-  { path: '/login', element: <LoginPage /> },
-  { path: '/register', element: <RegisterPage /> },
-  { path: '/forgot-password', element: <ForgotPasswordPage /> },
-  { path: '/reset-password', element: <ResetPasswordPage /> },
+  {
+    element: <AuthLayout />,
+    children: [
+      { path: '/login', element: <LoginPage /> },
+      { path: '/register', element: <RegisterPage /> },
+      { path: '/forgot-password', element: <ForgotPasswordPage /> },
+      { path: '/reset-password', element: <ResetPasswordPage /> },
+    ],
+  },
   { path: '/b/:publicId', element: <PublicBoxPage /> },
   {
     path: '/app',

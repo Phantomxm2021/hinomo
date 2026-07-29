@@ -6,10 +6,10 @@ import {
 } from 'react-router-dom'
 
 const navigation = [
+  { to: '/app', label: '工作台', end: true },
   { to: '/app/boxes', label: '箱子' },
   { to: '/app/search', label: '搜索' },
   { to: '/app/scan', label: '扫码' },
-  { to: '/app/spaces', label: '空间' },
 ]
 
 function Navigation() {
@@ -17,6 +17,7 @@ function Navigation() {
     <NavLink
       key={item.to}
       to={item.to}
+      end={item.end}
       className={({ isActive }: NavLinkRenderProps) =>
         isActive ? 'active' : undefined
       }
@@ -30,7 +31,10 @@ export function AppShell() {
   return (
     <div className="app-shell">
       <aside className="desktop-sidebar">
-        <Link className="brand" to="/app/boxes">Nomo</Link>
+        <div className="sidebar-brand">
+          <Link className="brand" to="/app">Nomo</Link>
+          <small>智能收纳清单</small>
+        </div>
         <nav aria-label="主导航"><Navigation /></nav>
       </aside>
       <main className="app-content"><Outlet /></main>
