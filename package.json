@@ -1,0 +1,16 @@
+{
+  "name": "nomo",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@nomo/web",
+    "build": "npm run build --workspace=@nomo/web",
+    "lint": "npm run lint --workspace=@nomo/web",
+    "typecheck": "npm run typecheck --workspace=@nomo/web",
+    "test": "npm run test --workspace=@nomo/web --",
+    "test:e2e": "npm run test:e2e --workspace=@nomo/web",
+    "test:db": "supabase test db"
+  }
+}
