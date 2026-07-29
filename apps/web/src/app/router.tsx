@@ -7,6 +7,8 @@ import { BoxFormPage } from '../features/boxes/BoxFormPage'
 import { BoxesPage } from '../features/boxes/BoxesPage'
 import { BoxDetailPage } from '../features/boxes/BoxDetailPage'
 import { PublicBoxPage } from '../features/boxes/PublicBoxPage'
+import { PrintPage } from '../features/qr-print/PrintPage'
+import { SearchPage } from '../features/search/SearchPage'
 import { SpacesPage } from '../features/spaces/SpacesPage'
 import { AppShell } from './AppShell'
 import { RequireAuth } from './RequireAuth'
@@ -31,6 +33,8 @@ export const router = createBrowserRouter([
           { path: 'boxes/new', element: <BoxFormPage /> },
           { path: 'boxes/:boxId', element: <BoxDetailPage /> },
           { path: 'boxes/:boxId/edit', element: <BoxFormPage /> },
+          { path: 'search', element: <SearchPage /> },
+          { path: 'print', element: <PrintPage /> },
           { path: 'spaces', element: <SpacesPage /> },
           { path: '*', element: <PlaceholderPage title="我的收纳" /> },
         ],

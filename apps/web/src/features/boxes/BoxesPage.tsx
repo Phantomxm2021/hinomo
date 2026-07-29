@@ -23,7 +23,10 @@ export function BoxesPage() {
           <p className="eyebrow">快速找到每一件物品</p>
           <h1 id="boxes-title">箱子</h1>
         </div>
-        <Link className="primary-link" to="/app/boxes/new">创建箱子</Link>
+        <div className="card-actions">
+          <Link to="/app/print">批量打印</Link>
+          <Link className="primary-link" to="/app/boxes/new">创建箱子</Link>
+        </div>
       </header>
 
       {boxesQuery.isPending ? <p role="status">正在加载箱子…</p> : null}

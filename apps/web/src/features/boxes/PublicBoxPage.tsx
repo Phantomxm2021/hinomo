@@ -2,10 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { env } from '../../lib/env'
 import { useAuth } from '../auth/auth-context'
 import { ItemForm } from '../items/ItemForm'
 import { deleteItem, type ItemRecord } from '../items/items.api'
 import { AuthorizedImage } from '../media/AuthorizedImage'
+import { buildLabels, renderLabelsPdf } from '../qr-print/pdf'
 import { getBoxByPublicId } from './boxes.api'
 
 export function PublicBoxPage() {
@@ -15,6 +17,8 @@ export function PublicBoxPage() {
   const [showItemForm, setShowItemForm] = useState(false)
   const [editingItem, setEditingItem] = useState<ItemRecord | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ItemRecord | null>(null)
+  const [printError, setPrintError] = useState(false)
+  const [printing, setPrinting] = useState(false)
   const boxQuery = useQuery({
     queryKey: ['box', publicId],
     queryFn: () => getBoxByPublicId(publicId),
@@ -47,6 +51,17 @@ export function PublicBoxPage() {
       queryClient.invalidateQueries({ queryKey: ['items', box.id] }),
     ])
   }
+  const printLabel = async () => {
+    setPrinting(true)
+    setPrintError(false)
+    try {
+      await renderLabelsPdf(buildLabels([box], env.VITE_PUBLIC_APP_ORIGIN))
+    } catch {
+      setPrintError(true)
+    } finally {
+      setPrinting(false)
+    }
+  }
 
   return (
     <main className="public-box page-stack">
@@ -56,8 +71,16 @@ export function PublicBoxPage() {
           <h1>{box.name}</h1>
           <p>{box.space_name} · {box.location || '未填写位置'}</p>
         </div>
-        {isOwner ? <button type="button" onClick={() => setShowItemForm(true)}>新增物品</button> : null}
+        {isOwner ? (
+          <div className="card-actions">
+            <button type="button" disabled={printing} onClick={() => void printLabel()}>
+              {printing ? '生成中…' : '打印标签'}
+            </button>
+            <button type="button" onClick={() => setShowItemForm(true)}>新增物品</button>
+          </div>
+        ) : null}
       </header>
+      {printError ? <p role="alert">PDF 生成失败，请重试</p> : null}
       {box.cover_object_key ? (
         <AuthorizedImage objectKey={box.cover_object_key} alt={`${box.name}封面`} className="box-cover" />
       ) : null}

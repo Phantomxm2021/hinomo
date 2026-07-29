@@ -233,6 +233,27 @@ button {
   margin-top: 0;
 }
 
+.search-result {
+  display: grid;
+  gap: 6px;
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+}
+
+.print-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.print-option span {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+
 .primary-link,
 .card-actions a {
   padding: 10px 14px;
