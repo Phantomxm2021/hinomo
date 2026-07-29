@@ -1,5 +1,30 @@
 begin;
-select plan(11);
+select plan(13);
+
+select is(
+  pg_catalog.encode(
+    private.hmac_sha256(
+      pg_catalog.convert_to('key', 'UTF8'),
+      'The quick brown fox jumps over the lazy dog'
+    ),
+    'hex'
+  ),
+  'f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8',
+  'HMAC helper uses the bytea key and UTF-8 message overload'
+);
+
+select is(
+  (
+    select procedures.proisstrict
+    from pg_catalog.pg_proc as procedures
+    join pg_catalog.pg_namespace as namespaces
+      on namespaces.oid = procedures.pronamespace
+    where namespaces.nspname = 'private'
+      and procedures.proname = 'r2_presign_with_credentials'
+  ),
+  false,
+  'GET and DELETE signing accepts a null content type'
+);
 
 select is(private.aws_uri_encode('users/a box/image.webp', false), 'users/a%20box/image.webp', 'object path encoding preserves slash and encodes spaces');
 select is(private.aws_uri_encode('a/b', true), 'a%2Fb', 'slash is encoded when requested');

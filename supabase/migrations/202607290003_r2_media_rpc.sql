@@ -41,7 +41,7 @@ immutable
 strict
 set search_path = pg_catalog
 as $$
-  select extensions.hmac(p_message, p_key, 'sha256');
+  select extensions.hmac(pg_catalog.convert_to(p_message, 'UTF8'), p_key, 'sha256');
 $$;
 
 create function private.sha256_hex(p_value text)
@@ -68,7 +68,6 @@ create function private.r2_presign_with_credentials(
 returns text
 language plpgsql
 immutable
-strict
 set search_path = pg_catalog
 as $$
 declare
