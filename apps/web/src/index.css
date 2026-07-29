@@ -202,7 +202,8 @@ button {
 }
 
 .heading-actions,
-.box-card {
+.box-card,
+.item-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -236,9 +237,19 @@ button {
   height: auto;
 }
 
+.summary-count {
+  color: var(--text-h);
+  font-weight: 700;
+}
+
+.public-box {
+  padding: 24px 18px max(24px, env(safe-area-inset-bottom));
+}
+
 @media (max-width: 560px) {
   .heading-actions,
-  .box-card {
+  .box-card,
+  .item-card {
     align-items: stretch;
     flex-direction: column;
   }

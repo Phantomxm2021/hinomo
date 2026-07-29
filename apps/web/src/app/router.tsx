@@ -5,6 +5,8 @@ import { RegisterPage } from '../features/auth/RegisterPage'
 import { ResetPasswordPage } from '../features/auth/ResetPasswordPage'
 import { BoxFormPage } from '../features/boxes/BoxFormPage'
 import { BoxesPage } from '../features/boxes/BoxesPage'
+import { BoxDetailPage } from '../features/boxes/BoxDetailPage'
+import { PublicBoxPage } from '../features/boxes/PublicBoxPage'
 import { SpacesPage } from '../features/spaces/SpacesPage'
 import { AppShell } from './AppShell'
 import { RequireAuth } from './RequireAuth'
@@ -16,7 +18,7 @@ export const router = createBrowserRouter([
   { path: '/register', element: <RegisterPage /> },
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
   { path: '/reset-password', element: <ResetPasswordPage /> },
-  { path: '/b/:publicId', element: <PlaceholderPage title="收纳箱" /> },
+  { path: '/b/:publicId', element: <PublicBoxPage /> },
   {
     path: '/app',
     element: <RequireAuth />,
@@ -27,6 +29,7 @@ export const router = createBrowserRouter([
           { index: true, element: <PlaceholderPage title="我的收纳" /> },
           { path: 'boxes', element: <BoxesPage /> },
           { path: 'boxes/new', element: <BoxFormPage /> },
+          { path: 'boxes/:boxId', element: <BoxDetailPage /> },
           { path: 'boxes/:boxId/edit', element: <BoxFormPage /> },
           { path: 'spaces', element: <SpacesPage /> },
           { path: '*', element: <PlaceholderPage title="我的收纳" /> },

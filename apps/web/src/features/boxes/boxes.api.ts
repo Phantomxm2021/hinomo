@@ -1,5 +1,6 @@
 import type { Database } from '../../lib/database.types'
 import { supabase } from '../../lib/supabase'
+import type { ItemRecord } from '../items/items.api'
 
 export type BoxInput = {
   space_id: string
@@ -24,6 +25,37 @@ export type BoxSummary = CreatedBox & {
 }
 
 export type EditableBox = CreatedBox & BoxInput
+
+export type PublicBox = EditableBox & {
+  owner_id: string
+  space_name: string
+  items: ItemRecord[]
+}
+
+export async function getBoxByPublicId(publicId: string): Promise<PublicBox | null> {
+  const { data, error } = await supabase
+    .from('boxes')
+    .select('id, owner_id, public_id, box_code, space_id, name, category, location, description, visibility, spaces(name), items(id, name, category, quantity, description, image_object_key)')
+    .eq('public_id', publicId)
+    .single()
+
+  if (error?.code === 'PGRST116') return null
+  if (error) throw error
+  return {
+    id: data.id,
+    owner_id: data.owner_id,
+    public_id: data.public_id,
+    box_code: data.box_code,
+    space_id: data.space_id,
+    name: data.name,
+    category: data.category,
+    location: data.location,
+    description: data.description,
+    visibility: data.visibility,
+    space_name: data.spaces.name,
+    items: data.items,
+  }
+}
 
 export async function getBox(boxId: string): Promise<EditableBox> {
   const { data, error } = await supabase
