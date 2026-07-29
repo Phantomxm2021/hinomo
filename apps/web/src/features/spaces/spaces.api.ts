@@ -5,6 +5,7 @@ export type SpaceSummary = {
   name: string
   description: string | null
   box_count: number
+  item_count: number
 }
 
 export type SpaceInput = {
@@ -15,17 +16,25 @@ export type SpaceInput = {
 export async function listSpaces(): Promise<SpaceSummary[]> {
   const { data, error } = await supabase
     .from('spaces')
-    .select('id, name, description, boxes(count)')
+    .select('id, name, description, boxes(id, items(count))')
     .order('name')
 
   if (error) throw error
 
-  return (data ?? []).map((space) => ({
-    id: space.id,
-    name: space.name,
-    description: space.description,
-    box_count: space.boxes[0]?.count ?? 0,
-  }))
+  return (data ?? []).map((space) => {
+    const boxes = space.boxes ?? []
+
+    return {
+      id: space.id,
+      name: space.name,
+      description: space.description,
+      box_count: boxes.length,
+      item_count: boxes.reduce(
+        (count, box) => count + (box.items[0]?.count ?? 0),
+        0,
+      ),
+    }
+  })
 }
 
 export async function createSpace(input: SpaceInput) {
