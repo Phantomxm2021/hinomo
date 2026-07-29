@@ -254,6 +254,16 @@ button {
   text-align: left;
 }
 
+.scanner-preview {
+  display: block;
+  width: 100%;
+  min-height: 280px;
+  max-height: 65svh;
+  border-radius: 18px;
+  background: #111827;
+  object-fit: cover;
+}
+
 .primary-link,
 .card-actions a {
   padding: 10px 14px;

@@ -8,8 +8,8 @@ import {
 const navigation = [
   { to: '/app/boxes', label: '箱子' },
   { to: '/app/search', label: '搜索' },
+  { to: '/app/scan', label: '扫码' },
   { to: '/app/spaces', label: '空间' },
-  { to: '/app/account', label: '我的' },
 ]
 
 function Navigation() {
