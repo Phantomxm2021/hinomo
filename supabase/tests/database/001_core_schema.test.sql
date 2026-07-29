@@ -111,7 +111,7 @@ select is(
   (select visibility::text from public.boxes where id = '20000000-0000-0000-0000-000000000001'),
   'private', 'box visibility defaults to private'
 );
-select col_type_is('public', 'boxes', 'visibility', 'public.box_visibility', 'box visibility uses its enum');
+select col_type_is('public', 'boxes', 'visibility', 'box_visibility', 'box visibility uses its enum');
 select has_index('public', 'boxes', 'boxes_owner_id_idx', 'boxes owner index exists');
 select has_index('public', 'boxes', 'boxes_space_id_idx', 'boxes space index exists');
 select has_index('public', 'items', 'items_box_id_idx', 'items box index exists');
