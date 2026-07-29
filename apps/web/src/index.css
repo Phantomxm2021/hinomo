@@ -156,7 +156,8 @@ button {
 }
 
 .form-stack input,
-.form-stack textarea {
+.form-stack textarea,
+.form-stack select {
   box-sizing: border-box;
   width: 100%;
   padding: 11px 13px;
@@ -198,6 +199,53 @@ button {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.heading-actions,
+.box-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.primary-link,
+.card-actions a {
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: var(--text-h);
+  background: var(--accent-bg);
+  text-decoration: none;
+}
+
+.box-code {
+  color: var(--accent);
+  font-family: var(--mono);
+  font-weight: 700;
+}
+
+.qr-panel {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.qr-panel img {
+  width: min(100%, 360px);
+  height: auto;
+}
+
+@media (max-width: 560px) {
+  .heading-actions,
+  .box-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .card-actions {
+    justify-content: flex-start;
+  }
 }
 
 .empty-state {

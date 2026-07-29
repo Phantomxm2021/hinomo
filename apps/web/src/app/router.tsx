@@ -3,6 +3,8 @@ import { ForgotPasswordPage } from '../features/auth/ForgotPasswordPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { RegisterPage } from '../features/auth/RegisterPage'
 import { ResetPasswordPage } from '../features/auth/ResetPasswordPage'
+import { BoxFormPage } from '../features/boxes/BoxFormPage'
+import { BoxesPage } from '../features/boxes/BoxesPage'
 import { SpacesPage } from '../features/spaces/SpacesPage'
 import { AppShell } from './AppShell'
 import { RequireAuth } from './RequireAuth'
@@ -23,6 +25,9 @@ export const router = createBrowserRouter([
         element: <AppShell />,
         children: [
           { index: true, element: <PlaceholderPage title="我的收纳" /> },
+          { path: 'boxes', element: <BoxesPage /> },
+          { path: 'boxes/new', element: <BoxFormPage /> },
+          { path: 'boxes/:boxId/edit', element: <BoxFormPage /> },
           { path: 'spaces', element: <SpacesPage /> },
           { path: '*', element: <PlaceholderPage title="我的收纳" /> },
         ],
