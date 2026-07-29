@@ -95,6 +95,30 @@ test('creates a space, closes the editor, and resets it for the next create', as
   expect(screen.getByLabelText('描述（可选）')).toHaveValue('')
 })
 
+test('restores focus to the persistent create action when the empty-state opener unmounts', async () => {
+  const user = userEvent.setup()
+  mockListSpaces
+    .mockResolvedValueOnce([])
+    .mockResolvedValueOnce([
+      { id: 'space-home', name: '家', description: null, box_count: 0, item_count: 0 },
+    ])
+  mockCreateSpace.mockResolvedValue({ id: 'space-home' })
+  renderSpaces()
+
+  await screen.findByText('还没有空间')
+  await user.click(screen.getByRole('button', { name: '创建第一个空间' }))
+  await user.type(screen.getByLabelText('空间名称'), '家')
+  await user.click(
+    within(screen.getByRole('dialog', { name: '创建空间' })).getByRole('button', {
+      name: '创建空间',
+    }),
+  )
+
+  await screen.findByText('家')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '创建空间' })).toHaveFocus()
+})
+
 test('opens the edit panel with populated values, then updates and resets it', async () => {
   const user = userEvent.setup()
   mockListSpaces

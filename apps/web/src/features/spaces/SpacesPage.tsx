@@ -17,6 +17,7 @@ import {
 export function SpacesPage() {
   const queryClient = useQueryClient()
   const editorOpenerRef = useRef<HTMLElement | null>(null)
+  const headerCreateButtonRef = useRef<HTMLButtonElement | null>(null)
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<SpaceSummary | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
@@ -52,6 +53,15 @@ export function SpacesPage() {
   const resetCreateMutation = createMutation.reset
   const resetUpdateMutation = updateMutation.reset
 
+  const restoreEditorFocus = useCallback(() => {
+    const opener = editorOpenerRef.current
+    const focusTarget = opener?.isConnected && opener.tabIndex >= 0 && !opener.hasAttribute('disabled')
+      ? opener
+      : headerCreateButtonRef.current
+    focusTarget?.focus()
+    editorOpenerRef.current = null
+  }, [])
+
   const closeEditor = useCallback(() => {
     if (editorPending) return
     setEditorOpen(false)
@@ -59,9 +69,11 @@ export function SpacesPage() {
     reset({ name: '', description: '' })
     resetCreateMutation()
     resetUpdateMutation()
-    editorOpenerRef.current?.focus()
-    editorOpenerRef.current = null
   }, [editorPending, reset, resetCreateMutation, resetUpdateMutation])
+
+  useEffect(() => {
+    if (!editorOpen && editorOpenerRef.current) restoreEditorFocus()
+  }, [editorOpen, restoreEditorFocus])
 
   useEffect(() => {
     if (!editorOpen) return
@@ -93,8 +105,6 @@ export function SpacesPage() {
       setEditorOpen(false)
       setEditTarget(null)
       reset({ name: '', description: '' })
-      editorOpenerRef.current?.focus()
-      editorOpenerRef.current = null
     } catch {
       // Mutation state renders a stable Chinese error without leaking backend text.
     }
@@ -138,7 +148,12 @@ export function SpacesPage() {
           <p className="eyebrow">整理你的收纳范围</p>
           <h1 id="spaces-title">空间</h1>
         </div>
-        <button className="spaces-create-button" type="button" onClick={beginCreate}>
+        <button
+          ref={headerCreateButtonRef}
+          className="spaces-create-button"
+          type="button"
+          onClick={beginCreate}
+        >
           <AppIcon name="plus" size={20} />
           创建空间
         </button>
