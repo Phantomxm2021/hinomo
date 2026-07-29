@@ -1,31 +1,23 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
+import { GlobalFindBar } from '../../components/GlobalFindBar'
 import { listBoxes } from '../boxes/boxes.api'
+import { AuthorizedImage } from '../media/AuthorizedImage'
 import { listSpaces } from '../spaces/spaces.api'
-
-const shortcuts = [
-  { to: '/app/boxes/new', title: '创建箱子', description: '生成新的收纳二维码', icon: '+' },
-  { to: '/app/scan', title: '扫码查看', description: '使用相机打开箱子', icon: '⌁' },
-  { to: '/app/search', title: '搜索物品', description: '快速定位存放位置', icon: '⌕' },
-  { to: '/app/print', title: '批量打印', description: '制作 A4 二维码标签', icon: '▦' },
-]
 
 export function DashboardPage() {
   const spacesQuery = useQuery({ queryKey: ['spaces'], queryFn: listSpaces })
   const boxesQuery = useQuery({ queryKey: ['boxes'], queryFn: listBoxes })
+  const spaces = spacesQuery.data ?? []
   const boxes = boxesQuery.data ?? []
-  const publicCount = boxes.filter((box) => box.visibility === 'public').length
-  const privateCount = boxes.length - publicCount
+  const itemTotal = boxes.reduce((sum, box) => sum + box.item_count, 0)
 
   return (
     <section className="dashboard page-stack" aria-labelledby="dashboard-title">
       <header className="dashboard-hero">
-        <div>
-          <p className="eyebrow">欢迎回来</p>
-          <h1 id="dashboard-title">收纳工作台</h1>
-          <p>从一个箱子开始，让家里的每件物品都有迹可循。</p>
-        </div>
-        <Link className="primary-link" to="/app/boxes/new">创建箱子</Link>
+        <p className="eyebrow">家庭总览</p>
+        <h1 id="dashboard-title">早上好，今天找什么？</h1>
+        <GlobalFindBar />
       </header>
 
       {spacesQuery.isError || boxesQuery.isError ? (
@@ -36,53 +28,82 @@ export function DashboardPage() {
         <article className="stat-card" aria-label="空间统计">
           <span>空间</span>
           <strong>{spacesQuery.data?.length ?? '—'}</strong>
-          <Link to="/app/spaces">管理空间</Link>
         </article>
         <article className="stat-card" aria-label="箱子统计">
           <span>箱子</span>
           <strong>{boxesQuery.data?.length ?? '—'}</strong>
-          <small>{publicCount} 个公开 · {privateCount} 个私有</small>
+        </article>
+        <article className="stat-card" aria-label="物品统计">
+          <span>物品</span>
+          <strong>{boxesQuery.data ? itemTotal : '—'}</strong>
         </article>
       </div>
 
-      <section aria-labelledby="quick-actions-title">
+      <section className="dashboard-section" aria-labelledby="rooms-title">
         <div className="section-heading">
-          <p className="eyebrow">快捷开始</p>
-          <h2 id="quick-actions-title">今天要整理什么？</h2>
+          <p className="eyebrow">空间分布</p>
+          <h2 id="rooms-title">按房间查看</h2>
         </div>
-        <div className="quick-actions">
-          {shortcuts.map((shortcut) => (
-            <Link className="quick-action" to={shortcut.to} key={shortcut.to}>
-              <span className="quick-action-icon" aria-hidden="true">{shortcut.icon}</span>
-              <strong>{shortcut.title}</strong>
-              <small>{shortcut.description}</small>
+        {spacesQuery.isPending ? (
+          <p role="status" aria-label="正在加载空间">正在加载空间…</p>
+        ) : null}
+        {spacesQuery.isSuccess && spaces.length === 0 ? (
+          <p className="dashboard-section-note">还没有空间，创建箱子时可以设置它所在的房间。</p>
+        ) : null}
+        <div className="dashboard-spaces">
+          {spaces.map((space) => (
+            <Link
+              className="dashboard-space-card"
+              to={`/app/boxes?space=${encodeURIComponent(space.id)}`}
+              key={space.id}
+            >
+              <h3>{space.name}</h3>
+              <p>{space.box_count} 个箱子 · {space.item_count} 件物品</p>
             </Link>
           ))}
         </div>
       </section>
 
-      <section aria-labelledby="recent-boxes-title">
+      <section className="dashboard-section" aria-labelledby="recent-boxes-title">
         <div className="section-heading heading-actions">
           <div>
-            <p className="eyebrow">最近更新</p>
-            <h2 id="recent-boxes-title">常用箱子</h2>
+            <p className="eyebrow">最近活动</p>
+            <h2 id="recent-boxes-title">最近的箱子</h2>
           </div>
           {boxes.length > 0 ? <Link to="/app/boxes">查看全部</Link> : null}
         </div>
-        {boxesQuery.isPending ? <p role="status">正在加载箱子…</p> : null}
+        {boxesQuery.isPending ? (
+          <p role="status" aria-label="正在加载箱子">正在加载箱子…</p>
+        ) : null}
         {boxesQuery.isSuccess && boxes.length === 0 ? (
-          <div className="empty-state">
-            <p>还没有箱子，创建第一个二维码开始整理。</p>
+          <div className="empty-state dashboard-empty-state">
+            <h3>给每件物品一个好找的家</h3>
+            <p>从第一个箱子开始，记录它放在哪里、里面有什么。</p>
             <Link className="primary-link" to="/app/boxes/new">创建第一个箱子</Link>
           </div>
         ) : null}
         <div className="recent-boxes">
           {boxes.slice(0, 3).map((box) => (
             <Link className="recent-box" to={`/b/${box.public_id}`} key={box.id}>
-              <span className="box-code">{box.box_code}</span>
-              <h3>{box.name}</h3>
-              <p>{box.space_name} · {box.location || '未填写位置'}</p>
-              <small>{box.visibility === 'public' ? '公开' : '私有'}</small>
+              <span className="recent-box-cover">
+                {box.cover_object_key ? (
+                  <AuthorizedImage
+                    objectKey={box.cover_object_key}
+                    alt={`${box.name}封面`}
+                    className="recent-box-image"
+                  />
+                ) : (
+                  <span className="recent-box-cover-fallback" role="img" aria-label={`${box.name}封面占位图`}>
+                    <span aria-hidden="true" />
+                  </span>
+                )}
+              </span>
+              <span className="recent-box-content">
+                <span className="box-code">{box.box_code}</span>
+                <h3>{box.name}</h3>
+                <p>{box.space_name} · {box.location || '未填写位置'}</p>
+                <small>{box.item_count} 件物品</small>
+              </span>
             </Link>
           ))}
         </div>
