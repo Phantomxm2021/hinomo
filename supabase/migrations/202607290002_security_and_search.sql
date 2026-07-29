@@ -11,6 +11,8 @@ begin
 end;
 $$;
 
+revoke all on function public.set_updated_at() from public;
+
 create trigger spaces_set_updated_at
 before update on public.spaces
 for each row execute function public.set_updated_at();
@@ -172,8 +174,16 @@ begin
   if tg_op = 'DELETE' then
     audit_entity_id := old.id;
     audit_box_id := case tg_table_name
-      when 'boxes' then old.id
-      when 'items' then old.box_id
+      when 'boxes' then null
+      when 'items' then
+        case
+          when exists (
+            select 1
+            from public.boxes as boxes
+            where boxes.id = old.box_id
+          ) then old.box_id
+          else null
+        end
       else null
     end;
     audit_snapshot := pg_catalog.to_jsonb(old) - array['cover_object_key', 'image_object_key'];
@@ -194,6 +204,8 @@ begin
 end;
 $$;
 
+revoke all on function public.write_activity_log() from public;
+
 create trigger spaces_write_activity_log
 after insert or update or delete on public.spaces
 for each row execute function public.write_activity_log();
@@ -208,6 +220,9 @@ for each row execute function public.write_activity_log();
 
 create index activity_logs_box_id_created_at_idx
 on public.activity_logs (box_id, created_at desc);
+
+create index activity_logs_actor_id_created_at_idx
+on public.activity_logs (actor_id, created_at desc);
 
 create index items_search_text_trgm_idx
 on public.items
@@ -229,6 +244,25 @@ stable
 security invoker
 set search_path = pg_catalog
 as $$
+  with search_pattern as (
+    select
+      '%' ||
+      pg_catalog.replace(
+        pg_catalog.replace(
+          pg_catalog.replace(
+            pg_catalog.lower(pg_catalog.btrim(p_query)),
+            E'\\',
+            E'\\\\'
+          ),
+          '%',
+          E'\\%'
+        ),
+        '_',
+        E'\\_'
+      ) ||
+      '%' as value
+    where nullif(pg_catalog.btrim(p_query), '') is not null
+  )
   select
     items.id as item_id,
     items.name as item_name,
@@ -239,12 +273,12 @@ as $$
     spaces.name as space_name,
     boxes.location
   from public.items as items
+  cross join search_pattern
   join public.boxes as boxes on boxes.id = items.box_id
   join public.spaces as spaces on spaces.id = boxes.space_id
   where boxes.owner_id = auth.uid()
-    and nullif(pg_catalog.btrim(p_query), '') is not null
     and pg_catalog.lower(coalesce(items.name, '') || ' ' || coalesce(items.category, '') || ' ' || coalesce(items.description, ''))
-      ilike '%' || pg_catalog.lower(pg_catalog.btrim(p_query)) || '%'
+      ilike search_pattern.value escape E'\\'
   order by items.updated_at desc, items.name
   limit 100;
 $$;
