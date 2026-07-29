@@ -26,6 +26,26 @@ test('defines the approved Tailwind warm-family theme', () => {
   ]) expect(css).toContain(token)
 })
 
+test('defines every custom property referenced by authored CSS', () => {
+  const definitions = new Set([...css.matchAll(/--([\w-]+)\s*:/g)].map((match) => match[1]))
+  const references = new Set([...css.matchAll(/var\(--([\w-]+)/g)].map((match) => match[1]))
+  const missing = [...references].filter((name) => !definitions.has(name)).sort()
+
+  expect(missing).toEqual([])
+  expect(css).toContain('--mono: "SFMono-Regular", Consolas, monospace;')
+  expect(css).toContain('--code-bg: #ebe6dc;')
+})
+
+test('layers legacy selectors below Tailwind utilities', () => {
+  const legacyLayerStart = css.indexOf('@layer components {')
+
+  expect(legacyLayerStart).toBeGreaterThan(-1)
+  expect(css).toMatch(/}\n\n@layer components \{\n\* \{/)
+  expect(css.slice(0, legacyLayerStart)).not.toMatch(/(?:^|\n)\* \{/)
+  expect(css.slice(legacyLayerStart)).toContain('button {')
+  expect(css.slice(legacyLayerStart)).toContain('.panel {')
+})
+
 test('does not restore the rejected dark-purple theme', () => {
   expect(css).not.toContain('@media (prefers-color-scheme: dark)')
   expect(css).not.toMatch(/#(?:6946e8|ad97ff|7c3aed)/i)

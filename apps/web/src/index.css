@@ -32,12 +32,15 @@
   --accent-bg: #fae4d7;
   --accent-border: #e8a88a;
   --danger: var(--color-danger);
+  --mono: "SFMono-Regular", Consolas, monospace;
+  --code-bg: #ebe6dc;
   --shadow: var(--shadow-float);
   font: 16px/1.55 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--color-muted);
   background: var(--color-canvas);
 }
 
+@layer components {
 * {
   box-sizing: border-box;
 }
@@ -1239,4 +1242,5 @@ code {
     scroll-behavior: auto !important;
     transition: none !important;
   }
+}
 }
