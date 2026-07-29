@@ -336,7 +336,6 @@ input[type="search"]:focus {
 }
 
 .heading-actions,
-.box-card,
 .item-card {
   display: flex;
   align-items: center;
@@ -539,7 +538,6 @@ code {
   }
 
   .heading-actions,
-  .box-card,
   .item-card {
     align-items: stretch;
     flex-direction: column;

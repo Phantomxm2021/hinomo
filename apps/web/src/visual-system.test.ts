@@ -81,3 +81,7 @@ test('preserves the legacy card action button affordance after Preflight', () =>
   )
   expect(css).toMatch(/(?:^|\n):focus-visible\s*\{[^}]*outline:/)
 })
+
+test('removes the migrated box catalogue selector', () => {
+  expect(css).not.toContain('.box-card')
+})
