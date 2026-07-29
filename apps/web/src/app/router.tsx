@@ -14,9 +14,10 @@ import { SpacesPage } from '../features/spaces/SpacesPage'
 import { AppShell } from './AppShell'
 import { RequireAuth } from './RequireAuth'
 import { PlaceholderPage } from './RoutePlaceholders'
+import { RootEntry } from './RootEntry'
 
 export const router = createBrowserRouter([
-  { path: '/', element: <PlaceholderPage title="Nomo" /> },
+  { path: '/', element: <RootEntry /> },
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
