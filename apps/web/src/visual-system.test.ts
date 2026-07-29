@@ -85,3 +85,13 @@ test('preserves the legacy card action button affordance after Preflight', () =>
 test('removes the migrated box catalogue selector', () => {
   expect(css).not.toContain('.box-card')
 })
+
+test('removes migrated box detail and item form selectors', () => {
+  for (const selector of [
+    '.public-box',
+    '.box-cover',
+    '.item-card',
+    '.item-image',
+  ]) expect(css).not.toContain(selector)
+  expect(css).toContain('.form-stack')
+})
