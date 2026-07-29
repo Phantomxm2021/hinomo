@@ -9,6 +9,40 @@ create type public.cleanup_status as enum ('pending', 'processing', 'completed',
 
 create sequence public.box_code_seq;
 
+create function public.assign_box_identifiers()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  new.public_id := gen_random_uuid();
+  new.box_code := 'BX-' || lpad(nextval('public.box_code_seq')::text, 5, '0');
+  return new;
+end;
+$$;
+
+create function public.prevent_box_identifier_update()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.public_id is distinct from old.public_id then
+    raise exception using
+      errcode = '22023',
+      message = 'boxes.public_id is immutable';
+  end if;
+
+  if new.box_code is distinct from old.box_code then
+    raise exception using
+      errcode = '22023',
+      message = 'boxes.box_code is immutable';
+  end if;
+
+  return new;
+end;
+$$;
+
 create table public.spaces (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references auth.users(id) on delete cascade,
@@ -20,8 +54,8 @@ create table public.spaces (
 
 create table public.boxes (
   id uuid primary key default gen_random_uuid(),
-  public_id uuid not null unique default gen_random_uuid(),
-  box_code text not null unique default ('BX-' || lpad(nextval('public.box_code_seq')::text, 5, '0')),
+  public_id uuid not null unique,
+  box_code text not null unique,
   owner_id uuid not null references auth.users(id) on delete cascade,
   space_id uuid not null references public.spaces(id) on delete restrict,
   name text not null check (char_length(btrim(name)) between 1 and 120),
@@ -30,11 +64,22 @@ create table public.boxes (
   description text check (description is null or char_length(description) <= 1000),
   visibility public.box_visibility not null default 'private',
   cover_object_key text,
-  cover_mime_type text,
+  cover_mime_type text constraint boxes_cover_mime_type_check
+    check (cover_mime_type is null or cover_mime_type in ('image/jpeg', 'image/png', 'image/webp')),
   cover_size_bytes bigint check (cover_size_bytes is null or cover_size_bytes > 0),
+  constraint boxes_cover_media_metadata_check
+    check (num_nonnulls(cover_object_key, cover_mime_type, cover_size_bytes) in (0, 3)),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create trigger boxes_assign_identifiers
+before insert on public.boxes
+for each row execute function public.assign_box_identifiers();
+
+create trigger boxes_prevent_identifier_update
+before update on public.boxes
+for each row execute function public.prevent_box_identifier_update();
 
 create table public.items (
   id uuid primary key default gen_random_uuid(),
@@ -44,10 +89,14 @@ create table public.items (
   quantity integer not null default 1 check (quantity > 0),
   description text check (description is null or char_length(description) <= 1000),
   image_object_key text,
-  image_mime_type text,
+  image_mime_type text constraint items_image_mime_type_check
+    check (image_mime_type is null or image_mime_type in ('image/jpeg', 'image/png', 'image/webp')),
   image_size_bytes bigint check (image_size_bytes is null or image_size_bytes > 0),
+  constraint items_image_media_metadata_check
+    check (num_nonnulls(image_object_key, image_mime_type, image_size_bytes) in (0, 3)),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint items_id_box_id_key unique (id, box_id)
 );
 
 create table public.activity_logs (
@@ -65,7 +114,7 @@ create table public.media_uploads (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references auth.users(id) on delete cascade,
   box_id uuid not null references public.boxes(id) on delete cascade,
-  item_id uuid references public.items(id) on delete cascade,
+  item_id uuid,
   media_kind public.media_kind not null,
   object_key text not null unique,
   mime_type text not null check (mime_type in ('image/jpeg', 'image/png', 'image/webp')),
@@ -74,6 +123,8 @@ create table public.media_uploads (
   expires_at timestamptz not null,
   created_at timestamptz not null default now(),
   confirmed_at timestamptz,
+  constraint media_uploads_item_box_fkey
+    foreign key (item_id, box_id) references public.items(id, box_id) on delete cascade,
   check (
     (media_kind = 'cover' and item_id is null)
     or (media_kind = 'item' and item_id is not null)
@@ -83,7 +134,7 @@ create table public.media_uploads (
 create table public.media_cleanup_jobs (
   id uuid primary key default gen_random_uuid(),
   object_key text not null unique,
-  attempts integer not null default 0,
+  attempts integer not null default 0 check (attempts >= 0),
   status public.cleanup_status not null default 'pending',
   next_attempt_at timestamptz not null default now(),
   last_error text,
