@@ -5,6 +5,7 @@ import { AuthContext } from './auth-context'
 
 type AuthProviderProps = PropsWithChildren<{
   session?: Session | null
+  isPasswordRecovery?: boolean
 }>
 
 type AuthState = {
@@ -18,7 +19,7 @@ export function AuthProvider(props: AuthProviderProps) {
   const [authState, setAuthState] = useState<AuthState>(() => ({
     session: props.session ?? null,
     loading: !controlled,
-    isPasswordRecovery: false,
+    isPasswordRecovery: controlled && (props.isPasswordRecovery ?? false),
   }))
 
   useEffect(() => {
@@ -26,7 +27,7 @@ export function AuthProvider(props: AuthProviderProps) {
       setAuthState({
         session: props.session ?? null,
         loading: false,
-        isPasswordRecovery: false,
+        isPasswordRecovery: props.isPasswordRecovery ?? false,
       })
       return
     }
@@ -56,7 +57,7 @@ export function AuthProvider(props: AuthProviderProps) {
       active = false
       data.subscription.unsubscribe()
     }
-  }, [controlled, props.session])
+  }, [controlled, props.isPasswordRecovery, props.session])
 
   return (
     <AuthContext.Provider value={authState}>

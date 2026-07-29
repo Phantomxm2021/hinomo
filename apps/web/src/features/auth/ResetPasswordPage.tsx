@@ -11,7 +11,7 @@ import {
 } from './auth.schemas'
 
 export function ResetPasswordPage() {
-  const { session, loading } = useAuth()
+  const { session, loading, isPasswordRecovery } = useAuth()
   const navigate = useNavigate()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const {
@@ -37,7 +37,7 @@ export function ResetPasswordPage() {
   })
 
   if (loading) return <p role="status">正在验证重置链接…</p>
-  if (!session) {
+  if (!session || !isPasswordRecovery) {
     return (
       <main>
         <h1>重置密码</h1>
