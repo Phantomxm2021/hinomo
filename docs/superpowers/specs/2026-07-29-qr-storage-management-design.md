@@ -144,6 +144,25 @@ Cloudflare R2 Bucket 始终保持私有。R2 访问密钥存入 Supabase Vault�
 
 箱子封面或物品图片被替换、清空、级联删除时，Trigger 将旧对象键写入该表。定时数据库任务分批处理并指数退避重试，达到最大次数后保留 `failed` 记录供运维检查。
 
+### 4.6 `media_uploads`
+
+| 字段 | 类型 | 约束与含义 |
+| --- | --- | --- |
+| `id` | uuid | 主键，也是上传会话 ID |
+| `owner_id` | uuid | 发起上传的用户 |
+| `box_id` | uuid | 目标箱子 |
+| `item_id` | uuid | 目标物品；箱子封面时为空 |
+| `media_kind` | enum | `cover` 或 `item` |
+| `object_key` | text | RPC 生成的 R2 对象键，唯一 |
+| `mime_type` | text | 已签名的 MIME 类型 |
+| `size_bytes` | bigint | 预期上传大小 |
+| `status` | enum | `pending`、`confirmed` 或 `expired` |
+| `expires_at` | timestamptz | 上传会话失效时间 |
+| `created_at` | timestamptz | 默认当前时间 |
+| `confirmed_at` | timestamptz | 确认成功时间，可空 |
+
+`create_media_upload` 在返回签名 URL 前创建 `pending` 会话。`confirm_media_upload` 只能确认当前用户尚未过期的会话，并以会话中的对象键更新箱子或物品。定时任务将过期 `pending` 会话标记为 `expired`，并把相应对象键写入 `media_cleanup_jobs`，从而清理由上传成功但数据库确认失败产生的孤儿对象。
+
 ## 5. 数据权限
 
 ### 5.1 空间
@@ -187,11 +206,11 @@ users/{owner_id}/boxes/{box_id}/{media_kind}/{random_uuid}.{extension}
 
 1. 用户选择 JPEG、PNG 或 WebP 图片。
 2. React 校验原文件类型和大小，并压缩为 WebP；保留透明度或格式兼容性时可保留 PNG。
-3. React 调用 `create_media_upload` RPC，提交箱子 ID、媒体类型、MIME 类型和字节数。
-4. RPC 验证登录状态、箱子所有权、MIME 类型和大小上限，从 Vault 读取 R2 密钥，并返回对象键及短时 SigV4 `PUT` URL。
+3. React 调用 `create_media_upload` RPC，提交箱子 ID、可选物品 ID、媒体类型、MIME 类型和字节数。
+4. RPC 验证登录状态、目标归属、MIME 类型和大小上限，创建 `pending` 上传会话，从 Vault 读取 R2 密钥，并返回上传会话 ID、对象键及短时 SigV4 `PUT` URL。
 5. 浏览器直接上传到 R2，上传请求的 `Content-Type` 必须与签名一致。
-6. React 调用 `confirm_media_upload` RPC，提交对象键和对应箱子或物品 ID。
-7. RPC 再次验证路径归属后写入媒体元数据。旧对象由 Trigger 加入清理队列。
+6. React 调用 `confirm_media_upload` RPC，提交上传会话 ID。
+7. RPC 锁定并验证会话的调用者、状态和有效期，然后使用会话内的对象键与媒体元数据更新目标记录并标记 `confirmed`。旧对象由 Trigger 加入清理队列。
 
 箱子封面和物品图片的压缩后大小上限统一为 5 MiB。签名 URL 默认 5 分钟失效。R2 CORS 只允许已配置的应用来源执行所需的 `PUT`、`GET` 和 `HEAD` 请求。
 
@@ -204,7 +223,7 @@ users/{owner_id}/boxes/{box_id}/{media_kind}/{random_uuid}.{extension}
 
 ### 6.4 清理与失败恢复
 
-- R2 上传成功但 `confirm_media_upload` 失败时会形成孤儿对象。定时任务按对象前缀和数据库引用进行清理。
+- R2 上传成功但 `confirm_media_upload` 失败时会形成孤儿对象。定时任务将过期 `pending` 上传会话标记为 `expired`，并将对象键加入清理队列。
 - 删除或替换媒体只操作数据库引用；Trigger 将旧对象键加入清理队列，避免数据库事务依赖外部网络。
 - 清理 R2 失败不回滚用户的数据库操作，而是进入重试。
 - RPC 的 SigV4 实现使用固定测试向量和测试 R2 Bucket 验证，避免 URL 编码、时间戳和请求头差异导致签名错误。
@@ -297,7 +316,7 @@ users/{owner_id}/boxes/{box_id}/{media_kind}/{random_uuid}.{extension}
 - 箱主可以读取和修改自己的公开、私有箱及物品。
 - 其他登录用户不能修改公开箱，也不能读取私有箱。
 - 用户不能把箱子挂入其他用户空间，或把物品挂入其他用户箱子。
-- 活动日志和媒体清理任务不能由普通客户端伪造。
+- 活动日志、媒体上传会话和媒体清理任务不能由普通客户端伪造。
 - 空间非空时删除失败，删除箱子时物品级联删除并产生媒体清理任务。
 - 媒体上传和下载 RPC 拒绝越权对象路径。
 
@@ -340,4 +359,3 @@ Playwright 覆盖注册登录、密码重置、空间和箱子创建、二维码
 11. 删除或替换图片后产生清理任务，R2 清理失败不会破坏业务事务并能够重试。
 12. PWA 可在主流移动浏览器使用并添加到主屏幕，相机扫码在授权后可用。
 13. 自动化测试证明公开、私有、箱主和其他用户四类权限没有越权路径。
-
