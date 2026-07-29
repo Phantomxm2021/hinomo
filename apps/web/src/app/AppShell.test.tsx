@@ -73,10 +73,12 @@ test('provides five mobile destinations with a central scan action', () => {
   expect(within(navigation).getByRole('link', { name: '扫码' })).toHaveClass('mobile-scan-action')
   expect(navigation).toHaveClass(
     'lg:hidden',
+    'border-line',
     'pb-[max(0.75rem,env(safe-area-inset-bottom))]',
     'shadow-float',
     'backdrop-blur',
   )
+  expect(navigation).not.toHaveClass('border-line/80')
 })
 
 test('marks the mobile scan action active on the scan route', () => {

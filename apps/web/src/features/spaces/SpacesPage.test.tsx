@@ -74,7 +74,7 @@ test('keeps the create editor closed until the prominent action is used', async 
   const dialog = screen.getByRole('dialog', { name: '创建空间' })
   expect(dialog).toHaveAttribute('aria-modal', 'true')
   expect(dialog).toHaveClass(
-    'max-h-[calc(100dvh-2rem)]',
+    'max-h-[calc(100dvh-1.5rem)]',
     'max-w-lg',
     'bg-surface',
     'p-6',
@@ -83,9 +83,10 @@ test('keeps the create editor closed until the prominent action is used', async 
     'flex',
     'items-end',
     'justify-center',
-    'p-4',
+    'p-3',
     'sm:items-center',
   )
+  expect(dialog.parentElement).not.toHaveClass('backdrop-blur-sm')
   const nameInput = within(dialog).getByLabelText('空间名称')
   expect(nameInput).toHaveValue('')
   expect(nameInput).toHaveFocus()

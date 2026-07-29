@@ -27,10 +27,18 @@ test('renders accessible search controls and the scan link', () => {
   expect(screen.getByRole('link', { name: '扫码查看' })).toHaveClass(
     'hidden',
     'lg:inline-flex',
+    'size-[46px]',
+    'shrink-0',
     'shadow-soft',
-    'transition-colors',
+    'transition',
     'focus-visible:outline-3',
     'focus-visible:outline-brand/45',
+  )
+  expect(screen.getByRole('link', { name: '扫码查看' })).not.toHaveClass(
+    'h-[46px]',
+    'w-[46px]',
+    'flex-none',
+    'transition-colors',
   )
   expect(screen.getByRole('link', { name: '扫码查看' })).toHaveAttribute('title', '扫码查看')
 })
