@@ -1,5 +1,5 @@
 begin;
-select plan(22);
+select plan(30);
 
 create extension if not exists "basejump-supabase_test_helpers" with schema tests;
 select tests.create_supabase_user('rls-owner');
@@ -116,6 +116,24 @@ select ok(
    where id = '21000000-0000-0000-0000-000000000001'),
   'updating a box advances updated_at'
 );
+select is(
+  (select action::text
+   from public.activity_logs
+   where action = 'update'
+     and entity_type = 'box'
+     and entity_id = '21000000-0000-0000-0000-000000000001'),
+  'update',
+  'a box update is mapped to the update audit action'
+);
+select is(
+  (select snapshot ? 'cover_object_key'
+   from public.activity_logs
+   where action = 'update'
+     and entity_type = 'box'
+     and entity_id = '21000000-0000-0000-0000-000000000001'),
+  false,
+  'box update snapshots omit cover object keys'
+);
 
 update public.items
 set description = 'Updated item'
@@ -170,6 +188,61 @@ select is(
   (select count(*)::integer from public.activity_logs where actor_id = tests.get_supabase_uid('rls-owner')),
   0,
   'another user cannot read the owner activity logs'
+);
+
+select tests.authenticate_as('rls-owner');
+
+delete from public.items
+where id = '41000000-0000-0000-0000-000000000001';
+select is(
+  (select action::text
+   from public.activity_logs
+   where action = 'delete'
+     and entity_type = 'item'
+     and entity_id = '41000000-0000-0000-0000-000000000001'),
+  'delete',
+  'an item delete is mapped to the delete audit action'
+);
+select is(
+  (select snapshot ? 'image_object_key'
+   from public.activity_logs
+   where action = 'delete'
+     and entity_type = 'item'
+     and entity_id = '41000000-0000-0000-0000-000000000001'),
+  false,
+  'item delete snapshots omit image object keys'
+);
+select is(
+  (select box_id
+   from public.activity_logs
+   where action = 'delete'
+     and entity_type = 'item'
+     and entity_id = '41000000-0000-0000-0000-000000000001'),
+  '21000000-0000-0000-0000-000000000001'::uuid,
+  'an ordinary item delete retains its box in the audit row'
+);
+
+select lives_ok(
+  $$delete from public.boxes where id = '21000000-0000-0000-0000-000000000002'$$,
+  'deleting a box with an item is not blocked by cascading audit writes'
+);
+select is(
+  (select box_id
+   from public.activity_logs
+   where action = 'delete'
+     and entity_type = 'box'
+     and entity_id = '21000000-0000-0000-0000-000000000002'),
+  null::uuid,
+  'the deleted box audit row has a null box reference'
+);
+select is(
+  (select box_id
+   from public.activity_logs
+   where action = 'delete'
+     and entity_type = 'item'
+     and entity_id = '41000000-0000-0000-0000-000000000002'),
+  null::uuid,
+  'the cascade-deleted item audit row has a null box reference'
 );
 
 select * from finish();

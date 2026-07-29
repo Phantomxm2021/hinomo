@@ -1,5 +1,5 @@
 begin;
-select plan(9);
+select plan(13);
 
 create extension if not exists "basejump-supabase_test_helpers" with schema tests;
 select tests.create_supabase_user('search-owner');
@@ -18,7 +18,9 @@ values
   ('43000000-0000-0000-0000-000000000001', '23000000-0000-0000-0000-000000000001', 'Needle Newest', 'Tools', 'Matching search term', 7, '2026-07-30 10:00:00+00'),
   ('43000000-0000-0000-0000-000000000002', '23000000-0000-0000-0000-000000000001', 'Needle Alpha', 'Tools', null, 2, '2026-07-30 09:00:00+00'),
   ('43000000-0000-0000-0000-000000000003', '23000000-0000-0000-0000-000000000001', 'Needle Bravo', 'Tools', null, 3, '2026-07-30 09:00:00+00'),
-  ('43000000-0000-0000-0000-000000000004', '23000000-0000-0000-0000-000000000001', 'Needle Older', 'Tools', null, 1, '2026-07-30 08:00:00+00');
+  ('43000000-0000-0000-0000-000000000004', '23000000-0000-0000-0000-000000000001', 'Needle Older', 'Tools', null, 1, '2026-07-30 08:00:00+00'),
+  ('43000000-0000-0000-0000-000000000005', '23000000-0000-0000-0000-000000000001', 'Rate 100% complete', 'Labels', null, 1, '2026-07-30 07:00:00+00'),
+  ('43000000-0000-0000-0000-000000000006', '23000000-0000-0000-0000-000000000001', 'Shelf_A marker', 'Labels', null, 1, '2026-07-30 06:00:00+00');
 
 select tests.authenticate_as('search-other');
 
@@ -67,6 +69,30 @@ select is(
   (select array_agg(item_name) from public.search_my_items('needle')),
   array['Needle Newest', 'Needle Alpha', 'Needle Bravo', 'Needle Older']::text[],
   'search orders by newest update then item name'
+);
+select is(
+  (select count(*)::integer from public.search_my_items('%')),
+  1,
+  'a percent query matches one literal percent item rather than every item'
+);
+select is(
+  (select item_id
+   from public.search_my_items('%')
+   where item_id = '43000000-0000-0000-0000-000000000005'),
+  '43000000-0000-0000-0000-000000000005'::uuid,
+  'a percent query returns the percent-containing item'
+);
+select is(
+  (select count(*)::integer from public.search_my_items('_')),
+  1,
+  'an underscore query matches one literal underscore item rather than every item'
+);
+select is(
+  (select item_id
+   from public.search_my_items('_')
+   where item_id = '43000000-0000-0000-0000-000000000006'),
+  '43000000-0000-0000-0000-000000000006'::uuid,
+  'an underscore query returns the underscore-containing item'
 );
 
 select tests.authenticate_as('search-other');
