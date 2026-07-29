@@ -5,7 +5,7 @@ import { AppShell } from './AppShell'
 
 afterEach(cleanup)
 
-test('provides four focused mobile destinations including the workbench', () => {
+function renderShell() {
   render(
     <MemoryRouter initialEntries={['/app']}>
       <Routes>
@@ -15,10 +15,36 @@ test('provides four focused mobile destinations including the workbench', () => 
       </Routes>
     </MemoryRouter>,
   )
+}
+
+test('provides the complete desktop navigation without a scan destination', () => {
+  renderShell()
+
+  const navigation = screen.getByRole('navigation', { name: '主导航' })
+  const links = within(navigation).getAllByRole('link')
+
+  expect(links.map((link) => link.textContent)).toEqual([
+    '今日收纳',
+    '我的空间',
+    '全部箱子',
+    '查找物品',
+    '打印标签',
+  ])
+  expect(within(navigation).queryByRole('link', { name: '扫码' })).not.toBeInTheDocument()
+})
+
+test('provides five mobile destinations with a central scan action', () => {
+  renderShell()
 
   const navigation = screen.getByRole('navigation', { name: '移动端主导航' })
   const links = within(navigation).getAllByRole('link')
-  expect(links).toHaveLength(4)
-  expect(links.map((link) => link.textContent)).toEqual(['工作台', '箱子', '搜索', '扫码'])
-  expect(within(navigation).getByRole('link', { name: '工作台' })).toHaveAttribute('href', '/app')
+
+  expect(links.map((link) => link.getAttribute('aria-label'))).toEqual([
+    '首页',
+    '空间',
+    '扫码',
+    '箱子',
+    '搜索',
+  ])
+  expect(within(navigation).getByRole('link', { name: '扫码' })).toHaveClass('mobile-scan-action')
 })
