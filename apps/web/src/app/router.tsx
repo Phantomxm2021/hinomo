@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { ForgotPasswordPage } from '../features/auth/ForgotPasswordPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { RegisterPage } from '../features/auth/RegisterPage'
@@ -10,10 +10,10 @@ import { PublicBoxPage } from '../features/boxes/PublicBoxPage'
 import { PrintPage } from '../features/qr-print/PrintPage'
 import { SearchPage } from '../features/search/SearchPage'
 import { ScannerPage } from '../features/scanner/ScannerPage'
+import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { SpacesPage } from '../features/spaces/SpacesPage'
 import { AppShell } from './AppShell'
 import { RequireAuth } from './RequireAuth'
-import { PlaceholderPage } from './RoutePlaceholders'
 import { RootEntry } from './RootEntry'
 
 export const router = createBrowserRouter([
@@ -30,7 +30,7 @@ export const router = createBrowserRouter([
       {
         element: <AppShell />,
         children: [
-          { index: true, element: <PlaceholderPage title="我的收纳" nested /> },
+          { index: true, element: <DashboardPage /> },
           { path: 'boxes', element: <BoxesPage /> },
           { path: 'boxes/new', element: <BoxFormPage /> },
           { path: 'boxes/:boxId', element: <BoxDetailPage /> },
@@ -39,7 +39,7 @@ export const router = createBrowserRouter([
           { path: 'scan', element: <ScannerPage /> },
           { path: 'print', element: <PrintPage /> },
           { path: 'spaces', element: <SpacesPage /> },
-          { path: '*', element: <PlaceholderPage title="我的收纳" nested /> },
+          { path: '*', element: <Navigate replace to="/app" /> },
         ],
       },
     ],
