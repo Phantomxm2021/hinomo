@@ -3,6 +3,8 @@ import { ForgotPasswordPage } from '../features/auth/ForgotPasswordPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { RegisterPage } from '../features/auth/RegisterPage'
 import { ResetPasswordPage } from '../features/auth/ResetPasswordPage'
+import { SpacesPage } from '../features/spaces/SpacesPage'
+import { AppShell } from './AppShell'
 import { RequireAuth } from './RequireAuth'
 import { PlaceholderPage } from './RoutePlaceholders'
 
@@ -14,8 +16,17 @@ export const router = createBrowserRouter([
   { path: '/reset-password', element: <ResetPasswordPage /> },
   { path: '/b/:publicId', element: <PlaceholderPage title="收纳箱" /> },
   {
-    path: '/app/*',
+    path: '/app',
     element: <RequireAuth />,
-    children: [{ path: '*', element: <PlaceholderPage title="我的收纳" /> }],
+    children: [
+      {
+        element: <AppShell />,
+        children: [
+          { index: true, element: <PlaceholderPage title="我的收纳" /> },
+          { path: 'spaces', element: <SpacesPage /> },
+          { path: '*', element: <PlaceholderPage title="我的收纳" /> },
+        ],
+      },
+    ],
   },
 ])

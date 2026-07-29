@@ -66,6 +66,216 @@ body {
   margin: 0;
 }
 
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app-shell {
+  min-height: 100svh;
+  text-align: left;
+}
+
+.desktop-sidebar {
+  display: none;
+}
+
+.app-content {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 20px 18px calc(88px + env(safe-area-inset-bottom));
+}
+
+.mobile-nav {
+  position: fixed;
+  z-index: 20;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.mobile-nav a,
+.desktop-sidebar nav a {
+  color: var(--text);
+  text-align: center;
+  text-decoration: none;
+}
+
+.mobile-nav a.active,
+.desktop-sidebar nav a.active {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.page-stack,
+.form-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.page-stack {
+  width: min(100%, 760px);
+  margin: 0 auto;
+}
+
+.page-heading h1,
+.panel h2 {
+  margin: 0;
+}
+
+.eyebrow {
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.panel {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+}
+
+.form-stack label {
+  color: var(--text-h);
+  font-weight: 650;
+}
+
+.form-stack input,
+.form-stack textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-h);
+  background: var(--bg);
+}
+
+.form-stack button,
+.space-card button,
+.dialog-actions button {
+  padding: 10px 14px;
+  border: 1px solid var(--accent-border);
+  border-radius: 10px;
+  color: var(--text-h);
+  background: var(--accent-bg);
+}
+
+.card-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.space-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.space-card small {
+  display: block;
+  margin-top: 8px;
+}
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.empty-state {
+  padding: 32px;
+  border: 1px dashed var(--border);
+  border-radius: 18px;
+  text-align: center;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(0 0 0 / 45%);
+}
+
+.dialog-backdrop section {
+  width: min(100%, 420px);
+  padding: 24px;
+  border-radius: 18px;
+  background: var(--bg);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+@media (min-width: 768px) {
+  .app-shell {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .desktop-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+    padding: 28px 20px;
+    border-right: 1px solid var(--border);
+  }
+
+  .desktop-sidebar .brand {
+    color: var(--text-h);
+    font-size: 1.4rem;
+    font-weight: 800;
+    text-decoration: none;
+  }
+
+  .desktop-sidebar nav {
+    display: grid;
+    gap: 8px;
+  }
+
+  .desktop-sidebar nav a {
+    padding: 10px 12px;
+    border-radius: 10px;
+    text-align: left;
+  }
+
+  .desktop-sidebar nav a.active {
+    background: var(--accent-bg);
+  }
+
+  .app-content {
+    padding: 36px;
+  }
+
+  .mobile-nav {
+    display: none;
+  }
+}
+
 h1,
 h2 {
   font-family: var(--heading);
