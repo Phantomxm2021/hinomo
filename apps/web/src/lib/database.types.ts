@@ -1,0 +1,379 @@
+// Hand-maintained snapshot of the public schema defined by the current migrations.
+// Regenerate this file with the Supabase CLI after the user applies those SQL files.
+
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  public: {
+    Tables: {
+      activity_logs: {
+        Row: {
+          action: Database['public']['Enums']['audit_action']
+          actor_id: string | null
+          box_id: string | null
+          created_at: string
+          entity_id: string
+          entity_type: Database['public']['Enums']['audit_entity']
+          id: string
+          snapshot: Json
+        }
+        Insert: {
+          action: Database['public']['Enums']['audit_action']
+          actor_id?: string | null
+          box_id?: string | null
+          created_at?: string
+          entity_id: string
+          entity_type: Database['public']['Enums']['audit_entity']
+          id?: string
+          snapshot?: Json
+        }
+        Update: {
+          action?: Database['public']['Enums']['audit_action']
+          actor_id?: string | null
+          box_id?: string | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: Database['public']['Enums']['audit_entity']
+          id?: string
+          snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'activity_logs_box_id_fkey'
+            columns: ['box_id']
+            isOneToOne: false
+            referencedRelation: 'boxes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      boxes: {
+        Row: {
+          box_code: string
+          category: string | null
+          cover_mime_type: string | null
+          cover_object_key: string | null
+          cover_size_bytes: number | null
+          created_at: string
+          description: string | null
+          id: string
+          location: string | null
+          name: string
+          owner_id: string
+          public_id: string
+          space_id: string
+          updated_at: string
+          visibility: Database['public']['Enums']['box_visibility']
+        }
+        Insert: {
+          box_code: string
+          category?: string | null
+          cover_mime_type?: string | null
+          cover_object_key?: string | null
+          cover_size_bytes?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          location?: string | null
+          name: string
+          owner_id: string
+          public_id: string
+          space_id: string
+          updated_at?: string
+          visibility?: Database['public']['Enums']['box_visibility']
+        }
+        Update: {
+          box_code?: string
+          category?: string | null
+          cover_mime_type?: string | null
+          cover_object_key?: string | null
+          cover_size_bytes?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          location?: string | null
+          name?: string
+          owner_id?: string
+          public_id?: string
+          space_id?: string
+          updated_at?: string
+          visibility?: Database['public']['Enums']['box_visibility']
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'boxes_space_id_fkey'
+            columns: ['space_id']
+            isOneToOne: false
+            referencedRelation: 'spaces'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      items: {
+        Row: {
+          box_id: string
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          image_mime_type: string | null
+          image_object_key: string | null
+          image_size_bytes: number | null
+          name: string
+          quantity: number
+          updated_at: string
+        }
+        Insert: {
+          box_id: string
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_mime_type?: string | null
+          image_object_key?: string | null
+          image_size_bytes?: number | null
+          name: string
+          quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          box_id?: string
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_mime_type?: string | null
+          image_object_key?: string | null
+          image_size_bytes?: number | null
+          name?: string
+          quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'items_box_id_fkey'
+            columns: ['box_id']
+            isOneToOne: false
+            referencedRelation: 'boxes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      media_cleanup_jobs: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: string
+          last_error: string | null
+          next_attempt_at: string
+          object_key: string
+          request_id: number | null
+          status: Database['public']['Enums']['cleanup_status']
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          object_key: string
+          request_id?: number | null
+          status?: Database['public']['Enums']['cleanup_status']
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          object_key?: string
+          request_id?: number | null
+          status?: Database['public']['Enums']['cleanup_status']
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      media_uploads: {
+        Row: {
+          box_id: string
+          confirmed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          item_id: string | null
+          media_kind: Database['public']['Enums']['media_kind']
+          mime_type: string
+          object_key: string
+          owner_id: string
+          size_bytes: number
+          status: Database['public']['Enums']['media_upload_status']
+        }
+        Insert: {
+          box_id: string
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          item_id?: string | null
+          media_kind: Database['public']['Enums']['media_kind']
+          mime_type: string
+          object_key: string
+          owner_id: string
+          size_bytes: number
+          status?: Database['public']['Enums']['media_upload_status']
+        }
+        Update: {
+          box_id?: string
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          item_id?: string | null
+          media_kind?: Database['public']['Enums']['media_kind']
+          mime_type?: string
+          object_key?: string
+          owner_id?: string
+          size_bytes?: number
+          status?: Database['public']['Enums']['media_upload_status']
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'media_uploads_box_id_fkey'
+            columns: ['box_id']
+            isOneToOne: false
+            referencedRelation: 'boxes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'media_uploads_item_box_fkey'
+            columns: ['item_id', 'box_id']
+            isOneToOne: false
+            referencedRelation: 'items'
+            referencedColumns: ['id', 'box_id']
+          },
+        ]
+      }
+      spaces: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      assign_box_identifiers: {
+        Args: Record<PropertyKey, never>
+        Returns: unknown
+      }
+      collect_media_cleanup_results: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      confirm_media_upload: {
+        Args: { p_upload_id: string }
+        Returns: undefined
+      }
+      create_media_download: {
+        Args: { p_object_key: string }
+        Returns: {
+          download_url: string
+          expires_at: string
+        }[]
+      }
+      create_media_upload: {
+        Args: {
+          p_box_id: string
+          p_item_id: string | null
+          p_media_kind: Database['public']['Enums']['media_kind']
+          p_mime_type: string
+          p_size_bytes: number
+        }
+        Returns: {
+          object_key: string
+          upload_id: string
+          upload_url: string
+        }[]
+      }
+      enqueue_removed_media: {
+        Args: Record<PropertyKey, never>
+        Returns: unknown
+      }
+      expire_media_uploads: {
+        Args: { p_cutoff?: string }
+        Returns: number
+      }
+      prevent_box_identifier_update: {
+        Args: Record<PropertyKey, never>
+        Returns: unknown
+      }
+      process_media_cleanup_jobs: {
+        Args: { p_batch_size?: number }
+        Returns: number
+      }
+      search_my_items: {
+        Args: { p_query: string }
+        Returns: {
+          box_id: string
+          box_name: string
+          box_public_id: string
+          item_id: string
+          item_name: string
+          location: string | null
+          quantity: number
+          space_name: string
+        }[]
+      }
+      set_updated_at: {
+        Args: Record<PropertyKey, never>
+        Returns: unknown
+      }
+      write_activity_log: {
+        Args: Record<PropertyKey, never>
+        Returns: unknown
+      }
+    }
+    Enums: {
+      audit_action: 'create' | 'update' | 'delete'
+      audit_entity: 'space' | 'box' | 'item'
+      box_visibility: 'public' | 'private'
+      cleanup_status: 'pending' | 'processing' | 'completed' | 'failed'
+      media_kind: 'cover' | 'item'
+      media_upload_status: 'pending' | 'confirmed' | 'expired'
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
