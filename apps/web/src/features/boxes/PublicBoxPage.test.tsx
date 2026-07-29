@@ -11,6 +11,11 @@ const { mockGetBoxByPublicId } = vi.hoisted(() => ({
 }))
 
 vi.mock('./boxes.api', () => ({ getBoxByPublicId: mockGetBoxByPublicId }))
+vi.mock('../media/AuthorizedImage', () => ({
+  AuthorizedImage: ({ objectKey, alt }: { objectKey: string; alt: string }) => (
+    <img src={`signed:${objectKey}`} alt={alt} />
+  ),
+}))
 
 function renderPublicBox(session: Session | null = null) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -75,4 +80,21 @@ test('shows a neutral gate for a private or missing box', async () => {
   expect(
     await screen.findByRole('heading', { name: '无权限或内容不存在' }),
   ).toBeInTheDocument()
+})
+
+test('renders authorized cover and item images when object keys exist', async () => {
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    space_id: 'space-1', name: '工具', category: null, description: null,
+    location: null, visibility: 'public', space_name: '车库',
+    cover_object_key: 'boxes/box-1/cover.webp',
+    items: [{
+      id: 'i1', name: '锤子', category: null, quantity: 1, description: null,
+      image_object_key: 'boxes/box-1/items/i1.webp',
+    }],
+  })
+  renderPublicBox()
+
+  expect(await screen.findByRole('img', { name: '工具封面' })).toBeInTheDocument()
+  expect(screen.getByRole('img', { name: '锤子图片' })).toBeInTheDocument()
 })

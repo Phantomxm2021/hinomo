@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useParams } from 'react-router-dom'
 import { env } from '../../lib/env'
+import { isUploadPending, uploadStageLabel } from '../media/media-ui'
+import { useMediaUpload } from '../media/useMediaUpload'
 import { boxQrPng, boxQrUrl } from '../qr-print/qr'
 import { listSpaces } from '../spaces/spaces.api'
 import { boxSchema, type BoxFormValues } from './box.schema'
@@ -22,6 +24,11 @@ export function BoxFormPage() {
   const [saved, setSaved] = useState(false)
   const [qrPng, setQrPng] = useState<string | null>(null)
   const [qrError, setQrError] = useState(false)
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [pendingBox, setPendingBox] = useState<CreatedBox | null>(null)
+  const [mediaError, setMediaError] = useState(false)
+  const mediaUpload = useMediaUpload()
+  const mediaStatus = uploadStageLabel(mediaUpload.stage)
   const createMutation = useMutation({
     mutationFn: (input: Parameters<typeof createBox>[0]) => createBox(input),
   })
@@ -68,7 +75,37 @@ export function BoxFormPage() {
     }
   }
 
+  async function uploadCover(target: CreatedBox) {
+    if (!coverFile) return
+    await mediaUpload.upload({
+      file: coverFile,
+      boxId: target.id,
+      itemId: null,
+      kind: 'cover',
+    })
+  }
+
+  async function retryCoverUpload() {
+    if (!coverFile) return
+    setMediaError(false)
+    try {
+      if (editing && boxId) {
+        await mediaUpload.upload({ file: coverFile, boxId, itemId: null, kind: 'cover' })
+        setSaved(true)
+        return
+      }
+      if (pendingBox) {
+        await uploadCover(pendingBox)
+        setCreatedBox(pendingBox)
+        await generateQr(pendingBox)
+      }
+    } catch {
+      setMediaError(true)
+    }
+  }
+
   const submit = handleSubmit(async (values) => {
+    let recordSaved = false
     const input = {
       space_id: values.space_id,
       name: values.name,
@@ -77,17 +114,26 @@ export function BoxFormPage() {
       description: values.description || null,
       visibility: values.visibility,
     }
+    setMediaError(false)
+    setSaved(false)
     try {
       if (editing) {
         await updateMutation.mutateAsync(input)
+        recordSaved = true
+        if (coverFile && boxId) {
+          await mediaUpload.upload({ file: coverFile, boxId, itemId: null, kind: 'cover' })
+        }
         setSaved(true)
         return
       }
       const box = await createMutation.mutateAsync(input)
+      recordSaved = true
+      setPendingBox(box)
+      await uploadCover(box)
       setCreatedBox(box)
       await generateQr(box)
     } catch {
-      // Mutation state renders a stable Chinese error.
+      if (recordSaved) setMediaError(true)
     }
   })
 
@@ -144,6 +190,18 @@ export function BoxFormPage() {
         <label htmlFor="box-description">备注（可选）</label>
         <textarea id="box-description" rows={4} {...register('description')} />
 
+        <label htmlFor="box-cover">箱子封面（可选）</label>
+        <input
+          id="box-cover"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={(event) => {
+            setCoverFile(event.target.files?.[0] ?? null)
+            setMediaError(false)
+            mediaUpload.reset()
+          }}
+        />
+
         <label htmlFor="box-visibility">查看权限</label>
         <select id="box-visibility" {...register('visibility')}>
           <option value="private">私有</option>
@@ -155,9 +213,16 @@ export function BoxFormPage() {
           <p role="alert">保存失败，请稍后重试</p>
         ) : null}
         {saved ? <p role="status">修改已保存</p> : null}
+        {mediaStatus ? <p role="status">图片处理中：{mediaStatus}</p> : null}
+        {mediaError ? (
+          <div className="upload-error" role="alert">
+            <p>图片上传失败，已保留填写内容。</p>
+            <button type="button" onClick={() => void retryCoverUpload()}>重试上传</button>
+          </div>
+        ) : null}
         <button
           type="submit"
-          disabled={createMutation.isPending || updateMutation.isPending}
+          disabled={createMutation.isPending || updateMutation.isPending || isUploadPending(mediaUpload.stage)}
         >
           {createMutation.isPending || updateMutation.isPending
             ? '保存中…'

@@ -5,6 +5,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useAuth } from '../auth/auth-context'
 import { ItemForm } from '../items/ItemForm'
 import { deleteItem, type ItemRecord } from '../items/items.api'
+import { AuthorizedImage } from '../media/AuthorizedImage'
 import { getBoxByPublicId } from './boxes.api'
 
 export function PublicBoxPage() {
@@ -57,6 +58,9 @@ export function PublicBoxPage() {
         </div>
         {isOwner ? <button type="button" onClick={() => setShowItemForm(true)}>新增物品</button> : null}
       </header>
+      {box.cover_object_key ? (
+        <AuthorizedImage objectKey={box.cover_object_key} alt={`${box.name}封面`} className="box-cover" />
+      ) : null}
       <p>{box.description || '暂无备注'}</p>
       <p className="summary-count">共 {totalQuantity} 件 · {box.items.length} 种物品</p>
 
@@ -72,6 +76,9 @@ export function PublicBoxPage() {
       <div className="card-grid">
         {box.items.map((item) => (
           <article className="panel item-card" key={item.id}>
+            {item.image_object_key ? (
+              <AuthorizedImage objectKey={item.image_object_key} alt={`${item.name}图片`} className="item-image" />
+            ) : null}
             <div><h2>{item.name}</h2><p>{item.category || '未分类'} · {item.quantity} 件</p></div>
             {isOwner ? (
               <div className="card-actions">

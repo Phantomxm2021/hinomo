@@ -29,13 +29,14 @@ export type EditableBox = CreatedBox & BoxInput
 export type PublicBox = EditableBox & {
   owner_id: string
   space_name: string
+  cover_object_key: string | null
   items: ItemRecord[]
 }
 
 export async function getBoxByPublicId(publicId: string): Promise<PublicBox | null> {
   const { data, error } = await supabase
     .from('boxes')
-    .select('id, owner_id, public_id, box_code, space_id, name, category, location, description, visibility, spaces(name), items(id, name, category, quantity, description, image_object_key)')
+    .select('id, owner_id, public_id, box_code, space_id, name, category, location, description, visibility, cover_object_key, spaces(name), items(id, name, category, quantity, description, image_object_key)')
     .eq('public_id', publicId)
     .single()
 
@@ -52,6 +53,7 @@ export async function getBoxByPublicId(publicId: string): Promise<PublicBox | nu
     location: data.location,
     description: data.description,
     visibility: data.visibility,
+    cover_object_key: data.cover_object_key,
     space_name: data.spaces.name,
     items: data.items,
   }

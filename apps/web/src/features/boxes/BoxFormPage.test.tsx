@@ -5,12 +5,13 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { BoxFormPage } from './BoxFormPage'
 
-const { mockCreateBox, mockGetBox, mockListSpaces, mockBoxQrPng, mockUpdateBox } = vi.hoisted(() => ({
+const { mockCreateBox, mockGetBox, mockListSpaces, mockBoxQrPng, mockUpdateBox, mockUpload } = vi.hoisted(() => ({
   mockCreateBox: vi.fn(),
   mockGetBox: vi.fn(),
   mockListSpaces: vi.fn(),
   mockBoxQrPng: vi.fn(),
   mockUpdateBox: vi.fn(),
+  mockUpload: vi.fn(),
 }))
 
 vi.mock('./boxes.api', () => ({
@@ -22,6 +23,9 @@ vi.mock('../spaces/spaces.api', () => ({ listSpaces: mockListSpaces }))
 vi.mock('../qr-print/qr', () => ({
   boxQrUrl: (_origin: string, publicId: string) => `https://nomo.test/b/${publicId}`,
   boxQrPng: mockBoxQrPng,
+}))
+vi.mock('../media/useMediaUpload', () => ({
+  useMediaUpload: () => ({ stage: 'idle', upload: mockUpload, reset: vi.fn() }),
 }))
 
 function renderBoxForm(initialEntry = '/app/boxes/new') {
@@ -46,6 +50,32 @@ beforeEach(() => {
   mockListSpaces.mockReset()
   mockBoxQrPng.mockReset()
   mockUpdateBox.mockReset()
+  mockUpload.mockReset()
+})
+
+test('uploads a selected cover after creating the box', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([
+    { id: 'space-home', name: '家', description: null, box_count: 0 },
+  ])
+  mockCreateBox.mockResolvedValue({
+    id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', name: '冬季衣物',
+  })
+  mockUpload.mockResolvedValue('boxes/box-1/cover.webp')
+  mockBoxQrPng.mockResolvedValue('data:image/png;base64,qr')
+  renderBoxForm()
+
+  await screen.findByRole('option', { name: '家' })
+  await user.selectOptions(screen.getByLabelText('空间'), 'space-home')
+  await user.type(screen.getByLabelText('箱子名称'), '冬季衣物')
+  const file = new File(['cover'], 'cover.png', { type: 'image/png' })
+  await user.upload(screen.getByLabelText('箱子封面（可选）'), file)
+  await user.click(screen.getByRole('button', { name: '创建箱子' }))
+
+  expect(mockUpload).toHaveBeenCalledWith({
+    file, boxId: 'box-1', itemId: null, kind: 'cover',
+  })
+  expect(await screen.findByText('BX-00001')).toBeInTheDocument()
 })
 
 test('edits mutable fields without sending database identifiers', async () => {
