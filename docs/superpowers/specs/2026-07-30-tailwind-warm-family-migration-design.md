@@ -54,6 +54,7 @@
   --color-success: #71896f;
   --color-danger: #b42318;
   --color-line: #e3d5c5;
+  --color-placeholder: #ead7c2;
 
   --radius-control: 0.875rem;
   --radius-card: 1.25rem;
