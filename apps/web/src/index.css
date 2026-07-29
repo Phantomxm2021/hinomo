@@ -962,6 +962,15 @@ input[type="search"]:focus {
   gap: 16px;
 }
 
+.space-editor-focus-sentinel {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .space-editor-heading h2 {
   margin-bottom: 0;
 }

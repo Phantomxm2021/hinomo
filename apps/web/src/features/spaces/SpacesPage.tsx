@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
@@ -14,10 +15,23 @@ import {
   updateSpace,
 } from './spaces.api'
 
+function getEditorControls(dialog: HTMLElement | null) {
+  if (!dialog) return []
+  return Array.from(
+    dialog.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), input:not(:disabled), textarea:not(:disabled)',
+    ),
+  )
+}
+
 export function SpacesPage() {
   const queryClient = useQueryClient()
   const editorOpenerRef = useRef<HTMLElement | null>(null)
   const headerCreateButtonRef = useRef<HTMLButtonElement | null>(null)
+  const editorDialogRef = useRef<HTMLElement | null>(null)
+  const editorCloseButtonRef = useRef<HTMLButtonElement | null>(null)
+  const editorSubmitButtonRef = useRef<HTMLButtonElement | null>(null)
+  const submissionPendingRef = useRef(false)
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<SpaceSummary | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
@@ -43,7 +57,6 @@ export function SpacesPage() {
     register,
     handleSubmit,
     reset,
-    setFocus,
     formState: { errors },
   } = useForm<SpaceFormValues>({
     resolver: zodResolver(spaceSchema),
@@ -75,22 +88,43 @@ export function SpacesPage() {
     if (!editorOpen && editorOpenerRef.current) restoreEditorFocus()
   }, [editorOpen, restoreEditorFocus])
 
+  const closeEditorOnEscape = useCallback((event: {
+    key: string
+  }) => {
+    if (event.key === 'Escape') closeEditor()
+  }, [closeEditor])
+
   useEffect(() => {
     if (!editorOpen) return
 
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') closeEditor()
-    }
-
-    document.addEventListener('keydown', closeOnEscape)
-    return () => document.removeEventListener('keydown', closeOnEscape)
-  }, [closeEditor, editorOpen])
+    document.addEventListener('keydown', closeEditorOnEscape)
+    return () => document.removeEventListener('keydown', closeEditorOnEscape)
+  }, [closeEditorOnEscape, editorOpen])
 
   useEffect(() => {
-    if (editorOpen && editorPending) setFocus('name')
-  }, [editorOpen, editorPending, setFocus])
+    if (!editorOpen) return
+
+    const appShell = document.querySelector<HTMLElement>('.app-shell')
+    const previousAriaHidden = appShell?.getAttribute('aria-hidden') ?? null
+    const hadInert = appShell?.hasAttribute('inert') ?? false
+    const previousBodyOverflow = document.body.style.overflow
+    appShell?.setAttribute('inert', '')
+    appShell?.setAttribute('aria-hidden', 'true')
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      if (appShell) {
+        if (!hadInert) appShell.removeAttribute('inert')
+        if (previousAriaHidden === null) appShell.removeAttribute('aria-hidden')
+        else appShell.setAttribute('aria-hidden', previousAriaHidden)
+      }
+      document.body.style.overflow = previousBodyOverflow
+    }
+  }, [editorOpen])
 
   const submit = handleSubmit(async (values) => {
+    if (submissionPendingRef.current) return
+    submissionPendingRef.current = true
     const input = {
       name: values.name,
       description: values.description || null,
@@ -107,6 +141,8 @@ export function SpacesPage() {
       reset({ name: '', description: '' })
     } catch {
       // Mutation state renders a stable Chinese error without leaking backend text.
+    } finally {
+      submissionPendingRef.current = false
     }
   })
 
@@ -159,47 +195,43 @@ export function SpacesPage() {
         </button>
       </header>
 
-      {editorOpen ? (
-        <div
+      {editorOpen
+        ? createPortal(
+          <div
           className="sheet-backdrop"
           role="presentation"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) closeEditor()
           }}
         >
-          <section
-            className="space-editor"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="space-editor-title"
-            onKeyDown={(event) => {
-              if (event.key !== 'Tab') return
-              const controls = Array.from(
-                event.currentTarget.querySelectorAll<HTMLElement>(
-                  'button:not(:disabled), input:not(:disabled), textarea:not(:disabled)',
-                ),
-              )
-              const firstControl = controls[0]
-              const lastControl = controls.at(-1)
-              if (!firstControl || !lastControl) return
-
-              if (event.shiftKey && document.activeElement === firstControl) {
-                event.preventDefault()
-                lastControl.focus()
-              } else if (!event.shiftKey && document.activeElement === lastControl) {
-                event.preventDefault()
-                firstControl.focus()
-              }
-            }}
-          >
+            <section
+              ref={editorDialogRef}
+              className="space-editor"
+              role="dialog"
+              aria-modal="true"
+              aria-busy={editorPending}
+              aria-labelledby="space-editor-title"
+            >
+            <span
+              className="space-editor-focus-sentinel"
+              tabIndex={0}
+              onFocus={() => getEditorControls(editorDialogRef.current).at(-1)?.focus()}
+            />
             <div className="space-editor-heading">
               <h2 id="space-editor-title">{editTarget ? '编辑空间' : '创建空间'}</h2>
               <button
+                ref={editorCloseButtonRef}
                 className="space-editor-close"
                 type="button"
                 aria-label={`关闭${editTarget ? '编辑空间' : '创建空间'}编辑器`}
                 disabled={editorPending}
                 onClick={closeEditor}
+                onKeyDown={(event) => {
+                  if (event.key === 'Tab' && event.shiftKey) {
+                    event.preventDefault()
+                    editorSubmitButtonRef.current?.focus()
+                  }
+                }}
               >
                 <AppIcon name="close" />
               </button>
@@ -210,32 +242,62 @@ export function SpacesPage() {
                 id="space-name"
                 {...register('name')}
                 autoFocus
+                aria-invalid={errors.name ? 'true' : undefined}
+                aria-describedby={errors.name ? 'space-name-error' : undefined}
                 readOnly={editorPending}
               />
-              {errors.name ? <p role="alert">{errors.name.message}</p> : null}
+              {errors.name ? (
+                <p id="space-name-error" role="alert">{errors.name.message}</p>
+              ) : null}
               <label htmlFor="space-description">描述（可选）</label>
               <textarea
                 id="space-description"
                 rows={3}
                 {...register('description')}
+                aria-invalid={errors.description ? 'true' : undefined}
+                aria-describedby={errors.description ? 'space-description-error' : undefined}
                 readOnly={editorPending}
               />
-              {errors.description ? <p role="alert">{errors.description.message}</p> : null}
+              {errors.description ? (
+                <p id="space-description-error" role="alert">
+                  {errors.description.message}
+                </p>
+              ) : null}
               {createMutation.isError || updateMutation.isError ? (
                 <p role="alert">保存失败，请稍后重试</p>
+              ) : null}
+              {editorPending ? (
+                <p role="status" aria-live="polite">正在保存空间…</p>
               ) : null}
               <div className="space-editor-actions">
                 <button type="button" disabled={editorPending} onClick={closeEditor}>
                   取消
                 </button>
-                <button type="submit" disabled={editorPending}>
+                <button
+                  ref={editorSubmitButtonRef}
+                  type="submit"
+                  disabled={editorPending}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Tab' && !event.shiftKey) {
+                      event.preventDefault()
+                      editorCloseButtonRef.current?.focus()
+                    }
+                  }}
+                >
                   {editorPending ? '保存中…' : editTarget ? '保存空间' : '创建空间'}
                 </button>
               </div>
             </form>
-          </section>
-        </div>
-      ) : null}
+            <span
+              className="space-editor-focus-sentinel"
+              tabIndex={0}
+              onFocus={() => getEditorControls(editorDialogRef.current)[0]?.focus()}
+            />
+            </section>
+          </div>,
+          document.body,
+        )
+        : null}
 
       {blockedMessage ? <p role="alert">{blockedMessage}</p> : null}
       {deleteMutation.isError ? <p role="alert">删除失败，请稍后重试</p> : null}
@@ -275,7 +337,6 @@ export function SpacesPage() {
                 className="space-card-action space-card-delete"
                 type="button"
                 aria-label={`删除${space.name}`}
-                aria-disabled={space.box_count > 0}
                 onClick={() => requestDelete(space)}
               >
                 <AppIcon name="trash" size={19} />
