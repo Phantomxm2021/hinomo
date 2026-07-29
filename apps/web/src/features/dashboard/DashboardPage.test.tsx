@@ -76,7 +76,8 @@ test('centers the dashboard on finding items, room totals, and recent activity',
   expect(within(recent).queryByText('不应出现')).not.toBeInTheDocument()
 
   expect(screen.queryByText('快捷开始')).not.toBeInTheDocument()
-  expect(screen.queryByRole('link', { name: /扫码查看/, hidden: false })).toBeInTheDocument()
+  expect(screen.getAllByRole('link', { name: '扫码查看' })).toHaveLength(1)
+  expect(screen.getByRole('link', { name: '扫码查看' })).toHaveClass('scan-icon-button')
   expect(screen.queryByText('生成新的收纳二维码')).not.toBeInTheDocument()
 })
 

@@ -25,6 +25,18 @@ test('renders accessible search controls and the scan link', () => {
   expect(screen.getByRole('link', { name: '扫码查看' })).toHaveAttribute('title', '扫码查看')
 })
 
+test('places the searchbox, submit button, and scan link in keyboard order', async () => {
+  const user = userEvent.setup()
+  renderFindBar()
+
+  await user.tab()
+  expect(screen.getByRole('searchbox', { name: '搜索物品或箱子' })).toHaveFocus()
+  await user.tab()
+  expect(screen.getByRole('button', { name: '搜索' })).toHaveFocus()
+  await user.tab()
+  expect(screen.getByRole('link', { name: '扫码查看' })).toHaveFocus()
+})
+
 test('navigates to the encoded search query on submit', async () => {
   const user = userEvent.setup()
   const router = renderFindBar()

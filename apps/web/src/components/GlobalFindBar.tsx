@@ -18,6 +18,7 @@ export function GlobalFindBar() {
       <div className="global-find-field">
         <AppIcon name="search" size={20} />
         <input
+          className="global-find-input"
           type="search"
           aria-label="搜索物品或箱子"
           placeholder="搜索物品或箱子"

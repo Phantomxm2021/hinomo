@@ -482,14 +482,22 @@ input[type="search"]:focus {
   box-shadow: var(--shadow-soft);
 }
 
+.global-find-field:focus-within {
+  border-color: var(--accent);
+}
+
 .global-find-field input {
   min-width: 0;
   height: 44px;
   flex: 1;
   border: 0;
-  outline: 0;
   color: var(--text-h);
   background: transparent;
+}
+
+.global-find-input:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: -4px;
 }
 
 .global-find-field input::placeholder {
