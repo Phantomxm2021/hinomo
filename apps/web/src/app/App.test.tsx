@@ -16,8 +16,9 @@ vi.mock('../lib/supabase', () => ({
   },
 }))
 
-test('renders the Nomo heading', () => {
+test('routes an anonymous visitor into the branded login experience', () => {
   render(<App />)
 
-  expect(screen.getByRole('heading', { name: 'Nomo' })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/')
+  expect(screen.getByRole('heading', { name: '登录' })).toBeInTheDocument()
 })

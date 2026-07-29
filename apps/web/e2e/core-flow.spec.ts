@@ -4,7 +4,11 @@ import { createBox, createMockState, createSpace, installMockBackend, register }
 test('owner creates, labels, and maintains a public box', async ({ browser, page }) => {
   const state = createMockState()
   await installMockBackend(page, state)
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/login$/)
   await register(page, 'owner@example.com')
+  await expect(page.getByRole('heading', { name: '收纳工作台' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /扫码查看/ })).toBeVisible()
   await createSpace(page, '家')
   const publicUrl = await createBox(page, '冬季衣物', 'public')
 
