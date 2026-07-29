@@ -809,8 +809,9 @@ input[type="search"]:focus {
 }
 
 .primary-link,
-.card-actions a {
-  min-height: 42px;
+.card-actions a,
+.card-actions button {
+  min-height: 44px;
   padding: 9px 15px;
   display: inline-flex;
   align-items: center;

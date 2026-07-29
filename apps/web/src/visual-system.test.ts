@@ -86,6 +86,13 @@ test('keeps a visible focus indicator on the dashboard searchbox', () => {
   )
 })
 
+test('preserves the legacy card action button affordance after Preflight', () => {
+  expect(css).toMatch(
+    /\.primary-link,\s*\.card-actions a,\s*\.card-actions button\s*\{[^}]*min-height:\s*44px;[^}]*padding:\s*9px 15px;[^}]*border:\s*1px solid var\(--accent-border\);[^}]*background:\s*var\(--accent-bg\);/,
+  )
+  expect(css).toMatch(/(?:^|\n):focus-visible\s*\{[^}]*outline:/)
+})
+
 test('hides only the dashboard scan button in the mobile navigation layout', () => {
   const mobileStart = css.indexOf('@media (max-width: 767px)')
   const mobileEnd = css.indexOf('@media (max-width: 520px)', mobileStart)
