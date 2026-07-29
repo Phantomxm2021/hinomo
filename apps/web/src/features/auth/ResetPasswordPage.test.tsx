@@ -6,10 +6,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from './AuthProvider'
 import { ResetPasswordPage } from './ResetPasswordPage'
 
-const { mockUpdateUser } = vi.hoisted(() => ({ mockUpdateUser: vi.fn() }))
+const { mockCompletePasswordRecovery, mockUpdateUser, storeSnapshot } =
+  vi.hoisted(() => ({
+    mockCompletePasswordRecovery: vi.fn(),
+    mockUpdateUser: vi.fn(),
+    storeSnapshot: {
+      session: null,
+      loading: false,
+      isPasswordRecovery: false,
+    },
+  }))
 
 vi.mock('../../lib/supabase', () => ({
   supabase: { auth: { updateUser: mockUpdateUser } },
+}))
+
+vi.mock('./auth-session-store', () => ({
+  completePasswordRecovery: mockCompletePasswordRecovery,
+  getAuthSessionSnapshot: () => storeSnapshot,
+  subscribeAuthSession: () => () => undefined,
 }))
 
 function renderReset(
@@ -36,6 +51,7 @@ function renderReset(
 describe('ResetPasswordPage', () => {
   beforeEach(() => {
     mockUpdateUser.mockReset()
+    mockCompletePasswordRecovery.mockReset()
     mockUpdateUser.mockResolvedValue({ data: {}, error: null })
   })
   afterEach(cleanup)
@@ -49,6 +65,7 @@ describe('ResetPasswordPage', () => {
     await user.click(screen.getByRole('button', { name: '保存新密码' }))
 
     expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'new-password' })
+    expect(mockCompletePasswordRecovery).toHaveBeenCalledOnce()
     expect(
       await screen.findByRole('heading', { name: '我的收纳' }),
     ).toBeInTheDocument()

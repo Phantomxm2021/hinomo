@@ -1,6 +1,9 @@
 import type { Session } from '@supabase/supabase-js'
-import { useEffect, useState, type PropsWithChildren } from 'react'
-import { supabase } from '../../lib/supabase'
+import { useSyncExternalStore, type PropsWithChildren } from 'react'
+import {
+  getAuthSessionSnapshot,
+  subscribeAuthSession,
+} from './auth-session-store'
 import { AuthContext } from './auth-context'
 
 type AuthProviderProps = PropsWithChildren<{
@@ -8,60 +11,36 @@ type AuthProviderProps = PropsWithChildren<{
   isPasswordRecovery?: boolean
 }>
 
-type AuthState = {
-  session: Session | null
-  loading: boolean
-  isPasswordRecovery: boolean
-}
-
 export function AuthProvider(props: AuthProviderProps) {
   const controlled = Object.prototype.hasOwnProperty.call(props, 'session')
-  const [authState, setAuthState] = useState<AuthState>(() => ({
-    session: props.session ?? null,
-    loading: !controlled,
-    isPasswordRecovery: controlled && (props.isPasswordRecovery ?? false),
-  }))
 
-  useEffect(() => {
-    if (controlled) {
-      setAuthState({
-        session: props.session ?? null,
-        loading: false,
-        isPasswordRecovery: props.isPasswordRecovery ?? false,
-      })
-      return
-    }
+  if (controlled) {
+    return (
+      <AuthContext.Provider
+        value={{
+          session: props.session ?? null,
+          loading: false,
+          isPasswordRecovery: props.isPasswordRecovery ?? false,
+        }}
+      >
+        {props.children}
+      </AuthContext.Provider>
+    )
+  }
 
-    let active = true
-    let receivedAuthEvent = false
-    const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!active) return
-      receivedAuthEvent = true
-      setAuthState({
-        session,
-        loading: false,
-        isPasswordRecovery: event === 'PASSWORD_RECOVERY',
-      })
-    })
+  return <LiveAuthProvider>{props.children}</LiveAuthProvider>
+}
 
-    void supabase.auth.getSession().then(({ data: sessionData }) => {
-      if (!active || receivedAuthEvent) return
-      setAuthState({
-        session: sessionData.session,
-        loading: false,
-        isPasswordRecovery: false,
-      })
-    })
-
-    return () => {
-      active = false
-      data.subscription.unsubscribe()
-    }
-  }, [controlled, props.isPasswordRecovery, props.session])
+function LiveAuthProvider({ children }: PropsWithChildren) {
+  const liveAuthState = useSyncExternalStore(
+    subscribeAuthSession,
+    getAuthSessionSnapshot,
+    getAuthSessionSnapshot,
+  )
 
   return (
-    <AuthContext.Provider value={authState}>
-      {props.children}
+    <AuthContext.Provider value={liveAuthState}>
+      {children}
     </AuthContext.Provider>
   )
 }

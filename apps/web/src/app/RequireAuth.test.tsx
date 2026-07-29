@@ -4,11 +4,24 @@ import {
   RouterProvider,
   useLocation,
 } from 'react-router-dom'
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 import type { Session } from '@supabase/supabase-js'
 import { AuthProvider } from '../features/auth/AuthProvider'
 import { AuthContext } from '../features/auth/auth-context'
 import { RequireAuth } from './RequireAuth'
+
+const { storeSnapshot } = vi.hoisted(() => ({
+  storeSnapshot: {
+    session: null,
+    loading: false,
+    isPasswordRecovery: false,
+  },
+}))
+
+vi.mock('../features/auth/auth-session-store', () => ({
+  getAuthSessionSnapshot: () => storeSnapshot,
+  subscribeAuthSession: () => () => undefined,
+}))
 
 afterEach(cleanup)
 

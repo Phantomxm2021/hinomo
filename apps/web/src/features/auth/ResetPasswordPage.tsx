@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { getAuthErrorMessage } from './auth-errors'
 import { useAuth } from './auth-context'
+import { completePasswordRecovery } from './auth-session-store'
 import {
   resetPasswordSchema,
   type ResetPasswordValues,
@@ -30,6 +31,7 @@ export function ResetPasswordPage() {
         setSubmitError(getAuthErrorMessage(error))
         return
       }
+      completePasswordRecovery()
       navigate('/app', { replace: true })
     } catch (error) {
       setSubmitError(getAuthErrorMessage(error))
