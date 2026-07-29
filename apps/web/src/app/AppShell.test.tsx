@@ -42,7 +42,12 @@ test('provides the complete desktop navigation without a scan destination', () =
   expect(screen.getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/app')
   expect(screen.getByText('我的收纳空间')).toBeInTheDocument()
   expect(screen.getByRole('complementary')).toHaveClass('lg:flex')
-  expect(screen.getByRole('main')).toHaveClass('lg:ml-60')
+  expect(screen.getByRole('main')).toHaveClass('lg:ml-60', 'lg:px-[clamp(1.75rem,4vw,4rem)]')
+  expect(within(navigation).getByRole('link', { name: '今日收纳' })).toHaveClass(
+    'bg-surface',
+    'text-ink',
+  )
+  expect(within(navigation).getByRole('link', { name: '我的空间' })).toHaveClass('text-muted')
 })
 
 test('provides five mobile destinations with a central scan action', () => {
@@ -66,7 +71,12 @@ test('provides five mobile destinations with a central scan action', () => {
     '/app/search',
   ])
   expect(within(navigation).getByRole('link', { name: '扫码' })).toHaveClass('mobile-scan-action')
-  expect(navigation).toHaveClass('lg:hidden')
+  expect(navigation).toHaveClass(
+    'lg:hidden',
+    'pb-[max(0.75rem,env(safe-area-inset-bottom))]',
+    'shadow-float',
+    'backdrop-blur',
+  )
 })
 
 test('marks the mobile scan action active on the scan route', () => {

@@ -19,12 +19,18 @@ test('renders accessible search controls and the scan link', () => {
   renderFindBar()
 
   expect(screen.getByRole('search')).toHaveClass('flex', 'items-stretch')
-  expect(screen.getByRole('searchbox', { name: '搜索物品或箱子' })).toBeInTheDocument()
+  expect(screen.getByRole('searchbox', { name: '搜索物品或箱子' })).toHaveClass(
+    'focus-visible:outline-none',
+  )
   expect(screen.getByRole('button', { name: '搜索' })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: '扫码查看' })).toHaveAttribute('href', '/app/scan')
   expect(screen.getByRole('link', { name: '扫码查看' })).toHaveClass(
     'hidden',
     'lg:inline-flex',
+    'shadow-soft',
+    'transition-colors',
+    'focus-visible:outline-3',
+    'focus-visible:outline-brand/45',
   )
   expect(screen.getByRole('link', { name: '扫码查看' })).toHaveAttribute('title', '扫码查看')
 })

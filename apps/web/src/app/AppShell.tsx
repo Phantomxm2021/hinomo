@@ -40,15 +40,15 @@ function Navigation({ items, mobile = false }: { items: NavigationItem[]; mobile
       className={({ isActive }: NavLinkRenderProps) =>
         [
           item.className,
-          'flex items-center gap-2.5 rounded-control text-muted no-underline',
+          'flex items-center gap-2.5 rounded-control no-underline',
           mobile
             ? 'flex-col justify-center gap-0.5 p-1 text-center text-xs'
             : 'px-2 py-2.5',
           isActive
             ? mobile
               ? 'active font-extrabold text-brand-strong'
-              : 'active bg-brand/10 font-extrabold text-brand-strong'
-            : 'hover:bg-surface/60 hover:text-ink',
+              : 'active bg-surface font-extrabold text-ink'
+            : 'text-muted hover:bg-surface/60 hover:text-ink',
         ].filter(Boolean).join(' ')
       }
     >
@@ -74,8 +74,8 @@ export function AppShell() {
         <nav className="grid gap-2" aria-label="主导航"><Navigation items={desktopNavigation} /></nav>
         <p className="mt-auto text-sm text-muted">我的收纳空间</p>
       </aside>
-      <main className="min-w-0 px-5 pt-6 pb-[calc(8rem+env(safe-area-inset-bottom))] lg:ml-60 lg:px-10 lg:pt-10 lg:pb-16 xl:px-16"><Outlet /></main>
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid min-h-18 grid-cols-5 border-t border-line/80 bg-surface/95 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-soft backdrop-blur-lg lg:hidden" aria-label="移动端主导航"><Navigation items={mobileNavigation} mobile /></nav>
+      <main className="min-w-0 px-5 pt-6 pb-[calc(8rem+env(safe-area-inset-bottom))] lg:ml-60 lg:px-[clamp(1.75rem,4vw,4rem)] lg:pt-10 lg:pb-16"><Outlet /></main>
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid min-h-18 grid-cols-5 border-t border-line/80 bg-surface/95 px-2 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-float backdrop-blur lg:hidden" aria-label="移动端主导航"><Navigation items={mobileNavigation} mobile /></nav>
     </div>
   )
 }

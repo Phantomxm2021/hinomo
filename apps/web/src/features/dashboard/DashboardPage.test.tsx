@@ -80,6 +80,14 @@ test('centers the dashboard on finding items, room totals, and recent activity',
   expect(screen.getByRole('link', { name: '扫码查看' })).toHaveClass('scan-icon-button')
   expect(screen.queryByText('生成新的收纳二维码')).not.toBeInTheDocument()
 
+  expect(screen.getByRole('region', { name: '早上好，今天找什么？' })).toHaveClass(
+    'mx-auto',
+    'flex',
+    'w-full',
+    'max-w-7xl',
+    'flex-col',
+    'gap-10',
+  )
   expect(screen.getByLabelText('收纳概览')).toHaveClass('sm:grid-cols-3')
   expect(screen.getByRole('region', { name: '按房间查看' }).querySelector('div.grid')).toHaveClass(
     'sm:grid-cols-2',

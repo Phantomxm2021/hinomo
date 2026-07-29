@@ -13,7 +13,7 @@ export function DashboardPage() {
   const itemTotal = boxes.reduce((sum, box) => sum + box.item_count, 0)
 
   return (
-    <section className="mx-auto grid w-full max-w-7xl gap-8" aria-labelledby="dashboard-title">
+    <section className="mx-auto flex w-full max-w-7xl flex-col gap-10" aria-labelledby="dashboard-title">
       <header className="flex flex-col gap-2 py-3">
         <p className="mb-1 text-xs font-extrabold tracking-[0.12em] text-brand uppercase">家庭总览</p>
         <h1 className="mb-4 max-w-3xl" id="dashboard-title">早上好，今天找什么？</h1>
