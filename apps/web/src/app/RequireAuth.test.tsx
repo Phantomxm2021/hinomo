@@ -7,6 +7,7 @@ import {
 import { afterEach, expect, test } from 'vitest'
 import type { Session } from '@supabase/supabase-js'
 import { AuthProvider } from '../features/auth/AuthProvider'
+import { AuthContext } from '../features/auth/auth-context'
 import { RequireAuth } from './RequireAuth'
 
 afterEach(cleanup)
@@ -62,4 +63,29 @@ test('renders the protected outlet for an authenticated session', async () => {
   renderAppAt('/app/boxes', { access_token: 'test-token' } as Session)
 
   expect(await screen.findByRole('heading', { name: '箱子' })).toBeInTheDocument()
+})
+
+test('does not redirect while the initial session is loading', () => {
+  const router = createMemoryRouter(
+    [
+      { path: '/login', element: <h1>登录</h1> },
+      {
+        path: '/app/*',
+        element: <RequireAuth />,
+        children: [{ path: '*', element: <h1>箱子</h1> }],
+      },
+    ],
+    { initialEntries: ['/app/boxes'] },
+  )
+
+  render(
+    <AuthContext.Provider
+      value={{ session: null, loading: true, isPasswordRecovery: false }}
+    >
+      <RouterProvider router={router} />
+    </AuthContext.Provider>,
+  )
+
+  expect(screen.getByRole('status')).toHaveTextContent('正在检查登录状态')
+  expect(screen.queryByRole('heading', { name: '登录' })).not.toBeInTheDocument()
 })

@@ -3,6 +3,8 @@ import { createContext, useContext } from 'react'
 
 export type AuthContextValue = {
   session: Session | null
+  loading: boolean
+  isPasswordRecovery: boolean
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

@@ -1,0 +1,22 @@
+import { z } from 'zod'
+
+export const credentialsSchema = z.object({
+  email: z.string().trim().email('请输入有效邮箱'),
+  password: z.string().min(8, '密码至少 8 位'),
+})
+
+export const emailSchema = credentialsSchema.pick({ email: true })
+
+export const resetPasswordSchema = z
+  .object({
+    password: z.string().min(8, '密码至少 8 位'),
+    confirmPassword: z.string().min(1, '请再次输入密码'),
+  })
+  .refine((values) => values.password === values.confirmPassword, {
+    message: '两次输入的密码不一致',
+    path: ['confirmPassword'],
+  })
+
+export type Credentials = z.infer<typeof credentialsSchema>
+export type EmailValues = z.infer<typeof emailSchema>
+export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>
