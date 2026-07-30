@@ -1,3 +1,4 @@
+import imageCompression from 'browser-image-compression'
 import type { Database } from '../../lib/database.types'
 import { supabase } from '../../lib/supabase'
 
@@ -37,11 +38,18 @@ export async function getAvatarDownload() {
 }
 
 export async function uploadAvatar(file: File) {
-  const session = await createAvatarUpload({ mimeType: file.type, sizeBytes: file.size })
+  const compressed = await imageCompression(file, {
+    fileType: 'image/webp',
+    initialQuality: 0.82,
+    maxSizeMB: 0.5,
+    maxWidthOrHeight: 512,
+    useWebWorker: true,
+  })
+  const session = await createAvatarUpload({ mimeType: compressed.type, sizeBytes: compressed.size })
   const response = await fetch(session.upload_url, {
     method: 'PUT',
-    headers: { 'Content-Type': file.type },
-    body: file,
+    headers: { 'Content-Type': compressed.type },
+    body: compressed,
   })
   if (!response.ok) throw new Error('R2 avatar upload failed')
   await confirmAvatarUpload(session.upload_id)
