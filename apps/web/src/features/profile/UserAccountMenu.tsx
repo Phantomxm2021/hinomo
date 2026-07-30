@@ -80,9 +80,10 @@ export function UserAccountMenu() {
       {dialog === 'profile' ? (
         <Dialog title="账户信息" onClose={() => setDialog(null)}>
           <div className="grid gap-4">
-            <label className="grid justify-items-center gap-2 font-bold text-ink">
+            <label className="group relative mx-auto block size-20 cursor-pointer overflow-hidden rounded-full" aria-label="更换头像">
               <Avatar src={avatar} name={name} size="lg" />
-              <span className="inline-flex min-h-11 cursor-pointer items-center rounded-control border border-line bg-canvas px-4 text-sm">更换头像<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) avatarMutation.mutate(file) }} /></span>
+              <span className="pointer-events-none absolute inset-0 grid place-items-center bg-ink/65 px-2 text-center text-xs font-bold text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">更换头像</span>
+              <input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) avatarMutation.mutate(file) }} />
             </label>
             {avatarMutation.isError ? <p role="alert">头像上传失败，请重试</p> : null}
             <ReadOnlyField label="昵称" value={name} />

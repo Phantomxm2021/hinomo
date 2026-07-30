@@ -126,6 +126,20 @@ test('opens real account actions and read-only profile details', async () => {
   expect(screen.getByLabelText('邮箱')).toHaveAttribute('readonly')
 })
 
+test('uses the avatar itself as the upload control with a hover cover', async () => {
+  const user = userEvent.setup()
+  renderShell()
+  await user.click(await screen.findByRole('button', { name: '打开账户菜单' }))
+  await user.click(screen.getByRole('menuitem', { name: /账户信息/ }))
+
+  const upload = screen.getByLabelText('更换头像')
+  const avatarControl = upload.closest('label')
+  const cover = screen.getByText('更换头像')
+
+  expect(avatarControl).toHaveClass('group', 'relative', 'rounded-full')
+  expect(cover).toHaveClass('absolute', 'opacity-0', 'group-hover:opacity-100')
+})
+
 test('keeps a mobile brand and account entry above page content', () => {
   renderShell()
 
