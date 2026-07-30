@@ -15,6 +15,9 @@ export type AppIconName =
   | 'chevron-right'
   | 'minus'
   | 'close'
+  | 'user'
+  | 'settings'
+  | 'logout'
 
 const iconPaths: Record<AppIconName, ReactNode> = {
   home: (
@@ -81,6 +84,19 @@ const iconPaths: Record<AppIconName, ReactNode> = {
   'chevron-right': <path d="m9 5 7 7-7 7" />,
   minus: <path d="M5 12h14" />,
   close: <path d="m6 6 12 12M18 6 6 18" />,
+  user: (
+    <>
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M5 21c.7-4 2.9-6 7-6s6.3 2 7 6" />
+    </>
+  ),
+  settings: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4" />
+    </>
+  ),
+  logout: <path d="M14 4H5v16h9M11 12h10M17 8l4 4-4 4" />,
 }
 
 type AppIconProps = Omit<SVGProps<SVGSVGElement>, 'children'> & {

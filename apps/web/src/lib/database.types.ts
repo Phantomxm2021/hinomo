@@ -293,6 +293,33 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          avatar_object_key: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          locale: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_object_key?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          locale?: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_object_key?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          locale?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -330,6 +357,22 @@ export type Database = {
           upload_id: string
           upload_url: string
         }[]
+      }
+      create_profile_avatar_upload: {
+        Args: { p_mime_type: string; p_size_bytes: number }
+        Returns: { object_key: string; upload_id: string; upload_url: string }[]
+      }
+      confirm_profile_avatar_upload: {
+        Args: { p_upload_id: string }
+        Returns: undefined
+      }
+      create_profile_avatar_download: {
+        Args: Record<PropertyKey, never>
+        Returns: { download_url: string; expires_at: string }[]
+      }
+      update_profile_locale: {
+        Args: { p_locale: string }
+        Returns: undefined
       }
       enqueue_removed_media: {
         Args: Record<PropertyKey, never>

@@ -1,7 +1,18 @@
 import { act, cleanup, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, expect, test, vi } from 'vitest'
+import type { Session } from '@supabase/supabase-js'
+import { AuthProvider } from '../features/auth/AuthProvider'
 import { AppShell } from './AppShell'
+
+vi.mock('../features/profile/profile.api', () => ({
+  getProfile: vi.fn().mockResolvedValue({ id: 'user-1', display_name: '林家', avatar_object_key: null, locale: 'zh-CN' }),
+  getAvatarDownload: vi.fn().mockResolvedValue(null),
+  updateLocale: vi.fn(),
+  uploadAvatar: vi.fn(),
+}))
 
 afterEach(cleanup)
 
@@ -19,19 +30,24 @@ test('announces offline state and clears it when connectivity returns', () => {
 })
 
 function renderShell(initialEntry = '/app') {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <MemoryRouter initialEntries={[initialEntry]}>
-      <Routes>
-        <Route path="/app" element={<AppShell />}>
-          <Route index element={<p>内容</p>} />
-          <Route path="*" element={<p>内容</p>} />
-        </Route>
-      </Routes>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider session={{ user: { id: 'user-1', email: 'lin@example.com', user_metadata: { display_name: '林家' } } } as unknown as Session}>
+          <Routes>
+            <Route path="/app" element={<AppShell />}>
+              <Route index element={<p>内容</p>} />
+              <Route path="*" element={<p>内容</p>} />
+            </Route>
+          </Routes>
+        </AuthProvider>
+      </QueryClientProvider>
     </MemoryRouter>,
   )
 }
 
-test('provides the complete desktop navigation without a scan destination', () => {
+test('provides the complete desktop navigation without a scan destination', async () => {
   renderShell()
 
   const navigation = screen.getByRole('navigation', { name: '主导航' })
@@ -54,8 +70,8 @@ test('provides the complete desktop navigation without a scan destination', () =
   expect(within(navigation).queryByRole('link', { name: '扫码' })).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/app')
   expect(within(screen.getByRole('link', { name: 'Nomo' })).getByText('N')).toHaveAttribute('aria-hidden', 'true')
-  expect(screen.getByText(/林家的收纳空间/)).toBeInTheDocument()
-  expect(screen.getByText('设置与退出')).toBeInTheDocument()
+  expect(await screen.findByText('林家')).toBeInTheDocument()
+  expect(screen.getByText('lin@example.com')).toBeInTheDocument()
   expect(screen.getByRole('complementary')).toHaveClass('lg:flex')
   expect(screen.getByRole('main')).toHaveClass('lg:ml-60', 'lg:px-[clamp(1.75rem,4vw,4rem)]')
   expect(within(navigation).getByRole('link', { name: '今日收纳' })).toHaveClass(
@@ -94,6 +110,20 @@ test('provides five mobile destinations with a central scan action', () => {
     'backdrop-blur',
   )
   expect(navigation).not.toHaveClass('border-line/80')
+})
+
+test('opens real account actions and read-only profile details', async () => {
+  const user = userEvent.setup()
+  renderShell()
+  await user.click(await screen.findByRole('button', { name: '打开账户菜单' }))
+  expect(screen.getByRole('menu')).toHaveClass('fixed', 'z-[60]')
+  expect(screen.getByRole('menuitem', { name: /账户信息/ })).toBeInTheDocument()
+  expect(screen.getByRole('menuitem', { name: /设置/ })).toBeInTheDocument()
+  expect(screen.getByRole('menuitem', { name: /退出登录/ })).toBeInTheDocument()
+  await user.click(screen.getByRole('menuitem', { name: /账户信息/ }))
+  expect(screen.getByRole('dialog', { name: '账户信息' })).toBeInTheDocument()
+  expect(screen.getByLabelText('昵称')).toHaveAttribute('readonly')
+  expect(screen.getByLabelText('邮箱')).toHaveAttribute('readonly')
 })
 
 test('keeps a mobile brand and account entry above page content', () => {

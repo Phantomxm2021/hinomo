@@ -5,6 +5,7 @@ import type { PropsWithChildren } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { AppShell } from '../../app/AppShell'
+import { AuthProvider } from '../../features/auth/AuthProvider'
 import { SpacesPage } from './SpacesPage'
 
 const { mockCreateSpace, mockDeleteSpace, mockListSpaces, mockUpdateSpace } = vi.hoisted(() => ({
@@ -101,11 +102,13 @@ test('isolates and restores the real application shell around the portalled edit
   render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={['/app/spaces']}>
-        <Routes>
-          <Route path="/app" element={<AppShell />}>
-            <Route path="spaces" element={<SpacesPage />} />
-          </Route>
-        </Routes>
+        <AuthProvider session={{ user: { id: 'user-1', email: 'lin@example.com', user_metadata: {} } } as unknown as import('@supabase/supabase-js').Session}>
+          <Routes>
+            <Route path="/app" element={<AppShell />}>
+              <Route path="spaces" element={<SpacesPage />} />
+            </Route>
+          </Routes>
+        </AuthProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   )
