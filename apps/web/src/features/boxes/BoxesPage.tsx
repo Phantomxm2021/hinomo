@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { PageState } from '../../components/PageState'
 import { AuthorizedImage } from '../media/AuthorizedImage'
 import { deleteBox, listBoxes, type BoxSummary } from './boxes.api'
 
@@ -53,8 +54,8 @@ export function BoxesPage() {
         </div>
       </header>
 
-      {boxesQuery.isPending ? <p role="status">正在加载箱子…</p> : null}
-      {boxesQuery.isError ? <p role="alert">箱子加载失败，请重试</p> : null}
+      {boxesQuery.isPending ? <PageState state="loading" label="正在加载箱子…" /> : null}
+      {boxesQuery.isError ? <PageState state="error" message="箱子加载失败，请重试" onRetry={() => void boxesQuery.refetch()} /> : null}
       {deleteMutation.isError ? <p role="alert">删除失败，请稍后重试</p> : null}
 
       {boxes.length > 0 ? (
@@ -85,7 +86,7 @@ export function BoxesPage() {
       ) : null}
 
       {boxesQuery.isSuccess && visibleBoxes.length === 0 ? (
-        <p className="grid min-h-48 place-content-center rounded-card border border-dashed border-line bg-surface/70 p-7 text-center">还没有箱子</p>
+        <PageState state="empty" title="还没有箱子" action={<Link className="inline-flex min-h-11 items-center rounded-control bg-brand px-4 py-2 font-bold text-white no-underline" to="/app/boxes/new">创建箱子</Link>} />
       ) : null}
 
       <div className="grid grid-cols-1 gap-5 min-[420px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">

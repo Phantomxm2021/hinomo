@@ -1,9 +1,22 @@
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 import { AppShell } from './AppShell'
 
 afterEach(cleanup)
+
+test('announces offline state and clears it when connectivity returns', () => {
+  vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true)
+  renderShell()
+  expect(screen.queryByText('当前离线，部分操作可能不可用')).not.toBeInTheDocument()
+
+  act(() => window.dispatchEvent(new Event('offline')))
+  expect(screen.getByRole('status')).toHaveTextContent('当前离线，部分操作可能不可用')
+
+  act(() => window.dispatchEvent(new Event('online')))
+  expect(screen.queryByText('当前离线，部分操作可能不可用')).not.toBeInTheDocument()
+  vi.restoreAllMocks()
+})
 
 function renderShell(initialEntry = '/app') {
   render(

@@ -33,6 +33,8 @@ test('rejects zero quantity before submit', async () => {
   await user.click(screen.getByRole('button', { name: '保存' }))
 
   expect(screen.getByText('数量必须大于 0')).toBeInTheDocument()
+  expect(screen.getByLabelText('数量')).toHaveAttribute('aria-invalid', 'true')
+  expect(screen.getByLabelText('数量')).toHaveAttribute('aria-describedby', 'item-quantity-error')
   expect(mockCreateItem).not.toHaveBeenCalled()
 })
 

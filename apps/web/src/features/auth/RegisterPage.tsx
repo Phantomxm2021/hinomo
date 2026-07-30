@@ -47,9 +47,10 @@ export function RegisterPage() {
             type="email"
             autoComplete="email"
             aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? 'register-email-error' : undefined}
             {...register('email')}
           />
-          {errors.email ? <p role="alert">{errors.email.message}</p> : null}
+          {errors.email ? <p id="register-email-error" role="alert">{errors.email.message}</p> : null}
 
           <label htmlFor="register-password">密码</label>
           <input
@@ -57,9 +58,10 @@ export function RegisterPage() {
             type="password"
             autoComplete="new-password"
             aria-invalid={Boolean(errors.password)}
+            aria-describedby={errors.password ? 'register-password-error' : undefined}
             {...register('password')}
           />
-          {errors.password ? <p role="alert">{errors.password.message}</p> : null}
+          {errors.password ? <p id="register-password-error" role="alert">{errors.password.message}</p> : null}
 
           {submitError ? <p role="alert">{submitError}</p> : null}
           <button type="submit" disabled={isSubmitting}>

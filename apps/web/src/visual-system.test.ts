@@ -32,18 +32,20 @@ test('defines every custom property referenced by authored CSS', () => {
   const missing = [...references].filter((name) => !definitions.has(name)).sort()
 
   expect(missing).toEqual([])
-  expect(css).toContain('--mono: "SFMono-Regular", Consolas, monospace;')
-  expect(css).toContain('--code-bg: #ebe6dc;')
 })
 
-test('layers legacy selectors below Tailwind utilities', () => {
-  const legacyLayerStart = css.indexOf('@layer components {')
-
-  expect(legacyLayerStart).toBeGreaterThan(-1)
-  expect(css).toMatch(/}\n\n@layer components \{\n\* \{/)
-  expect(css.slice(0, legacyLayerStart)).not.toMatch(/(?:^|\n)\* \{/)
-  expect(css.slice(legacyLayerStart)).toContain('button {')
-  expect(css.slice(legacyLayerStart)).toContain('.panel {')
+test('contains only the final Tailwind visual system primitives', () => {
+  expect(css).toContain('@layer base')
+  expect(css).toContain('@media (prefers-reduced-motion: reduce)')
+  expect(css).toContain('@media print')
+  expect(css).not.toContain('@layer components')
+  expect(css).not.toContain('radial-gradient')
+  for (const selector of ['.panel', '.card-grid', '.form-stack', '.auth-shell', '.quick-actions']) {
+    expect(css).not.toContain(selector)
+  }
+  for (const variable of ['--text:', '--bg:', '--accent:']) {
+    expect(css).not.toContain(variable)
+  }
 })
 
 test('does not restore the rejected dark-purple theme', () => {
@@ -58,10 +60,10 @@ test('uses the warm-family colors in PWA and browser metadata', () => {
   expect(indexHtml).toContain('<meta name="theme-color" content="#df6538" />')
 })
 
-test('keeps authentication compatibility after migrating the core workspace', () => {
-  expect(css).toContain('.auth-shell {')
+test('keeps global accessibility and output media rules', () => {
   expect(css).toContain(':focus-visible')
   expect(css).toContain('@media (prefers-reduced-motion: reduce)')
+  expect(css).toContain('@media print')
 })
 
 test('removes migrated core workspace selectors and the old mobile breakpoint', () => {
@@ -75,11 +77,8 @@ test('removes migrated core workspace selectors and the old mobile breakpoint', 
   ]) expect(css).not.toContain(selector)
 })
 
-test('preserves the legacy card action button affordance after Preflight', () => {
-  expect(css).toMatch(
-    /\.primary-link,\s*\.card-actions a,\s*\.card-actions button\s*\{[^}]*min-height:\s*44px;[^}]*padding:\s*9px 15px;[^}]*border:\s*1px solid var\(--accent-border\);[^}]*background:\s*var\(--accent-bg\);/,
-  )
-  expect(css).toMatch(/(?:^|\n):focus-visible\s*\{[^}]*outline:/)
+test('preserves the global focus affordance after Preflight', () => {
+  expect(css).toMatch(/(?:^|\n)\s*:focus-visible\s*\{[^}]*outline:/)
 })
 
 test('removes the migrated box catalogue selector', () => {
@@ -93,7 +92,7 @@ test('removes migrated box detail and item form selectors', () => {
     '.item-card',
     '.item-image',
   ]) expect(css).not.toContain(selector)
-  expect(css).toContain('.form-stack')
+  expect(css).not.toContain('.form-stack')
 })
 
 test('removes migrated search and print selectors', () => {

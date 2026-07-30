@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
+import { PageState } from '../../components/PageState'
 import { listBoxes } from '../boxes/boxes.api'
 import { searchItems } from './search.api'
 
@@ -80,8 +81,8 @@ export function SearchPage() {
       {!query ? (
         <p className="rounded-card border border-dashed border-line bg-surface/70 p-8 text-center text-muted">输入关键词，快速找到物品所在的箱子。</p>
       ) : null}
-      {isLoading ? <p role="status">正在搜索…</p> : null}
-      {hasError ? <p role="alert">搜索失败，请重试</p> : null}
+      {isLoading ? <PageState state="loading" label="正在搜索…" /> : null}
+      {hasError ? <PageState state="error" message="搜索失败，请重试" onRetry={() => void Promise.all([boxesQuery.refetch(), resultsQuery.refetch()])} /> : null}
 
       {!isLoading && !hasError && matchingBoxes.length > 0 ? (
         <section aria-labelledby="box-results-title">

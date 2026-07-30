@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { PageState } from '../../components/PageState'
 import { env } from '../../lib/env'
 import { useAuth } from '../auth/auth-context'
 import { ItemForm } from '../items/ItemForm'
@@ -36,9 +37,9 @@ export function PublicBoxPage() {
     },
   })
 
-  if (boxQuery.isPending) return <p role="status">正在加载箱子…</p>
+  if (boxQuery.isPending) return <PageState state="loading" label="正在加载箱子…" />
   if (boxQuery.isError || !boxQuery.data) {
-    return <main><h1>无权限或内容不存在</h1><p>请检查二维码或联系箱子所有者。</p></main>
+    return <PageState state="error" message="无权限或内容不存在" onRetry={() => void boxQuery.refetch()} />
   }
 
   const box = boxQuery.data

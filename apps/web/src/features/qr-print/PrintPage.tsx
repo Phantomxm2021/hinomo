@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import { AppIcon } from '../../components/AppIcon'
+import { PageState } from '../../components/PageState'
 import { env } from '../../lib/env'
 import { listBoxes } from '../boxes/boxes.api'
 import { buildLabels, renderLabelsPdf } from './pdf'
@@ -83,8 +84,8 @@ export function PrintPage() {
         <p className="mb-1 text-xs font-extrabold tracking-[0.12em] text-brand uppercase">整理、预览并下载标签</p>
         <h1 className="mb-0" id="print-title">打印二维码标签</h1>
       </header>
-      {boxesQuery.isPending ? <p role="status">正在加载箱子…</p> : null}
-      {boxesQuery.isError ? <p role="alert">箱子加载失败，请重试</p> : null}
+      {boxesQuery.isPending ? <PageState state="loading" label="正在加载箱子…" /> : null}
+      {boxesQuery.isError ? <PageState state="error" message="箱子加载失败，请重试" onRetry={() => void boxesQuery.refetch()} /> : null}
 
       <section className="hidden gap-6 lg:grid lg:grid-cols-[minmax(18rem,0.75fr)_1.25fr]" aria-label="批量标签工作台">
         <div className="flex min-w-0 flex-col gap-4">

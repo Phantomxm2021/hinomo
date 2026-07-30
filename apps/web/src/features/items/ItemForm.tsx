@@ -112,8 +112,8 @@ export function ItemForm({ boxId, item, onSaved, onCancel }: ItemFormProps) {
       </div>
       <div className="grid gap-2">
         <label className="font-bold text-ink" htmlFor="item-name">物品名称</label>
-        <input className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="item-name" {...register('name')} />
-        {errors.name ? <p role="alert">{errors.name.message}</p> : null}
+        <input className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="item-name" aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'item-name-error' : undefined} {...register('name')} />
+        {errors.name ? <p id="item-name-error" role="alert">{errors.name.message}</p> : null}
       </div>
       <div className="grid gap-2">
         <label className="font-bold text-ink" htmlFor="item-category">分类（可选）</label>
@@ -135,6 +135,8 @@ export function ItemForm({ boxId, item, onSaved, onCancel }: ItemFormProps) {
             id="item-quantity"
             type="number"
             min="1"
+            aria-invalid={Boolean(errors.quantity)}
+            aria-describedby={errors.quantity ? 'item-quantity-error' : undefined}
             {...register('quantity')}
           />
           <button
@@ -146,7 +148,7 @@ export function ItemForm({ boxId, item, onSaved, onCancel }: ItemFormProps) {
             <AppIcon name="plus" />
           </button>
         </div>
-        {errors.quantity ? <p role="alert">{errors.quantity.message}</p> : null}
+        {errors.quantity ? <p id="item-quantity-error" role="alert">{errors.quantity.message}</p> : null}
       </div>
       <div className="grid gap-2">
         <label className="font-bold text-ink" htmlFor="item-description">描述（可选）</label>

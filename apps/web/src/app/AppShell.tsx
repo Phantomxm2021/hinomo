@@ -4,6 +4,7 @@ import {
   Outlet,
   type NavLinkRenderProps,
 } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { AppIcon, type AppIconName } from '../components/AppIcon'
 
 type NavigationItem = {
@@ -64,8 +65,26 @@ function Navigation({ items, mobile = false }: { items: NavigationItem[]; mobile
 }
 
 export function AppShell() {
+  const [online, setOnline] = useState(() => navigator.onLine)
+
+  useEffect(() => {
+    const handleOnline = () => setOnline(true)
+    const handleOffline = () => setOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
   return (
-    <div className="app-shell min-h-dvh bg-canvas text-left text-ink">
+    <div className="min-h-dvh bg-canvas text-left text-ink">
+      {!online ? (
+        <p className="fixed inset-x-3 top-3 z-50 m-0 rounded-control bg-ink px-4 py-2 text-center text-sm font-bold text-white shadow-float lg:left-[calc(15rem+0.75rem)]" role="status">
+          当前离线，部分操作可能不可用
+        </p>
+      ) : null}
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col gap-10 overflow-y-auto border-r border-line bg-sidebar px-6 py-8 lg:flex">
         <div className="grid gap-0.5">
           <Link className="w-fit text-2xl font-black tracking-[-0.05em] text-ink no-underline" to="/app">Nomo</Link>

@@ -46,9 +46,10 @@ export function ForgotPasswordPage() {
             type="email"
             autoComplete="email"
             aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? 'forgot-email-error' : undefined}
             {...register('email')}
           />
-          {errors.email ? <p role="alert">{errors.email.message}</p> : null}
+          {errors.email ? <p id="forgot-email-error" role="alert">{errors.email.message}</p> : null}
           {submitError ? <p role="alert">{submitError}</p> : null}
           <button type="submit" disabled={isSubmitting}>
             {isSubmitting ? '发送中…' : '发送重置邮件'}

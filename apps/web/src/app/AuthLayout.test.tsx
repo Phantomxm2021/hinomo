@@ -17,6 +17,8 @@ test('frames authentication forms with the Nomo product identity', () => {
   )
 
   expect(screen.getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/')
+  expect(screen.getByLabelText('Nomo 产品介绍')).toHaveClass('bg-sidebar')
+  expect(screen.getByText('认证表单').parentElement).toHaveClass('bg-surface')
   expect(screen.getByText('让每件物品都有迹可循')).toBeInTheDocument()
   expect(screen.getByText('认证表单')).toBeInTheDocument()
 })

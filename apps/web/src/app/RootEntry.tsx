@@ -6,8 +6,8 @@ export function RootEntry() {
 
   if (loading) {
     return (
-      <main className="entry-loading">
-        <span className="brand-mark" aria-hidden="true">N</span>
+      <main className="grid min-h-dvh place-content-center justify-items-center gap-4 bg-canvas">
+        <span className="grid size-16 place-items-center rounded-card bg-brand text-3xl font-black text-white shadow-float" aria-hidden="true">N</span>
         <p role="status">正在进入 Nomo…</p>
       </main>
     )

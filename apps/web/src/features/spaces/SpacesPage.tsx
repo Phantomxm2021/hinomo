@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { PageState } from '../../components/PageState'
 import { spaceSchema, type SpaceFormValues } from './space.schema'
 import {
   createSpace,
@@ -304,14 +305,10 @@ export function SpacesPage() {
 
       {blockedMessage ? <p role="alert">{blockedMessage}</p> : null}
       {deleteMutation.isError ? <p role="alert">删除失败，请稍后重试</p> : null}
-      {spacesQuery.isPending ? <p role="status">正在加载空间…</p> : null}
-      {spacesQuery.isError ? <p role="alert">空间加载失败，请重试</p> : null}
+      {spacesQuery.isPending ? <PageState state="loading" label="正在加载空间…" /> : null}
+      {spacesQuery.isError ? <PageState state="error" message="空间加载失败，请重试" onRetry={() => void spacesQuery.refetch()} /> : null}
       {spacesQuery.data?.length === 0 ? (
-        <div className="grid justify-items-center gap-4 rounded-card border border-dashed border-line bg-surface/70 p-7 text-center sm:p-12">
-          <h2 className="mb-0">还没有空间</h2>
-          <p>从房间或区域开始，让箱子和物品更容易找到。</p>
-          <button className="inline-flex min-h-11 items-center justify-center rounded-control border border-brand bg-brand px-4 py-2.5 font-bold text-white hover:bg-brand-strong" type="button" onClick={beginCreate}>创建第一个空间</button>
-        </div>
+        <PageState state="empty" title="还没有空间" action={<button className="inline-flex min-h-11 items-center justify-center rounded-control border border-brand bg-brand px-4 py-2.5 font-bold text-white hover:bg-brand-strong" type="button" onClick={beginCreate}>创建第一个空间</button>} />
       ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
         {spacesQuery.data?.map((space) => (

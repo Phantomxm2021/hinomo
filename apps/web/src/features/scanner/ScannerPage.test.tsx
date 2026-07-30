@@ -64,5 +64,7 @@ test('validates a manually entered URL before navigating', async () => {
   await user.click(screen.getByRole('button', { name: '打开箱子' }))
 
   expect(screen.getByRole('alert')).toHaveTextContent('不是有效的 Nomo 箱子地址')
+  expect(input).toHaveAttribute('aria-invalid', 'true')
+  expect(input).toHaveAttribute('aria-describedby', 'manual-qr-url-error')
   expect(mockNavigate).not.toHaveBeenCalled()
 })

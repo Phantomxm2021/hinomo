@@ -78,6 +78,16 @@ test('uploads a selected cover after creating the box', async () => {
   expect(await screen.findByText('BX-00001')).toBeInTheDocument()
 })
 
+test('offers a retry when spaces cannot be loaded', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockRejectedValue(new Error('network'))
+  renderBoxForm()
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('空间加载失败')
+  await user.click(screen.getByRole('button', { name: '重试' }))
+  expect(mockListSpaces).toHaveBeenCalledTimes(2)
+})
+
 test('edits mutable fields without sending database identifiers', async () => {
   const user = userEvent.setup()
   mockListSpaces.mockResolvedValue([

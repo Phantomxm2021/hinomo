@@ -48,9 +48,10 @@ export function LoginPage() {
           type="email"
           autoComplete="email"
           aria-invalid={Boolean(errors.email)}
+          aria-describedby={errors.email ? 'login-email-error' : undefined}
           {...register('email')}
         />
-        {errors.email ? <p role="alert">{errors.email.message}</p> : null}
+        {errors.email ? <p id="login-email-error" role="alert">{errors.email.message}</p> : null}
 
         <label htmlFor="login-password">密码</label>
         <input
@@ -58,9 +59,10 @@ export function LoginPage() {
           type="password"
           autoComplete="current-password"
           aria-invalid={Boolean(errors.password)}
+          aria-describedby={errors.password ? 'login-password-error' : undefined}
           {...register('password')}
         />
-        {errors.password ? <p role="alert">{errors.password.message}</p> : null}
+        {errors.password ? <p id="login-password-error" role="alert">{errors.password.message}</p> : null}
 
         {submitError ? <p role="alert">{submitError}</p> : null}
         <button type="submit" disabled={isSubmitting}>

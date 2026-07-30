@@ -59,9 +59,10 @@ export function ResetPasswordPage() {
           type="password"
           autoComplete="new-password"
           aria-invalid={Boolean(errors.password)}
+          aria-describedby={errors.password ? 'reset-password-error' : undefined}
           {...register('password')}
         />
-        {errors.password ? <p role="alert">{errors.password.message}</p> : null}
+        {errors.password ? <p id="reset-password-error" role="alert">{errors.password.message}</p> : null}
 
         <label htmlFor="reset-confirm-password">确认新密码</label>
         <input
@@ -69,10 +70,11 @@ export function ResetPasswordPage() {
           type="password"
           autoComplete="new-password"
           aria-invalid={Boolean(errors.confirmPassword)}
+          aria-describedby={errors.confirmPassword ? 'reset-confirm-password-error' : undefined}
           {...register('confirmPassword')}
         />
         {errors.confirmPassword ? (
-          <p role="alert">{errors.confirmPassword.message}</p>
+          <p id="reset-confirm-password-error" role="alert">{errors.confirmPassword.message}</p>
         ) : null}
 
         {submitError ? <p role="alert">{submitError}</p> : null}

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { GlobalFindBar } from '../../components/GlobalFindBar'
+import { PageState } from '../../components/PageState'
 import { listBoxes } from '../boxes/boxes.api'
 import { AuthorizedImage } from '../media/AuthorizedImage'
 import { listSpaces } from '../spaces/spaces.api'
@@ -21,7 +22,7 @@ export function DashboardPage() {
       </header>
 
       {spacesQuery.isError || boxesQuery.isError ? (
-        <p role="alert">部分数据加载失败，请稍后重试</p>
+        <PageState state="error" message="部分数据加载失败，请稍后重试" onRetry={() => void Promise.all([spacesQuery.refetch(), boxesQuery.refetch()])} />
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-3" aria-label="收纳概览">
