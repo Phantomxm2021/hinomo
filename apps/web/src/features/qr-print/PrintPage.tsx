@@ -10,7 +10,7 @@ export function PrintPage() {
   const boxesQuery = useQuery({ queryKey: ['boxes'], queryFn: listBoxes })
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [mobileSelectedId, setMobileSelectedId] = useState('')
-  const [previewQr, setPreviewQr] = useState('')
+  const [previewQr, setPreviewQr] = useState<{ boxId: string; src: string } | null>(null)
   const [progress, setProgress] = useState<{ completed: number; total: number } | null>(null)
   const [error, setError] = useState(false)
   const [generating, setGenerating] = useState(false)
@@ -21,15 +21,15 @@ export function PrintPage() {
 
   useEffect(() => {
     let active = true
+    setPreviewQr(null)
     if (!selectedBox) {
-      setPreviewQr('')
       return
     }
     const qrUrl = boxQrUrl(env.VITE_PUBLIC_APP_ORIGIN, selectedBox.public_id)
     void boxQrPng(qrUrl).then((image) => {
-      if (active) setPreviewQr(image)
+      if (active) setPreviewQr({ boxId: selectedBox.id, src: image })
     }).catch(() => {
-      if (active) setPreviewQr('')
+      if (active) setPreviewQr(null)
     })
     return () => { active = false }
   }, [selectedBox])
@@ -100,7 +100,7 @@ export function PrintPage() {
           {selectedBox ? (
             <article className="mx-auto mt-8 grid max-w-2xl grid-cols-[minmax(10rem,0.9fr)_1.1fr] items-center gap-8 rounded-card border-2 border-line bg-surface p-8">
               <div className="aspect-square overflow-hidden rounded-control bg-canvas p-3">
-                {previewQr ? <img className="h-full w-full object-contain" src={previewQr} alt="二维码标签预览" /> : <span className="grid h-full place-items-center text-muted">正在生成二维码…</span>}
+                {previewQr?.boxId === selectedBox.id ? <img className="h-full w-full object-contain" src={previewQr.src} alt="二维码标签预览" /> : <span className="grid h-full place-items-center text-muted">正在生成二维码…</span>}
               </div>
               <div className="min-w-0"><h3 className="mb-3 text-3xl">{selectedBox.name}</h3><p className="mb-2 font-mono text-xl font-bold text-brand">{selectedBox.box_code}</p><p>{selectedBox.space_name} · {selectedBox.location || '未填写位置'}</p><p className="mt-8 text-sm">扫码查看箱内物品</p></div>
             </article>

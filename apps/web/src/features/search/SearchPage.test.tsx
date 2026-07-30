@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, useLocation } from 'react-router-dom'
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { SearchPage } from './SearchPage'
 
@@ -31,6 +31,17 @@ function LocationProbe() {
   return <output data-testid="location">{location.search}</output>
 }
 
+function NavigationControls() {
+  const navigate = useNavigate()
+  return (
+    <>
+      <button type="button" onClick={() => navigate('/app/search?q=camp')}>打开露营搜索</button>
+      <button type="button" onClick={() => navigate(-1)}>返回上一页</button>
+      <button type="button" onClick={() => navigate('/app/search')}>清除查询</button>
+    </>
+  )
+}
+
 function renderSearch(initialEntry = '/app/search') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
@@ -38,6 +49,7 @@ function renderSearch(initialEntry = '/app/search') {
       <QueryClientProvider client={client}>
         <SearchPage />
         <LocationProbe />
+        <NavigationControls />
       </QueryClientProvider>
     </MemoryRouter>,
   )
@@ -96,4 +108,29 @@ test('suggests scanning when no boxes or items match', async () => {
   renderSearch('/app/search?q=不存在')
 
   expect(await screen.findByRole('link', { name: '扫码查看箱子' })).toHaveAttribute('href', '/app/scan')
+})
+
+test('follows same-route URL navigation, history, and q removal without stale input or results', async () => {
+  const user = userEvent.setup()
+  mockSearchItems.mockImplementation(async (query: string) => [{
+    item_id: `item-${query}`, item_name: `${query}物品`, quantity: 1,
+    box_id: 'box-1', box_public_id: 'public-1', box_name: '测试箱',
+    space_name: '家', location: null,
+  }])
+  renderSearch('/app/search?q=充电器')
+
+  expect(await screen.findByText('充电器物品 × 1')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '打开露营搜索' }))
+  expect(screen.getByRole('searchbox')).toHaveValue('camp')
+  expect(await screen.findByText('camp物品 × 1')).toBeInTheDocument()
+  expect(screen.queryByText('充电器物品 × 1')).not.toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: '返回上一页' }))
+  expect(screen.getByRole('searchbox')).toHaveValue('充电器')
+  expect(await screen.findByText('充电器物品 × 1')).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: '清除查询' }))
+  expect(screen.getByRole('searchbox')).toHaveValue('')
+  expect(screen.getByText('输入关键词，快速找到物品所在的箱子。')).toBeInTheDocument()
+  expect(screen.queryByText('充电器物品 × 1')).not.toBeInTheDocument()
 })

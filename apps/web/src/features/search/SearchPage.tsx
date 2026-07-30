@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { listBoxes } from '../boxes/boxes.api'
@@ -10,20 +10,30 @@ export function SearchPage() {
   const urlQuery = searchParams.get('q') ?? ''
   const [input, setInput] = useState(urlQuery)
   const [query, setQuery] = useState('')
+  const inputRef = useRef(urlQuery)
+
+  useEffect(() => {
+    if (urlQuery === inputRef.current) return
+    inputRef.current = urlQuery
+    setInput(urlQuery)
+    setQuery('')
+  }, [urlQuery])
 
   useEffect(() => {
     const trimmed = input.trim()
     if (!trimmed) {
       setQuery('')
-      setSearchParams({}, { replace: true })
+      if (urlQuery) setSearchParams({}, { replace: true })
       return
     }
     const timer = window.setTimeout(() => {
+      inputRef.current = trimmed
+      if (input !== trimmed) setInput(trimmed)
       setQuery(trimmed)
-      setSearchParams({ q: trimmed }, { replace: true })
+      if (urlQuery !== trimmed) setSearchParams({ q: trimmed }, { replace: true })
     }, 250)
     return () => window.clearTimeout(timer)
-  }, [input, setSearchParams])
+  }, [input, setSearchParams, urlQuery])
 
   const boxesQuery = useQuery({ queryKey: ['boxes'], queryFn: listBoxes })
   const resultsQuery = useQuery({
@@ -60,7 +70,10 @@ export function SearchPage() {
           type="search"
           placeholder="搜索物品、箱子或编号"
           value={input}
-          onChange={(event) => setInput(event.target.value)}
+          onChange={(event) => {
+            inputRef.current = event.target.value
+            setInput(event.target.value)
+          }}
         />
       </label>
 

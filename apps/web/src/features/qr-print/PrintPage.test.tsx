@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { PrintPage } from './PrintPage'
@@ -23,7 +23,17 @@ const boxes = [{
   id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', name: '冬季衣物',
   space_id: 'space-1', space_name: '家', location: '衣柜上层', visibility: 'private',
   cover_object_key: null, item_count: 8, updated_at: '2026-07-29T10:00:00Z',
+}, {
+  id: 'box-2', public_id: 'public-2', box_code: 'BX-00002', name: '露营装备',
+  space_id: 'space-2', space_name: '储藏室', location: '北侧', visibility: 'public',
+  cover_object_key: null, item_count: 4, updated_at: '2026-07-28T10:00:00Z',
 }]
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((done) => { resolve = done })
+  return { promise, resolve }
+}
 
 function renderPrint() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -82,4 +92,34 @@ test('uses a separate mobile single-label choice without multi-select controls',
   expect(within(mobile).getByRole('button', { name: '下载单个标签' })).toBeDisabled()
   await user.click(await within(mobile).findByRole('radio', { name: /冬季衣物/ }))
   expect(within(mobile).getByRole('button', { name: '下载单个标签' })).toBeEnabled()
+})
+
+test('never pairs a previous or stale QR image with newly selected metadata', async () => {
+  const user = userEvent.setup()
+  const initialSecondQr = deferred<string>()
+  const firstQr = deferred<string>()
+  const refreshedSecondQr = deferred<string>()
+  mockBoxQrPng
+    .mockImplementationOnce(() => initialSecondQr.promise)
+    .mockImplementationOnce(() => firstQr.promise)
+    .mockImplementationOnce(() => refreshedSecondQr.promise)
+  renderPrint()
+  const desktop = screen.getByRole('region', { name: '批量标签工作台' })
+
+  await user.click(await within(desktop).findByRole('checkbox', { name: /露营装备/ }))
+  await act(() => { initialSecondQr.resolve('data:image/png;base64,second-old') })
+  expect(within(desktop).getByRole('img', { name: '二维码标签预览' })).toHaveAttribute('src', 'data:image/png;base64,second-old')
+
+  await user.click(within(desktop).getByRole('checkbox', { name: /冬季衣物/ }))
+  expect(within(desktop).getByText('BX-00001')).toBeInTheDocument()
+  expect(within(desktop).queryByRole('img', { name: '二维码标签预览' })).not.toBeInTheDocument()
+  expect(within(desktop).getByText('正在生成二维码…')).toBeInTheDocument()
+
+  await user.click(within(desktop).getByRole('checkbox', { name: /冬季衣物/ }))
+  expect(within(desktop).getByText('BX-00002')).toBeInTheDocument()
+  await act(() => { firstQr.resolve('data:image/png;base64,stale-first') })
+  expect(within(desktop).queryByRole('img', { name: '二维码标签预览' })).not.toBeInTheDocument()
+
+  await act(() => { refreshedSecondQr.resolve('data:image/png;base64,second-new') })
+  expect(within(desktop).getByRole('img', { name: '二维码标签预览' })).toHaveAttribute('src', 'data:image/png;base64,second-new')
 })
