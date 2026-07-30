@@ -79,7 +79,7 @@ export function AppShell() {
   }, [])
 
   return (
-    <div className="min-h-dvh bg-canvas text-left text-ink">
+    <div className="min-h-dvh bg-canvas text-left text-ink" data-app-shell>
       {!online ? (
         <p className="fixed inset-x-3 top-3 z-50 m-0 rounded-control bg-ink px-4 py-2 text-center text-sm font-bold text-white shadow-float lg:left-[calc(15rem+0.75rem)]" role="status">
           当前离线，部分操作可能不可用

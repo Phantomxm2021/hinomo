@@ -2,8 +2,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { PropsWithChildren } from 'react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { AppShell } from '../../app/AppShell'
 import { SpacesPage } from './SpacesPage'
 
 const { mockCreateSpace, mockDeleteSpace, mockListSpaces, mockUpdateSpace } = vi.hoisted(() => ({
@@ -28,7 +29,7 @@ function renderSpaces() {
   function Wrapper({ children }: PropsWithChildren) {
     return (
       <MemoryRouter>
-        <div className="app-shell">
+        <div data-app-shell>
           <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
         </div>
       </MemoryRouter>
@@ -93,6 +94,36 @@ test('keeps the create editor closed until the prominent action is used', async 
   expect(within(dialog).getByLabelText('描述（可选）')).toHaveValue('')
 })
 
+test('isolates and restores the real application shell around the portalled editor', async () => {
+  const user = userEvent.setup()
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  mockListSpaces.mockResolvedValue([])
+  render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/app/spaces']}>
+        <Routes>
+          <Route path="/app" element={<AppShell />}>
+            <Route path="spaces" element={<SpacesPage />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+
+  await screen.findByText('还没有空间')
+  const appShell = document.querySelector('[data-app-shell]')
+  expect(appShell).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: '创建空间' }))
+  expect(screen.getByRole('dialog', { name: '创建空间' })).toBeInTheDocument()
+  expect(appShell).toHaveAttribute('inert')
+  expect(appShell).toHaveAttribute('aria-hidden', 'true')
+
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: '取消' }))
+  expect(appShell).not.toHaveAttribute('inert')
+  expect(appShell).not.toHaveAttribute('aria-hidden')
+})
+
 test('creates a space, closes the editor, and resets it for the next create', async () => {
   const user = userEvent.setup()
   mockListSpaces
@@ -118,8 +149,8 @@ test('creates a space, closes the editor, and resets it for the next create', as
   })
   expect(await screen.findByText('家')).toBeInTheDocument()
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  expect(document.querySelector('.app-shell')).not.toHaveAttribute('inert')
-  expect(document.querySelector('.app-shell')).not.toHaveAttribute('aria-hidden')
+  expect(document.querySelector('[data-app-shell]')).not.toHaveAttribute('inert')
+  expect(document.querySelector('[data-app-shell]')).not.toHaveAttribute('aria-hidden')
   expect(document.body.style.overflow).toBe('')
 
   await user.click(screen.getByRole('button', { name: '创建空间' }))
@@ -135,7 +166,7 @@ test('isolates the app and locks scrolling while open, then restores on cancel a
   await screen.findByText('还没有空间')
   await user.click(screen.getByRole('button', { name: '创建空间' }))
 
-  const appShell = document.querySelector('.app-shell')
+  const appShell = document.querySelector('[data-app-shell]')
   expect(appShell).toHaveAttribute('inert')
   expect(appShell).toHaveAttribute('aria-hidden', 'true')
   expect(document.body.style.overflow).toBe('hidden')
@@ -160,7 +191,7 @@ test('restores pre-existing shell and body isolation values', async () => {
 
   await screen.findByText('还没有空间')
   const createButton = screen.getByRole('button', { name: '创建空间' })
-  const appShell = document.querySelector('.app-shell')!
+  const appShell = document.querySelector('[data-app-shell]')!
   appShell.setAttribute('inert', '')
   appShell.setAttribute('aria-hidden', 'false')
   document.body.style.overflow = 'clip'

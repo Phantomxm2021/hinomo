@@ -105,7 +105,7 @@ export function SpacesPage() {
   useEffect(() => {
     if (!editorOpen) return
 
-    const appShell = document.querySelector<HTMLElement>('.app-shell')
+    const appShell = document.querySelector<HTMLElement>('[data-app-shell]')
     const previousAriaHidden = appShell?.getAttribute('aria-hidden') ?? null
     const hadInert = appShell?.hasAttribute('inert') ?? false
     const previousBodyOverflow = document.body.style.overflow
