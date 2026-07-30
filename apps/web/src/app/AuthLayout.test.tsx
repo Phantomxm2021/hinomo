@@ -36,7 +36,7 @@ test('keeps authentication titles compact on mobile', () => {
   )
 
   expect(screen.getByRole('heading', { name: '登录' }).parentElement).toHaveClass(
-    '[&_h1]:text-2xl',
-    'md:[&_h1]:text-4xl',
+    '[&_h1]:text-page-title',
+    '[&_h1]:font-extrabold',
   )
 })

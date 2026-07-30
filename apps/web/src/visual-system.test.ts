@@ -7,6 +7,16 @@ import { expect, test } from 'vitest'
 const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
 const viteConfig = readFileSync(resolve(process.cwd(), 'vite.config.ts'), 'utf8')
 const indexHtml = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8')
+const alignedPageSources = [
+  'src/app/AuthLayout.tsx',
+  'src/features/boxes/BoxFormPage.tsx',
+  'src/features/boxes/BoxesPage.tsx',
+  'src/features/boxes/PublicBoxPage.tsx',
+  'src/features/qr-print/PrintPage.tsx',
+  'src/features/scanner/ScannerPage.tsx',
+  'src/features/search/SearchPage.tsx',
+  'src/features/spaces/SpacesPage.tsx',
+].map((path) => readFileSync(resolve(process.cwd(), path), 'utf8'))
 
 test('defines the approved Tailwind warm-family theme', () => {
   expect(css.startsWith('@import "tailwindcss";')).toBe(true)
@@ -23,6 +33,28 @@ test('defines the approved Tailwind warm-family theme', () => {
     '--color-line: #e3d5c5;',
     '--color-placeholder: #ead7c2;',
     '--breakpoint-lg: 64rem;',
+  ]) expect(css).toContain(token)
+})
+
+test('defines the approved semantic typography scale', () => {
+  for (const token of [
+    '--font-sans: "SF Pro Text", "SF Pro Display", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;',
+    '--text-display: clamp(2rem, 3.25vw, 3rem);',
+    '--text-display--line-height: 1.08;',
+    '--text-display--letter-spacing: -0.045em;',
+    '--text-metric: 2.5rem;',
+    '--text-metric--line-height: 1;',
+    '--text-page-title: clamp(1.5rem, 2.25vw, 2.25rem);',
+    '--text-page-title--line-height: 1.12;',
+    '--text-section-title: clamp(1.25rem, 1.5vw, 1.625rem);',
+    '--text-section-title--line-height: 1.2;',
+    '--text-card-title: 1.125rem;',
+    '--text-card-title--line-height: 1.3;',
+    '--text-body: 1rem;',
+    '--text-body--line-height: 1.55;',
+    '--text-meta: 0.875rem;',
+    '--text-meta--line-height: 1.45;',
+    '--tracking-eyebrow: 0.04em;',
   ]) expect(css).toContain(token)
 })
 
@@ -73,10 +105,10 @@ test('defines the warm heading hierarchy inside the base layer', () => {
 
   expect(baseStart).toBeGreaterThan(-1)
   expect(baseEnd).toBeGreaterThan(baseStart)
-  expect(base).toMatch(/h1,\s*h2,\s*h3\s*\{[^}]*color: var\(--color-ink\);[^}]*font-weight: 800;[^}]*letter-spacing: -0\.025em;[^}]*line-height: 1\.15;/s)
-  expect(base).toMatch(/h1\s*\{[^}]*font-size: clamp\(1\.75rem, 2\.5vw, 2\.25rem\);[^}]*letter-spacing: -0\.04em;[^}]*line-height: 1\.1;/s)
-  expect(base).toMatch(/h2\s*\{[^}]*font-size: clamp\(1\.35rem, 3vw, 2rem\);/s)
-  expect(base).toMatch(/h3\s*\{[^}]*font-size: 1\.125rem;[^}]*line-height: 1\.3;/s)
+  expect(base).toMatch(/h1,\s*h2,\s*h3\s*\{[^}]*color: var\(--color-ink\);[^}]*font-weight: 750;[^}]*letter-spacing: -0\.03em;/s)
+  expect(base).toMatch(/h1\s*\{[^}]*font-size: var\(--text-page-title\);[^}]*line-height: var\(--text-page-title--line-height\);/s)
+  expect(base).toMatch(/h2\s*\{[^}]*font-size: var\(--text-section-title\);[^}]*line-height: var\(--text-section-title--line-height\);/s)
+  expect(base).toMatch(/h3\s*\{[^}]*font-size: var\(--text-card-title\);[^}]*line-height: var\(--text-card-title--line-height\);/s)
 })
 
 test('removes migrated core workspace selectors and the old mobile breakpoint', () => {
@@ -112,4 +144,13 @@ test('removes migrated search and print selectors', () => {
   for (const selector of ['.search-result', '.print-option']) {
     expect(css).not.toContain(selector)
   }
+})
+
+test('keeps business pages on the shared typography language', () => {
+  const pages = alignedPageSources.join('\n')
+
+  expect(pages).not.toContain('text-xs font-extrabold tracking-[0.12em] text-brand uppercase')
+  expect(pages).not.toContain('text-2xl font-black tracking-tight text-ink md:text-4xl')
+  expect(pages.match(/text-meta font-medium tracking-eyebrow text-muted/g)?.length).toBeGreaterThanOrEqual(7)
+  expect(pages.match(/text-page-title font-extrabold/g)?.length).toBeGreaterThanOrEqual(7)
 })

@@ -92,7 +92,7 @@ export function PublicBoxPage() {
         <div className="flex min-w-0 flex-col justify-between gap-6">
           <div className="grid gap-3">
             <p className="font-mono text-sm font-extrabold tracking-wide text-brand">{box.box_code}</p>
-            <h1 className="m-0 text-2xl font-black tracking-tight text-ink md:text-4xl">{box.name}</h1>
+            <h1 className="m-0 text-page-title font-extrabold text-ink">{box.name}</h1>
             <div className="flex flex-wrap gap-2 text-sm font-bold">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-placeholder/70 px-3 py-1.5 text-ink">
                 <AppIcon name={box.visibility === 'public' ? 'globe' : 'lock'} size={16} />
@@ -135,7 +135,7 @@ export function PublicBoxPage() {
         <div className="flex items-end justify-between gap-4">
           <div>
             <p className="mb-1 text-sm font-extrabold text-brand">箱内清单</p>
-            <h2 className="m-0 text-2xl font-black text-ink" id="box-items-heading">物品</h2>
+            <h2 className="m-0 text-section-title font-bold text-ink" id="box-items-heading">物品</h2>
           </div>
           <span className="text-sm font-bold text-muted">{box.items.length} 种</span>
         </div>

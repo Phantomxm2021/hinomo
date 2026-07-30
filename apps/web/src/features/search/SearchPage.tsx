@@ -58,8 +58,8 @@ export function SearchPage() {
   return (
     <section className="mx-auto flex w-full max-w-5xl flex-col gap-8" aria-labelledby="search-title">
       <header className="flex flex-col gap-2 py-3">
-        <p className="mb-1 text-xs font-extrabold tracking-[0.12em] text-brand uppercase">按名称、编号、空间或位置查找</p>
-        <h1 className="mb-0" id="search-title">查找收纳</h1>
+        <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">按名称、编号、空间或位置查找</p>
+        <h1 className="mb-0 text-page-title font-extrabold" id="search-title">查找收纳</h1>
       </header>
 
       <label className="relative block" htmlFor="global-search">
@@ -87,7 +87,7 @@ export function SearchPage() {
       {!isLoading && !hasError && matchingBoxes.length > 0 ? (
         <section aria-labelledby="box-results-title">
           <div className="mb-3 flex items-baseline justify-between gap-3">
-            <h2 className="mb-0" id="box-results-title">箱子</h2>
+            <h2 className="mb-0 text-section-title font-bold" id="box-results-title">箱子</h2>
             <span className="text-sm text-muted">{matchingBoxes.length} 个结果</span>
           </div>
           <div className="overflow-hidden rounded-card border border-line bg-surface">
@@ -108,7 +108,7 @@ export function SearchPage() {
       {!isLoading && !hasError && items.length > 0 ? (
         <section aria-labelledby="item-results-title">
           <div className="mb-3 flex items-baseline justify-between gap-3">
-            <h2 className="mb-0" id="item-results-title">物品</h2>
+            <h2 className="mb-0 text-section-title font-bold" id="item-results-title">物品</h2>
             <span className="text-sm text-muted">{items.length} 个结果</span>
           </div>
           <div className="overflow-hidden rounded-card border border-line bg-surface">

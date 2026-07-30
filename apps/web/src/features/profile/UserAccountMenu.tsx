@@ -58,20 +58,20 @@ export function UserAccountMenu() {
       >
         <Avatar src={avatar} name={name} size="sm" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-bold text-ink">{name}</span>
-          <span className="block truncate text-xs text-muted">{user.email}</span>
+          <span className="block truncate text-body font-bold text-ink">{name}</span>
+          <span className="block truncate text-meta text-muted">{user.email}</span>
         </span>
         <AppIcon name="chevron-right" size={18} />
       </button>
       {open ? createPortal(
         <div className="fixed bottom-28 left-6 z-[60] grid w-72 max-w-[calc(100vw-3rem)] gap-1 rounded-card border border-line bg-surface p-2 shadow-float" role="menu">
-          <button className="flex min-h-11 items-center gap-3 rounded-control px-3 text-left font-bold text-ink hover:bg-canvas" type="button" role="menuitem" onClick={() => { setDialog('profile'); setOpen(false) }}>
+          <button className="flex min-h-11 items-center gap-3 rounded-control px-3 text-left text-body font-medium text-ink hover:bg-canvas" type="button" role="menuitem" onClick={() => { setDialog('profile'); setOpen(false) }}>
             <AppIcon name="user" size={18} />账户信息
           </button>
-          <button className="flex min-h-11 items-center gap-3 rounded-control px-3 text-left font-bold text-ink hover:bg-canvas" type="button" role="menuitem" onClick={() => { setDialog('settings'); setOpen(false) }}>
+          <button className="flex min-h-11 items-center gap-3 rounded-control px-3 text-left text-body font-medium text-ink hover:bg-canvas" type="button" role="menuitem" onClick={() => { setDialog('settings'); setOpen(false) }}>
             <AppIcon name="settings" size={18} />设置
           </button>
-          <button className="flex min-h-11 items-center gap-3 rounded-control px-3 text-left font-bold text-danger hover:bg-danger/5" type="button" role="menuitem" onClick={() => void signOut()}>
+          <button className="flex min-h-11 items-center gap-3 rounded-control px-3 text-left text-body font-medium text-danger hover:bg-danger/5" type="button" role="menuitem" onClick={() => void signOut()}>
             <AppIcon name="logout" size={18} />退出登录
           </button>
         </div>,
@@ -120,7 +120,7 @@ function Dialog({ title, onClose, children }: { title: string; onClose: () => vo
     <div className="fixed inset-0 z-[70] grid place-items-center bg-ink/45 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
       <section className="w-full max-w-md rounded-shell border border-line bg-surface p-6 shadow-float" role="dialog" aria-modal="true" aria-labelledby="user-dialog-title">
         <div className="mb-5 flex items-center justify-between gap-4">
-          <h2 className="m-0 text-2xl font-black" id="user-dialog-title">{title}</h2>
+          <h2 className="m-0 text-section-title font-bold" id="user-dialog-title">{title}</h2>
           <button className="grid size-11 place-items-center rounded-control border border-line bg-canvas" type="button" aria-label="关闭" onClick={onClose}><AppIcon name="close" /></button>
         </div>
         {children}

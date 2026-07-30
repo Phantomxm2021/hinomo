@@ -39,8 +39,8 @@ export function BoxesPage() {
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-7" aria-labelledby="boxes-title">
       <header className="flex flex-col gap-5 py-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="mb-1 text-xs font-extrabold tracking-[0.12em] text-brand uppercase">快速找到每一件物品</p>
-          <h1 className="mb-0" id="boxes-title">箱子</h1>
+          <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">快速找到每一件物品</p>
+          <h1 className="mb-0 text-page-title font-extrabold" id="boxes-title">箱子</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link className={secondaryAction} to="/app/print">
@@ -116,7 +116,7 @@ export function BoxesPage() {
             <div className="flex flex-1 flex-col gap-4 p-5">
               <div className="min-w-0">
                 <p className="font-mono text-xs font-extrabold text-brand">{box.box_code}</p>
-                <h2 className="mt-1 mb-2 truncate text-xl" id={`box-${box.id}-name`}>{box.name}</h2>
+                <h2 className="mt-1 mb-2 truncate text-card-title font-bold" id={`box-${box.id}-name`}>{box.name}</h2>
                 <p className="truncate text-sm">{box.space_name} · {box.location || '未填写位置'}</p>
               </div>
 

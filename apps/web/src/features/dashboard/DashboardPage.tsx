@@ -18,8 +18,8 @@ export function DashboardPage() {
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-10" aria-labelledby="dashboard-title">
       <header className="flex flex-col gap-2 py-3 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(26rem,auto)] lg:items-center lg:gap-6">
         <div>
-          <p className="mb-1 text-xs font-extrabold tracking-[0.12em] text-brand uppercase">家庭总览</p>
-          <h1 className="mb-4 max-w-3xl" id="dashboard-title">早上好，今天找什么？</h1>
+          <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">家庭总览</p>
+          <h1 className="mb-4 max-w-3xl text-display font-extrabold" id="dashboard-title">早上好，今天找什么？</h1>
         </div>
         <GlobalFindBar />
       </header>
@@ -30,25 +30,25 @@ export function DashboardPage() {
 
       <div className="hidden gap-4 sm:grid-cols-3 lg:grid" aria-label="收纳概览">
         <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label="空间统计">
-          <span className="font-bold text-ink">空间</span>
-          <strong className="text-5xl leading-none font-extrabold tracking-[-0.06em] text-ink">{spacesQuery.data?.length ?? '—'}</strong>
-          <span className="font-bold text-muted">客厅、卧室、书房...</span>
+          <span className="text-meta font-medium text-muted">空间</span>
+          <strong className="text-metric font-extrabold tracking-[-0.045em] text-ink">{spacesQuery.data?.length ?? '—'}</strong>
+          <span className="font-medium text-ink">客厅、卧室、书房...</span>
         </article>
         <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label="箱子统计">
-          <span className="font-bold text-ink">箱子</span>
-          <strong className="text-5xl leading-none font-extrabold tracking-[-0.06em] text-ink">{boxesQuery.data?.length ?? '—'}</strong>
-          <span className="font-bold text-muted">3 个最近更新</span>
+          <span className="text-meta font-medium text-muted">箱子</span>
+          <strong className="text-metric font-extrabold tracking-[-0.045em] text-ink">{boxesQuery.data?.length ?? '—'}</strong>
+          <span className="font-medium text-ink">3 个最近更新</span>
         </article>
         <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label="物品统计">
-          <span className="font-bold text-ink">物品</span>
-          <strong className="text-5xl leading-none font-extrabold tracking-[-0.06em] text-ink">{boxesQuery.data ? itemTotal : '—'}</strong>
-          <span className="font-bold text-muted">跨箱子快速搜索</span>
+          <span className="text-meta font-medium text-muted">物品</span>
+          <strong className="text-metric font-extrabold tracking-[-0.045em] text-ink">{boxesQuery.data ? itemTotal : '—'}</strong>
+          <span className="font-medium text-ink">跨箱子快速搜索</span>
         </article>
       </div>
 
       <section className="min-w-0" aria-labelledby="rooms-title">
         <div className="my-3.5">
-          <h2 className="mb-0" id="rooms-title">按房间查看</h2>
+          <h2 className="mb-0 text-section-title font-bold" id="rooms-title">按房间查看</h2>
         </div>
         {spacesQuery.isPending ? (
           <p role="status" aria-label="正在加载空间">正在加载空间…</p>
@@ -67,8 +67,8 @@ export function DashboardPage() {
                 <AppIcon name="space" size={22} />
               </span>
               <div>
-                <h3>{space.name}</h3>
-                <p>{space.box_count} 个箱子</p>
+                <h3 className="text-card-title font-bold">{space.name}</h3>
+                <p className="text-body text-muted">{space.box_count} 个箱子</p>
               </div>
             </Link>
           ))}
@@ -78,7 +78,7 @@ export function DashboardPage() {
       <section className="min-w-0" aria-labelledby="recent-boxes-title">
         <div className="my-3.5 flex items-center justify-between gap-4">
           <div>
-            <h2 className="mb-0" id="recent-boxes-title">最近打开</h2>
+            <h2 className="mb-0 text-section-title font-bold" id="recent-boxes-title">最近打开</h2>
           </div>
           {boxes.length > 0 ? <Link to="/app/boxes">查看全部</Link> : null}
         </div>
@@ -109,8 +109,8 @@ export function DashboardPage() {
                 )}
               </span>
               <span className="block px-5 pt-4.5 pb-5">
-                <h3>{box.name}</h3>
-                <p className="mb-2">{box.space_name} · {box.location || '未填写位置'}</p>
+                <h3 className="text-card-title font-bold">{box.name}</h3>
+                <p className="mb-2 text-meta text-muted">{box.space_name} · {box.location || '未填写位置'}</p>
               </span>
             </Link>
           ))}

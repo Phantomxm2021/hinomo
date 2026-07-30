@@ -49,7 +49,7 @@ test('uses compact mobile page titles with a desktop scale-up', async () => {
   renderBoxForm()
 
   const heading = await screen.findByRole('heading', { name: '创建箱子' })
-  expect(heading).toHaveClass('text-2xl', 'md:text-4xl')
+  expect(heading).toHaveClass('text-page-title', 'font-extrabold')
 })
 
 beforeEach(() => {

@@ -81,15 +81,15 @@ export function PrintPage() {
   return (
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-8" aria-labelledby="print-title">
       <header className="flex flex-col gap-2 py-3">
-        <p className="mb-1 text-xs font-extrabold tracking-[0.12em] text-brand uppercase">整理、预览并下载标签</p>
-        <h1 className="mb-0" id="print-title">打印二维码标签</h1>
+        <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">整理、预览并下载标签</p>
+        <h1 className="mb-0 text-page-title font-extrabold" id="print-title">打印二维码标签</h1>
       </header>
       {boxesQuery.isPending ? <PageState state="loading" label="正在加载箱子…" /> : null}
       {boxesQuery.isError ? <PageState state="error" message="箱子加载失败，请重试" onRetry={() => void boxesQuery.refetch()} /> : null}
 
       <section className="hidden gap-6 lg:grid lg:grid-cols-[minmax(18rem,0.75fr)_1.25fr]" aria-label="批量标签工作台">
         <div className="flex min-w-0 flex-col gap-4">
-          <div className="flex items-center justify-between gap-3"><h2 className="mb-0">选择箱子</h2><span className="text-sm font-bold text-brand">已选择 {selected.size} 个</span></div>
+          <div className="flex items-center justify-between gap-3"><h2 className="mb-0 text-section-title font-bold">选择箱子</h2><span className="text-meta font-medium text-muted">已选择 {selected.size} 个</span></div>
           <div className="grid max-h-[34rem] gap-2 overflow-y-auto pr-1">{boxesQuery.data?.map((box) => option(box, 'desktop'))}</div>
           <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control bg-brand px-4 py-2 font-bold text-white disabled:cursor-not-allowed disabled:opacity-45" type="button" disabled={selected.size === 0 || generating} onClick={() => void generate(selected)}>
             <AppIcon name="print" />{generating ? '生成中…' : '生成 PDF'}
@@ -97,7 +97,7 @@ export function PrintPage() {
         </div>
 
         <div className="min-h-[32rem] rounded-card border border-line bg-surface p-6">
-          <h2>标签预览</h2>
+          <h2 className="text-section-title font-bold">标签预览</h2>
           {selectedBox ? (
             <article className="mx-auto mt-8 grid max-w-2xl grid-cols-[minmax(10rem,0.9fr)_1.1fr] items-center gap-8 rounded-card border-2 border-line bg-surface p-8">
               <div className="aspect-square overflow-hidden rounded-control bg-canvas p-3">

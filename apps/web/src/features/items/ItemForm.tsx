@@ -93,7 +93,7 @@ export function ItemForm({ boxId, item, onSaved, onCancel }: ItemFormProps) {
       onSubmit={handleSubmit(submit)}
       noValidate
     >
-      <h2 className="m-0 text-2xl font-extrabold tracking-tight text-ink">
+      <h2 className="m-0 text-section-title font-bold text-ink">
         {item ? '编辑物品' : '新增物品'}
       </h2>
       <div className="grid gap-2">

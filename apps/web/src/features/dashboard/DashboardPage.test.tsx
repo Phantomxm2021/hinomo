@@ -45,8 +45,15 @@ test('centers the dashboard on finding items, room totals, and recent activity',
   ])
   renderDashboard()
 
-  expect(await screen.findByRole('heading', { name: /今天找什么？/ })).toBeInTheDocument()
-  expect(screen.getByText('家庭总览')).toBeInTheDocument()
+  const displayTitle = await screen.findByRole('heading', { name: /今天找什么？/ })
+  expect(displayTitle).toHaveClass('text-display', 'font-extrabold')
+  expect(screen.getByText('家庭总览')).toHaveClass(
+    'text-meta',
+    'font-medium',
+    'tracking-eyebrow',
+    'text-muted',
+  )
+  expect(screen.getByText('家庭总览')).not.toHaveClass('text-brand', 'uppercase')
   expect(screen.getByRole('searchbox', { name: '搜索物品或箱子' })).toBeInTheDocument()
   expect(screen.queryByText('空间分布')).not.toBeInTheDocument()
   expect(screen.queryByText('最近活动')).not.toBeInTheDocument()
@@ -57,9 +64,14 @@ test('centers the dashboard on finding items, room totals, and recent activity',
   expect(within(screen.getByLabelText('空间统计')).getByText('客厅、卧室、书房...')).toBeInTheDocument()
   expect(within(screen.getByLabelText('箱子统计')).getByText('3 个最近更新')).toBeInTheDocument()
   expect(within(screen.getByLabelText('物品统计')).getByText('跨箱子快速搜索')).toBeInTheDocument()
+  expect(within(screen.getByLabelText('空间统计')).getByText('2')).toHaveClass('text-metric')
   expect(screen.queryByText(/公开|私有/)).not.toBeInTheDocument()
 
   const rooms = screen.getByRole('region', { name: '按房间查看' })
+  expect(within(rooms).getByRole('heading', { name: '按房间查看' })).toHaveClass(
+    'text-section-title',
+    'font-bold',
+  )
   expect(within(rooms).getByRole('link', { name: /家/ })).toHaveAttribute(
     'href',
     '/app/boxes?space=home%20%2F%201',

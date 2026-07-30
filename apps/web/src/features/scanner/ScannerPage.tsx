@@ -76,8 +76,8 @@ export function ScannerPage() {
   return (
     <section className="mx-auto grid w-full max-w-4xl gap-6" aria-labelledby="scanner-title">
       <header className="py-3">
-        <p className="mb-1 text-xs font-extrabold tracking-[0.12em] text-brand uppercase">对准箱子上的二维码</p>
-        <h1 className="m-0 text-2xl font-black tracking-tight text-ink md:text-4xl" id="scanner-title">扫码查看</h1>
+        <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">对准箱子上的二维码</p>
+        <h1 className="m-0 text-page-title font-extrabold text-ink" id="scanner-title">扫码查看</h1>
       </header>
       <video className="block min-h-70 max-h-[65dvh] w-full rounded-shell bg-ink object-cover shadow-float" ref={videoRef} muted playsInline aria-label="二维码扫描画面" />
       {cameraMessage ? <p role="status">{cameraMessage}</p> : null}

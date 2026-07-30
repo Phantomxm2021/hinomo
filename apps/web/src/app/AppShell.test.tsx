@@ -76,9 +76,15 @@ test('provides the complete desktop navigation without a scan destination', asyn
   expect(screen.getByRole('main')).toHaveClass('lg:ml-60', 'lg:px-[clamp(1.75rem,4vw,4rem)]')
   expect(within(navigation).getByRole('link', { name: '今日收纳' })).toHaveClass(
     'bg-surface',
+    'font-bold',
+    'text-body',
     'text-ink',
   )
-  expect(within(navigation).getByRole('link', { name: '我的空间' })).toHaveClass('text-muted')
+  expect(within(navigation).getByRole('link', { name: '我的空间' })).toHaveClass(
+    'font-medium',
+    'text-body',
+    'text-muted',
+  )
 })
 
 test('provides five mobile destinations with a central scan action', () => {

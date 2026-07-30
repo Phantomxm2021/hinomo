@@ -182,8 +182,8 @@ export function SpacesPage() {
     <section className="mx-auto grid w-full max-w-7xl gap-6" aria-labelledby="spaces-title">
       <header className="flex flex-col items-stretch justify-between gap-5 py-3 sm:flex-row sm:items-center">
         <div>
-          <p className="mb-1 text-xs font-extrabold tracking-[0.12em] text-brand uppercase">整理你的收纳范围</p>
-          <h1 className="mb-0" id="spaces-title">空间</h1>
+          <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">整理你的收纳范围</p>
+          <h1 className="mb-0 text-page-title font-extrabold" id="spaces-title">空间</h1>
         </div>
         <button
           ref={headerCreateButtonRef}
@@ -219,7 +219,7 @@ export function SpacesPage() {
               onFocus={() => getEditorControls(editorDialogRef.current).at(-1)?.focus()}
             />
             <div className="mb-5 flex items-center justify-between gap-4">
-              <h2 className="mb-0" id="space-editor-title">{editTarget ? '编辑空间' : '创建空间'}</h2>
+              <h2 className="mb-0 text-section-title font-bold" id="space-editor-title">{editTarget ? '编辑空间' : '创建空间'}</h2>
               <button
                 ref={editorCloseButtonRef}
                 className="grid min-h-11 w-11 flex-none place-items-center rounded-control border border-line bg-canvas p-0 text-ink"
@@ -319,7 +319,7 @@ export function SpacesPage() {
             >
               <span className="grid h-12 w-12 flex-none place-items-center rounded-control bg-brand/10 text-brand-strong"><AppIcon name="space" size={24} /></span>
               <span className="min-w-0">
-                <h2 className="mb-1.5 text-lg">{space.name}</h2>
+                <h2 className="mb-1.5 text-card-title font-bold">{space.name}</h2>
                 {space.description ? <p className="truncate">{space.description}</p> : null}
                 <small className="mt-2 block">{space.box_count} 个箱子 · {space.item_count} 件物品</small>
               </span>

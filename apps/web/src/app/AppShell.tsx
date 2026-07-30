@@ -45,12 +45,12 @@ function Navigation({ items, mobile = false }: { items: NavigationItem[]; mobile
           'flex items-center gap-2.5 rounded-control no-underline',
           mobile
             ? 'flex-col justify-center gap-0.5 p-1 text-center text-xs'
-            : 'px-2 py-2.5',
+            : 'px-2 py-2.5 text-body',
           isActive
             ? mobile
               ? 'active font-extrabold text-brand-strong'
-              : 'active bg-surface font-extrabold text-ink'
-            : 'text-muted hover:bg-surface/60 hover:text-ink',
+              : 'active bg-surface font-bold text-ink'
+            : 'font-medium text-muted hover:bg-surface/60 hover:text-ink',
         ].filter(Boolean).join(' ')
       }
     >
