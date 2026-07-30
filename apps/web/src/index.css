@@ -323,12 +323,6 @@ input[type="search"]:focus {
 .section-heading {
   margin: 10px 0 14px;
 }
-.search-result:hover {
-  border-color: var(--accent-border);
-  box-shadow: var(--shadow);
-  transform: translateY(-2px);
-}
-
 .card-grid {
   display: grid;
   gap: 12px;
@@ -369,28 +363,6 @@ input[type="search"]:focus {
   color: #fff;
   background: var(--accent);
   white-space: nowrap;
-}
-
-.search-result {
-  display: grid;
-  gap: 6px;
-  color: inherit;
-  text-align: left;
-  text-decoration: none;
-  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
-}
-
-.print-option {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-}
-
-.print-option span {
-  display: grid;
-  gap: 4px;
-  text-align: left;
 }
 
 .scanner-preview {

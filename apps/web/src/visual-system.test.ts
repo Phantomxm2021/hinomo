@@ -95,3 +95,9 @@ test('removes migrated box detail and item form selectors', () => {
   ]) expect(css).not.toContain(selector)
   expect(css).toContain('.form-stack')
 })
+
+test('removes migrated search and print selectors', () => {
+  for (const selector of ['.search-result', '.print-option']) {
+    expect(css).not.toContain(selector)
+  }
+})

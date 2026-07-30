@@ -53,26 +53,26 @@ async function renderLabelPng(label: PrintableLabel) {
   const context = canvas.getContext('2d')
   if (!context) throw new Error('Canvas is unavailable')
 
-  context.fillStyle = '#ffffff'
+  context.fillStyle = '#fffdf8'
   context.fillRect(0, 0, canvas.width, canvas.height)
-  context.strokeStyle = '#d4d4d8'
+  context.strokeStyle = '#e3d5c5'
   context.lineWidth = 4
   context.strokeRect(2, 2, canvas.width - 4, canvas.height - 4)
   const qrImage = await loadImage(await boxQrPng(label.qrUrl))
   context.drawImage(qrImage, 55, 110, 390, 390)
 
-  context.fillStyle = '#111827'
+  context.fillStyle = '#30271e'
   context.font = '700 48px system-ui, sans-serif'
   context.fillText(fitText(context, label.name, 460), 490, 180)
   context.font = '700 34px ui-monospace, monospace'
-  context.fillStyle = '#7c3aed'
+  context.fillStyle = '#df6538'
   context.fillText(label.code, 490, 245)
   context.font = '32px system-ui, sans-serif'
-  context.fillStyle = '#374151'
+  context.fillStyle = '#30271e'
   context.fillText(fitText(context, `空间：${label.space}`, 460), 490, 330)
   context.fillText(fitText(context, `位置：${label.location || '未填写'}`, 460), 490, 385)
   context.font = '24px system-ui, sans-serif'
-  context.fillStyle = '#6b7280'
+  context.fillStyle = '#756a5e'
   context.fillText('扫码查看箱内物品', 490, 485)
   return canvas.toDataURL('image/png')
 }
