@@ -13,6 +13,7 @@ type Box = {
   location: string | null
   description: string | null
   visibility: 'public' | 'private'
+  updated_at: string
 }
 
 export type MockState = { spaces: Space[]; boxes: Box[]; items: Item[] }
@@ -72,7 +73,10 @@ export async function installMockBackend(page: Page, state: MockState) {
           id: space.id,
           name: space.name,
           description: space.description,
-          boxes: [{ count: state.boxes.filter((box) => box.space_id === space.id).length }],
+          boxes: state.boxes.filter((box) => box.space_id === space.id).map((box) => ({
+            id: box.id,
+            items: [{ count: state.items.filter((item) => item.box_id === box.id).length }],
+          })),
         })))
       }
       if (method === 'POST' && currentUserId) {
@@ -91,6 +95,7 @@ export async function installMockBackend(page: Page, state: MockState) {
           id: `box-${state.boxes.length + 1}`,
           public_id: `123e4567-e89b-42d3-a456-${String(state.boxes.length + 1).padStart(12, '0')}`,
           box_code: `BX-${String(state.boxes.length + 1).padStart(5, '0')}`,
+          updated_at: new Date().toISOString(),
         }
         state.boxes.push(box)
         return json(route, { id: box.id, public_id: box.public_id, box_code: box.box_code, name: box.name }, 201)
@@ -114,9 +119,33 @@ export async function installMockBackend(page: Page, state: MockState) {
         }
         return json(route, state.boxes.filter((box) => box.owner_id === currentUserId).map((box) => ({
           ...box,
+          cover_object_key: null,
+          items: [{ count: state.items.filter((item) => item.box_id === box.id).length }],
           spaces: { name: state.spaces.find((space) => space.id === box.space_id)?.name ?? '' },
         })))
       }
+    }
+
+    if (url.pathname === '/rest/v1/rpc/search_my_items' && method === 'POST' && currentUserId) {
+      const { p_query: query = '' } = request.postDataJSON() as { p_query?: string }
+      const needle = query.toLocaleLowerCase()
+      return json(route, state.items.flatMap((item) => {
+        const box = state.boxes.find((candidate) => candidate.id === item.box_id)
+        const space = state.spaces.find((candidate) => candidate.id === box?.space_id)
+        if (!box || box.owner_id !== currentUserId || !item.name.toLocaleLowerCase().includes(needle)) return []
+        return [{
+          item_id: item.id,
+          item_name: item.name,
+          category: item.category,
+          quantity: item.quantity,
+          box_id: box.id,
+          box_name: box.name,
+          box_public_id: box.public_id,
+          box_code: box.box_code,
+          location: box.location,
+          space_name: space?.name ?? '',
+        }]
+      }))
     }
 
     if (url.pathname === '/rest/v1/items' && method === 'POST' && currentUserId) {
@@ -140,18 +169,21 @@ export async function register(page: Page, email: string) {
 
 export async function createSpace(page: Page, name: string) {
   await page.goto('/app/spaces')
-  await page.getByLabel('空间名称').fill(name)
-  await page.getByRole('button', { name: '创建空间' }).click()
+  await page.getByRole('button', { name: '创建空间', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: '创建空间' })
+  await dialog.getByLabel('空间名称').fill(name)
+  await dialog.getByRole('button', { name: '创建空间', exact: true }).click()
   await page.getByRole('heading', { name, exact: true }).waitFor()
 }
 
 export async function createBox(page: Page, name: string, visibility: 'public' | 'private') {
   await page.goto('/app/boxes/new')
-  await page.getByLabel('空间').selectOption({ label: '家' })
-  await page.getByLabel('箱子名称').fill(name)
-  await page.getByLabel('具体位置').fill('衣柜上层')
-  await page.getByLabel('查看权限').selectOption(visibility)
-  await page.getByRole('button', { name: '创建箱子' }).click()
+  const form = page.getByRole('region', { name: '创建箱子' })
+  await form.getByLabel('空间').selectOption({ label: '家' })
+  await form.getByLabel('箱子名称').fill(name)
+  await form.getByLabel('具体位置').fill('衣柜上层')
+  await form.getByLabel('查看权限').selectOption(visibility)
+  await form.getByRole('button', { name: '创建箱子' }).click()
   await page.getByText(/BX-\d{5}/).waitFor()
   return page.getByRole('link', { name: /\/b\// }).getAttribute('href') as Promise<string>
 }
