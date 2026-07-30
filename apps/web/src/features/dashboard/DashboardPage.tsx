@@ -106,7 +106,7 @@ export function DashboardPage() {
           <div className="grid min-h-56 place-content-center justify-items-center gap-4 rounded-card border border-dashed border-line bg-surface/70 p-7 text-center">
             <h3>给每件物品一个好找的家</h3>
             <p>从第一个箱子开始，记录它放在哪里、里面有什么。</p>
-            <Link className="inline-flex min-h-11 items-center justify-center rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white no-underline" to="/app/boxes/new">创建第一个箱子</Link>
+            <Link className="inline-flex min-h-11 items-center justify-center rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white no-underline" to="/app/boxes?create=1">创建第一个箱子</Link>
           </div>
         ) : null}
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

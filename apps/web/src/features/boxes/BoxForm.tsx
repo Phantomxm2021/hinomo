@@ -192,12 +192,14 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCreated, onDone }
   }
 
   return (
-    <section className="mx-auto grid w-full max-w-4xl gap-6" data-presentation={presentation} aria-labelledby="box-form-title">
-      <header className="py-3">
-        <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">为实体箱子建立数字身份</p>
-        <h1 className="m-0 text-page-title font-extrabold text-ink" id="box-form-title">{editing ? '编辑箱子' : '创建箱子'}</h1>
-      </header>
-      <form className="grid gap-3 rounded-shell border border-line bg-surface p-5 md:p-6 [&_label]:font-bold [&_label]:text-ink" onSubmit={submit} noValidate>
+    <section className={presentation === 'page' ? 'mx-auto grid w-full max-w-4xl gap-6' : 'grid w-full gap-4'} data-presentation={presentation} aria-labelledby={presentation === 'page' ? 'box-form-title' : undefined}>
+      {presentation === 'page' ? (
+        <header className="py-3">
+          <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">为实体箱子建立数字身份</p>
+          <h1 className="m-0 text-page-title font-extrabold text-ink" id="box-form-title">{editing ? '编辑箱子' : '创建箱子'}</h1>
+        </header>
+      ) : null}
+      <form className={`grid gap-3 [&_label]:font-bold [&_label]:text-ink ${presentation === 'page' ? 'rounded-shell border border-line bg-surface p-5 md:p-6' : ''}`} onSubmit={submit} noValidate>
         <label htmlFor="box-space">空间</label>
         <select className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="box-space" aria-invalid={Boolean(errors.space_id)} aria-describedby={errors.space_id ? 'box-space-error' : undefined} {...register('space_id')}>
           <option value="">请选择空间</option>

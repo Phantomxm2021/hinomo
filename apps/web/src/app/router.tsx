@@ -38,7 +38,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <DashboardPage /> },
           { path: 'boxes', element: <BoxesPage /> },
-          { path: 'boxes/new', element: <BoxFormPage /> },
+          { path: 'boxes/new', element: <Navigate replace to="/app/boxes?create=1" /> },
           { path: 'boxes/:boxId', element: <BoxDetailPage /> },
           { path: 'boxes/:boxId/edit', element: <BoxFormPage /> },
           { path: 'search', element: <SearchPage /> },

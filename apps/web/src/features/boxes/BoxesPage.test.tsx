@@ -21,6 +21,21 @@ vi.mock('../media/AuthorizedImage', () => ({
   ),
 }))
 
+vi.mock('./CreateBoxModal', () => ({
+  CreateBoxModal: ({ open, onClose, onCreated, onDone }: {
+    open: boolean
+    onClose: () => void
+    onCreated: (box: unknown) => void
+    onDone: () => void
+  }) => open ? (
+    <div role="dialog" aria-label="创建箱子">
+      <button type="button" onClick={onClose}>关闭测试模态</button>
+      <button type="button" onClick={() => onCreated({ id: 'box-new' })}>模拟创建</button>
+      <button type="button" onClick={onDone}>完成测试创建</button>
+    </div>
+  ) : null,
+}))
+
 const boxes = [
   {
     id: 'box-1',
@@ -114,6 +129,33 @@ test('space chips replace the URL filter and all spaces clears it', async () => 
   expect(screen.getByTestId('location')).toBeEmptyDOMElement()
   expect(screen.getByText('冬季衣物')).toBeInTheDocument()
   expect(screen.getByText('露营用品')).toBeInTheDocument()
+})
+
+test('opens creation from the URL and closes it without losing the space filter', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes('/app/boxes?space=space-1&create=1')
+
+  expect(await screen.findByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '关闭测试模态' }))
+
+  expect(screen.queryByRole('dialog', { name: '创建箱子' })).not.toBeInTheDocument()
+  expect(screen.getByTestId('location')).toHaveTextContent('?space=space-1')
+})
+
+test('opens from both list actions and refreshes the list after creation', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes()
+
+  await screen.findByText('冬季衣物')
+  await user.click(screen.getByRole('button', { name: '创建箱子' }))
+  expect(screen.getByTestId('location')).toHaveTextContent('?create=1')
+  await user.click(screen.getByRole('button', { name: '模拟创建' }))
+  await user.click(screen.getByRole('button', { name: '完成测试创建' }))
+
+  expect(mockListBoxes).toHaveBeenCalledTimes(2)
+  expect(screen.queryByRole('dialog', { name: '创建箱子' })).not.toBeInTheDocument()
 })
 
 test('deletes a box after confirmation', async () => {

@@ -145,7 +145,7 @@ test('guides a first-time user to create a box', async () => {
 
   expect(await screen.findByRole('link', { name: '创建第一个箱子' })).toHaveAttribute(
     'href',
-    '/app/boxes/new',
+    '/app/boxes?create=1',
   )
   expect(screen.getByText(/从第一个箱子开始/)).toBeInTheDocument()
 })

@@ -1,16 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
 import { AuthorizedImage } from '../media/AuthorizedImage'
 import { deleteBox, listBoxes, type BoxSummary } from './boxes.api'
+import { CreateBoxModal } from './CreateBoxModal'
 
 const secondaryAction = 'inline-flex min-h-11 items-center justify-center rounded-control border border-line bg-surface px-3.5 py-2 font-bold text-ink no-underline transition hover:border-brand/40 hover:text-brand'
 
 export function BoxesPage() {
   const queryClient = useQueryClient()
+  const createButtonRef = useRef<HTMLButtonElement | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const [deleteTarget, setDeleteTarget] = useState<BoxSummary | null>(null)
   const boxesQuery = useQuery({ queryKey: ['boxes'], queryFn: listBoxes })
@@ -23,6 +25,7 @@ export function BoxesPage() {
   })
   const boxes = boxesQuery.data ?? []
   const selectedSpace = searchParams.get('space') ?? ''
+  const creating = searchParams.get('create') === '1'
   const spaces = [...new Map(boxes.map((box) => [box.space_id, box.space_name])).entries()]
   const visibleBoxes = selectedSpace
     ? boxes.filter((box) => box.space_id === selectedSpace)
@@ -33,6 +36,19 @@ export function BoxesPage() {
     if (spaceId) next.set('space', spaceId)
     else next.delete('space')
     setSearchParams(next, { replace: true })
+  }
+
+  const openCreate = () => {
+    const next = new URLSearchParams(searchParams)
+    next.set('create', '1')
+    setSearchParams(next, { replace: true })
+  }
+
+  const closeCreate = () => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('create')
+    setSearchParams(next, { replace: true })
+    window.requestAnimationFrame(() => createButtonRef.current?.focus())
   }
 
   return (
@@ -47,10 +63,10 @@ export function BoxesPage() {
             <AppIcon name="print" className="mr-2" />
             批量打印
           </Link>
-          <Link className="inline-flex min-h-11 items-center justify-center rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white no-underline transition hover:bg-brand-strong" to="/app/boxes/new">
+          <button ref={createButtonRef} className="inline-flex min-h-11 items-center justify-center rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white transition hover:bg-brand-strong" type="button" onClick={openCreate}>
             <AppIcon name="plus" className="mr-2" />
             创建箱子
-          </Link>
+          </button>
         </div>
       </header>
 
@@ -86,7 +102,7 @@ export function BoxesPage() {
       ) : null}
 
       {boxesQuery.isSuccess && visibleBoxes.length === 0 ? (
-        <PageState state="empty" title="还没有箱子" action={<Link className="inline-flex min-h-11 items-center rounded-control bg-brand px-4 py-2 font-bold text-white no-underline" to="/app/boxes/new">创建箱子</Link>} />
+        <PageState state="empty" title="还没有箱子" action={<button className="inline-flex min-h-11 items-center rounded-control bg-brand px-4 py-2 font-bold text-white" type="button" onClick={openCreate}>创建箱子</button>} />
       ) : null}
 
       <div className="grid grid-cols-2 gap-5 lg:grid-cols-3 2xl:grid-cols-4">
@@ -154,6 +170,12 @@ export function BoxesPage() {
         onConfirm={() => {
           if (deleteTarget) deleteMutation.mutate(deleteTarget.id)
         }}
+      />
+      <CreateBoxModal
+        open={creating}
+        onClose={closeCreate}
+        onCreated={() => { void queryClient.invalidateQueries({ queryKey: ['boxes'] }) }}
+        onDone={closeCreate}
       />
     </section>
   )

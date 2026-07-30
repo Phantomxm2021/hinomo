@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { BoxFormPage } from './BoxFormPage'
+import { BoxForm } from './BoxForm'
 
 const { mockCreateBox, mockGetBox, mockListSpaces, mockBoxQrPng, mockUpdateBox, mockUpload } = vi.hoisted(() => ({
   mockCreateBox: vi.fn(),
@@ -44,12 +45,32 @@ function renderBoxForm(initialEntry = '/app/boxes/new') {
   )
 }
 
+function renderModalBoxForm() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <MemoryRouter>
+      <QueryClientProvider client={client}>
+        <BoxForm presentation="modal" />
+      </QueryClientProvider>
+    </MemoryRouter>,
+  )
+}
+
 test('uses compact mobile page titles with a desktop scale-up', async () => {
   mockListSpaces.mockResolvedValue([])
   renderBoxForm()
 
   const heading = await screen.findByRole('heading', { name: '创建箱子' })
   expect(heading).toHaveClass('text-page-title', 'font-extrabold')
+})
+
+test('omits independent page framing inside a modal', async () => {
+  mockListSpaces.mockResolvedValue([])
+  renderModalBoxForm()
+
+  await screen.findByRole('button', { name: '创建箱子' })
+  expect(screen.queryByRole('heading', { name: '创建箱子' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '创建箱子' }).closest('form')).not.toHaveClass('rounded-shell', 'p-5')
 })
 
 beforeEach(() => {
