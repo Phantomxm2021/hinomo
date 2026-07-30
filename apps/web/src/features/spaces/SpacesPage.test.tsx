@@ -8,17 +8,23 @@ import { AppShell } from '../../app/AppShell'
 import { AuthProvider } from '../../features/auth/AuthProvider'
 import { SpacesPage } from './SpacesPage'
 
-const { mockCreateSpace, mockDeleteSpace, mockListSpaces, mockUpdateSpace } = vi.hoisted(() => ({
+const { mockCreateSpace, mockDeleteSpace, mockListSpaceLayouts, mockListSpaces, mockSaveSpaceLayout, mockStorageGetItem, mockStorageSetItem, mockUpdateSpace } = vi.hoisted(() => ({
   mockCreateSpace: vi.fn(),
   mockDeleteSpace: vi.fn(),
+  mockListSpaceLayouts: vi.fn(),
   mockListSpaces: vi.fn(),
+  mockSaveSpaceLayout: vi.fn(),
+  mockStorageGetItem: vi.fn(),
+  mockStorageSetItem: vi.fn(),
   mockUpdateSpace: vi.fn(),
 }))
 
 vi.mock('./spaces.api', () => ({
   createSpace: mockCreateSpace,
   deleteSpace: mockDeleteSpace,
+  listSpaceLayouts: mockListSpaceLayouts,
   listSpaces: mockListSpaces,
+  saveSpaceLayout: mockSaveSpaceLayout,
   updateSpace: mockUpdateSpace,
 }))
 
@@ -53,8 +59,19 @@ function deferred<T>() {
 beforeEach(() => {
   mockCreateSpace.mockReset()
   mockDeleteSpace.mockReset()
+  mockListSpaceLayouts.mockReset()
   mockListSpaces.mockReset()
+  mockSaveSpaceLayout.mockReset()
+  mockStorageGetItem.mockReset()
+  mockStorageSetItem.mockReset()
   mockUpdateSpace.mockReset()
+  mockListSpaceLayouts.mockResolvedValue([])
+  mockSaveSpaceLayout.mockResolvedValue(undefined)
+  mockStorageGetItem.mockReturnValue(null)
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: { getItem: mockStorageGetItem, setItem: mockStorageSetItem },
+  })
 })
 
 afterEach(() => {
@@ -408,10 +425,110 @@ test('renders direct navigation cards with exact counts and separate actions', a
   const cardLink = await screen.findByRole('link', { name: /家/ })
   expect(cardLink).toHaveAttribute('href', '/app/boxes?space=home%20%2F%201')
   expect(within(cardLink).getByText('日常收纳')).toBeInTheDocument()
-  expect(within(cardLink).getByText('2 个箱子 · 5 件物品')).toBeInTheDocument()
+  expect(within(cardLink).getByText('2 个箱子')).toBeInTheDocument()
+  expect(within(cardLink).getByText('5 件物品')).toBeInTheDocument()
   expect(within(cardLink).queryByRole('button')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: '编辑家' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '删除家' })).toBeInTheDocument()
+})
+
+test('defaults to cards and remembers the optional plan view', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', name: '客厅', description: '公共区域', box_count: 2, item_count: 5 },
+  ])
+  renderSpaces()
+
+  expect(await screen.findByRole('button', { name: '卡片视图' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('article')).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: '平面视图' }))
+
+  expect(screen.getByRole('button', { name: '平面视图' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('region', { name: '家庭平面总览' })).toBeInTheDocument()
+  expect(screen.queryByRole('article')).not.toBeInTheDocument()
+  expect(mockStorageSetItem).toHaveBeenCalledWith('nomo-space-view', 'plan')
+})
+
+test('restores a previously selected plan view', async () => {
+  mockStorageGetItem.mockReturnValue('plan')
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', name: '客厅', description: null, box_count: 0, item_count: 0 },
+  ])
+  renderSpaces()
+
+  expect(await screen.findByRole('button', { name: '平面视图' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('region', { name: '家庭平面总览' })).toBeInTheDocument()
+})
+
+test('reports a real layout query failure without hiding the automatic plan', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', name: '客厅', description: null, box_count: 0, item_count: 0 },
+  ])
+  mockListSpaceLayouts.mockRejectedValue(new Error('database unavailable'))
+  renderSpaces()
+
+  await user.click(await screen.findByRole('button', { name: '平面视图' }))
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('布局加载失败；当前显示自动布局')
+  expect(screen.getByRole('region', { name: '家庭平面总览' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '调整布局' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: '重试布局' })).toBeInTheDocument()
+})
+
+test('does not enable layout editing before stored positions finish loading', async () => {
+  const layoutResult = deferred<never[]>()
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', name: '客厅', description: null, box_count: 0, item_count: 0 },
+  ])
+  mockListSpaceLayouts.mockReturnValue(layoutResult.promise)
+  renderSpaces()
+
+  fireEvent.click(await screen.findByRole('button', { name: '平面视图' }))
+  expect(screen.getByRole('button', { name: '正在加载布局…' })).toBeDisabled()
+  layoutResult.resolve([])
+  expect(await screen.findByRole('button', { name: '调整布局' })).toBeEnabled()
+})
+
+test('saves a keyboard layout change while plan editing is enabled', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', name: '客厅', description: null, box_count: 2, item_count: 5 },
+  ])
+  renderSpaces()
+
+  await user.click(await screen.findByRole('button', { name: '平面视图' }))
+  await user.click(screen.getByRole('button', { name: '调整布局' }))
+  fireEvent.keyDown(screen.getByRole('link', { name: /客厅/ }), { key: 'ArrowRight' })
+
+  await waitFor(() => expect(mockSaveSpaceLayout).toHaveBeenCalledWith('s1', {
+    x: 22,
+    y: 29,
+    width: 60,
+    height: 42,
+  }))
+})
+
+test('serializes repeated layout saves so older writes cannot finish last', async () => {
+  const firstSave = deferred<void>()
+  mockSaveSpaceLayout.mockReset()
+  mockSaveSpaceLayout.mockReturnValueOnce(firstSave.promise).mockResolvedValueOnce(undefined)
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', name: '客厅', description: null, box_count: 2, item_count: 5 },
+  ])
+  renderSpaces()
+
+  fireEvent.click(await screen.findByRole('button', { name: '平面视图' }))
+  fireEvent.click(screen.getByRole('button', { name: '调整布局' }))
+  const room = screen.getByRole('link', { name: /客厅/ })
+  fireEvent.keyDown(room, { key: 'ArrowRight' })
+  fireEvent.keyDown(room, { key: 'ArrowRight' })
+
+  await waitFor(() => expect(mockSaveSpaceLayout).toHaveBeenCalledTimes(1))
+  firstSave.resolve()
+  await waitFor(() => expect(mockSaveSpaceLayout).toHaveBeenCalledTimes(2))
+  expect(mockSaveSpaceLayout).toHaveBeenLastCalledWith('s1', { x: 24, y: 29, width: 60, height: 42 })
 })
 
 test('explains why a non-empty space cannot be deleted', async () => {

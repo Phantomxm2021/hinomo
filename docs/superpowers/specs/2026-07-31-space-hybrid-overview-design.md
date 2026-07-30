@@ -60,9 +60,9 @@
 - `space_id uuid primary key`，级联关联 `public.spaces(id)`。
 - `owner_id uuid not null`，关联 `auth.users(id)`。
 - `x_percent smallint`，范围 0–80。
-- `y_percent smallint`，范围 0–80。
+- `y_percent smallint`，范围 0–90；仍由纵向总边界约束保证房间不超出画布。
 - `width_percent smallint`，范围 20–60，第一阶段固定使用默认值。
-- `height_percent smallint`，范围 18–50，第一阶段固定使用默认值。
+- `height_percent smallint`，范围 10–50，第一阶段由双列自动布局稳定生成。
 - `created_at`、`updated_at`。
 
 RLS 仅允许空间所有者读取、插入和更新。删除空间时布局记录自动级联删除。

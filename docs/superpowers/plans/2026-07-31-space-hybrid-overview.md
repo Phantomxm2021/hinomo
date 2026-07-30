@@ -18,11 +18,11 @@
 - Modify: `apps/web/src/features/spaces/spaces.api.ts`
 - Modify: `apps/web/src/features/spaces/spaces.api.test.ts`
 
-- [ ] Add failing API tests that map layout rows, tolerate a missing layout table by returning `[]`, and upsert the signed-in owner’s percentages.
-- [ ] Run `npm run test -- --run src/features/spaces/spaces.api.test.ts` and confirm the new tests fail.
-- [ ] Add `space_layouts` with owner-only RLS, percentage checks, updated-at trigger and authenticated grants.
-- [ ] Add manual database types plus `listSpaceLayouts()` and `saveSpaceLayout()`; only missing-table/schema-cache errors may fall back to `[]`.
-- [ ] Re-run the API tests and typecheck.
+- [x] Add failing API tests that map layout rows, tolerate a missing layout table by returning `[]`, and upsert the signed-in owner’s percentages.
+- [x] Run `npm run test -- --run src/features/spaces/spaces.api.test.ts` and confirm the new tests fail.
+- [x] Add `space_layouts` with owner-only RLS, percentage checks, updated-at trigger and authenticated grants.
+- [x] Add manual database types plus `listSpaceLayouts()` and `saveSpaceLayout()`; only missing-table/schema-cache errors may fall back to `[]`.
+- [x] Re-run the API tests and typecheck.
 
 ### Task 2: Build the reusable card and 2D map
 
@@ -32,11 +32,11 @@
 - Create: `apps/web/src/features/spaces/SpaceMap.tsx`
 - Create: `apps/web/src/features/spaces/SpaceMap.test.tsx`
 
-- [ ] Add failing tests for stable 1–12 room auto-layout, room-specific graphics, correct box-filter links, edit-mode pointer positioning and arrow-key 2% movement.
-- [ ] Run the focused test and confirm the components/helpers are missing.
-- [ ] Implement deterministic percentage positions, warm room surfaces, a responsive card, and a relative 2D canvas.
-- [ ] Clamp and snap coordinates before invoking `onLayoutChange(spaceId, position)`; never access Supabase from the visual component.
-- [ ] Re-run focused tests, lint and typecheck.
+- [x] Add failing tests for stable 1–12 room auto-layout, room-specific graphics, correct box-filter links and arrow-key 2% movement.
+- [x] Run the focused test and confirm the components/helpers are missing.
+- [x] Implement deterministic percentage positions, warm room surfaces, a responsive card, and a relative 2D canvas.
+- [x] Clamp and snap coordinates before invoking `onLayoutChange(spaceId, position)`; never access Supabase from the visual component.
+- [x] Re-run focused tests, lint and typecheck.
 
 ### Task 3: Integrate both views into `SpacesPage`
 
@@ -44,11 +44,11 @@
 - Modify: `apps/web/src/features/spaces/SpacesPage.tsx`
 - Modify: `apps/web/src/features/spaces/SpacesPage.test.tsx`
 
-- [ ] Add failing tests for default card view, card/plan segmented control, local preference restoration, 2D auto-layout fallback, layout edit mode and persistence mutation.
-- [ ] Run the focused page tests and confirm the current compact rows fail the new contract.
-- [ ] Query optional layouts, render `SpaceCard` in a 1/2/3-column catalogue, render `SpaceMap` in plan mode, and save changes with a dedicated mutation.
-- [ ] Preserve the existing create/edit/delete dialog, focus isolation, blocked deletion and query invalidation behavior unchanged.
-- [ ] Re-run all space page tests.
+- [x] Add failing tests for default card view, card/plan segmented control, local preference, layout edit mode and persistence mutation.
+- [x] Run the focused page tests and confirm the current compact rows fail the new contract.
+- [x] Query optional layouts, render `SpaceCard` in a 1/2/3-column catalogue, render `SpaceMap` in plan mode, and save changes with a dedicated mutation.
+- [x] Preserve the existing create/edit/delete dialog, focus isolation, blocked deletion and query invalidation behavior unchanged.
+- [x] Re-run all space page tests.
 
 ### Task 4: Verify responsive behavior and hand off SQL
 
@@ -56,8 +56,8 @@
 - Modify: `apps/web/e2e/core-flow.spec.ts`
 - Modify: `docs/superpowers/reports/2026-07-30-layout-style-followup-audit.md`
 
-- [ ] Extend E2E coverage to switch views at desktop and mobile widths, verify the plan contains the created room, and assert no horizontal overflow.
-- [ ] Run full Vitest, typecheck, lint and production build.
-- [ ] Run Playwright desktop/iPhone/Pixel and confirm all journeys pass.
-- [ ] Record the design rationale, fallback behavior and SQL handoff requirement in the audit report.
-- [ ] Commit the implementation without executing the Supabase migration; the user will run the supplied SQL.
+- [x] Extend E2E coverage to switch views at desktop and mobile widths, verify the plan contains the created room, and assert no horizontal overflow.
+- [x] Run full Vitest, typecheck, lint and production build.
+- [x] Run Playwright desktop/iPhone/Pixel and confirm all journeys pass.
+- [x] Record the design rationale, fallback behavior and SQL handoff requirement in the audit report.
+- [x] Commit the implementation without executing the Supabase migration; the user will run the supplied SQL.

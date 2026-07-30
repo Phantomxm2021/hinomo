@@ -1,6 +1,7 @@
 import type { Page, Route } from '@playwright/test'
 
 type Space = { id: string; owner_id: string; name: string; description: string | null }
+type SpaceLayout = { space_id: string; owner_id: string; x_percent: number; y_percent: number; width_percent: number; height_percent: number }
 type Item = { id: string; box_id: string; name: string; category: string | null; quantity: number; description: string | null }
 type Box = {
   id: string
@@ -16,9 +17,9 @@ type Box = {
   updated_at: string
 }
 
-export type MockState = { spaces: Space[]; boxes: Box[]; items: Item[] }
+export type MockState = { spaces: Space[]; spaceLayouts: SpaceLayout[]; boxes: Box[]; items: Item[] }
 
-export const createMockState = (): MockState => ({ spaces: [], boxes: [], items: [] })
+export const createMockState = (): MockState => ({ spaces: [], spaceLayouts: [], boxes: [], items: [] })
 
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
@@ -84,6 +85,26 @@ export async function installMockBackend(page: Page, state: MockState) {
         const space = { ...input, id: `space-${state.spaces.length + 1}`, owner_id: currentUserId }
         state.spaces.push(space)
         return json(route, { id: space.id }, 201)
+      }
+    }
+
+    if (url.pathname === '/rest/v1/space_layouts') {
+      if (method === 'GET') {
+        return json(route, state.spaceLayouts.filter((layout) => layout.owner_id === currentUserId).map((layout) => ({
+          space_id: layout.space_id,
+          x_percent: layout.x_percent,
+          y_percent: layout.y_percent,
+          width_percent: layout.width_percent,
+          height_percent: layout.height_percent,
+        })))
+      }
+      if (method === 'POST' && currentUserId) {
+        const input = request.postDataJSON() as Omit<SpaceLayout, 'owner_id'> & { owner_id?: string }
+        const layout = { ...input, owner_id: currentUserId }
+        const existingIndex = state.spaceLayouts.findIndex((candidate) => candidate.space_id === input.space_id)
+        if (existingIndex >= 0) state.spaceLayouts[existingIndex] = layout
+        else state.spaceLayouts.push(layout)
+        return json(route, null, 201)
       }
     }
 

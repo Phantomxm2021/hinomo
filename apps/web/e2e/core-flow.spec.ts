@@ -32,6 +32,11 @@ test('owner creates, finds, labels, and maintains a public box', async ({ browse
   if (testInfo.project.name === 'desktop-chromium') await expectDesktopNavigation(page)
   else await expectMobileNavigation(page)
   await createSpace(page, '家')
+  await expect(page.getByRole('button', { name: '卡片视图' })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: '平面视图' }).click()
+  await expect(page.getByRole('region', { name: '家庭平面总览' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /家/ })).toBeVisible()
+  await expectNoHorizontalOverflow(page)
   const publicUrl = await createBox(page, '冬季衣物', 'public')
 
   await page.goto(publicUrl)

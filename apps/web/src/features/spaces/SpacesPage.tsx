@@ -3,18 +3,33 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useForm } from 'react-hook-form'
-import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
+import { SpaceCard } from './SpaceCard'
+import { SpaceMap } from './SpaceMap'
 import { spaceSchema, type SpaceFormValues } from './space.schema'
 import {
   createSpace,
   deleteSpace,
+  listSpaceLayouts,
   listSpaces,
+  saveSpaceLayout,
+  type SpaceLayout,
+  type SpacePosition,
   type SpaceSummary,
   updateSpace,
 } from './spaces.api'
+
+type SpaceView = 'cards' | 'plan'
+
+function getInitialView(): SpaceView {
+  try {
+    return window.localStorage.getItem('nomo-space-view') === 'plan' ? 'plan' : 'cards'
+  } catch {
+    return 'cards'
+  }
+}
 
 function getEditorControls(dialog: HTMLElement | null) {
   if (!dialog) return []
@@ -33,11 +48,15 @@ export function SpacesPage() {
   const editorCloseButtonRef = useRef<HTMLButtonElement | null>(null)
   const editorSubmitButtonRef = useRef<HTMLButtonElement | null>(null)
   const submissionPendingRef = useRef(false)
+  const layoutSaveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<SpaceSummary | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<SpaceSummary | null>(null)
+  const [layoutEditMode, setLayoutEditMode] = useState(false)
+  const [view, setView] = useState<SpaceView>(getInitialView)
   const spacesQuery = useQuery({ queryKey: ['spaces'], queryFn: listSpaces })
+  const layoutsQuery = useQuery({ queryKey: ['space-layouts'], queryFn: listSpaceLayouts })
   const createMutation = useMutation({
     mutationFn: (input: Parameters<typeof createSpace>[0]) => createSpace(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['spaces'] }),
@@ -53,6 +72,21 @@ export function SpacesPage() {
     mutationFn: ({ id, input }: { id: string; input: Parameters<typeof updateSpace>[1] }) =>
       updateSpace(id, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['spaces'] }),
+  })
+  const layoutMutation = useMutation({
+    mutationFn: ({ spaceId, position }: { spaceId: string; position: SpacePosition }) => {
+      const nextSave = layoutSaveQueueRef.current
+        .catch(() => undefined)
+        .then(() => saveSpaceLayout(spaceId, position))
+      layoutSaveQueueRef.current = nextSave
+      return nextSave
+    },
+    onSuccess: (_, { spaceId, position }) => {
+      queryClient.setQueryData<SpaceLayout[]>(['space-layouts'], (current = []) => [
+        ...current.filter((layout) => layout.space_id !== spaceId),
+        { space_id: spaceId, ...position },
+      ])
+    },
   })
   const {
     register,
@@ -176,6 +210,16 @@ export function SpacesPage() {
       return
     }
     setDeleteTarget(space)
+  }
+
+  function selectView(nextView: SpaceView) {
+    setView(nextView)
+    if (nextView === 'cards') setLayoutEditMode(false)
+    try {
+      window.localStorage.setItem('nomo-space-view', nextView)
+    } catch {
+      // The view still changes when storage is unavailable or restricted.
+    }
   }
 
   return (
@@ -310,41 +354,37 @@ export function SpacesPage() {
       {spacesQuery.data?.length === 0 ? (
         <PageState state="empty" title="还没有空间" action={<button className="inline-flex min-h-11 items-center justify-center rounded-control border border-brand bg-brand px-4 py-2.5 font-bold text-white hover:bg-brand-strong" type="button" onClick={beginCreate}>创建第一个空间</button>} />
       ) : null}
-      <div className="grid gap-3 sm:grid-cols-2">
-        {spacesQuery.data?.map((space) => (
-          <article className="flex min-w-0 items-center justify-between gap-4 rounded-card border border-line bg-surface p-3" key={space.id}>
-            <Link
-              className="flex min-h-23 min-w-0 flex-1 items-center gap-3.5 rounded-control p-2 text-muted no-underline hover:bg-brand/10"
-              to={`/app/boxes?space=${encodeURIComponent(space.id)}`}
-            >
-              <span className="grid h-12 w-12 flex-none place-items-center rounded-control bg-brand/10 text-brand-strong"><AppIcon name="space" size={24} /></span>
-              <span className="min-w-0">
-                <h2 className="mb-1.5 text-card-title font-bold">{space.name}</h2>
-                {space.description ? <p className="truncate">{space.description}</p> : null}
-                <small className="mt-2 block">{space.box_count} 个箱子 · {space.item_count} 件物品</small>
-              </span>
-            </Link>
-            <div className="flex flex-nowrap justify-end gap-2">
-              <button
-                className="grid min-h-11 w-11 place-items-center rounded-control border border-brand/40 bg-brand/10 p-0 text-ink"
-                type="button"
-                aria-label={`编辑${space.name}`}
-                onClick={() => beginEdit(space)}
-              >
-                <AppIcon name="edit" size={19} />
+      {spacesQuery.data?.length ? (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="inline-flex rounded-control border border-line bg-surface p-1" role="group" aria-label="空间视图">
+              <button className={`inline-flex min-h-10 items-center gap-2 rounded-control px-3.5 py-2 font-bold ${view === 'cards' ? 'bg-brand text-white' : 'text-muted hover:bg-canvas hover:text-ink'}`} type="button" aria-pressed={view === 'cards'} onClick={() => selectView('cards')}>
+                <AppIcon name="space" size={18} />卡片视图
               </button>
-              <button
-                className="grid min-h-11 w-11 place-items-center rounded-control border border-danger/30 bg-danger/5 p-0 text-danger"
-                type="button"
-                aria-label={`删除${space.name}`}
-                onClick={() => requestDelete(space)}
-              >
-                <AppIcon name="trash" size={19} />
+              <button className={`inline-flex min-h-10 items-center gap-2 rounded-control px-3.5 py-2 font-bold ${view === 'plan' ? 'bg-brand text-white' : 'text-muted hover:bg-canvas hover:text-ink'}`} type="button" aria-pressed={view === 'plan'} onClick={() => selectView('plan')}>
+                <AppIcon name="box" size={18} />平面视图
               </button>
             </div>
-          </article>
-        ))}
-      </div>
+            {view === 'plan' ? (
+              <button className={`min-h-11 rounded-control border px-4 py-2.5 font-bold disabled:cursor-not-allowed disabled:opacity-55 ${layoutEditMode && layoutsQuery.isSuccess ? 'border-brand bg-brand/10 text-brand-strong' : 'border-line bg-surface text-ink'}`} type="button" aria-pressed={layoutEditMode && layoutsQuery.isSuccess} disabled={!layoutsQuery.isSuccess} onClick={() => setLayoutEditMode((current) => !current)}>
+                {layoutsQuery.isPending ? '正在加载布局…' : layoutEditMode && layoutsQuery.isSuccess ? '完成调整' : '调整布局'}
+              </button>
+            ) : null}
+          </div>
+          {view === 'plan' && layoutEditMode && layoutsQuery.isSuccess ? <p className="text-meta text-muted" role="status">拖动房间卡片，或聚焦后使用方向键微调；布局会自动保存。</p> : null}
+          {view === 'plan' && layoutsQuery.isError ? <p role="alert">布局加载失败；当前显示自动布局。<button className="ml-2 font-bold underline" type="button" onClick={() => void layoutsQuery.refetch()}>重试布局</button></p> : null}
+          {layoutMutation.isError ? <p role="alert">布局保存失败；自动布局仍可使用</p> : null}
+          {view === 'cards' ? (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {spacesQuery.data.map((space, index) => (
+                <SpaceCard key={space.id} space={space} index={index} onEdit={() => beginEdit(space)} onDelete={() => requestDelete(space)} />
+              ))}
+            </div>
+          ) : (
+            <SpaceMap spaces={spacesQuery.data} layouts={layoutsQuery.data ?? []} editMode={layoutEditMode && layoutsQuery.isSuccess} onLayoutChange={(spaceId, position) => layoutMutation.mutate({ spaceId, position })} />
+          )}
+        </>
+      ) : null}
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
