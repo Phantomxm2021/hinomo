@@ -1,16 +1,24 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { Session } from '@supabase/supabase-js'
 import { AuthProvider } from '../auth/AuthProvider'
 import { PublicBoxPage } from './PublicBoxPage'
 
-const { mockGetBoxByPublicId } = vi.hoisted(() => ({
+const { mockGetBoxByPublicId, mockCreateItem, mockUpdateItem } = vi.hoisted(() => ({
   mockGetBoxByPublicId: vi.fn(),
+  mockCreateItem: vi.fn(),
+  mockUpdateItem: vi.fn(),
 }))
 
 vi.mock('./boxes.api', () => ({ getBoxByPublicId: mockGetBoxByPublicId }))
+vi.mock('../items/items.api', () => ({
+  createItem: mockCreateItem,
+  updateItem: mockUpdateItem,
+  deleteItem: vi.fn(),
+}))
 vi.mock('../media/AuthorizedImage', () => ({
   AuthorizedImage: ({ objectKey, alt }: { objectKey: string; alt: string }) => (
     <img src={`signed:${objectKey}`} alt={alt} />
@@ -32,7 +40,11 @@ function renderPublicBox(session: Session | null = null) {
   )
 }
 
-beforeEach(() => mockGetBoxByPublicId.mockReset())
+beforeEach(() => {
+  mockGetBoxByPublicId.mockReset()
+  mockCreateItem.mockReset()
+  mockUpdateItem.mockReset()
+})
 afterEach(cleanup)
 
 test('renders a public box for an anonymous visitor without edit controls', async () => {
@@ -125,4 +137,61 @@ test('renders authorized cover and item images when object keys exist', async ()
 
   expect(await screen.findByRole('img', { name: '工具封面' })).toBeInTheDocument()
   expect(screen.getByRole('img', { name: '锤子图片' })).toBeInTheDocument()
+})
+
+test('clears the edited item when switching from edit to new', async () => {
+  const user = userEvent.setup()
+  mockCreateItem.mockResolvedValue({ id: 'new-item' })
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    space_id: 'space-1', name: '工具', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z',
+    items: [
+      { id: 'i1', name: '锤子', category: '工具', quantity: 1, description: '旧物品' },
+      { id: 'i2', name: '扳手', category: '工具', quantity: 2, description: null },
+    ],
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session)
+
+  await user.click(await screen.findByRole('button', { name: '编辑锤子' }))
+  expect(screen.getByLabelText('物品名称')).toHaveValue('锤子')
+  await user.click(screen.getByRole('button', { name: '新增物品' }))
+  expect(screen.getByLabelText('物品名称')).toHaveValue('')
+
+  await user.type(screen.getByLabelText('物品名称'), '螺丝刀')
+  await user.click(screen.getByRole('button', { name: '保存' }))
+  expect(mockCreateItem).toHaveBeenCalledWith(expect.objectContaining({ name: '螺丝刀' }))
+  expect(mockUpdateItem).not.toHaveBeenCalled()
+})
+
+test('resets form values when switching directly between edited items', async () => {
+  const user = userEvent.setup()
+  mockUpdateItem.mockResolvedValue(undefined)
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    space_id: 'space-1', name: '工具', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z',
+    items: [
+      { id: 'i1', name: '锤子', category: '工具', quantity: 1, description: '旧物品' },
+      { id: 'i2', name: '扳手', category: '维修', quantity: 2, description: '新目标' },
+    ],
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session)
+
+  await user.click(await screen.findByRole('button', { name: '编辑锤子' }))
+  expect(screen.getByLabelText('物品名称')).toHaveValue('锤子')
+  await user.click(screen.getByRole('button', { name: '编辑扳手' }))
+  expect(screen.getByLabelText('物品名称')).toHaveValue('扳手')
+  expect(screen.getByLabelText('数量')).toHaveValue(2)
+
+  await user.click(screen.getByRole('button', { name: '保存' }))
+  expect(mockUpdateItem).toHaveBeenCalledWith('i2', expect.objectContaining({
+    name: '扳手',
+    category: '维修',
+    quantity: 2,
+    description: '新目标',
+  }))
+  expect(mockCreateItem).not.toHaveBeenCalled()
 })

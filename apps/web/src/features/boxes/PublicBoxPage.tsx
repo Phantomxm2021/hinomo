@@ -47,6 +47,14 @@ export function PublicBoxPage() {
   const updatedAt = new Intl.DateTimeFormat('zh-CN', {
     year: 'numeric', month: 'short', day: 'numeric',
   }).format(new Date(box.updated_at))
+  const openNewItem = () => {
+    setEditingItem(null)
+    setShowItemForm(true)
+  }
+  const openEditItem = (item: ItemRecord) => {
+    setEditingItem(item)
+    setShowItemForm(true)
+  }
   const refreshItems = async () => {
     setShowItemForm(false)
     setEditingItem(null)
@@ -103,7 +111,7 @@ export function PublicBoxPage() {
               <button className="inline-flex min-h-11 items-center gap-2 rounded-control border border-line bg-canvas px-4 font-bold text-ink" type="button" disabled={printing} onClick={() => void printLabel()}>
                 <AppIcon name="print" />{printing ? '生成中…' : '打印标签'}
               </button>
-              <button className="hidden min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white md:inline-flex" type="button" onClick={() => setShowItemForm(true)}>
+              <button className="hidden min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white md:inline-flex" type="button" onClick={openNewItem}>
                 <AppIcon name="plus" />新增物品
               </button>
             </div>
@@ -114,6 +122,7 @@ export function PublicBoxPage() {
 
       {isOwner && (showItemForm || editingItem) ? (
         <ItemForm
+          key={editingItem ? `edit-${editingItem.id}` : 'new'}
           boxId={box.id}
           item={editingItem}
           onSaved={() => void refreshItems()}
@@ -151,7 +160,7 @@ export function PublicBoxPage() {
             </div>
             {isOwner ? (
               <div className="flex gap-2 sm:self-center">
-                <button className="inline-flex size-11 items-center justify-center rounded-control border border-line bg-canvas text-ink" type="button" aria-label={`编辑${item.name}`} onClick={() => setEditingItem(item)}>
+                <button className="inline-flex size-11 items-center justify-center rounded-control border border-line bg-canvas text-ink" type="button" aria-label={`编辑${item.name}`} onClick={() => openEditItem(item)}>
                   <AppIcon name="edit" />
                 </button>
                 <button className="inline-flex size-11 items-center justify-center rounded-control border border-danger/30 bg-canvas text-danger" type="button" aria-label={`删除${item.name}`} onClick={() => setDeleteTarget(item)}>
@@ -171,7 +180,7 @@ export function PublicBoxPage() {
           className="fixed inset-x-5 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-20 inline-flex min-h-12 items-center justify-center gap-2 rounded-control border border-brand bg-brand px-5 font-extrabold text-white shadow-float md:hidden"
           type="button"
           aria-label="移动端新增物品"
-          onClick={() => setShowItemForm(true)}
+          onClick={openNewItem}
         >
           <AppIcon name="plus" />新增物品
         </button>
