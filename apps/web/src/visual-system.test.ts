@@ -66,6 +66,19 @@ test('keeps global accessibility and output media rules', () => {
   expect(css).toContain('@media print')
 })
 
+test('defines the warm heading hierarchy inside the base layer', () => {
+  const baseStart = css.indexOf('@layer base {')
+  const baseEnd = css.indexOf('@media (prefers-reduced-motion: reduce)')
+  const base = css.slice(baseStart, baseEnd)
+
+  expect(baseStart).toBeGreaterThan(-1)
+  expect(baseEnd).toBeGreaterThan(baseStart)
+  expect(base).toMatch(/h1,\s*h2,\s*h3\s*\{[^}]*color: var\(--color-ink\);[^}]*font-weight: 800;[^}]*letter-spacing: -0\.025em;[^}]*line-height: 1\.15;/s)
+  expect(base).toMatch(/h1\s*\{[^}]*font-size: clamp\(2\.25rem, 6vw, 4\.5rem\);[^}]*letter-spacing: -0\.055em;[^}]*line-height: 1\.05;/s)
+  expect(base).toMatch(/h2\s*\{[^}]*font-size: clamp\(1\.35rem, 3vw, 2rem\);/s)
+  expect(base).toMatch(/h3\s*\{[^}]*font-size: 1\.125rem;[^}]*line-height: 1\.3;/s)
+})
+
 test('removes migrated core workspace selectors and the old mobile breakpoint', () => {
   expect(css).not.toContain('@media (max-width: 767px)')
   for (const selector of [
