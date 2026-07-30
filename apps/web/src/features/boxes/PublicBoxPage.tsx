@@ -92,7 +92,7 @@ export function PublicBoxPage() {
         <div className="flex min-w-0 flex-col justify-between gap-6">
           <div className="grid gap-3">
             <p className="font-mono text-sm font-extrabold tracking-wide text-brand">{box.box_code}</p>
-            <h1 className="m-0 text-3xl font-black tracking-tight text-ink sm:text-4xl">{box.name}</h1>
+            <h1 className="m-0 text-2xl font-black tracking-tight text-ink md:text-4xl">{box.name}</h1>
             <div className="flex flex-wrap gap-2 text-sm font-bold">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-placeholder/70 px-3 py-1.5 text-ink">
                 <AppIcon name={box.visibility === 'public' ? 'globe' : 'lock'} size={16} />
@@ -176,7 +176,7 @@ export function PublicBoxPage() {
         ) : null}
       </section>
 
-      {isOwner ? (
+      {isOwner && !showItemForm && !editingItem ? (
         <button
           className="fixed inset-x-5 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-20 inline-flex min-h-12 items-center justify-center gap-2 rounded-control border border-brand bg-brand px-5 font-extrabold text-white shadow-float md:hidden"
           type="button"

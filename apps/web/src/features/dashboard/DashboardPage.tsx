@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { GlobalFindBar } from '../../components/GlobalFindBar'
+import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
 import { listBoxes } from '../boxes/boxes.api'
 import { AuthorizedImage } from '../media/AuthorizedImage'
@@ -25,7 +26,7 @@ export function DashboardPage() {
         <PageState state="error" message="部分数据加载失败，请稍后重试" onRetry={() => void Promise.all([spacesQuery.refetch(), boxesQuery.refetch()])} />
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-3" aria-label="收纳概览">
+      <div className="hidden gap-4 sm:grid-cols-3 lg:grid" aria-label="收纳概览">
         <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label="空间统计">
           <span className="font-bold text-ink">空间</span>
           <strong className="text-5xl leading-none font-extrabold tracking-[-0.06em] text-ink">{spacesQuery.data?.length ?? '—'}</strong>
@@ -54,12 +55,18 @@ export function DashboardPage() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {spaces.map((space) => (
             <Link
-              className="flex min-h-30 flex-col justify-end rounded-card border border-line bg-surface p-5 text-muted no-underline hover:border-brand/40"
+              className="flex min-h-30 flex-col justify-between rounded-card border border-line bg-surface p-5 text-muted no-underline hover:border-brand/40"
               to={`/app/boxes?space=${encodeURIComponent(space.id)}`}
               key={space.id}
             >
-              <h3>{space.name}</h3>
-              <p>{space.box_count} 个箱子 · {space.item_count} 件物品</p>
+              <span className="grid size-11 place-items-center self-start rounded-control bg-placeholder/60 text-brand" aria-label="空间图标">
+                <AppIcon name="space" size={22} />
+              </span>
+              <div>
+                <h3>{space.name}</h3>
+                {space.description ? <p className="mb-1 truncate text-sm">{space.description}</p> : null}
+                <p>{space.box_count} 个箱子 · {space.item_count} 件物品</p>
+              </div>
             </Link>
           ))}
         </div>

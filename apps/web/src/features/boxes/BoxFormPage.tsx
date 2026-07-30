@@ -151,7 +151,7 @@ export function BoxFormPage() {
     return (
       <section className="mx-auto grid w-full max-w-4xl gap-6" aria-labelledby="created-box-title">
         <p className="mb-1 text-xs font-extrabold tracking-[0.12em] text-brand uppercase">箱子已创建</p>
-        <h1 className="m-0 text-4xl font-black tracking-tight text-ink" id="created-box-title">{createdBox.name}</h1>
+        <h1 className="m-0 text-2xl font-black tracking-tight text-ink md:text-4xl" id="created-box-title">{createdBox.name}</h1>
         <div className="grid justify-items-center gap-4 rounded-shell border border-line bg-surface p-5 text-center md:p-6">
           <strong className="font-mono text-xl text-brand">{createdBox.box_code}</strong>
           <a className="max-w-full break-all" href={publicUrl}>{publicUrl}</a>
@@ -180,7 +180,7 @@ export function BoxFormPage() {
     <section className="mx-auto grid w-full max-w-4xl gap-6" aria-labelledby="box-form-title">
       <header className="py-3">
         <p className="mb-1 text-xs font-extrabold tracking-[0.12em] text-brand uppercase">为实体箱子建立数字身份</p>
-        <h1 className="m-0 text-4xl font-black tracking-tight text-ink" id="box-form-title">{editing ? '编辑箱子' : '创建箱子'}</h1>
+        <h1 className="m-0 text-2xl font-black tracking-tight text-ink md:text-4xl" id="box-form-title">{editing ? '编辑箱子' : '创建箱子'}</h1>
       </header>
       <form className="grid gap-3 rounded-shell border border-line bg-surface p-5 md:p-6 [&_label]:font-bold [&_label]:text-ink" onSubmit={submit} noValidate>
         <label htmlFor="box-space">空间</label>

@@ -44,6 +44,14 @@ function renderBoxForm(initialEntry = '/app/boxes/new') {
   )
 }
 
+test('uses compact mobile page titles with a desktop scale-up', async () => {
+  mockListSpaces.mockResolvedValue([])
+  renderBoxForm()
+
+  const heading = await screen.findByRole('heading', { name: '创建箱子' })
+  expect(heading).toHaveClass('text-2xl', 'md:text-4xl')
+})
+
 beforeEach(() => {
   mockCreateBox.mockReset()
   mockGetBox.mockReset()

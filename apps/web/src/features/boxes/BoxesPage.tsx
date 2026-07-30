@@ -89,7 +89,7 @@ export function BoxesPage() {
         <PageState state="empty" title="还没有箱子" action={<Link className="inline-flex min-h-11 items-center rounded-control bg-brand px-4 py-2 font-bold text-white no-underline" to="/app/boxes/new">创建箱子</Link>} />
       ) : null}
 
-      <div className="grid grid-cols-1 gap-5 min-[420px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-5 lg:grid-cols-3 2xl:grid-cols-4">
         {visibleBoxes.map((box) => (
           <article
             className="flex min-w-0 flex-col overflow-hidden rounded-card border border-line bg-surface"
@@ -128,7 +128,7 @@ export function BoxesPage() {
                 </span>
               </div>
 
-              <div className="mt-auto grid grid-cols-3 gap-2">
+              <div className="mt-auto grid grid-cols-1 gap-2 min-[560px]:grid-cols-3">
                 <Link className={secondaryAction} to={`/b/${box.public_id}`}>查看</Link>
                 <Link className={secondaryAction} to={`/app/boxes/${box.id}/edit`}>编辑</Link>
                 <button

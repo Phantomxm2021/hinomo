@@ -82,6 +82,22 @@ test('shows media before item details in the visual field order', () => {
   ])
 })
 
+test('keeps the save action above mobile navigation', () => {
+  const client = new QueryClient()
+  render(
+    <QueryClientProvider client={client}>
+      <ItemForm boxId="box-1" onSaved={vi.fn()} onCancel={vi.fn()} />
+    </QueryClientProvider>,
+  )
+
+  expect(screen.getByRole('button', { name: '保存' }).parentElement).toHaveClass(
+    'fixed',
+    'inset-x-5',
+    'bottom-[calc(6.75rem+env(safe-area-inset-bottom))]',
+    'lg:static',
+  )
+})
+
 test('submits a directly entered quantity as a number', async () => {
   const user = userEvent.setup()
   const client = new QueryClient()

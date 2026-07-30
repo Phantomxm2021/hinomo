@@ -89,10 +89,12 @@ test('centers the dashboard on finding items, room totals, and recent activity',
     'gap-10',
   )
   expect(screen.getByLabelText('收纳概览')).toHaveClass('sm:grid-cols-3')
+  expect(screen.getByLabelText('收纳概览')).toHaveClass('hidden', 'lg:grid')
   expect(screen.getByRole('region', { name: '按房间查看' }).querySelector('div.grid')).toHaveClass(
     'sm:grid-cols-2',
     'xl:grid-cols-4',
   )
+  expect(within(rooms).getAllByLabelText('空间图标')).toHaveLength(2)
   expect(screen.getByRole('region', { name: '最近的箱子' }).querySelector('div.grid')).toHaveClass(
     'md:grid-cols-2',
     'xl:grid-cols-3',

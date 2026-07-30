@@ -89,7 +89,7 @@ export function ItemForm({ boxId, item, onSaved, onCancel }: ItemFormProps) {
 
   return (
     <form
-      className="grid gap-5 rounded-shell border border-line bg-surface p-5 md:p-6"
+      className="grid gap-5 rounded-shell border border-line bg-surface p-5 pb-24 md:p-6 lg:pb-6"
       onSubmit={handleSubmit(submit)}
       noValidate
     >
@@ -162,7 +162,7 @@ export function ItemForm({ boxId, item, onSaved, onCancel }: ItemFormProps) {
           <button className="min-h-11 w-fit rounded-control border border-danger/30 bg-surface px-4 font-bold text-danger" type="button" onClick={() => void retryImageUpload()}>重试上传</button>
         </div>
       ) : null}
-      <div className="flex flex-wrap justify-end gap-2">
+      <div className="fixed inset-x-5 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-20 flex flex-wrap justify-end gap-2 rounded-control border border-line bg-surface/95 p-2 shadow-float backdrop-blur lg:static lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
         {onCancel ? <button className="min-h-11 rounded-control border border-line bg-canvas px-4 font-bold text-ink" type="button" onClick={onCancel}>取消</button> : null}
         <button className="min-h-11 rounded-control border border-brand bg-brand px-5 font-bold text-white" type="submit" disabled={mutation.isPending || isUploadPending(mediaUpload.stage)}>保存</button>
       </div>

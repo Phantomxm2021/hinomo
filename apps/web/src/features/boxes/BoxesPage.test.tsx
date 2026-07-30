@@ -91,6 +91,8 @@ test('filters the catalogue from the space query and exposes complete box cards'
   expect(within(card).getByRole('link', { name: '查看' })).toHaveAttribute('href', '/b/public-1')
   expect(within(card).getByRole('link', { name: '编辑' })).toHaveAttribute('href', '/app/boxes/box-1/edit')
   expect(within(card).getByRole('button', { name: '删除冬季衣物' })).toBeInTheDocument()
+  expect(card.parentElement).toHaveClass('grid-cols-2')
+  expect(card.parentElement).not.toHaveClass('min-[420px]:grid-cols-2')
 })
 
 test('space chips replace the URL filter and all spaces clears it', async () => {

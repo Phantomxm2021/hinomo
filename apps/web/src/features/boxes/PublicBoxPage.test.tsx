@@ -112,6 +112,21 @@ test('shows item controls only to the box owner', async () => {
   )
 })
 
+test('hides the mobile add action while the item form is open', async () => {
+  const user = userEvent.setup()
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    space_id: 'space-1', name: '工具', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z', items: [],
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session)
+
+  await user.click(await screen.findByRole('button', { name: '移动端新增物品' }))
+  expect(screen.getByRole('heading', { name: '新增物品' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '移动端新增物品' })).not.toBeInTheDocument()
+})
+
 test('shows a neutral gate for a private or missing box', async () => {
   mockGetBoxByPublicId.mockResolvedValue(null)
   renderPublicBox()

@@ -26,6 +26,13 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
+test('uses compact mobile page titles with a desktop scale-up', () => {
+  mockScannerStart.mockResolvedValue({ stop: mockStop })
+  render(<ScannerPage />)
+
+  expect(screen.getByRole('heading', { name: '扫码查看' })).toHaveClass('text-2xl', 'md:text-4xl')
+})
+
 test('navigates only for a valid same-origin Nomo box URL', async () => {
   let emitScan: ((result: { getText: () => string }, error?: unknown, controls?: { stop: () => void }) => void) | undefined
   mockScannerStart.mockImplementation(async (_constraints, _video, callback) => {
