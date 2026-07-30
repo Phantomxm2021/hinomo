@@ -1,11 +1,23 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { GlobalFindBar } from '../../components/GlobalFindBar'
-import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
 import { listBoxes } from '../boxes/boxes.api'
 import { AuthorizedImage } from '../media/AuthorizedImage'
 import { listSpaces } from '../spaces/spaces.api'
+
+const boxPlaceholderTones = ['bg-[#a98b6e]', 'bg-[#788790]', 'bg-[#b7925c]'] as const
+
+function spaceEmoji(name: string) {
+  if (/客厅|起居/.test(name)) return '🛋️'
+  if (/卧室|主卧|次卧/.test(name)) return '🛏️'
+  if (/书房|办公室|工作/.test(name)) return '👩‍💻'
+  if (/储藏|仓库/.test(name)) return '🚪'
+  if (/厨房/.test(name)) return '🍳'
+  if (/浴室|卫生间/.test(name)) return '🛁'
+  if (/儿童|玩具/.test(name)) return '🧸'
+  return '🏠'
+}
 
 export function DashboardPage() {
   const spacesQuery = useQuery({ queryKey: ['spaces'], queryFn: listSpaces })
@@ -47,8 +59,11 @@ export function DashboardPage() {
       </div>
 
       <section className="min-w-0" aria-labelledby="rooms-title">
-        <div className="my-3.5">
+        <div className="my-3.5 flex items-center justify-between gap-4">
           <h2 className="mb-0 text-section-title font-bold" id="rooms-title">按房间查看</h2>
+          <Link className="text-meta font-medium text-muted no-underline hover:text-ink" to="/app/spaces">
+            管理空间 <span aria-hidden="true">›</span>
+          </Link>
         </div>
         {spacesQuery.isPending ? (
           <p role="status" aria-label="正在加载空间">正在加载空间…</p>
@@ -59,13 +74,11 @@ export function DashboardPage() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {spaces.map((space) => (
             <Link
-              className="flex min-h-30 flex-col justify-between rounded-card border border-line bg-surface p-5 text-muted no-underline hover:border-brand/40"
+              className="flex min-h-28 flex-col justify-between rounded-card border border-line bg-surface p-5 text-muted no-underline hover:border-brand/40"
               to={`/app/boxes?space=${encodeURIComponent(space.id)}`}
               key={space.id}
             >
-              <span className="grid size-11 place-items-center self-start rounded-control bg-placeholder/60 text-brand" aria-label="空间图标">
-                <AppIcon name="space" size={22} />
-              </span>
+              <span className="text-3xl leading-none" role="img" aria-label={`${space.name}图标`}>{spaceEmoji(space.name)}</span>
               <div>
                 <h3 className="text-card-title font-bold">{space.name}</h3>
                 <p className="text-body text-muted">{space.box_count} 个箱子</p>
@@ -80,7 +93,11 @@ export function DashboardPage() {
           <div>
             <h2 className="mb-0 text-section-title font-bold" id="recent-boxes-title">最近打开</h2>
           </div>
-          {boxes.length > 0 ? <Link to="/app/boxes">查看全部</Link> : null}
+          {boxes.length > 0 ? (
+            <Link className="text-meta font-medium text-muted no-underline hover:text-ink" to="/app/boxes">
+              查看全部 <span aria-hidden="true">›</span>
+            </Link>
+          ) : null}
         </div>
         {boxesQuery.isPending ? (
           <p role="status" aria-label="正在加载箱子">正在加载箱子…</p>
@@ -93,9 +110,13 @@ export function DashboardPage() {
           </div>
         ) : null}
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {boxes.slice(0, 3).map((box) => (
+          {boxes.slice(0, 3).map((box, index) => (
             <Link className="flex min-w-0 flex-col overflow-hidden rounded-card border border-line bg-surface text-muted no-underline hover:border-brand/40" to={`/b/${box.public_id}`} key={box.id}>
-              <span className="relative block aspect-[16/10] w-full overflow-hidden bg-placeholder">
+              <span
+                className={`relative block aspect-[3.5/1] w-full overflow-hidden ${box.cover_object_key ? 'bg-placeholder' : boxPlaceholderTones[index % boxPlaceholderTones.length]}`}
+                role={box.cover_object_key ? undefined : 'img'}
+                aria-label={box.cover_object_key ? undefined : `${box.name}封面占位图`}
+              >
                 {box.cover_object_key ? (
                   <AuthorizedImage
                     objectKey={box.cover_object_key}
@@ -103,8 +124,8 @@ export function DashboardPage() {
                     className="block h-full w-full object-cover"
                   />
                 ) : (
-                  <span className="relative block h-full w-full bg-placeholder" role="img" aria-label={`${box.name}封面占位图`}>
-                    <span className="absolute right-[23%] bottom-[18%] h-[43%] w-[46%] rounded-control border-2 border-brand/40 bg-surface/70 shadow-[10px_10px_0_rgb(223_101_56_/_12%)]" aria-hidden="true" />
+                  <span className="absolute inset-0 block">
+                    <span className="absolute top-1/2 right-[8%] -translate-y-1/2 text-4xl leading-none" aria-hidden="true">📦</span>
                   </span>
                 )}
               </span>

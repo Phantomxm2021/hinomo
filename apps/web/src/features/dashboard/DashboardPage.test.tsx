@@ -34,14 +34,14 @@ function renderDashboard() {
 
 test('centers the dashboard on finding items, room totals, and recent activity', async () => {
   mockListSpaces.mockResolvedValue([
-    { id: 'home / 1', name: '家', description: null, box_count: 2, item_count: 5 },
-    { id: 's2', name: '办公室', description: null, box_count: 1, item_count: 4 },
+    { id: 'home / 1', name: '客厅', description: null, box_count: 2, item_count: 5 },
+    { id: 's2', name: '卧室', description: null, box_count: 1, item_count: 4 },
   ])
   mockListBoxes.mockResolvedValue([
-    { id: 'b1', public_id: 'p1', box_code: 'BX-00001', name: '冬季衣物', location: '衣柜', visibility: 'public', space_name: '家', cover_object_key: 'covers/winter.webp', item_count: 5, updated_at: '2026-07-03' },
-    { id: 'b2', public_id: 'p2', box_code: 'BX-00002', name: '文件', location: null, visibility: 'private', space_name: '办公室', cover_object_key: null, item_count: 4, updated_at: '2026-07-02' },
-    { id: 'b3', public_id: 'p3', box_code: 'BX-00003', name: '工具', location: '车库', visibility: 'private', space_name: '家', cover_object_key: null, item_count: 0, updated_at: '2026-07-01' },
-    { id: 'b4', public_id: 'p4', box_code: 'BX-00004', name: '不应出现', location: null, visibility: 'private', space_name: '家', cover_object_key: null, item_count: 8, updated_at: '2026-06-30' },
+    { id: 'b1', public_id: 'p1', box_code: 'BX-00001', name: '冬季衣物', location: '衣柜', visibility: 'public', space_name: '客厅', cover_object_key: 'covers/winter.webp', item_count: 5, updated_at: '2026-07-03' },
+    { id: 'b2', public_id: 'p2', box_code: 'BX-00002', name: '文件', location: null, visibility: 'private', space_name: '卧室', cover_object_key: null, item_count: 4, updated_at: '2026-07-02' },
+    { id: 'b3', public_id: 'p3', box_code: 'BX-00003', name: '工具', location: '车库', visibility: 'private', space_name: '客厅', cover_object_key: null, item_count: 0, updated_at: '2026-07-01' },
+    { id: 'b4', public_id: 'p4', box_code: 'BX-00004', name: '不应出现', location: null, visibility: 'private', space_name: '客厅', cover_object_key: null, item_count: 8, updated_at: '2026-06-30' },
   ])
   renderDashboard()
 
@@ -72,7 +72,11 @@ test('centers the dashboard on finding items, room totals, and recent activity',
     'text-section-title',
     'font-bold',
   )
-  expect(within(rooms).getByRole('link', { name: /家/ })).toHaveAttribute(
+  expect(within(rooms).getByRole('link', { name: '管理空间' })).toHaveAttribute(
+    'href',
+    '/app/spaces',
+  )
+  expect(within(rooms).getByRole('link', { name: /客厅/ })).toHaveAttribute(
     'href',
     '/app/boxes?space=home%20%2F%201',
   )
@@ -86,8 +90,8 @@ test('centers the dashboard on finding items, room totals, and recent activity',
   )
   expect(within(recent).getByRole('img', { name: '文件封面占位图' })).toBeInTheDocument()
   expect(within(recent).getByRole('link', { name: /冬季衣物/ })).toHaveAttribute('href', '/b/p1')
-  expect(within(recent).getByText('家 · 衣柜')).toBeInTheDocument()
-  expect(within(recent).getByText('办公室 · 未填写位置')).toBeInTheDocument()
+  expect(within(recent).getByText('客厅 · 衣柜')).toBeInTheDocument()
+  expect(within(recent).getByText('卧室 · 未填写位置')).toBeInTheDocument()
   expect(within(recent).queryByText('BX-00001')).not.toBeInTheDocument()
   expect(within(recent).queryByText('5 件物品')).not.toBeInTheDocument()
   expect(within(recent).queryByText('不应出现')).not.toBeInTheDocument()
@@ -113,7 +117,11 @@ test('centers the dashboard on finding items, room totals, and recent activity',
     'sm:grid-cols-2',
     'xl:grid-cols-4',
   )
-  expect(within(rooms).getAllByLabelText('空间图标')).toHaveLength(2)
+  expect(within(rooms).getByRole('img', { name: '客厅图标' })).toHaveTextContent('🛋️')
+  expect(within(rooms).getByRole('img', { name: '卧室图标' })).toHaveTextContent('🛏️')
+  const placeholder = within(recent).getByRole('img', { name: '文件封面占位图' })
+  expect(placeholder).toHaveClass('aspect-[3.5/1]', 'bg-[#788790]')
+  expect(placeholder).toHaveTextContent('📦')
   expect(screen.getByRole('region', { name: '最近打开' }).querySelector('div.grid')).toHaveClass(
     'md:grid-cols-2',
     'xl:grid-cols-3',
