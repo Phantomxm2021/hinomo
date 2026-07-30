@@ -1,4 +1,4 @@
-import type { Page, Route } from '@playwright/test'
+import { expect, type Page, type Route } from '@playwright/test'
 
 type Space = { id: string; owner_id: string; name: string; description: string | null }
 type SpaceLayout = { space_id: string; owner_id: string; x_percent: number; y_percent: number; width_percent: number; height_percent: number }
@@ -198,13 +198,23 @@ export async function createSpace(page: Page, name: string) {
 }
 
 export async function createBox(page: Page, name: string, visibility: 'public' | 'private') {
-  await page.goto('/app/boxes/new')
-  const form = page.getByRole('region', { name: '创建箱子' })
-  await form.getByLabel('空间').selectOption({ label: '家' })
-  await form.getByLabel('箱子名称').fill(name)
-  await form.getByLabel('具体位置').fill('衣柜上层')
-  await form.getByLabel('查看权限').selectOption(visibility)
-  await form.getByRole('button', { name: '创建箱子' }).click()
-  await page.getByText(/BX-\d{5}/).waitFor()
-  return page.getByRole('link', { name: /\/b\// }).getAttribute('href') as Promise<string>
+  await page.goto('/app/boxes')
+  await page.locator('header').getByRole('button', { name: '创建箱子', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: '创建箱子' })
+  await expect(page).toHaveURL(/\/app\/boxes\?create=1$/)
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+  )).toBe(true)
+  await dialog.getByLabel('空间').selectOption({ label: '家' })
+  await dialog.getByLabel('箱子名称').fill(name)
+  await dialog.getByLabel('具体位置').fill('衣柜上层')
+  await dialog.getByLabel('查看权限').selectOption(visibility)
+  await dialog.getByRole('button', { name: '创建箱子', exact: true }).click()
+  await dialog.getByText(/BX-\d{5}/).waitFor()
+  await expect(dialog.getByRole('img', { name: `${name}二维码` })).toBeVisible()
+  const publicUrl = await dialog.getByRole('link', { name: /\/b\// }).getAttribute('href') as string
+  await dialog.getByRole('button', { name: '完成' }).click()
+  await dialog.waitFor({ state: 'hidden' })
+  await page.getByRole('article', { name }).waitFor()
+  return publicUrl
 }

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useBlocker, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
@@ -15,6 +15,7 @@ export function BoxesPage() {
   const createButtonRef = useRef<HTMLButtonElement | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const [deleteTarget, setDeleteTarget] = useState<BoxSummary | null>(null)
+  const [createBusy, setCreateBusy] = useState(false)
   const boxesQuery = useQuery({ queryKey: ['boxes'], queryFn: listBoxes })
   const deleteMutation = useMutation({
     mutationFn: (boxId: string) => deleteBox(boxId),
@@ -26,6 +27,8 @@ export function BoxesPage() {
   const boxes = boxesQuery.data ?? []
   const selectedSpace = searchParams.get('space') ?? ''
   const creating = searchParams.get('create') === '1'
+  const wasCreating = useRef(creating)
+  const createBlocker = useBlocker(creating && createBusy)
   const spaces = [...new Map(boxes.map((box) => [box.space_id, box.space_name])).entries()]
   const visibleBoxes = selectedSpace
     ? boxes.filter((box) => box.space_id === selectedSpace)
@@ -41,15 +44,26 @@ export function BoxesPage() {
   const openCreate = () => {
     const next = new URLSearchParams(searchParams)
     next.set('create', '1')
-    setSearchParams(next, { replace: true })
+    setSearchParams(next)
   }
 
   const closeCreate = () => {
     const next = new URLSearchParams(searchParams)
     next.delete('create')
     setSearchParams(next, { replace: true })
-    window.requestAnimationFrame(() => createButtonRef.current?.focus())
   }
+
+  useEffect(() => {
+    if (createBlocker.state === 'blocked' && !createBusy) createBlocker.reset()
+  }, [createBlocker, createBusy])
+
+  useEffect(() => {
+    const shouldRestoreFocus = wasCreating.current && !creating
+    wasCreating.current = creating
+    if (!shouldRestoreFocus) return
+    const focusFrame = window.requestAnimationFrame(() => createButtonRef.current?.focus())
+    return () => window.cancelAnimationFrame(focusFrame)
+  }, [creating])
 
   return (
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-7" aria-labelledby="boxes-title">
@@ -175,7 +189,11 @@ export function BoxesPage() {
         open={creating}
         onClose={closeCreate}
         onCreated={() => { void queryClient.invalidateQueries({ queryKey: ['boxes'] }) }}
-        onDone={closeCreate}
+        onDone={() => {
+          void queryClient.invalidateQueries({ queryKey: ['boxes'] })
+          closeCreate()
+        }}
+        onBusyChange={setCreateBusy}
       />
     </section>
   )

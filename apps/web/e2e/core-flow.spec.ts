@@ -37,6 +37,10 @@ test('owner creates, finds, labels, and maintains a public box', async ({ browse
   await expect(page.getByRole('region', { name: '家庭平面总览' })).toBeVisible()
   await expect(page.getByRole('link', { name: /家/ })).toBeVisible()
   await expectNoHorizontalOverflow(page)
+  await page.goto('/app/boxes/new')
+  await expect(page).toHaveURL(/\/app\/boxes\?create=1$/)
+  await expect(page.getByRole('dialog', { name: '创建箱子' })).toBeVisible()
+  await page.getByRole('button', { name: '关闭创建箱子' }).click()
   const publicUrl = await createBox(page, '冬季衣物', 'public')
 
   await page.goto(publicUrl)

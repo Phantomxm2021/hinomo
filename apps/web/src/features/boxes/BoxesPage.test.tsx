@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, useLocation } from 'react-router-dom'
+import { createMemoryRouter, RouterProvider, useLocation, useNavigate } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { BoxesPage } from './BoxesPage'
 
@@ -22,15 +22,18 @@ vi.mock('../media/AuthorizedImage', () => ({
 }))
 
 vi.mock('./CreateBoxModal', () => ({
-  CreateBoxModal: ({ open, onClose, onCreated, onDone }: {
+  CreateBoxModal: ({ open, onClose, onCreated, onDone, onBusyChange }: {
     open: boolean
     onClose: () => void
     onCreated: (box: unknown) => void
     onDone: () => void
+    onBusyChange?: (busy: boolean) => void
   }) => open ? (
     <div role="dialog" aria-label="创建箱子">
       <button type="button" onClick={onClose}>关闭测试模态</button>
       <button type="button" onClick={() => onCreated({ id: 'box-new' })}>模拟创建</button>
+      <button type="button" onClick={() => onBusyChange?.(true)}>开始忙碌</button>
+      <button type="button" onClick={() => onBusyChange?.(false)}>结束忙碌</button>
       <button type="button" onClick={onDone}>完成测试创建</button>
     </div>
   ) : null,
@@ -67,20 +70,32 @@ const boxes = [
 
 function LocationProbe() {
   const location = useLocation()
-  return <output data-testid="location">{location.search}</output>
+  const navigate = useNavigate()
+  return (
+    <>
+      <output data-testid="location">{location.search}</output>
+      <button type="button" onClick={() => navigate(-1)}>后退测试</button>
+    </>
+  )
 }
 
 function renderBoxes(initialEntry = '/app/boxes') {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
-  return render(
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <QueryClientProvider client={client}>
+  const router = createMemoryRouter([{
+    path: '/app/boxes',
+    element: (
+      <>
         <BoxesPage />
         <LocationProbe />
-      </QueryClientProvider>
-    </MemoryRouter>,
+      </>
+    ),
+  }], { initialEntries: [initialEntry] })
+  return render(
+    <QueryClientProvider client={client}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
   )
 }
 
@@ -154,7 +169,40 @@ test('opens from both list actions and refreshes the list after creation', async
   await user.click(screen.getByRole('button', { name: '模拟创建' }))
   await user.click(screen.getByRole('button', { name: '完成测试创建' }))
 
-  expect(mockListBoxes).toHaveBeenCalledTimes(2)
+  await waitFor(() => expect(mockListBoxes).toHaveBeenCalledTimes(3))
+  expect(screen.queryByRole('dialog', { name: '创建箱子' })).not.toBeInTheDocument()
+})
+
+test('lets browser back close a modal opened from the list', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes()
+
+  await screen.findByText('冬季衣物')
+  await user.click(screen.getByRole('button', { name: '创建箱子' }))
+  expect(screen.getByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '后退测试' }))
+
+  expect(screen.queryByRole('dialog', { name: '创建箱子' })).not.toBeInTheDocument()
+  expect(screen.getByTestId('location')).toBeEmptyDOMElement()
+  await waitFor(() => expect(screen.getByRole('button', { name: '创建箱子' })).toHaveFocus())
+})
+
+test('blocks browser back while creation is busy', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes()
+
+  await screen.findByText('冬季衣物')
+  await user.click(screen.getByRole('button', { name: '创建箱子' }))
+  await user.click(screen.getByRole('button', { name: '开始忙碌' }))
+  await user.click(screen.getByRole('button', { name: '后退测试' }))
+
+  expect(screen.getByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
+  expect(screen.getByTestId('location')).toHaveTextContent('?create=1')
+
+  await user.click(screen.getByRole('button', { name: '结束忙碌' }))
+  await user.click(screen.getByRole('button', { name: '后退测试' }))
   expect(screen.queryByRole('dialog', { name: '创建箱子' })).not.toBeInTheDocument()
 })
 

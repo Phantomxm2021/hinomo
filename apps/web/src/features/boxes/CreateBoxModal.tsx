@@ -16,11 +16,13 @@ export function CreateBoxModal({
   onClose,
   onCreated,
   onDone,
+  onBusyChange,
 }: {
   open: boolean
   onClose: () => void
   onCreated: (box: CreatedBox) => void
   onDone: () => void
+  onBusyChange?: (busy: boolean) => void
 }) {
   const [busy, setBusy] = useState(false)
   const dialogRef = useRef<HTMLElement | null>(null)
@@ -28,6 +30,11 @@ export function CreateBoxModal({
   const close = useCallback(() => {
     if (!busy) onClose()
   }, [busy, onClose])
+
+  const changeBusy = useCallback((nextBusy: boolean) => {
+    setBusy(nextBusy)
+    onBusyChange?.(nextBusy)
+  }, [onBusyChange])
 
   useEffect(() => {
     if (!open) return
@@ -48,22 +55,27 @@ export function CreateBoxModal({
     appShell?.setAttribute('aria-hidden', 'true')
     document.body.style.overflow = 'hidden'
 
-    const focusFrame = window.requestAnimationFrame(() => {
+    const focusFirstField = () => {
+      if (dialogRef.current?.contains(document.activeElement)) return
       const firstField = dialogRef.current?.querySelector<HTMLElement>('select:not(:disabled), input:not(:disabled), textarea:not(:disabled)')
       firstField?.focus()
-    })
+    }
+    const focusFrame = window.requestAnimationFrame(focusFirstField)
+    const focusObserver = new MutationObserver(focusFirstField)
+    if (dialogRef.current) focusObserver.observe(dialogRef.current, { childList: true, subtree: true })
 
     return () => {
       window.cancelAnimationFrame(focusFrame)
+      focusObserver.disconnect()
       if (appShell) {
         if (!hadInert) appShell.removeAttribute('inert')
         if (previousAriaHidden === null) appShell.removeAttribute('aria-hidden')
         else appShell.setAttribute('aria-hidden', previousAriaHidden)
       }
       document.body.style.overflow = previousOverflow
-      setBusy(false)
+      onBusyChange?.(false)
     }
-  }, [open])
+  }, [onBusyChange, open])
 
   if (!open) return null
 
@@ -90,7 +102,7 @@ export function CreateBoxModal({
             <AppIcon name="close" />
           </button>
         </div>
-        <BoxForm presentation="modal" onBusyChange={setBusy} onCreated={onCreated} onDone={onDone} />
+        <BoxForm presentation="modal" onBusyChange={changeBusy} onCreated={onCreated} onDone={onDone} />
         <span className="pointer-events-none fixed size-px overflow-hidden opacity-0" tabIndex={0} onFocus={() => controls(dialogRef.current)[0]?.focus()} />
       </section>
     </div>,

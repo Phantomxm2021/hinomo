@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { CreateBoxModal } from './CreateBoxModal'
@@ -63,4 +63,16 @@ test('supports normal dismissal but blocks every dismissal path while busy', asy
 test('does not render a dialog while closed', () => {
   render(<CreateBoxModal open={false} onClose={vi.fn()} onCreated={vi.fn()} onDone={vi.fn()} />)
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+test('focuses the first field when asynchronous form content appears', async () => {
+  render(<CreateBoxModal open onClose={vi.fn()} onCreated={vi.fn()} onDone={vi.fn()} />)
+  const dialog = screen.getByRole('dialog', { name: '创建箱子' })
+  const field = document.createElement('input')
+  field.setAttribute('aria-label', '异步字段')
+
+  await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
+  dialog.append(field)
+
+  await waitFor(() => expect(field).toHaveFocus())
 })

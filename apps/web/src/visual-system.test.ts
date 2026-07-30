@@ -9,7 +9,7 @@ const viteConfig = readFileSync(resolve(process.cwd(), 'vite.config.ts'), 'utf8'
 const indexHtml = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8')
 const alignedPageSources = [
   'src/app/AuthLayout.tsx',
-  'src/features/boxes/BoxFormPage.tsx',
+  'src/features/boxes/BoxForm.tsx',
   'src/features/boxes/BoxesPage.tsx',
   'src/features/boxes/PublicBoxPage.tsx',
   'src/features/qr-print/PrintPage.tsx',
