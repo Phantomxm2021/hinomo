@@ -91,10 +91,12 @@ export function AppShell() {
             <span className="grid size-10 place-items-center rounded-control bg-brand text-2xl font-black tracking-normal text-white" aria-hidden="true">N</span>
             Nomo
           </Link>
-          <small>智能收纳清单</small>
         </div>
         <nav className="grid gap-2" aria-label="主导航"><Navigation items={desktopNavigation} /></nav>
-        <p className="mt-auto text-sm text-muted">我的收纳空间</p>
+        <div className="mt-auto border-t border-line pt-5 text-sm text-muted">
+          <p className="m-0 font-bold text-ink">👩 林家的收纳空间</p>
+          <p className="m-0">设置与退出</p>
+        </div>
       </aside>
       <header className="flex items-center justify-between px-5 pt-5 lg:hidden" role="banner">
         <span className="flex items-center gap-2 text-xl font-black tracking-[-0.05em] text-ink">

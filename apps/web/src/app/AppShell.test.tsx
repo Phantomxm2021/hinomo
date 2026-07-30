@@ -54,7 +54,8 @@ test('provides the complete desktop navigation without a scan destination', () =
   expect(within(navigation).queryByRole('link', { name: '扫码' })).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/app')
   expect(within(screen.getByRole('link', { name: 'Nomo' })).getByText('N')).toHaveAttribute('aria-hidden', 'true')
-  expect(screen.getByText('我的收纳空间')).toBeInTheDocument()
+  expect(screen.getByText(/林家的收纳空间/)).toBeInTheDocument()
+  expect(screen.getByText('设置与退出')).toBeInTheDocument()
   expect(screen.getByRole('complementary')).toHaveClass('lg:flex')
   expect(screen.getByRole('main')).toHaveClass('lg:ml-60', 'lg:px-[clamp(1.75rem,4vw,4rem)]')
   expect(within(navigation).getByRole('link', { name: '今日收纳' })).toHaveClass(

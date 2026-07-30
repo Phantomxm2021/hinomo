@@ -25,7 +25,6 @@ export function GlobalFindBar() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
-        <button className="min-h-12 border-0 bg-brand px-3.5 font-bold text-white hover:bg-brand-strong sm:px-5" type="submit">搜索</button>
       </div>
       <Link className="scan-icon-button hidden size-[46px] shrink-0 items-center justify-center rounded-control bg-brand text-white no-underline shadow-soft transition hover:bg-brand-strong focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-brand/45 lg:inline-flex" to="/app/scan" aria-label="扫码查看" title="扫码查看">
         <AppIcon name="scan" size={22} />

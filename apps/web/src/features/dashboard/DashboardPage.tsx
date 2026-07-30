@@ -32,20 +32,22 @@ export function DashboardPage() {
         <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label="空间统计">
           <span className="font-bold text-ink">空间</span>
           <strong className="text-5xl leading-none font-extrabold tracking-[-0.06em] text-ink">{spacesQuery.data?.length ?? '—'}</strong>
+          <span className="font-bold text-muted">客厅、卧室、书房...</span>
         </article>
         <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label="箱子统计">
           <span className="font-bold text-ink">箱子</span>
           <strong className="text-5xl leading-none font-extrabold tracking-[-0.06em] text-ink">{boxesQuery.data?.length ?? '—'}</strong>
+          <span className="font-bold text-muted">3 个最近更新</span>
         </article>
         <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label="物品统计">
           <span className="font-bold text-ink">物品</span>
           <strong className="text-5xl leading-none font-extrabold tracking-[-0.06em] text-ink">{boxesQuery.data ? itemTotal : '—'}</strong>
+          <span className="font-bold text-muted">跨箱子快速搜索</span>
         </article>
       </div>
 
       <section className="min-w-0" aria-labelledby="rooms-title">
         <div className="my-3.5">
-          <p className="mb-1 text-xs font-extrabold tracking-[0.12em] text-brand uppercase">空间分布</p>
           <h2 className="mb-0" id="rooms-title">按房间查看</h2>
         </div>
         {spacesQuery.isPending ? (
@@ -66,8 +68,7 @@ export function DashboardPage() {
               </span>
               <div>
                 <h3>{space.name}</h3>
-                {space.description ? <p className="mb-1 truncate text-sm">{space.description}</p> : null}
-                <p>{space.box_count} 个箱子 · {space.item_count} 件物品</p>
+                <p>{space.box_count} 个箱子</p>
               </div>
             </Link>
           ))}
@@ -77,8 +78,7 @@ export function DashboardPage() {
       <section className="min-w-0" aria-labelledby="recent-boxes-title">
         <div className="my-3.5 flex items-center justify-between gap-4">
           <div>
-            <p className="mb-1 text-xs font-extrabold tracking-[0.12em] text-brand uppercase">最近活动</p>
-            <h2 className="mb-0" id="recent-boxes-title">最近的箱子</h2>
+            <h2 className="mb-0" id="recent-boxes-title">最近打开</h2>
           </div>
           {boxes.length > 0 ? <Link to="/app/boxes">查看全部</Link> : null}
         </div>
@@ -109,10 +109,8 @@ export function DashboardPage() {
                 )}
               </span>
               <span className="block px-5 pt-4.5 pb-5">
-                <span className="font-mono text-xs font-extrabold text-brand">{box.box_code}</span>
                 <h3>{box.name}</h3>
                 <p className="mb-2">{box.space_name} · {box.location || '未填写位置'}</p>
-                <small>{box.item_count} 件物品</small>
               </span>
             </Link>
           ))}
