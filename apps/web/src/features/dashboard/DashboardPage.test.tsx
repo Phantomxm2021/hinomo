@@ -82,11 +82,13 @@ test('centers the dashboard on finding items, room totals, and recent activity',
 
   expect(screen.getByRole('region', { name: '早上好，今天找什么？' })).toHaveClass(
     'mx-auto',
-    'flex',
     'w-full',
     'max-w-7xl',
-    'flex-col',
     'gap-10',
+  )
+  expect(screen.getByRole('region', { name: '早上好，今天找什么？' }).querySelector('header')).toHaveClass(
+    'lg:grid',
+    'lg:grid-cols-[minmax(0,1fr)_minmax(26rem,auto)]',
   )
   expect(screen.getByLabelText('收纳概览')).toHaveClass('sm:grid-cols-3')
   expect(screen.getByLabelText('收纳概览')).toHaveClass('hidden', 'lg:grid')
