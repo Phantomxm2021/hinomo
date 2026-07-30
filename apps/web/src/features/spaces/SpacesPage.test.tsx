@@ -24,6 +24,7 @@ vi.mock('./spaces.api', () => ({
   deleteSpace: mockDeleteSpace,
   listSpaceLayouts: mockListSpaceLayouts,
   listSpaces: mockListSpaces,
+  isLayoutStorageUnavailable: (error: unknown) => Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'LAYOUT_STORAGE_UNAVAILABLE'),
   saveSpaceLayout: mockSaveSpaceLayout,
   updateSpace: mockUpdateSpace,
 }))
@@ -475,6 +476,22 @@ test('reports a real layout query failure without hiding the automatic plan', as
   expect(screen.getByRole('region', { name: '家庭平面总览' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '调整布局' })).toBeDisabled()
   expect(screen.getByRole('button', { name: '重试布局' })).toBeInTheDocument()
+})
+
+test('keeps automatic layout read-only when layout SQL is not installed', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', name: '客厅', description: null, box_count: 0, item_count: 0 },
+  ])
+  mockListSpaceLayouts.mockRejectedValue({ code: 'LAYOUT_STORAGE_UNAVAILABLE' })
+  renderSpaces()
+
+  await user.click(await screen.findByRole('button', { name: '平面视图' }))
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('布局保存尚未启用，请先执行 space_layouts 数据库迁移')
+  expect(screen.getByRole('button', { name: '调整布局' })).toBeDisabled()
+  expect(screen.queryByRole('button', { name: '重试布局' })).not.toBeInTheDocument()
+  expect(screen.getByRole('region', { name: '家庭平面总览' })).toBeInTheDocument()
 })
 
 test('does not enable layout editing before stored positions finish loading', async () => {

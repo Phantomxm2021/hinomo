@@ -39,6 +39,14 @@ test('renders room graphics and links to filtered boxes', () => {
   expect(screen.getByRole('link', { name: /客厅/ })).toHaveClass('touch-pan-y')
 })
 
+test('disables the anchor native drag gesture', () => {
+  render(<MemoryRouter><SpaceMap spaces={spaces} layouts={[]} editMode onLayoutChange={vi.fn()} /></MemoryRouter>)
+  const room = screen.getByRole('link', { name: /客厅/ })
+
+  expect(room).toHaveAttribute('draggable', 'false')
+  expect(fireEvent.dragStart(room)).toBe(false)
+})
+
 test('moves a focused room by two percent with arrow keys in edit mode', () => {
   const onLayoutChange = vi.fn()
   render(

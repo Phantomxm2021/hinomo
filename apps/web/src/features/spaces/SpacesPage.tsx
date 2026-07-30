@@ -12,6 +12,7 @@ import { spaceSchema, type SpaceFormValues } from './space.schema'
 import {
   createSpace,
   deleteSpace,
+  isLayoutStorageUnavailable,
   listSpaceLayouts,
   listSpaces,
   saveSpaceLayout,
@@ -98,6 +99,7 @@ export function SpacesPage() {
     defaultValues: { name: '', description: '' },
   })
   const editorPending = createMutation.isPending || updateMutation.isPending
+  const layoutStorageUnavailable = isLayoutStorageUnavailable(layoutsQuery.error)
   const resetCreateMutation = createMutation.reset
   const resetUpdateMutation = updateMutation.reset
 
@@ -372,7 +374,8 @@ export function SpacesPage() {
             ) : null}
           </div>
           {view === 'plan' && layoutEditMode && layoutsQuery.isSuccess ? <p className="text-meta text-muted" role="status">拖动房间卡片，或聚焦后使用方向键微调；布局会自动保存。</p> : null}
-          {view === 'plan' && layoutsQuery.isError ? <p role="alert">布局加载失败；当前显示自动布局。<button className="ml-2 font-bold underline" type="button" onClick={() => void layoutsQuery.refetch()}>重试布局</button></p> : null}
+          {view === 'plan' && layoutStorageUnavailable ? <p role="alert">布局保存尚未启用，请先执行 space_layouts 数据库迁移。当前仍可浏览自动布局。</p> : null}
+          {view === 'plan' && layoutsQuery.isError && !layoutStorageUnavailable ? <p role="alert">布局加载失败；当前显示自动布局。<button className="ml-2 font-bold underline" type="button" onClick={() => void layoutsQuery.refetch()}>重试布局</button></p> : null}
           {layoutMutation.isError ? <p role="alert">布局保存失败；自动布局仍可使用</p> : null}
           {view === 'cards' ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

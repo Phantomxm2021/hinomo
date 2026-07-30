@@ -72,13 +72,13 @@ describe('spaces api', () => {
     ])
   })
 
-  it('falls back to automatic layout when the migration is not installed', async () => {
+  it('marks layout storage unavailable when the migration is not installed', async () => {
     mockLayoutSelect.mockResolvedValue({
       data: null,
       error: { code: 'PGRST205', message: "Could not find the table 'public.space_layouts'" },
     })
 
-    await expect(listSpaceLayouts()).resolves.toEqual([])
+    await expect(listSpaceLayouts()).rejects.toMatchObject({ code: 'LAYOUT_STORAGE_UNAVAILABLE' })
   })
 
   it('upserts a layout for the signed-in owner', async () => {

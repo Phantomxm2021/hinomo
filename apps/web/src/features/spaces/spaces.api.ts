@@ -23,6 +23,17 @@ export type SpaceLayout = {
 
 export type SpacePosition = Omit<SpaceLayout, 'space_id'>
 
+const LAYOUT_STORAGE_UNAVAILABLE = 'LAYOUT_STORAGE_UNAVAILABLE'
+
+export function isLayoutStorageUnavailable(error: unknown) {
+  return Boolean(
+    error
+    && typeof error === 'object'
+    && 'code' in error
+    && error.code === LAYOUT_STORAGE_UNAVAILABLE,
+  )
+}
+
 export async function listSpaces(): Promise<SpaceSummary[]> {
   const { data, error } = await supabase
     .from('spaces')
@@ -78,7 +89,11 @@ export async function listSpaceLayouts(): Promise<SpaceLayout[]> {
     .select('space_id, x_percent, y_percent, width_percent, height_percent')
 
   if (error) {
-    if (error.code === '42P01' || error.code === 'PGRST205') return []
+    if (error.code === '42P01' || error.code === 'PGRST205') {
+      throw Object.assign(new Error('space layout storage is not installed'), {
+        code: LAYOUT_STORAGE_UNAVAILABLE,
+      })
+    }
     throw error
   }
 

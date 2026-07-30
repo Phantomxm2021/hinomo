@@ -1,6 +1,7 @@
 import {
   useEffect,
   useState,
+  type DragEvent as ReactDragEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
@@ -112,6 +113,7 @@ export function SpaceMap({
         return (
           <Link
             key={space.id}
+            draggable={false}
             className={`absolute flex flex-col justify-between overflow-hidden rounded-card border border-line p-3 text-ink no-underline shadow-soft focus:z-10 sm:p-4 ${spaceTone(index)} ${editMode ? 'touch-none cursor-move ring-2 ring-brand/20' : 'touch-pan-y hover:-translate-y-0.5'}`}
             style={{ left: `${position.x}%`, top: `${position.y}%`, width: `${position.width}%`, height: `${position.height}%` }}
             to={`/app/boxes?space=${encodeURIComponent(space.id)}`}
@@ -126,6 +128,7 @@ export function SpaceMap({
             onPointerMove={(event: ReactPointerEvent<HTMLAnchorElement>) => continueDrag(event, space.id)}
             onPointerUp={() => finishDrag(space.id)}
             onPointerCancel={() => cancelDrag(space.id)}
+            onDragStart={(event: ReactDragEvent<HTMLAnchorElement>) => event.preventDefault()}
           >
             <span className="flex items-start justify-between gap-2">
               <span className="text-3xl leading-none" role="img" aria-label={`${space.name}图标`}>{spaceEmoji(space.name)}</span>
