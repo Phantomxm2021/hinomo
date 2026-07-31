@@ -54,10 +54,11 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
     },
   })
   const busy = createMutation.isPending || updateMutation.isPending || isUploadPending(mediaUpload.stage)
+  const dismissalBlocked = busy || (!editing && Boolean(pendingBox))
 
   useEffect(() => {
-    onBusyChange?.(busy)
-  }, [busy, onBusyChange])
+    onBusyChange?.(dismissalBlocked)
+  }, [dismissalBlocked, onBusyChange])
 
   useEffect(() => {
     if (!boxQuery.data) return
@@ -97,6 +98,10 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
     } catch {
       setMediaError(true)
     }
+  }
+
+  function finishWithoutCover() {
+    if (pendingBox) onCompleted?.(pendingBox)
   }
 
   const submit = handleSubmit(async (values) => {
@@ -212,13 +217,25 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
         ) : null}
         {saved ? <p role="status">修改已保存</p> : null}
         {mediaStatus ? <p role="status">图片处理中：{mediaStatus}</p> : null}
-        {mediaError ? (
+        {!editing && pendingBox ? (
+          <div className="grid gap-3 rounded-control border border-danger/30 bg-danger/5 p-4" role={mediaError ? 'alert' : 'status'}>
+            <p>箱子记录已创建，但封面未完成。</p>
+            <div className="flex flex-wrap gap-2">
+              {coverFile ? (
+                <button className="min-h-11 w-fit rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold text-danger" type="button" disabled={busy} onClick={() => void retryCoverUpload()}>
+                  {mediaError ? '重试上传' : '上传封面'}
+                </button>
+              ) : null}
+              <button className="min-h-11 w-fit rounded-control border border-line bg-surface px-4 py-2 font-bold text-ink" type="button" disabled={busy} onClick={finishWithoutCover}>暂不上传封面</button>
+            </div>
+          </div>
+        ) : mediaError ? (
           <div className="grid gap-3 rounded-control border border-danger/30 bg-danger/5 p-4" role="alert">
-            <p>{!editing && pendingBox ? '箱子记录已创建，但封面未完成。' : '图片上传失败，已保留填写内容。'}</p>
+            <p>图片上传失败，已保留填写内容。</p>
             <button className="min-h-11 w-fit rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold text-danger" type="button" onClick={() => void retryCoverUpload()}>重试上传</button>
           </div>
         ) : null}
-        {!editing && pendingBox && mediaError ? null : (
+        {!editing && pendingBox ? null : (
           <button
             className="mt-2 min-h-11 rounded-control border border-brand bg-brand px-5 py-2 font-bold text-white hover:bg-brand-strong"
             type="submit"

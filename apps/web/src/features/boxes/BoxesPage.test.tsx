@@ -1,13 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { BoxesPage } from './BoxesPage'
 
-const { mockDeleteBox, mockListBoxes } = vi.hoisted(() => ({
+const { mockDeleteBox, mockListBoxes, mockModalCleanupSawStatus } = vi.hoisted(() => ({
   mockDeleteBox: vi.fn(),
   mockListBoxes: vi.fn(),
+  mockModalCleanupSawStatus: vi.fn(),
 }))
 
 const catalogueSpies = vi.hoisted(() => ({
@@ -35,21 +36,37 @@ vi.mock('../media/AuthorizedImage', () => ({
   ),
 }))
 
-vi.mock('./CreateBoxModal', () => ({
-  CreateBoxModal: ({ open, onClose, onCompleted, onBusyChange }: {
+vi.mock('./CreateBoxModal', async () => {
+  const { useEffect } = await import('react')
+  function MockCreateBoxModal({ open, onClose, onCompleted, onBusyChange }: {
     open: boolean
     onClose: () => void
     onCompleted: (box: unknown) => void
     onBusyChange?: (busy: boolean) => void
-  }) => open ? (
-    <div role="dialog" aria-label="创建箱子">
-      <button type="button" onClick={onClose}>关闭测试模态</button>
-      <button type="button" onClick={() => onCompleted({ id: 'box-new' })}>完成测试创建</button>
-      <button type="button" onClick={() => onBusyChange?.(true)}>开始忙碌</button>
-      <button type="button" onClick={() => onBusyChange?.(false)}>结束忙碌</button>
-    </div>
-  ) : null,
-}))
+  }) {
+    useEffect(() => {
+      if (!open) return
+      const appShell = document.querySelector('[data-app-shell]')
+      appShell?.setAttribute('inert', '')
+      appShell?.setAttribute('aria-hidden', 'true')
+      return () => {
+        mockModalCleanupSawStatus(Boolean(document.querySelector('[role="status"][aria-label="箱子已创建"]')))
+        appShell?.removeAttribute('inert')
+        appShell?.removeAttribute('aria-hidden')
+      }
+    }, [open])
+    return open ? (
+      <div role="dialog" aria-label="创建箱子">
+        <button type="button" onClick={onClose}>关闭测试模态</button>
+        <button type="button" onClick={() => onCompleted({ id: 'box-new' })}>完成测试创建</button>
+        <button type="button" onClick={() => onCompleted({ id: 'box-new' })}>暂不上传封面</button>
+        <button type="button" onClick={() => onBusyChange?.(true)}>开始忙碌</button>
+        <button type="button" onClick={() => onBusyChange?.(false)}>结束忙碌</button>
+      </div>
+    ) : null
+  }
+  return { CreateBoxModal: MockCreateBoxModal }
+})
 
 const boxes = [
   {
@@ -101,6 +118,7 @@ function renderBoxes(initialEntry = '/app/boxes') {
     path: '/app/boxes',
     element: (
       <>
+        <main data-app-shell />
         <BoxesPage />
         <LocationProbe />
       </>
@@ -132,12 +150,16 @@ function primaryLinkNames() {
 beforeEach(() => {
   mockDeleteBox.mockReset()
   mockListBoxes.mockReset()
+  mockModalCleanupSawStatus.mockReset()
   catalogueSpies.catalogueSpaces.mockClear()
   catalogueSpies.catalogueSummary.mockClear()
   catalogueSpies.filterAndSortBoxes.mockClear()
 })
 
-afterEach(cleanup)
+afterEach(() => {
+  vi.useRealTimers()
+  cleanup()
+})
 
 test('hydrates search, space, and sort from the URL and renders only matching cards', async () => {
   mockListBoxes.mockResolvedValue(boxes)
@@ -384,8 +406,57 @@ test('closes, refreshes, announces success, renders the new card, and restores f
   expect(screen.queryByRole('dialog', { name: '创建箱子' })).not.toBeInTheDocument()
   expect(await screen.findByRole('article', { name: '书籍' })).toBeInTheDocument()
   expect(screen.getByRole('status', { name: '箱子已创建' })).toBeInTheDocument()
+  expect(mockModalCleanupSawStatus).toHaveBeenCalledWith(false)
+  expect(document.querySelector('[data-app-shell]')).not.toHaveAttribute('inert')
+  expect(document.querySelector('[data-app-shell]')).not.toHaveAttribute('aria-hidden')
   await waitFor(() => expect(createButton).toHaveFocus())
   expect(mockListBoxes).toHaveBeenCalledTimes(2)
+})
+
+test('removes the creation success status after four seconds', async () => {
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes('/app/boxes?create=1')
+  await screen.findByRole('dialog', { name: '创建箱子' })
+  vi.useFakeTimers()
+
+  fireEvent.click(screen.getByRole('button', { name: '完成测试创建' }))
+  await act(async () => { await Promise.resolve() })
+  expect(screen.getByRole('status', { name: '箱子已创建' })).toBeInTheDocument()
+
+  act(() => { vi.advanceTimersByTime(4_000) })
+  expect(screen.queryByRole('status', { name: '箱子已创建' })).not.toBeInTheDocument()
+  vi.useRealTimers()
+})
+
+test('closes and renders the created card when finishing without a cover', async () => {
+  const user = userEvent.setup()
+  const newBox = {
+    id: 'box-new', public_id: 'public-new', box_code: 'BX-00003', name: '待补封面',
+    space_id: 'space-1', space_name: '卧室', location: null, visibility: 'private',
+    cover_object_key: null, item_count: 0, updated_at: '2026-07-30T10:00:00Z',
+  }
+  mockListBoxes.mockResolvedValueOnce(boxes).mockResolvedValueOnce([newBox, ...boxes])
+  renderBoxes('/app/boxes?create=1')
+
+  await user.click(await screen.findByRole('button', { name: '开始忙碌' }))
+  await user.click(screen.getByRole('button', { name: '暂不上传封面' }))
+
+  expect(screen.queryByRole('dialog', { name: '创建箱子' })).not.toBeInTheDocument()
+  expect(await screen.findByRole('article', { name: '待补封面' })).toBeInTheDocument()
+  expect(mockListBoxes).toHaveBeenCalledTimes(2)
+})
+
+test('clears an earlier success status when starting another creation', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes('/app/boxes?create=1')
+
+  await user.click(await screen.findByRole('button', { name: '完成测试创建' }))
+  await screen.findByRole('status', { name: '箱子已创建' })
+  await user.click(screen.getByRole('button', { name: '创建箱子' }))
+
+  expect(screen.getByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
+  expect(screen.queryByRole('status', { name: '箱子已创建' })).not.toBeInTheDocument()
 })
 
 test('lets browser back close a modal opened from the list and restores focus', async () => {

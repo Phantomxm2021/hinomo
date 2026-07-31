@@ -30,7 +30,9 @@ export function BoxesPage() {
   const [deleteTarget, setDeleteTarget] = useState<BoxSummary | null>(null)
   const [openMenuBoxId, setOpenMenuBoxId] = useState<string | null>(null)
   const [createBusy, setCreateBusy] = useState(false)
+  const [createCompletionPending, setCreateCompletionPending] = useState(false)
   const [createSucceeded, setCreateSucceeded] = useState(false)
+  const createSuccessTimerRef = useRef<number | null>(null)
   const boxesQuery = useQuery({ queryKey: ['boxes'], queryFn: listBoxes })
   const deleteMutation = useMutation({
     mutationFn: (boxId: string) => deleteBox(boxId),
@@ -80,8 +82,16 @@ export function BoxesPage() {
     setSearchParams(next, { replace: true })
   }
 
+  const clearCreateSuccessTimer = useCallback(() => {
+    if (createSuccessTimerRef.current === null) return
+    window.clearTimeout(createSuccessTimerRef.current)
+    createSuccessTimerRef.current = null
+  }, [])
+
   const openCreate = () => {
+    clearCreateSuccessTimer()
     setCreateSucceeded(false)
+    setCreateCompletionPending(false)
     const next = new URLSearchParams(searchParams)
     next.set('create', '1')
     setSearchParams(next)
@@ -98,8 +108,21 @@ export function BoxesPage() {
   }, [createBlocker, createBusy])
 
   useEffect(() => {
-    if (createSucceeded && creating && !createBusy) closeCreate()
-  }, [closeCreate, createBusy, createSucceeded, creating])
+    if (createCompletionPending && creating && !createBusy) closeCreate()
+  }, [closeCreate, createBusy, createCompletionPending, creating])
+
+  useEffect(() => {
+    if (!createCompletionPending || creating) return
+    setCreateCompletionPending(false)
+    setCreateSucceeded(true)
+    clearCreateSuccessTimer()
+    createSuccessTimerRef.current = window.setTimeout(() => {
+      createSuccessTimerRef.current = null
+      setCreateSucceeded(false)
+    }, 4_000)
+  }, [clearCreateSuccessTimer, createCompletionPending, creating])
+
+  useEffect(() => clearCreateSuccessTimer, [clearCreateSuccessTimer])
 
   useEffect(() => {
     setOpenMenuBoxId(null)
@@ -253,7 +276,7 @@ export function BoxesPage() {
         open={creating}
         onClose={closeCreate}
         onCompleted={() => {
-          setCreateSucceeded(true)
+          setCreateCompletionPending(true)
           setCreateBusy(false)
           void queryClient.invalidateQueries({ queryKey: ['boxes'] })
         }}

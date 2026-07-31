@@ -45,12 +45,12 @@ function renderBoxForm(initialEntry = '/app/boxes/new') {
   )
 }
 
-function renderModalBoxForm(onCompleted = vi.fn()) {
+function renderModalBoxForm(onCompleted = vi.fn(), onBusyChange?: (busy: boolean) => void) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <MemoryRouter>
       <QueryClientProvider client={client}>
-        <BoxForm presentation="modal" onCompleted={onCompleted} />
+        <BoxForm presentation="modal" onCompleted={onCompleted} onBusyChange={onBusyChange} />
       </QueryClientProvider>
     </MemoryRouter>,
   )
@@ -148,6 +148,61 @@ test('keeps a created box and selected cover available when upload fails, then r
   expect(mockCreateBox).toHaveBeenCalledTimes(1)
   expect(mockUpload).toHaveBeenCalledTimes(2)
   expect(mockUpload).toHaveBeenLastCalledWith({ file, boxId: 'box-1', itemId: null, kind: 'cover' })
+})
+
+test('uploads a replacement cover to the pending box without creating another record', async () => {
+  const user = userEvent.setup()
+  const onCompleted = vi.fn()
+  mockListSpaces.mockResolvedValue([
+    { id: 'space-home', name: '家', description: null, box_count: 0 },
+  ])
+  const box = { id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', name: '冬季衣物' }
+  mockCreateBox.mockResolvedValue(box)
+  mockUpload.mockRejectedValueOnce(new Error('upload failed')).mockResolvedValueOnce('boxes/box-1/cover.webp')
+  renderModalBoxForm(onCompleted)
+
+  await user.selectOptions(await screen.findByLabelText('空间'), 'space-home')
+  await user.type(screen.getByLabelText('箱子名称'), '冬季衣物')
+  await user.upload(screen.getByLabelText('箱子封面（可选）'), new File(['old'], 'old.png', { type: 'image/png' }))
+  await user.click(screen.getByRole('button', { name: '创建箱子' }))
+  await screen.findByText('箱子记录已创建，但封面未完成。')
+
+  const replacement = new File(['new'], 'new.png', { type: 'image/png' })
+  await user.upload(screen.getByLabelText('箱子封面（可选）'), replacement)
+
+  expect(screen.queryByRole('button', { name: '创建箱子' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '上传封面' }))
+
+  await waitFor(() => expect(onCompleted).toHaveBeenCalledWith(box))
+  expect(mockCreateBox).toHaveBeenCalledTimes(1)
+  expect(mockUpload).toHaveBeenLastCalledWith({
+    file: replacement, boxId: 'box-1', itemId: null, kind: 'cover',
+  })
+})
+
+test('can finish a pending box without its failed cover upload', async () => {
+  const user = userEvent.setup()
+  const onCompleted = vi.fn()
+  const onBusyChange = vi.fn()
+  mockListSpaces.mockResolvedValue([
+    { id: 'space-home', name: '家', description: null, box_count: 0 },
+  ])
+  const box = { id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', name: '冬季衣物' }
+  mockCreateBox.mockResolvedValue(box)
+  mockUpload.mockRejectedValue(new Error('upload failed'))
+  renderModalBoxForm(onCompleted, onBusyChange)
+
+  await user.selectOptions(await screen.findByLabelText('空间'), 'space-home')
+  await user.type(screen.getByLabelText('箱子名称'), '冬季衣物')
+  await user.upload(screen.getByLabelText('箱子封面（可选）'), new File(['cover'], 'cover.png', { type: 'image/png' }))
+  await user.click(screen.getByRole('button', { name: '创建箱子' }))
+  await screen.findByText('箱子记录已创建，但封面未完成。')
+  expect(onBusyChange).toHaveBeenLastCalledWith(true)
+  await user.click(screen.getByRole('button', { name: '暂不上传封面' }))
+
+  expect(onCompleted).toHaveBeenCalledWith(box)
+  expect(mockCreateBox).toHaveBeenCalledTimes(1)
+  expect(mockUpload).toHaveBeenCalledTimes(1)
 })
 
 test('offers a retry when spaces cannot be loaded', async () => {

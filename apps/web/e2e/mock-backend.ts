@@ -206,6 +206,12 @@ export async function createSpace(page: Page, name: string) {
 
 export async function createBox(page: Page, name: string, visibility: 'public' | 'private') {
   await page.goto('/app/boxes')
+  const boxLinks = page.locator('article').getByRole('link', { name: /^打开/ })
+  await expect.poll(async () => (
+    await boxLinks.count() > 0
+    || await page.getByText('还没有箱子', { exact: true }).count() > 0
+  )).toBe(true)
+  const linksBefore = await boxLinks.evaluateAll((links) => links.map((link) => link.getAttribute('href')).filter(Boolean))
   await page.locator('header').getByRole('button', { name: '创建箱子', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: '创建箱子' })
   await expect(page).toHaveURL(/\/app\/boxes\?create=1$/)
@@ -218,7 +224,9 @@ export async function createBox(page: Page, name: string, visibility: 'public' |
   await dialog.getByLabel('查看权限').selectOption(visibility)
   await dialog.getByRole('button', { name: '创建箱子', exact: true }).click()
   await dialog.waitFor({ state: 'hidden' })
-  const boxLink = page.getByRole('link', { name: `打开${name}` })
-  await boxLink.waitFor()
-  return await boxLink.getAttribute('href') as string
+  await expect(boxLinks).toHaveCount(linksBefore.length + 1)
+  const linksAfter = await boxLinks.evaluateAll((links) => links.map((link) => link.getAttribute('href')).filter(Boolean))
+  const publicUrl = linksAfter.find((href) => !linksBefore.includes(href))
+  expect(publicUrl).toBeTruthy()
+  return publicUrl!
 }
