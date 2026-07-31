@@ -7,6 +7,15 @@ import { expect, test } from 'vitest'
 const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
 const viteConfig = readFileSync(resolve(process.cwd(), 'vite.config.ts'), 'utf8')
 const indexHtml = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8')
+const boxesPageSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/BoxesPage.tsx'), 'utf8')
+const catalogueCardSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/BoxCatalogueCard.tsx'), 'utf8')
+const catalogueToolbarSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/BoxCatalogueToolbar.tsx'), 'utf8')
+const spaceFilterChipsSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/SpaceFilterChips.tsx'), 'utf8')
+const catalogueSources = [
+  catalogueCardSource,
+  catalogueToolbarSource,
+  spaceFilterChipsSource,
+]
 const alignedPageSources = [
   'src/app/AuthLayout.tsx',
   'src/features/boxes/BoxForm.tsx',
@@ -16,7 +25,7 @@ const alignedPageSources = [
   'src/features/scanner/ScannerPage.tsx',
   'src/features/search/SearchPage.tsx',
   'src/features/spaces/SpacesPage.tsx',
-].map((path) => readFileSync(resolve(process.cwd(), path), 'utf8'))
+].map((path) => readFileSync(resolve(process.cwd(), path), 'utf8')).concat(catalogueSources)
 
 test('defines the approved Tailwind warm-family theme', () => {
   expect(css.startsWith('@import "tailwindcss";')).toBe(true)
@@ -128,6 +137,16 @@ test('preserves the global focus affordance after Preflight', () => {
 
 test('removes the migrated box catalogue selector', () => {
   expect(css).not.toContain('.box-card')
+})
+
+test('keeps the extracted box catalogue on approved visual tokens', () => {
+  expect(boxesPageSource).toContain('text-page-title')
+  expect(catalogueCardSource).toContain('text-card-title')
+  expect(catalogueCardSource).toContain('rounded-card')
+  expect(catalogueCardSource).toContain('border-line')
+  expect(catalogueToolbarSource).toContain('rounded-card')
+  expect(catalogueToolbarSource).toContain('border-line')
+  expect(spaceFilterChipsSource).toContain('border-line')
 })
 
 test('removes migrated box detail and item form selectors', () => {
