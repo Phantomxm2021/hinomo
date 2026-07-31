@@ -90,6 +90,32 @@ async function expectOwnerCtaClearance(page: Parameters<typeof installMockBacken
   }
 }
 
+async function expectItemFormActionClearance(page: Parameters<typeof installMockBackend>[0], safeAreaBottom: number) {
+  await page.getByRole('button', { name: /^(新增物品|移动端新增物品)$/ }).click()
+  await expect(page.getByRole('heading', { name: '新增物品' })).toBeVisible()
+  const actionBar = page.getByRole('button', { name: '保存' }).locator('..')
+  await page.evaluate((inset) => {
+    document.documentElement.style.setProperty('--safe-area-bottom', `${inset}px`)
+    window.scrollTo(0, document.documentElement.scrollHeight)
+  }, safeAreaBottom)
+  try {
+    await expect.poll(async () => {
+      const geometry = await actionBar.evaluate((element) => ({
+        bottom: element.getBoundingClientRect().bottom,
+        viewportHeight: window.innerHeight,
+      }))
+      return Math.abs(geometry.viewportHeight - geometry.bottom - Math.max(16, safeAreaBottom)) <= 1
+    }).toBe(true)
+    await expect.poll(async () => {
+      const actionTop = await actionBar.evaluate((element) => element.getBoundingClientRect().top)
+      const lastFieldBottom = await page.getByLabel('描述（可选）').evaluate((element) => element.getBoundingClientRect().bottom)
+      return lastFieldBottom <= actionTop
+    }).toBe(true)
+  } finally {
+    await page.evaluate(() => document.documentElement.style.removeProperty('--safe-area-bottom'))
+  }
+}
+
 async function expectShellSafeArea(page: Parameters<typeof installMockBackend>[0], safeAreaBottom: number) {
   await page.evaluate((inset) => {
     document.documentElement.style.setProperty('--safe-area-bottom', `${inset}px`)
@@ -287,6 +313,7 @@ test('mobile route alignment', async ({ page }) => {
       if (!route.expectShell && width < 768) {
         await expectOwnerCtaClearance(page, 24)
       }
+      if (!route.expectShell) await expectItemFormActionClearance(page, 24)
     }
   }
 })

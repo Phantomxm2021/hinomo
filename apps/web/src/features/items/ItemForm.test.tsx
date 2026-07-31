@@ -82,7 +82,7 @@ test('shows media before item details in the visual field order', () => {
   ])
 })
 
-test('keeps the save action above mobile navigation', () => {
+test('keeps mobile actions above the public-page safe area', () => {
   const client = new QueryClient()
   render(
     <QueryClientProvider client={client}>
@@ -90,12 +90,17 @@ test('keeps the save action above mobile navigation', () => {
     </QueryClientProvider>,
   )
 
-  expect(screen.getByRole('button', { name: '保存' }).parentElement).toHaveClass(
+  const save = screen.getByRole('button', { name: '保存' })
+  const cancel = screen.getByRole('button', { name: '取消' })
+  expect(save.parentElement).toHaveClass(
     'fixed',
-    'inset-x-5',
-    'bottom-[calc(6.75rem+env(safe-area-inset-bottom))]',
+    'inset-x-4',
+    'min-[360px]:inset-x-5',
+    'bottom-[max(1rem,var(--safe-area-bottom))]',
     'lg:static',
   )
+  expect(save).toHaveClass('min-h-12')
+  expect(cancel).toHaveClass('min-h-11')
 })
 
 test('submits a directly entered quantity as a number', async () => {
