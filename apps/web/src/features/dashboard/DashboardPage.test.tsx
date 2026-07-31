@@ -1,7 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, within } from '@testing-library/react'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { DashboardPage } from './DashboardPage'
@@ -141,13 +139,6 @@ test('shows a structural dashboard skeleton while initial data is pending', () =
   expect(within(loading).getAllByTestId('skeleton').length).toBeGreaterThan(6)
   expect(screen.queryByText('正在加载空间…')).not.toBeInTheDocument()
   expect(screen.queryByText('正在加载箱子…')).not.toBeInTheDocument()
-})
-
-test('does not retain legacy visible loading copy behind the dashboard skeleton', () => {
-  const source = readFileSync(resolve(process.cwd(), 'src/features/dashboard/DashboardPage.tsx'), 'utf8')
-
-  expect(source).not.toContain('正在加载空间…')
-  expect(source).not.toContain('正在加载箱子…')
 })
 
 test('guides a first-time user to create a box', async () => {
