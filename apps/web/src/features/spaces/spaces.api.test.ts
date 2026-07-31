@@ -1,14 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { listSpaces } from './spaces.api'
+import { listSpaceLayouts, listSpaces, saveSpaceLayout } from './spaces.api'
 
-const { mockFrom, mockOrder, mockSelect } = vi.hoisted(() => ({
+const { mockFrom, mockGetSession, mockLayoutSelect, mockOrder, mockSelect, mockUpsert } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
+  mockGetSession: vi.fn(),
+  mockLayoutSelect: vi.fn(),
   mockOrder: vi.fn(),
   mockSelect: vi.fn(),
+  mockUpsert: vi.fn(),
 }))
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
+    auth: { getSession: mockGetSession },
     from: mockFrom,
   },
 }))
@@ -16,9 +20,14 @@ vi.mock('../../lib/supabase', () => ({
 describe('spaces api', () => {
   beforeEach(() => {
     mockFrom.mockReset()
+    mockGetSession.mockReset()
+    mockLayoutSelect.mockReset()
     mockOrder.mockReset()
     mockSelect.mockReset()
-    mockFrom.mockReturnValue({ select: mockSelect })
+    mockUpsert.mockReset()
+    mockFrom.mockImplementation((table: string) => table === 'space_layouts'
+      ? { select: mockLayoutSelect, upsert: mockUpsert }
+      : { select: mockSelect })
     mockSelect.mockReturnValue({ order: mockOrder })
   })
 
@@ -50,5 +59,37 @@ describe('spaces api', () => {
     expect(mockSelect).toHaveBeenCalledWith(
       'id, name, description, boxes(id, items(count))',
     )
+  })
+
+  it('maps persisted percentage layouts', async () => {
+    mockLayoutSelect.mockResolvedValue({
+      data: [{ space_id: 'space-1', x_percent: 4, y_percent: 8, width_percent: 44, height_percent: 36 }],
+      error: null,
+    })
+
+    await expect(listSpaceLayouts()).resolves.toEqual([
+      { space_id: 'space-1', x: 4, y: 8, width: 44, height: 36 },
+    ])
+  })
+
+  it('marks layout storage unavailable when the migration is not installed', async () => {
+    mockLayoutSelect.mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST205', message: "Could not find the table 'public.space_layouts'" },
+    })
+
+    await expect(listSpaceLayouts()).rejects.toMatchObject({ code: 'LAYOUT_STORAGE_UNAVAILABLE' })
+  })
+
+  it('upserts a layout for the signed-in owner', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'user-1' } } } })
+    mockUpsert.mockResolvedValue({ error: null })
+
+    await saveSpaceLayout('space-1', { x: 6, y: 10, width: 44, height: 36 })
+
+    expect(mockUpsert).toHaveBeenCalledWith({
+      space_id: 'space-1', owner_id: 'user-1',
+      x_percent: 6, y_percent: 10, width_percent: 44, height_percent: 36,
+    })
   })
 })

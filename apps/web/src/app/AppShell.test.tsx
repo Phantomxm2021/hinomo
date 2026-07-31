@@ -1,24 +1,62 @@
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import type { Session } from '@supabase/supabase-js'
+import { AuthProvider } from '../features/auth/AuthProvider'
 import { AppShell } from './AppShell'
 
+const { mockGetAvatarDownload, mockGetProfile } = vi.hoisted(() => ({
+  mockGetAvatarDownload: vi.fn(),
+  mockGetProfile: vi.fn(),
+}))
+
+vi.mock('../features/profile/profile.api', () => ({
+  getProfile: mockGetProfile,
+  getAvatarDownload: mockGetAvatarDownload,
+  updateLocale: vi.fn(),
+  uploadAvatar: vi.fn(),
+}))
+
+beforeEach(() => {
+  mockGetProfile.mockReset().mockResolvedValue({ id: 'user-1', display_name: '林家', avatar_object_key: null, locale: 'zh-CN' })
+  mockGetAvatarDownload.mockReset().mockResolvedValue(null)
+})
 afterEach(cleanup)
 
+test('announces offline state and clears it when connectivity returns', () => {
+  vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true)
+  renderShell()
+  expect(screen.queryByText('当前离线，部分操作可能不可用')).not.toBeInTheDocument()
+
+  act(() => window.dispatchEvent(new Event('offline')))
+  expect(screen.getByRole('status', { name: '' })).toHaveTextContent('当前离线，部分操作可能不可用')
+
+  act(() => window.dispatchEvent(new Event('online')))
+  expect(screen.queryByText('当前离线，部分操作可能不可用')).not.toBeInTheDocument()
+  vi.restoreAllMocks()
+})
+
 function renderShell(initialEntry = '/app') {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <MemoryRouter initialEntries={[initialEntry]}>
-      <Routes>
-        <Route path="/app" element={<AppShell />}>
-          <Route index element={<p>内容</p>} />
-          <Route path="*" element={<p>内容</p>} />
-        </Route>
-      </Routes>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider session={{ user: { id: 'user-1', email: 'lin@example.com', user_metadata: { display_name: '林家' } } } as unknown as Session}>
+          <Routes>
+            <Route path="/app" element={<AppShell />}>
+              <Route index element={<p>内容</p>} />
+              <Route path="*" element={<p>内容</p>} />
+            </Route>
+          </Routes>
+        </AuthProvider>
+      </QueryClientProvider>
     </MemoryRouter>,
   )
 }
 
-test('provides the complete desktop navigation without a scan destination', () => {
+test('provides the complete desktop navigation without a scan destination', async () => {
   renderShell()
 
   const navigation = screen.getByRole('navigation', { name: '主导航' })
@@ -39,8 +77,24 @@ test('provides the complete desktop navigation without a scan destination', () =
     '/app/print',
   ])
   expect(within(navigation).queryByRole('link', { name: '扫码' })).not.toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/app')
-  expect(screen.getByText('我的收纳空间')).toBeInTheDocument()
+  const desktopBrand = within(screen.getByRole('complementary')).getByRole('link', { name: 'Nomo' })
+  expect(desktopBrand).toHaveAttribute('href', '/app')
+  expect(within(desktopBrand).getByText('N')).toHaveAttribute('aria-hidden', 'true')
+  expect(await screen.findByText('林家')).toBeInTheDocument()
+  expect(screen.getByText('lin@example.com')).toBeInTheDocument()
+  expect(screen.getByRole('complementary')).toHaveClass('lg:flex')
+  expect(screen.getByRole('main')).toHaveClass('lg:ml-60', 'lg:px-[clamp(1.75rem,4vw,4rem)]')
+  expect(within(navigation).getByRole('link', { name: '今日收纳' })).toHaveClass(
+    'bg-surface',
+    'font-bold',
+    'text-body',
+    'text-ink',
+  )
+  expect(within(navigation).getByRole('link', { name: '我的空间' })).toHaveClass(
+    'font-medium',
+    'text-body',
+    'text-muted',
+  )
 })
 
 test('provides five mobile destinations with a central scan action', () => {
@@ -64,6 +118,66 @@ test('provides five mobile destinations with a central scan action', () => {
     '/app/search',
   ])
   expect(within(navigation).getByRole('link', { name: '扫码' })).toHaveClass('mobile-scan-action')
+  expect(navigation).toHaveClass(
+    'lg:hidden',
+    'border-line',
+    'pb-[max(0.75rem,var(--safe-area-bottom))]',
+    'shadow-float',
+    'backdrop-blur',
+  )
+  expect(navigation).not.toHaveClass('border-line/80')
+})
+
+test('opens real account actions and read-only profile details', async () => {
+  const user = userEvent.setup()
+  renderShell()
+  await user.click(await screen.findByRole('button', { name: '打开账户菜单' }))
+  expect(screen.getByRole('menu')).toHaveClass('fixed', 'z-[60]')
+  expect(screen.getByRole('menuitem', { name: /账户信息/ })).toBeInTheDocument()
+  expect(screen.getByRole('menuitem', { name: /设置/ })).toBeInTheDocument()
+  expect(screen.getByRole('menuitem', { name: /退出登录/ })).toBeInTheDocument()
+  await user.click(screen.getByRole('menuitem', { name: /账户信息/ }))
+  expect(screen.getByRole('dialog', { name: '账户信息' })).toBeInTheDocument()
+  expect(screen.getByLabelText('昵称')).toHaveAttribute('readonly')
+  expect(screen.getByLabelText('邮箱')).toHaveAttribute('readonly')
+})
+
+test('uses the avatar itself as the upload control with a hover cover', async () => {
+  const user = userEvent.setup()
+  renderShell()
+  await user.click(await screen.findByRole('button', { name: '打开账户菜单' }))
+  await user.click(screen.getByRole('menuitem', { name: /账户信息/ }))
+
+  const upload = screen.getByLabelText('更换头像')
+  const avatarControl = upload.closest('label')
+  const cover = screen.getByText('更换头像')
+
+  expect(avatarControl).toHaveClass('group', 'relative', 'rounded-full')
+  expect(cover).toHaveClass('absolute', 'opacity-0', 'group-hover:opacity-100')
+})
+
+test('links the mobile brand home without a competing spaces action', () => {
+  renderShell()
+
+  const mobileHeader = screen.getByRole('banner')
+  expect(mobileHeader).toHaveClass('lg:hidden')
+  expect(within(mobileHeader).getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/app')
+  expect(within(mobileHeader).queryByRole('link', { name: '我的收纳空间' })).not.toBeInTheDocument()
+})
+
+test('keeps mobile content narrow-safe with responsive gutters and nav clearance', () => {
+  renderShell()
+
+  expect(screen.getByRole('main')).toHaveClass(
+    'min-w-0',
+    'px-4',
+    'min-[360px]:px-5',
+    'pb-[calc(8rem+var(--safe-area-bottom))]',
+    'lg:px-[clamp(1.75rem,4vw,4rem)]',
+  )
+  expect(screen.getByRole('navigation', { name: '移动端主导航' })).toHaveClass(
+    'pb-[max(0.75rem,var(--safe-area-bottom))]',
+  )
 })
 
 test('marks the mobile scan action active on the scan route', () => {

@@ -9,18 +9,20 @@ export function ScannerPage() {
   const controlsRef = useRef<IScannerControls | null>(null)
   const handledRef = useRef(false)
   const [cameraMessage, setCameraMessage] = useState<string | null>(null)
-  const [manualValue, setManualValue] = useState('')
-  const [manualError, setManualError] = useState(false)
+  const [cameraCanRetry, setCameraCanRetry] = useState(false)
+  const [scannerAttempt, setScannerAttempt] = useState(0)
 
   useEffect(() => {
     const hostname = window.location.hostname
     const local = hostname === 'localhost' || hostname === '127.0.0.1'
     if (window.isSecureContext === false && !local) {
       setCameraMessage('当前页面不是 HTTPS，无法使用相机')
+      setCameraCanRetry(false)
       return
     }
 
     let cancelled = false
+    let attemptControls: IScannerControls | null = null
     async function startScanner() {
       try {
         const { BrowserQRCodeReader } = await import('@zxing/browser')
@@ -30,10 +32,11 @@ export function ScannerPage() {
           { audio: false, video: { facingMode: { ideal: 'environment' } } },
           videoRef.current ?? undefined,
           (result, _error, scanControls) => {
-            if (!result || handledRef.current) return
+            if (cancelled || !result || handledRef.current) return
             const path = parseNomoBoxPath(result.getText())
             if (!path) {
               setCameraMessage('识别到的二维码不是有效的 Nomo 箱子地址')
+              setCameraCanRetry(false)
               return
             }
             handledRef.current = true
@@ -41,16 +44,21 @@ export function ScannerPage() {
             navigate(path)
           },
         )
+        attemptControls = controls
         if (cancelled) controls.stop()
-        else controlsRef.current = controls
+        else {
+          controlsRef.current = controls
+          setCameraCanRetry(true)
+        }
       } catch (error: unknown) {
         if (cancelled) return
+        setCameraCanRetry(true)
         if (error instanceof DOMException && error.name === 'NotAllowedError') {
-          setCameraMessage('相机权限被拒绝')
+          setCameraMessage('相机权限被拒绝，请在浏览器站点设置中允许相机后重试')
         } else if (error instanceof DOMException && error.name === 'NotFoundError') {
           setCameraMessage('没有找到可用的相机')
         } else {
-          setCameraMessage('相机启动失败，请使用手动输入')
+          setCameraMessage('相机启动失败，请重新尝试')
         }
       }
     }
@@ -58,41 +66,35 @@ export function ScannerPage() {
 
     return () => {
       cancelled = true
-      controlsRef.current?.stop()
+      if (attemptControls && controlsRef.current === attemptControls) {
+        attemptControls.stop()
+        controlsRef.current = null
+      }
     }
-  }, [navigate])
+  }, [navigate, scannerAttempt])
 
-  function openManualAddress() {
-    const path = parseNomoBoxPath(manualValue)
-    if (!path) {
-      setManualError(true)
-      return
-    }
-    setManualError(false)
+  function retryCamera() {
+    handledRef.current = false
+    setCameraMessage(null)
+    setCameraCanRetry(false)
     controlsRef.current?.stop()
-    navigate(path)
+    controlsRef.current = null
+    setScannerAttempt((attempt) => attempt + 1)
   }
 
   return (
-    <section className="page-stack" aria-labelledby="scanner-title">
-      <header className="page-heading">
-        <p className="eyebrow">对准箱子上的二维码</p>
-        <h1 id="scanner-title">扫码查看</h1>
+    <section className="mx-auto grid min-w-0 w-full max-w-4xl gap-5 lg:gap-6" aria-labelledby="scanner-title">
+      <header className="py-3">
+        <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">对准箱子上的二维码</p>
+        <h1 className="m-0 text-page-title font-extrabold text-ink" id="scanner-title">扫码查看</h1>
       </header>
-      <video className="scanner-preview" ref={videoRef} muted playsInline aria-label="二维码扫描画面" />
+      <video className="block aspect-[4/5] max-h-[65dvh] w-full overflow-hidden rounded-shell bg-ink object-cover shadow-float md:aspect-video" ref={videoRef} muted playsInline aria-label="二维码扫描画面" />
       {cameraMessage ? <p role="status">{cameraMessage}</p> : null}
-      <div className="panel form-stack">
-        <label htmlFor="manual-qr-url">手动输入二维码地址</label>
-        <input
-          id="manual-qr-url"
-          type="url"
-          inputMode="url"
-          value={manualValue}
-          onChange={(event) => { setManualValue(event.target.value); setManualError(false) }}
-        />
-        {manualError ? <p role="alert">不是有效的 Nomo 箱子地址</p> : null}
-        <button type="button" onClick={openManualAddress}>打开箱子</button>
-      </div>
+      {cameraCanRetry ? (
+        <button className="min-h-12 w-full rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white hover:bg-brand-strong sm:min-h-11 sm:w-auto" type="button" onClick={retryCamera}>
+          重新尝试相机
+        </button>
+      ) : null}
     </section>
   )
 }

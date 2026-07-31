@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from './AuthProvider'
+import { AuthContext } from './auth-context'
 import { ResetPasswordPage } from './ResetPasswordPage'
 
 const { mockCompletePasswordRecovery, mockUpdateUser, storeSnapshot } =
@@ -48,6 +49,18 @@ function renderReset(
   )
 }
 
+function renderLoadingReset() {
+  const router = createMemoryRouter(
+    [{ path: '/reset-password', element: <ResetPasswordPage /> }],
+    { initialEntries: ['/reset-password'] },
+  )
+  render(
+    <AuthContext.Provider value={{ session: null, loading: true, isPasswordRecovery: false }}>
+      <RouterProvider router={router} />
+    </AuthContext.Provider>,
+  )
+}
+
 describe('ResetPasswordPage', () => {
   beforeEach(() => {
     mockUpdateUser.mockReset()
@@ -55,6 +68,14 @@ describe('ResetPasswordPage', () => {
     mockUpdateUser.mockResolvedValue({ data: {}, error: null })
   })
   afterEach(cleanup)
+
+  it('shows a form skeleton while the recovery link is validated', () => {
+    renderLoadingReset()
+
+    expect(screen.getByRole('status', { name: '正在验证重置链接' })).toBeInTheDocument()
+    expect(screen.getAllByTestId('skeleton').length).toBeGreaterThan(2)
+    expect(screen.queryByText('正在验证重置链接…')).not.toBeInTheDocument()
+  })
 
   it('updates the password for a recovery session', async () => {
     const user = userEvent.setup()

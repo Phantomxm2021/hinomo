@@ -2,21 +2,30 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { PropsWithChildren } from 'react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { AppShell } from '../../app/AppShell'
+import { AuthProvider } from '../../features/auth/AuthProvider'
 import { SpacesPage } from './SpacesPage'
 
-const { mockCreateSpace, mockDeleteSpace, mockListSpaces, mockUpdateSpace } = vi.hoisted(() => ({
+const { mockCreateSpace, mockDeleteSpace, mockListSpaceLayouts, mockListSpaces, mockSaveSpaceLayout, mockStorageGetItem, mockStorageSetItem, mockUpdateSpace } = vi.hoisted(() => ({
   mockCreateSpace: vi.fn(),
   mockDeleteSpace: vi.fn(),
+  mockListSpaceLayouts: vi.fn(),
   mockListSpaces: vi.fn(),
+  mockSaveSpaceLayout: vi.fn(),
+  mockStorageGetItem: vi.fn(),
+  mockStorageSetItem: vi.fn(),
   mockUpdateSpace: vi.fn(),
 }))
 
 vi.mock('./spaces.api', () => ({
   createSpace: mockCreateSpace,
   deleteSpace: mockDeleteSpace,
+  listSpaceLayouts: mockListSpaceLayouts,
   listSpaces: mockListSpaces,
+  isLayoutStorageUnavailable: (error: unknown) => Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'LAYOUT_STORAGE_UNAVAILABLE'),
+  saveSpaceLayout: mockSaveSpaceLayout,
   updateSpace: mockUpdateSpace,
 }))
 
@@ -28,7 +37,7 @@ function renderSpaces() {
   function Wrapper({ children }: PropsWithChildren) {
     return (
       <MemoryRouter>
-        <div className="app-shell">
+        <div data-app-shell>
           <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
         </div>
       </MemoryRouter>
@@ -51,13 +60,50 @@ function deferred<T>() {
 beforeEach(() => {
   mockCreateSpace.mockReset()
   mockDeleteSpace.mockReset()
+  mockListSpaceLayouts.mockReset()
   mockListSpaces.mockReset()
+  mockSaveSpaceLayout.mockReset()
+  mockStorageGetItem.mockReset()
+  mockStorageSetItem.mockReset()
   mockUpdateSpace.mockReset()
+  mockListSpaceLayouts.mockResolvedValue([])
+  mockSaveSpaceLayout.mockResolvedValue(undefined)
+  mockStorageGetItem.mockReturnValue(null)
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: { getItem: mockStorageGetItem, setItem: mockStorageSetItem },
+  })
 })
 
 afterEach(() => {
   cleanup()
   document.body.style.overflow = ''
+})
+
+test('shows toolbar and space-card skeletons while the cards view initially loads', () => {
+  mockListSpaces.mockReturnValue(new Promise(() => undefined))
+  renderSpaces()
+
+  const loading = screen.getByRole('status', { name: '正在加载空间' })
+  const visualLayout = loading.querySelector(':scope > [aria-hidden="true"]')
+  expect(visualLayout).toHaveClass('grid', 'gap-5')
+  expect(visualLayout?.children).toHaveLength(2)
+  expect(visualLayout?.children[1]).toHaveClass('sm:grid-cols-2', 'xl:grid-cols-3')
+  expect(visualLayout?.querySelector('.rounded-shell')).not.toBeInTheDocument()
+  expect(screen.queryByText('正在加载空间…')).not.toBeInTheDocument()
+})
+
+test('shows toolbar and plan skeletons while the plan view initially loads', () => {
+  mockStorageGetItem.mockReturnValue('plan')
+  mockListSpaces.mockReturnValue(new Promise(() => undefined))
+  renderSpaces()
+
+  const loading = screen.getByRole('status', { name: '正在加载空间' })
+  const visualLayout = loading.querySelector(':scope > [aria-hidden="true"]')
+  expect(visualLayout).toHaveClass('grid', 'gap-5')
+  expect(visualLayout?.children).toHaveLength(2)
+  expect(visualLayout?.children[1]).toHaveClass('rounded-shell')
+  expect(visualLayout?.querySelector('.sm\\:grid-cols-2')).not.toBeInTheDocument()
 })
 
 test('keeps the create editor closed until the prominent action is used', async () => {
@@ -73,10 +119,79 @@ test('keeps the create editor closed until the prominent action is used', async 
 
   const dialog = screen.getByRole('dialog', { name: '创建空间' })
   expect(dialog).toHaveAttribute('aria-modal', 'true')
+  expect(dialog).toHaveClass(
+    'max-h-[calc(100dvh-1.5rem)]',
+    'max-w-lg',
+    'bg-surface',
+    'p-6',
+  )
+  expect(dialog.parentElement).toHaveClass(
+    'flex',
+    'items-end',
+    'justify-center',
+    'p-3',
+    'sm:items-center',
+  )
+  expect(dialog.parentElement).not.toHaveClass('backdrop-blur-sm')
   const nameInput = within(dialog).getByLabelText('空间名称')
   expect(nameInput).toHaveValue('')
   expect(nameInput).toHaveFocus()
   expect(within(dialog).getByLabelText('描述（可选）')).toHaveValue('')
+})
+
+test('keeps the mobile create action compact and aligned with the space title', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([])
+  renderSpaces()
+
+  await screen.findByText('还没有空间')
+  const headerCreate = screen.getByRole('button', { name: '创建空间' })
+  const emptyCreate = screen.getByRole('button', { name: '创建第一个空间' })
+  const title = screen.getByRole('heading', { name: '空间', level: 1 })
+  expect(title.parentElement).toContainElement(headerCreate)
+  expect(title.parentElement).toHaveClass('flex', 'items-center', 'justify-between')
+  expect(headerCreate).toHaveClass('size-11', 'shrink-0')
+  expect(headerCreate).not.toHaveClass('w-full')
+  expect(headerCreate).toHaveTextContent('')
+  expect(headerCreate).toHaveAttribute('title', '创建空间')
+  expect(emptyCreate).toHaveClass('min-h-12')
+
+  await user.click(headerCreate)
+  const dialog = screen.getByRole('dialog', { name: '创建空间' })
+  expect(within(dialog).getByRole('button', { name: '创建空间' })).toHaveClass('min-h-12')
+  expect(within(dialog).getByRole('button', { name: '取消' })).toHaveClass('min-h-11')
+})
+
+test('isolates and restores the real application shell around the portalled editor', async () => {
+  const user = userEvent.setup()
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  mockListSpaces.mockResolvedValue([])
+  render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/app/spaces']}>
+        <AuthProvider session={{ user: { id: 'user-1', email: 'lin@example.com', user_metadata: {} } } as unknown as import('@supabase/supabase-js').Session}>
+          <Routes>
+            <Route path="/app" element={<AppShell />}>
+              <Route path="spaces" element={<SpacesPage />} />
+            </Route>
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+
+  await screen.findByText('还没有空间')
+  const appShell = document.querySelector('[data-app-shell]')
+  expect(appShell).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: '创建空间' }))
+  expect(screen.getByRole('dialog', { name: '创建空间' })).toBeInTheDocument()
+  expect(appShell).toHaveAttribute('inert')
+  expect(appShell).toHaveAttribute('aria-hidden', 'true')
+
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: '取消' }))
+  expect(appShell).not.toHaveAttribute('inert')
+  expect(appShell).not.toHaveAttribute('aria-hidden')
 })
 
 test('creates a space, closes the editor, and resets it for the next create', async () => {
@@ -104,8 +219,8 @@ test('creates a space, closes the editor, and resets it for the next create', as
   })
   expect(await screen.findByText('家')).toBeInTheDocument()
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  expect(document.querySelector('.app-shell')).not.toHaveAttribute('inert')
-  expect(document.querySelector('.app-shell')).not.toHaveAttribute('aria-hidden')
+  expect(document.querySelector('[data-app-shell]')).not.toHaveAttribute('inert')
+  expect(document.querySelector('[data-app-shell]')).not.toHaveAttribute('aria-hidden')
   expect(document.body.style.overflow).toBe('')
 
   await user.click(screen.getByRole('button', { name: '创建空间' }))
@@ -121,7 +236,7 @@ test('isolates the app and locks scrolling while open, then restores on cancel a
   await screen.findByText('还没有空间')
   await user.click(screen.getByRole('button', { name: '创建空间' }))
 
-  const appShell = document.querySelector('.app-shell')
+  const appShell = document.querySelector('[data-app-shell]')
   expect(appShell).toHaveAttribute('inert')
   expect(appShell).toHaveAttribute('aria-hidden', 'true')
   expect(document.body.style.overflow).toBe('hidden')
@@ -146,7 +261,7 @@ test('restores pre-existing shell and body isolation values', async () => {
 
   await screen.findByText('还没有空间')
   const createButton = screen.getByRole('button', { name: '创建空间' })
-  const appShell = document.querySelector('.app-shell')!
+  const appShell = document.querySelector('[data-app-shell]')!
   appShell.setAttribute('inert', '')
   appShell.setAttribute('aria-hidden', 'false')
   document.body.style.overflow = 'clip'
@@ -360,10 +475,131 @@ test('renders direct navigation cards with exact counts and separate actions', a
   const cardLink = await screen.findByRole('link', { name: /家/ })
   expect(cardLink).toHaveAttribute('href', '/app/boxes?space=home%20%2F%201')
   expect(within(cardLink).getByText('日常收纳')).toBeInTheDocument()
-  expect(within(cardLink).getByText('2 个箱子 · 5 件物品')).toBeInTheDocument()
+  expect(within(cardLink).getByText('2 个箱子')).toBeInTheDocument()
+  expect(within(cardLink).getByText('5 件物品')).toBeInTheDocument()
   expect(within(cardLink).queryByRole('button')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: '编辑家' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '删除家' })).toBeInTheDocument()
+})
+
+test('defaults to cards and remembers the optional plan view', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', name: '客厅', description: '公共区域', box_count: 2, item_count: 5 },
+  ])
+  renderSpaces()
+
+  expect(await screen.findByRole('button', { name: '卡片视图' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('article')).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: '平面视图' }))
+
+  expect(screen.getByRole('button', { name: '平面视图' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('region', { name: '家庭平面总览' })).toBeInTheDocument()
+  expect(screen.queryByRole('article')).not.toBeInTheDocument()
+  expect(mockStorageSetItem).toHaveBeenCalledWith('nomo-space-view', 'plan')
+})
+
+test('restores a previously selected plan view', async () => {
+  mockStorageGetItem.mockReturnValue('plan')
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', name: '客厅', description: null, box_count: 0, item_count: 0 },
+  ])
+  renderSpaces()
+
+  expect(await screen.findByRole('button', { name: '平面视图' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('region', { name: '家庭平面总览' })).toBeInTheDocument()
+})
+
+test('reports a real layout query failure without hiding the automatic plan', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', name: '客厅', description: null, box_count: 0, item_count: 0 },
+  ])
+  mockListSpaceLayouts.mockRejectedValue(new Error('database unavailable'))
+  renderSpaces()
+
+  await user.click(await screen.findByRole('button', { name: '平面视图' }))
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('布局加载失败；当前显示自动布局')
+  expect(screen.getByRole('region', { name: '家庭平面总览' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '调整布局' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: '重试布局' })).toBeInTheDocument()
+})
+
+test('keeps automatic layout read-only when layout SQL is not installed', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', name: '客厅', description: null, box_count: 0, item_count: 0 },
+  ])
+  mockListSpaceLayouts.mockRejectedValue({ code: 'LAYOUT_STORAGE_UNAVAILABLE' })
+  renderSpaces()
+
+  await user.click(await screen.findByRole('button', { name: '平面视图' }))
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('布局保存尚未启用，请先执行 space_layouts 数据库迁移')
+  expect(screen.getByRole('button', { name: '调整布局' })).toBeDisabled()
+  expect(screen.queryByRole('button', { name: '重试布局' })).not.toBeInTheDocument()
+  expect(screen.getByRole('region', { name: '家庭平面总览' })).toBeInTheDocument()
+})
+
+test('does not enable layout editing before stored positions finish loading', async () => {
+  const layoutResult = deferred<never[]>()
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', name: '客厅', description: null, box_count: 0, item_count: 0 },
+  ])
+  mockListSpaceLayouts.mockReturnValue(layoutResult.promise)
+  renderSpaces()
+
+  fireEvent.click(await screen.findByRole('button', { name: '平面视图' }))
+  const loadingControl = screen.getByRole('button', { name: '布局加载中' })
+  expect(loadingControl).toBeDisabled()
+  expect(loadingControl).toHaveAttribute('title', '布局加载中')
+  expect(within(loadingControl).getByTestId('skeleton')).toBeInTheDocument()
+  expect(within(loadingControl).getByTestId('skeleton').tagName).toBe('SPAN')
+  expect(screen.queryByText('正在加载布局…')).not.toBeInTheDocument()
+  layoutResult.resolve([])
+  expect(await screen.findByRole('button', { name: '调整布局' })).toBeEnabled()
+})
+
+test('saves a keyboard layout change while plan editing is enabled', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', name: '客厅', description: null, box_count: 2, item_count: 5 },
+  ])
+  renderSpaces()
+
+  await user.click(await screen.findByRole('button', { name: '平面视图' }))
+  await user.click(screen.getByRole('button', { name: '调整布局' }))
+  fireEvent.keyDown(screen.getByRole('link', { name: /客厅/ }), { key: 'ArrowRight' })
+
+  await waitFor(() => expect(mockSaveSpaceLayout).toHaveBeenCalledWith('s1', {
+    x: 22,
+    y: 29,
+    width: 60,
+    height: 42,
+  }))
+})
+
+test('serializes repeated layout saves so older writes cannot finish last', async () => {
+  const firstSave = deferred<void>()
+  mockSaveSpaceLayout.mockReset()
+  mockSaveSpaceLayout.mockReturnValueOnce(firstSave.promise).mockResolvedValueOnce(undefined)
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', name: '客厅', description: null, box_count: 2, item_count: 5 },
+  ])
+  renderSpaces()
+
+  fireEvent.click(await screen.findByRole('button', { name: '平面视图' }))
+  fireEvent.click(screen.getByRole('button', { name: '调整布局' }))
+  const room = screen.getByRole('link', { name: /客厅/ })
+  fireEvent.keyDown(room, { key: 'ArrowRight' })
+  fireEvent.keyDown(room, { key: 'ArrowRight' })
+
+  await waitFor(() => expect(mockSaveSpaceLayout).toHaveBeenCalledTimes(1))
+  firstSave.resolve()
+  await waitFor(() => expect(mockSaveSpaceLayout).toHaveBeenCalledTimes(2))
+  expect(mockSaveSpaceLayout).toHaveBeenLastCalledWith('s1', { x: 24, y: 29, width: 60, height: 42 })
 })
 
 test('explains why a non-empty space cannot be deleted', async () => {
@@ -382,7 +618,20 @@ test('explains why a non-empty space cannot be deleted', async () => {
   expect(mockDeleteSpace).not.toHaveBeenCalled()
 })
 
-test('deletes an empty space after confirmation', async () => {
+test('restores focus to a programmatically activated delete trigger on cancel', async () => {
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', name: '空房间', description: null, box_count: 0, item_count: 0 },
+  ])
+  renderSpaces()
+
+  const deleteButton = await screen.findByRole('button', { name: '删除空房间' })
+  fireEvent.click(deleteButton)
+  fireEvent.click(screen.getByRole('button', { name: '取消' }))
+
+  await waitFor(() => expect(deleteButton).toHaveFocus())
+})
+
+test('focuses the persistent create action after deleting an empty space', async () => {
   const user = userEvent.setup()
   mockListSpaces
     .mockResolvedValueOnce([
@@ -397,6 +646,7 @@ test('deletes an empty space after confirmation', async () => {
 
   expect(mockDeleteSpace).toHaveBeenCalledWith('s1')
   expect(await screen.findByText('还没有空间')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '创建空间' })).toHaveFocus()
 })
 
 test('keeps localized mutation errors without leaking backend text', async () => {
@@ -422,9 +672,14 @@ test('keeps localized mutation errors without leaking backend text', async () =>
   expect(screen.queryByText('sensitive create details')).not.toBeInTheDocument()
 
   await user.click(screen.getByRole('button', { name: '取消' }))
-  await user.click(screen.getByRole('button', { name: '删除空房间' }))
+  const deleteButton = screen.getByRole('button', { name: '删除空房间' })
+  await user.click(deleteButton)
   await user.click(screen.getByRole('button', { name: '确认删除' }))
 
   expect(await screen.findByRole('alert')).toHaveTextContent('删除失败，请稍后重试')
   expect(screen.queryByText('sensitive delete details')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '确认删除' })).toHaveFocus()
+
+  await user.click(screen.getByRole('button', { name: '取消' }))
+  await waitFor(() => expect(deleteButton).toHaveFocus())
 })
