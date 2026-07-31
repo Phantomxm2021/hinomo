@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Skeleton, SkeletonGroup } from './Skeleton'
 
 type PageStateProps =
   | { state: 'loading'; label: string }
@@ -8,9 +9,13 @@ type PageStateProps =
 export function PageState(props: PageStateProps) {
   if (props.state === 'loading') {
     return (
-      <div className="grid min-h-40 place-content-center rounded-card border border-dashed border-line bg-surface/70 p-6 text-center text-muted" role="status">
-        {props.label}
-      </div>
+      <SkeletonGroup className="min-h-40 rounded-card border border-line bg-surface/70 p-6" label={props.label}>
+        <div className="grid gap-4">
+          <Skeleton className="h-6 w-2/3" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+        </div>
+      </SkeletonGroup>
     )
   }
 

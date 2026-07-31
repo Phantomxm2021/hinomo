@@ -146,6 +146,10 @@ test('allows narrow viewports without a global minimum page width', () => {
   expect(css).not.toMatch(/(?:html|body)\s*\{[^}]*min-width:\s*320px\s*;/s)
 })
 
+test('does not hide horizontal overflow globally', () => {
+  expect(css).not.toMatch(/overflow-x:\s*hidden/)
+})
+
 test('removes the migrated box catalogue selector', () => {
   expect(css).not.toContain('.box-card')
 })

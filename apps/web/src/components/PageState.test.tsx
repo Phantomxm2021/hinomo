@@ -7,7 +7,10 @@ afterEach(cleanup)
 
 test('announces loading with the supplied label', () => {
   render(<PageState state="loading" label="正在加载箱子" />)
-  expect(screen.getByRole('status')).toHaveTextContent('正在加载箱子')
+  const status = screen.getByRole('status', { name: '正在加载箱子' })
+  expect(status).toHaveTextContent('正在加载箱子')
+  expect(screen.getAllByTestId('skeleton')).toHaveLength(3)
+  expect(screen.getByText('正在加载箱子')).toHaveClass('sr-only')
 })
 
 test('renders an empty title and optional action', () => {
