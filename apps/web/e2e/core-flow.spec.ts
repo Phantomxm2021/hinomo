@@ -301,6 +301,23 @@ test('navigation changes exactly at the 1024px desktop breakpoint', async ({ pag
   await expectNoHorizontalOverflow(page)
 })
 
+test('mobile home search submits from the visible action', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'desktop-chromium', 'mobile search action is mobile-only')
+  const state = createMockState()
+  await installMockBackend(page, state)
+  await register(page, 'mobile-search@example.com')
+  await createSpace(page, '家')
+  await createBox(page, '摄影器材', 'private')
+
+  await page.goto('/app')
+  await page.getByRole('searchbox', { name: '搜索物品或箱子' }).fill('摄影')
+  await page.getByRole('button', { name: '搜索' }).click()
+
+  await expect(page).toHaveURL('/app/search?q=%E6%91%84%E5%BD%B1')
+  await expect(page.getByRole('link', { name: /摄影器材/ })).toBeVisible()
+  await expectNoHorizontalOverflow(page)
+})
+
 test('route alignment across required viewport breakpoints', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium', 'the test covers all required viewports internally')
   test.setTimeout(60_000)

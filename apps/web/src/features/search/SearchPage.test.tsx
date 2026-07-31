@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
@@ -182,6 +182,35 @@ test('replaces the URL query when the search input changes', async () => {
 
   expect(await screen.findByText('没有找到相关内容')).toBeInTheDocument()
   expect(screen.getByTestId('location')).toHaveTextContent('?q=%E6%96%B0%E5%85%B3%E9%94%AE%E8%AF%8D')
+})
+
+test('uses a semantic search form and submits immediately', async () => {
+  const user = userEvent.setup()
+  mockSearchItems.mockResolvedValue([])
+  renderSearch()
+
+  const form = screen.getByRole('search', { name: '查找收纳' })
+  const input = within(form).getByRole('searchbox')
+  expect(input).toHaveAttribute('enterkeyhint', 'search')
+  await user.type(input, '  露营灯  ')
+  await user.keyboard('{Enter}')
+
+  await waitFor(() => expect(mockSearchItems).toHaveBeenCalledWith('露营灯'))
+  expect(screen.getByTestId('location')).toHaveTextContent('?q=%E9%9C%B2%E8%90%A5%E7%81%AF')
+})
+
+test('waits for IME composition to finish before searching', async () => {
+  mockSearchItems.mockResolvedValue([])
+  renderSearch()
+
+  const input = screen.getByRole('searchbox')
+  fireEvent.compositionStart(input)
+  fireEvent.change(input, { target: { value: '相机' } })
+  await new Promise((resolve) => window.setTimeout(resolve, 320))
+  expect(mockSearchItems).not.toHaveBeenCalled()
+
+  fireEvent.compositionEnd(input)
+  await waitFor(() => expect(mockSearchItems).toHaveBeenCalledWith('相机'))
 })
 
 test('suggests scanning when no boxes or items match', async () => {

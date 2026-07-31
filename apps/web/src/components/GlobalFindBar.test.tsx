@@ -22,7 +22,9 @@ test('renders accessible search controls and the scan link', () => {
   expect(screen.getByRole('searchbox', { name: '搜索物品或箱子' })).toHaveClass(
     'focus-visible:outline-none',
   )
-  expect(screen.queryByRole('button', { name: '搜索' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '搜索' })).toHaveClass('lg:hidden', 'size-12')
+  expect(screen.getByRole('searchbox', { name: '搜索物品或箱子' })).toHaveAttribute('name', 'q')
+  expect(screen.getByRole('searchbox', { name: '搜索物品或箱子' })).toHaveAttribute('enterkeyhint', 'search')
   expect(screen.getByRole('link', { name: '扫码查看' })).toHaveAttribute('href', '/app/scan')
   expect(screen.getByRole('link', { name: '扫码查看' })).toHaveClass(
     'hidden',
@@ -50,7 +52,21 @@ test('places the searchbox and scan link in keyboard order', async () => {
   await user.tab()
   expect(screen.getByRole('searchbox', { name: '搜索物品或箱子' })).toHaveFocus()
   await user.tab()
+  expect(screen.getByRole('button', { name: '搜索' })).toHaveFocus()
+  await user.tab()
   expect(screen.getByRole('link', { name: '扫码查看' })).toHaveFocus()
+})
+
+test('navigates from the visible mobile search button', async () => {
+  const user = userEvent.setup()
+  const router = renderFindBar()
+
+  await user.type(screen.getByRole('searchbox', { name: '搜索物品或箱子' }), '  相机  ')
+  await user.click(screen.getByRole('button', { name: '搜索' }))
+
+  expect(`${router.state.location.pathname}${router.state.location.search}`).toBe(
+    '/app/search?q=%E7%9B%B8%E6%9C%BA',
+  )
 })
 
 test('navigates to the encoded search query on submit', async () => {

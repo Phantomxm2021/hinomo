@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
@@ -12,6 +12,7 @@ export function SearchPage() {
   const urlQuery = searchParams.get('q') ?? ''
   const [input, setInput] = useState(urlQuery)
   const [query, setQuery] = useState('')
+  const [isComposing, setIsComposing] = useState(false)
   const inputRef = useRef(urlQuery)
 
   useEffect(() => {
@@ -22,6 +23,7 @@ export function SearchPage() {
   }, [urlQuery])
 
   useEffect(() => {
+    if (isComposing) return
     const trimmed = input.trim()
     if (!trimmed) {
       setQuery('')
@@ -35,7 +37,22 @@ export function SearchPage() {
       if (urlQuery !== trimmed) setSearchParams({ q: trimmed }, { replace: true })
     }, 250)
     return () => window.clearTimeout(timer)
-  }, [input, setSearchParams, urlQuery])
+  }, [input, isComposing, setSearchParams, urlQuery])
+
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (isComposing) return
+    const trimmed = input.trim()
+    if (!trimmed) {
+      setQuery('')
+      if (urlQuery) setSearchParams({}, { replace: true })
+      return
+    }
+    inputRef.current = trimmed
+    if (input !== trimmed) setInput(trimmed)
+    setQuery(trimmed)
+    if (urlQuery !== trimmed) setSearchParams({ q: trimmed }, { replace: true })
+  }
 
   const boxesQuery = useQuery({ queryKey: ['boxes'], queryFn: listBoxes })
   const resultsQuery = useQuery({
@@ -69,21 +86,31 @@ export function SearchPage() {
         <h1 className="mb-0 text-page-title font-extrabold" id="search-title">查找收纳</h1>
       </header>
 
-      <label className="relative block" htmlFor="global-search">
-        <span className="sr-only">关键词</span>
-        <AppIcon className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-muted" name="search" />
-        <input
-          className="min-h-14 w-full rounded-control border border-line bg-surface py-3 pr-4 pl-12 text-lg text-ink outline-none placeholder:text-muted/70 focus:border-brand focus:ring-3 focus:ring-brand/15"
-          id="global-search"
-          type="search"
-          placeholder="搜索物品、箱子或编号"
-          value={input}
-          onChange={(event) => {
-            inputRef.current = event.target.value
-            setInput(event.target.value)
-          }}
-        />
-      </label>
+      <form className="relative block" role="search" aria-label="查找收纳" onSubmit={submitSearch}>
+        <label htmlFor="global-search">
+          <span className="sr-only">关键词</span>
+          <AppIcon className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-muted" name="search" />
+          <input
+            className="min-h-14 w-full rounded-control border border-line bg-surface py-3 pr-16 pl-12 text-lg text-ink outline-none placeholder:text-muted/70 focus:border-brand focus:ring-3 focus:ring-brand/15"
+            id="global-search"
+            name="q"
+            type="search"
+            enterKeyHint="search"
+            autoComplete="off"
+            placeholder="搜索物品、箱子或编号"
+            value={input}
+            onCompositionStart={() => setIsComposing(true)}
+            onCompositionEnd={() => setIsComposing(false)}
+            onChange={(event) => {
+              inputRef.current = event.target.value
+              setInput(event.target.value)
+            }}
+          />
+        </label>
+        <button className="absolute top-1/2 right-1.5 grid size-11 -translate-y-1/2 place-items-center rounded-control text-brand hover:bg-brand/10 focus-visible:outline-3 focus-visible:outline-brand/35" type="submit" aria-label="提交搜索">
+          <AppIcon name="search" />
+        </button>
+      </form>
 
       {!query ? (
         <p className="rounded-card border border-dashed border-line bg-surface/70 p-8 text-center text-muted">输入关键词，快速找到物品所在的箱子。</p>
