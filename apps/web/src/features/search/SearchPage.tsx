@@ -56,8 +56,10 @@ export function SearchPage() {
     (resultsQuery.isPending && resultsQuery.data === undefined)
     || (boxesQuery.isPending && boxesQuery.data === undefined)
   )
-  const hasError = resultsQuery.isError || boxesQuery.isError
-  const noResults = query && !isLoading && !hasError && matchingBoxes.length === 0 && items.length === 0
+  const hasInitialError = (resultsQuery.isError && resultsQuery.data === undefined)
+    || (boxesQuery.isError && boxesQuery.data === undefined)
+  const hasCachedError = !hasInitialError && (resultsQuery.isError || boxesQuery.isError)
+  const noResults = query && !isLoading && !hasInitialError && matchingBoxes.length === 0 && items.length === 0
 
   return (
     <section className="mx-auto flex min-w-0 w-full max-w-5xl flex-col gap-5 lg:gap-8" aria-labelledby="search-title">
@@ -105,9 +107,15 @@ export function SearchPage() {
           ))}
         </SkeletonGroup>
       ) : null}
-      {hasError ? <PageState state="error" message="搜索失败，请重试" onRetry={() => void Promise.all([boxesQuery.refetch(), resultsQuery.refetch()])} /> : null}
+      {hasInitialError ? <PageState state="error" message="搜索失败，请重试" onRetry={() => void Promise.all([boxesQuery.refetch(), resultsQuery.refetch()])} /> : null}
+      {hasCachedError ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
+          <p className="m-0 font-medium">搜索刷新失败，正在显示上次结果</p>
+          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" onClick={() => void Promise.all([boxesQuery.refetch(), resultsQuery.refetch()])}>重试</button>
+        </div>
+      ) : null}
 
-      {!isLoading && !hasError && matchingBoxes.length > 0 ? (
+      {!isLoading && !hasInitialError && matchingBoxes.length > 0 ? (
         <section aria-labelledby="box-results-title">
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <h2 className="mb-0 text-section-title font-bold" id="box-results-title">箱子</h2>
@@ -128,7 +136,7 @@ export function SearchPage() {
         </section>
       ) : null}
 
-      {!isLoading && !hasError && items.length > 0 ? (
+      {!isLoading && !hasInitialError && items.length > 0 ? (
         <section aria-labelledby="item-results-title">
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <h2 className="mb-0 text-section-title font-bold" id="item-results-title">物品</h2>

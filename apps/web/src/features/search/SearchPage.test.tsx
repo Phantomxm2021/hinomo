@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
@@ -42,8 +42,7 @@ function NavigationControls() {
   )
 }
 
-function renderSearch(initialEntry = '/app/search') {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+function renderSearch(initialEntry = '/app/search', client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <QueryClientProvider client={client}>
@@ -71,6 +70,43 @@ test('shows grouped result-row skeletons while an initial search is pending', as
   const loading = await screen.findByRole('status', { name: '正在搜索收纳内容' })
   expect(within(loading).getAllByTestId('skeleton').length).toBeGreaterThan(8)
   expect(screen.queryByText('正在搜索…')).not.toBeInTheDocument()
+})
+
+test('blocks on an initial search error and offers retry', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockRejectedValue(new Error('network'))
+  mockSearchItems.mockRejectedValue(new Error('network'))
+  renderSearch('/app/search?q=充电器')
+
+  const alert = await screen.findByRole('alert')
+  expect(alert).toHaveTextContent('搜索失败，请重试')
+  expect(screen.queryByText('充电器收纳箱')).not.toBeInTheDocument()
+  await user.click(within(alert).getByRole('button', { name: '重试' }))
+  await waitFor(() => expect(mockListBoxes).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(mockSearchItems).toHaveBeenCalledTimes(2))
+})
+
+test('keeps cached box and item results visible when their refetches fail', async () => {
+  const user = userEvent.setup()
+  const cachedItems = [{
+    item_id: 'item-1', item_name: 'USB-C 充电器', quantity: 2,
+    box_id: 'box-1', box_public_id: 'public-1', box_name: '电子设备箱',
+    space_name: '办公室', location: '书房柜子',
+  }]
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client.setQueryData(['boxes'], boxes)
+  client.setQueryData(['search-items', '充电器'], cachedItems)
+  mockListBoxes.mockRejectedValue(new Error('network'))
+  mockSearchItems.mockRejectedValue(new Error('network'))
+  renderSearch('/app/search?q=充电器', client)
+
+  expect(await screen.findByText('充电器收纳箱')).toBeInTheDocument()
+  expect(screen.getByText('USB-C 充电器 × 2')).toBeInTheDocument()
+  const alert = await screen.findByRole('alert')
+  expect(alert).toHaveTextContent('搜索刷新失败，正在显示上次结果')
+  await user.click(within(alert).getByRole('button', { name: '重试' }))
+  await waitFor(() => expect(mockListBoxes).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(mockSearchItems).toHaveBeenCalledTimes(2))
 })
 
 test('initializes from q and groups matching boxes and items', async () => {

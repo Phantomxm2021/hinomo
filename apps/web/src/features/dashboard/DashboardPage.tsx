@@ -140,7 +140,7 @@ export function DashboardPage() {
         ) : null}
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {boxes.slice(0, 3).map((box, index) => (
-            <Link className="flex min-w-0 flex-col overflow-hidden rounded-card border border-line bg-surface text-muted no-underline hover:border-brand/40" to={`/b/${box.public_id}`} key={box.id}>
+            <article className="relative flex min-w-0 flex-col overflow-hidden rounded-card border border-line bg-surface text-muted hover:border-brand/40" key={box.id}>
               <span
                 className={`relative block aspect-[3.5/1] w-full overflow-hidden ${box.cover_object_key ? 'bg-placeholder' : boxPlaceholderTones[index % boxPlaceholderTones.length]}`}
                 role={box.cover_object_key ? undefined : 'img'}
@@ -162,7 +162,8 @@ export function DashboardPage() {
                 <h3 className="text-card-title font-bold">{box.name}</h3>
                 <p className="mb-2 text-meta text-muted">{box.space_name} · {box.location || '未填写位置'}</p>
               </span>
-            </Link>
+              <Link className="absolute inset-0 z-10 focus-visible:outline-offset-[-3px]" to={`/b/${box.public_id}`} aria-label={`打开${box.name}`} />
+            </article>
           ))}
         </div>
       </section>

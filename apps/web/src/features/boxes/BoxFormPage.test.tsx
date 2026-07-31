@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
@@ -29,10 +29,9 @@ vi.mock('../media/useMediaUpload', () => ({
   useMediaUpload: () => ({ stage: 'idle', upload: mockUpload, reset: vi.fn() }),
 }))
 
-function renderBoxForm(initialEntry = '/app/boxes/new') {
-  const client = new QueryClient({
+function renderBoxForm(initialEntry = '/app/boxes/new', client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
-  })
+  })) {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <QueryClientProvider client={client}>
@@ -213,6 +212,49 @@ test('offers a retry when spaces cannot be loaded', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent('空间加载失败')
   await user.click(screen.getByRole('button', { name: '重试' }))
   expect(mockListSpaces).toHaveBeenCalledTimes(2)
+})
+
+test('keeps form values visible when cached spaces fail to refetch', async () => {
+  const user = userEvent.setup()
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client.setQueryData(['spaces'], [
+    { id: 'space-home', name: '家', description: null, box_count: 0 },
+  ])
+  mockListSpaces.mockRejectedValue(new Error('network'))
+  renderBoxForm('/app/boxes/new', client)
+
+  await user.selectOptions(screen.getByLabelText('空间'), 'space-home')
+  await user.type(screen.getByLabelText('箱子名称'), '保留中的填写')
+  const alert = await screen.findByRole('alert')
+  expect(alert).toHaveTextContent('空间刷新失败，正在显示上次结果')
+  expect(screen.getByLabelText('箱子名称')).toHaveValue('保留中的填写')
+  await user.click(within(alert).getByRole('button', { name: '重试' }))
+  expect(mockListSpaces).toHaveBeenCalledTimes(2)
+})
+
+test('keeps edited values visible when the cached box fails to refetch', async () => {
+  const user = userEvent.setup()
+  const cachedBox = {
+    id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', space_id: 'space-home',
+    name: '旧名称', category: null, location: null, description: null, visibility: 'private',
+  }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client.setQueryData(['spaces'], [
+    { id: 'space-home', name: '家', description: null, box_count: 1 },
+  ])
+  client.setQueryData(['box-edit', 'box-1'], cachedBox)
+  mockListSpaces.mockResolvedValue(client.getQueryData(['spaces']))
+  mockGetBox.mockRejectedValue(new Error('network'))
+  renderBoxForm('/app/boxes/box-1/edit', client)
+
+  const nameInput = await screen.findByDisplayValue('旧名称')
+  await user.clear(nameInput)
+  await user.type(nameInput, '用户未保存的名称')
+  const alert = await screen.findByRole('alert')
+  expect(alert).toHaveTextContent('箱子刷新失败，正在显示上次内容')
+  expect(nameInput).toHaveValue('用户未保存的名称')
+  await user.click(within(alert).getByRole('button', { name: '重试' }))
+  expect(mockGetBox).toHaveBeenCalledTimes(2)
 })
 
 test('edits mutable fields without sending database identifiers', async () => {

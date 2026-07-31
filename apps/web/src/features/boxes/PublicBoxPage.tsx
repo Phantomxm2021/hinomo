@@ -43,29 +43,32 @@ export function PublicBoxPage() {
       ])
     },
   })
+  const frameClassName = 'mx-auto grid min-w-0 w-full max-w-6xl gap-5 px-4 pb-[calc(6rem+var(--safe-area-bottom))] pt-5 min-[360px]:px-5 lg:gap-6 lg:px-8 lg:pb-10'
 
-  if (boxQuery.isPending) {
+  if (boxQuery.isPending && boxQuery.data === undefined) {
     return (
-      <SkeletonGroup className="mx-auto grid min-w-0 w-full max-w-6xl gap-5 px-4 pb-[calc(6rem+var(--safe-area-bottom))] pt-5 min-[360px]:px-5 lg:gap-6 lg:px-8 lg:pb-10" label="正在加载箱子">
-        <div className="grid gap-6 rounded-shell border border-line bg-surface p-5 md:grid-cols-[minmax(16rem,0.8fr)_1.2fr]">
-          <Skeleton className="aspect-[4/3] min-h-0 sm:min-h-56" />
-          <div className="grid content-center gap-4">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-10 w-3/4" />
-            <Skeleton className="h-5 w-1/2" />
-            <Skeleton className="h-5 w-full" />
+      <main className={frameClassName}>
+        <SkeletonGroup className="grid gap-5 lg:gap-6" label="正在加载箱子">
+          <div className="grid gap-6 rounded-shell border border-line bg-surface p-5 md:grid-cols-[minmax(16rem,0.8fr)_1.2fr]">
+            <Skeleton className="aspect-[4/3] min-h-0 sm:min-h-56" />
+            <div className="grid content-center gap-4">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-3/4" />
+              <Skeleton className="h-5 w-1/2" />
+              <Skeleton className="h-5 w-full" />
+            </div>
           </div>
-        </div>
-        <div className="grid gap-3">
-          <Skeleton className="h-8 w-28" />
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </div>
-      </SkeletonGroup>
+          <div className="grid gap-3">
+            <Skeleton className="h-8 w-28" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        </SkeletonGroup>
+      </main>
     )
   }
-  if (boxQuery.isError || !boxQuery.data) {
-    return <PageState state="error" message="无权限或内容不存在" onRetry={() => void boxQuery.refetch()} />
+  if ((boxQuery.isError && boxQuery.data === undefined) || !boxQuery.data) {
+    return <main className={frameClassName}><PageState state="error" message="无权限或内容不存在" onRetry={() => void boxQuery.refetch()} /></main>
   }
 
   const box = boxQuery.data
@@ -107,7 +110,13 @@ export function PublicBoxPage() {
   }
 
   return (
-    <main className="mx-auto grid min-w-0 w-full max-w-6xl gap-5 px-4 pb-[calc(6rem+var(--safe-area-bottom))] pt-5 min-[360px]:px-5 lg:gap-6 lg:px-8 lg:pb-10">
+    <main className={frameClassName}>
+      {boxQuery.isError ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
+          <p className="m-0 font-medium">箱子刷新失败，正在显示上次内容</p>
+          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" onClick={() => void boxQuery.refetch()}>重试</button>
+        </div>
+      ) : null}
       <section className="grid gap-6 rounded-shell border border-line bg-surface p-5 md:grid-cols-[minmax(16rem,0.8fr)_1.2fr]">
         <div className="aspect-[4/3] min-h-0 overflow-hidden rounded-card bg-placeholder sm:min-h-56">
           {box.cover_object_key ? (

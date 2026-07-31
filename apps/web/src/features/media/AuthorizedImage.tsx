@@ -18,7 +18,7 @@ export function AuthorizedImage({ objectKey, alt, className }: AuthorizedImagePr
     retry: 1,
   })
 
-  if (query.isPending) {
+  if (query.isPending && query.data === undefined) {
     return (
       <span className={`inline-block ${className ?? ''}`.trim()} role="status" aria-label="正在加载授权图片">
         <span className="sr-only">正在加载授权图片</span>
@@ -26,13 +26,21 @@ export function AuthorizedImage({ objectKey, alt, className }: AuthorizedImagePr
       </span>
     )
   }
-  if (query.isError || loadFailed) return <span className={className}>图片暂不可用</span>
+  if ((query.isError && query.data === undefined) || !query.data || loadFailed) return <span className={className}>图片暂不可用</span>
   return (
-    <img
-      className={className}
-      src={query.data.download_url}
-      alt={alt}
-      onError={() => setLoadFailed(true)}
-    />
+    <span className={`relative inline-block ${className ?? ''}`.trim()}>
+      <img
+        className={className}
+        src={query.data.download_url}
+        alt={alt}
+        onError={() => setLoadFailed(true)}
+      />
+      {query.isError ? (
+        <span className="absolute right-1 bottom-1 z-20 rounded-control bg-surface/95 p-1 text-xs text-danger shadow-sm" role="alert">
+          <span className="sr-only">图片刷新失败，正在显示缓存图片</span>
+          <button className="min-h-8 rounded-control border border-danger/30 px-2 font-bold" type="button" aria-label="重试加载图片" onClick={() => void query.refetch()}>重试</button>
+        </span>
+      ) : null}
+    </span>
   )
 }

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
@@ -27,8 +27,10 @@ vi.mock('../media/AuthorizedImage', () => ({
   ),
 }))
 
-function renderPublicBox(session: Session | null = null) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+function renderPublicBox(
+  session: Session | null = null,
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+) {
   return render(
     <MemoryRouter initialEntries={['/b/public-1']}>
       <QueryClientProvider client={client}>
@@ -63,6 +65,37 @@ test('shows a structured skeleton while the public box is loading', () => {
   expect(screen.getByRole('status', { name: '正在加载箱子' })).toBeInTheDocument()
   expect(screen.getAllByTestId('skeleton').length).toBeGreaterThan(2)
   expect(screen.queryByText('正在加载箱子…')).not.toBeInTheDocument()
+})
+
+test('keeps the initial public-box error inside the responsive main gutter', async () => {
+  mockGetBoxByPublicId.mockRejectedValue(new Error('network'))
+  renderPublicBox()
+
+  const alert = await screen.findByRole('alert')
+  const main = alert.closest('main')
+  expect(main).not.toBeNull()
+  expect(main).toHaveClass('px-4', 'min-[360px]:px-5', 'lg:px-8')
+  expect(alert).toHaveTextContent('无权限或内容不存在')
+})
+
+test('keeps cached public-box details visible when a refetch fails', async () => {
+  const user = userEvent.setup()
+  const cachedBox = {
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    space_id: 'space-1', name: '缓存工具箱', category: null, description: null,
+    location: null, visibility: 'public', space_name: '车库', cover_object_key: null,
+    updated_at: '2026-07-29T10:00:00Z', items: [],
+  }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client.setQueryData(['box', 'public-1'], cachedBox)
+  mockGetBoxByPublicId.mockRejectedValue(new Error('network'))
+  renderPublicBox(null, client)
+
+  expect(await screen.findByRole('heading', { name: '缓存工具箱' })).toBeInTheDocument()
+  const alert = await screen.findByRole('alert')
+  expect(alert).toHaveTextContent('箱子刷新失败，正在显示上次内容')
+  await user.click(within(alert).getByRole('button', { name: '重试' }))
+  expect(mockGetBoxByPublicId).toHaveBeenCalledTimes(2)
 })
 
 test('renders a public box for an anonymous visitor without edit controls', async () => {

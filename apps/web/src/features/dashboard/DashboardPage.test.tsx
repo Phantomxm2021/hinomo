@@ -13,7 +13,7 @@ vi.mock('../boxes/boxes.api', () => ({ listBoxes: mockListBoxes }))
 vi.mock('../spaces/spaces.api', () => ({ listSpaces: mockListSpaces }))
 vi.mock('../media/AuthorizedImage', () => ({
   AuthorizedImage: ({ objectKey, alt, className }: { objectKey: string; alt: string; className?: string }) => (
-    <img src={`signed:${objectKey}`} alt={alt} className={className} />
+    <span><img src={`signed:${objectKey}`} alt={alt} className={className} /><button type="button" aria-label={`重试${alt}`}>重试</button></span>
   ),
 }))
 
@@ -90,6 +90,7 @@ test('centers the dashboard on finding items, room totals, and recent activity',
   )
   expect(within(recent).getByRole('img', { name: '文件封面占位图' })).toBeInTheDocument()
   expect(within(recent).getByRole('link', { name: /冬季衣物/ })).toHaveAttribute('href', '/b/p1')
+  expect(within(recent).getByRole('button', { name: '重试冬季衣物封面' }).closest('a')).toBeNull()
   expect(within(recent).getByText('客厅 · 衣柜')).toBeInTheDocument()
   expect(within(recent).getByText('卧室 · 未填写位置')).toBeInTheDocument()
   expect(within(recent).queryByText('BX-00001')).not.toBeInTheDocument()

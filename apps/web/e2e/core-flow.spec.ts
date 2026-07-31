@@ -41,7 +41,11 @@ async function expectMobileNavigation(page: Parameters<typeof installMockBackend
   await expect(page.getByRole('link', { name: '扫码查看' })).toBeHidden()
 }
 
-async function expectMobileRouteFrame(page: Parameters<typeof installMockBackend>[0], expectShell: boolean) {
+async function expectRouteFrame(
+  page: Parameters<typeof installMockBackend>[0],
+  expectShell: boolean,
+  desktop: boolean,
+) {
   await expectNoHorizontalOverflow(page)
   await expect(page.getByRole('link', { name: '我的收纳空间' })).toHaveCount(0)
 
@@ -49,10 +53,21 @@ async function expectMobileRouteFrame(page: Parameters<typeof installMockBackend
   if (!expectShell) {
     await expect(shell).toHaveCount(0)
     await expect(page.getByRole('navigation', { name: '移动端主导航' })).toHaveCount(0)
+    await expect(page.getByRole('complementary')).toHaveCount(0)
     return
   }
 
   await expect(shell).toHaveCount(1)
+  if (desktop) {
+    const sidebar = shell.getByRole('complementary')
+    await expect(sidebar).toBeVisible()
+    await expect(sidebar.getByRole('navigation', { name: '主导航' })).toBeVisible()
+    await expect(shell.getByRole('navigation', { name: '移动端主导航' })).toBeHidden()
+    await expect(shell.getByRole('banner')).toBeHidden()
+    await expect(sidebar.getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/app')
+    return
+  }
+
   const banner = shell.getByRole('banner')
   await expect(banner.getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/app')
   const navigation = shell.getByRole('navigation', { name: '移动端主导航' })
@@ -285,7 +300,7 @@ test('navigation changes exactly at the 1024px desktop breakpoint', async ({ pag
   await expectNoHorizontalOverflow(page)
 })
 
-test('mobile route alignment', async ({ page }) => {
+test('route alignment across required viewport breakpoints', async ({ page }) => {
   const state = createMockState()
   await installMockBackend(page, state)
   await register(page, 'owner@example.com')
@@ -299,21 +314,33 @@ test('mobile route alignment', async ({ page }) => {
     { path: '/app/boxes/box-1/edit', heading: '编辑箱子', expectShell: true },
     { path: '/app/search', heading: '查找收纳', expectShell: true },
     { path: '/app/scan', heading: '扫码查看', expectShell: true },
-    { path: '/app/print', heading: '下载箱子标签', expectShell: true },
+    { path: '/app/print', heading: '下载箱子标签', desktopHeading: '打印二维码标签', expectShell: true },
     { path: publicUrl, heading: '窄屏收纳箱', expectShell: false },
   ]
 
-  for (const width of [320, 390, 768]) {
-    await page.setViewportSize({ width, height: width === 320 ? 568 : 844 })
+  const viewports = [
+    { width: 320, height: 568 },
+    { width: 360, height: 800 },
+    { width: 390, height: 844 },
+    { width: 768, height: 1024 },
+    { width: 1024, height: 768 },
+    { width: 1440, height: 900 },
+  ]
+
+  for (const viewport of viewports) {
+    const { width } = viewport
+    const desktop = width >= 1024
+    await page.setViewportSize(viewport)
     for (const route of routes) {
       await page.goto(route.path)
-      await expect(page.getByRole('heading', { level: 1, name: route.heading, exact: true })).toBeVisible()
-      await expectMobileRouteFrame(page, route.expectShell)
-      if (route.path === '/app') await expectShellSafeArea(page, 24)
+      const heading = desktop && 'desktopHeading' in route ? route.desktopHeading : route.heading
+      await expect(page.getByRole('heading', { level: 1, name: heading, exact: true })).toBeVisible()
+      await expectRouteFrame(page, route.expectShell, desktop)
+      if (route.path === '/app' && !desktop) await expectShellSafeArea(page, 24)
       if (!route.expectShell && width < 768) {
         await expectOwnerCtaClearance(page, 24)
+        await expectItemFormActionClearance(page, 24)
       }
-      if (!route.expectShell) await expectItemFormActionClearance(page, 24)
     }
   }
 })

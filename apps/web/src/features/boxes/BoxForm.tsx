@@ -137,7 +137,8 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
     }
   })
 
-  if (spacesQuery.isPending || (editing && boxQuery.isPending)) {
+  if ((spacesQuery.isPending && spacesQuery.data === undefined)
+    || (editing && boxQuery.isPending && boxQuery.data === undefined)) {
     return (
       <SkeletonGroup
         className={presentation === 'page' ? 'mx-auto grid min-w-0 w-full max-w-4xl gap-4' : 'grid min-w-0 w-full gap-4'}
@@ -156,11 +157,11 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
     )
   }
 
-  if (spacesQuery.isError) {
+  if (spacesQuery.isError && spacesQuery.data === undefined) {
     return <PageState state="error" message="空间加载失败，请重试" onRetry={() => void spacesQuery.refetch()} />
   }
 
-  if (editing && (boxQuery.isError || !boxQuery.data)) {
+  if (editing && ((boxQuery.isError && boxQuery.data === undefined) || !boxQuery.data)) {
     return <PageState state="error" message="箱子加载失败，请重试" onRetry={() => void boxQuery.refetch()} />
   }
 
@@ -171,6 +172,18 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
           <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">为实体箱子建立数字身份</p>
           <h1 className="m-0 text-page-title font-extrabold text-ink" id="box-form-title">{editing ? '编辑箱子' : '创建箱子'}</h1>
         </header>
+      ) : null}
+      {spacesQuery.isError ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
+          <p className="m-0 font-medium">空间刷新失败，正在显示上次结果</p>
+          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" onClick={() => void spacesQuery.refetch()}>重试</button>
+        </div>
+      ) : null}
+      {editing && boxQuery.isError ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
+          <p className="m-0 font-medium">箱子刷新失败，正在显示上次内容</p>
+          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" onClick={() => void boxQuery.refetch()}>重试</button>
+        </div>
       ) : null}
       <form className={`grid gap-3 [&_label]:font-bold [&_label]:text-ink ${presentation === 'page' ? 'rounded-shell border border-line bg-surface p-5 md:p-6' : ''}`} onSubmit={submit} noValidate>
         <label htmlFor="box-space">空间</label>
