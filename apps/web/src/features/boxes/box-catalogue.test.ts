@@ -21,7 +21,7 @@ const boxes: BoxSummary[] = [
     updated_at: '2026-07-31T08:00:00Z',
   },
   {
-    id: 'box-3', public_id: 'public-3', box_code: 'GAM-003', name: '阿尔法盒',
+    id: 'box-3', public_id: 'public-3', box_code: 'GAM-002', name: '阿尔法盒',
     space_id: 'space-kitchen', space_name: '厨房', location: null,
     visibility: 'private', cover_object_key: null, item_count: 7,
     updated_at: '2026-07-30T08:00:00Z',
@@ -49,12 +49,21 @@ describe('box catalogue', () => {
   })
 
   it('combines a query with an exact space filter', () => {
-    expect(filterAndSortBoxes(boxes, { ...recentFilters, query: '厨房', spaceId: 'space-kitchen' }))
-      .toEqual([boxes[2], boxes[0]])
+    expect(filterAndSortBoxes(boxes, { ...recentFilters, query: '002', spaceId: 'space-kitchen' }))
+      .toEqual([boxes[2]])
   })
 
   it('sorts by most recently updated first', () => {
     expect(filterAndSortBoxes(boxes, recentFilters).map((box) => box.id)).toEqual(['box-2', 'box-3', 'box-1'])
+  })
+
+  it('sorts recent boxes chronologically across timezone offsets', () => {
+    const timezoneBoxes = [
+      { ...boxes[0], id: 'utc', updated_at: '2026-07-31T01:00:00Z' },
+      { ...boxes[1], id: 'offset', updated_at: '2026-07-31T08:00:00+08:00' },
+    ]
+
+    expect(filterAndSortBoxes(timezoneBoxes, recentFilters).map((box) => box.id)).toEqual(['utc', 'offset'])
   })
 
   it('sorts Chinese and Latin names with zh-CN collation', () => {

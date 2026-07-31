@@ -29,7 +29,7 @@ export function filterAndSortBoxes(
       if (filters.sort === 'items') {
         return right.item_count - left.item_count || left.name.localeCompare(right.name, 'zh-CN')
       }
-      return right.updated_at.localeCompare(left.updated_at)
+      return Date.parse(right.updated_at) - Date.parse(left.updated_at)
     })
 }
 
