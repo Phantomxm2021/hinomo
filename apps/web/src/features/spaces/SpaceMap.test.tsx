@@ -174,3 +174,32 @@ test('supports keyboard resizing and cancels an interrupted pointer resize', () 
 
   expect(onLayoutChange).not.toHaveBeenCalled()
 })
+
+test('adjusts width and length independently with edge handles', () => {
+  const onLayoutChange = vi.fn()
+  render(
+    <MemoryRouter>
+      <SpaceMap
+        spaces={[spaces[0]]}
+        layouts={[{ space_id: 's1', x: 10, y: 10, width: 40, height: 30 }]}
+        editMode
+        onLayoutChange={onLayoutChange}
+      />
+    </MemoryRouter>,
+  )
+
+  const widthHandle = screen.getByRole('button', { name: '调整客厅宽度' })
+  const lengthHandle = screen.getByRole('button', { name: '调整客厅长度' })
+  expect(widthHandle).toHaveClass('cursor-ew-resize')
+  expect(lengthHandle).toHaveClass('cursor-ns-resize')
+
+  fireEvent.keyDown(widthHandle, { key: 'ArrowRight' })
+  expect(onLayoutChange).toHaveBeenLastCalledWith('s1', {
+    x: 10, y: 10, width: 42, height: 30,
+  })
+
+  fireEvent.keyDown(lengthHandle, { key: 'ArrowDown' })
+  expect(onLayoutChange).toHaveBeenLastCalledWith('s1', {
+    x: 10, y: 10, width: 42, height: 32,
+  })
+})

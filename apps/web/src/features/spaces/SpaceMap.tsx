@@ -12,8 +12,10 @@ import { autoSpaceLayout, constrainResize } from './space-layout'
 import { spaceEmoji, spaceTone } from './space-visuals'
 
 type Positions = Record<string, SpacePosition>
+type ResizeAxis = 'width' | 'height' | 'both'
 type InteractionState = {
   kind: 'move' | 'resize'
+  axis: ResizeAxis | null
   id: string
   startX: number
   startY: number
@@ -71,7 +73,7 @@ export function SpaceMap({
     })
   }
 
-  function resizeWithKeyboard(id: string, key: string) {
+  function resizeWithKeyboard(id: string, key: string, axis: ResizeAxis = 'both') {
     const position = positions[id]
     if (!position) return
     const deltas: Record<string, [number, number]> = {
@@ -79,7 +81,11 @@ export function SpaceMap({
     }
     const delta = deltas[key]
     if (!delta) return
-    commit(id, constrainResize(position, delta[0], delta[1]))
+    commit(id, constrainResize(
+      position,
+      axis === 'height' ? 0 : delta[0],
+      axis === 'width' ? 0 : delta[1],
+    ))
   }
 
   function beginDrag(event: ReactPointerEvent<HTMLAnchorElement>, id: string) {
@@ -89,7 +95,7 @@ export function SpaceMap({
     if (!position || !canvas) return
     const rect = canvas.getBoundingClientRect()
     event.currentTarget.setPointerCapture?.(event.pointerId)
-    setInteraction({ kind: 'move', id, startX: event.clientX, startY: event.clientY, position, canvasWidth: rect.width, canvasHeight: rect.height })
+    setInteraction({ kind: 'move', axis: null, id, startX: event.clientX, startY: event.clientY, position, canvasWidth: rect.width, canvasHeight: rect.height })
   }
 
   function continueDrag(event: ReactPointerEvent<HTMLAnchorElement>, id: string) {
@@ -115,7 +121,7 @@ export function SpaceMap({
     setInteraction(null)
   }
 
-  function beginResize(event: ReactPointerEvent<HTMLButtonElement>, id: string) {
+  function beginResize(event: ReactPointerEvent<HTMLButtonElement>, id: string, axis: ResizeAxis) {
     const position = positions[id]
     const canvas = event.currentTarget.parentElement?.parentElement
     if (!position || !canvas) return
@@ -123,15 +129,15 @@ export function SpaceMap({
     event.preventDefault()
     event.stopPropagation()
     event.currentTarget.setPointerCapture?.(event.pointerId)
-    setInteraction({ kind: 'resize', id, startX: event.clientX, startY: event.clientY, position, canvasWidth: rect.width, canvasHeight: rect.height })
+    setInteraction({ kind: 'resize', axis, id, startX: event.clientX, startY: event.clientY, position, canvasWidth: rect.width, canvasHeight: rect.height })
   }
 
   function continueResize(event: ReactPointerEvent<HTMLButtonElement>, id: string) {
     if (!interaction || interaction.kind !== 'resize' || interaction.id !== id || interaction.canvasWidth <= 0 || interaction.canvasHeight <= 0) return
     const next = constrainResize(
       interaction.position,
-      ((event.clientX - interaction.startX) / interaction.canvasWidth) * 100,
-      ((event.clientY - interaction.startY) / interaction.canvasHeight) * 100,
+      interaction.axis === 'height' ? 0 : ((event.clientX - interaction.startX) / interaction.canvasWidth) * 100,
+      interaction.axis === 'width' ? 0 : ((event.clientY - interaction.startY) / interaction.canvasHeight) * 100,
     )
     setPositions((current) => ({ ...current, [id]: next }))
   }
@@ -176,24 +182,58 @@ export function SpaceMap({
               </span>
             </Link>
             {editMode ? (
-              <button
-                className="absolute bottom-1.5 right-1.5 z-10 grid size-9 touch-none cursor-nwse-resize place-items-center rounded-control border border-brand/40 bg-surface/90 text-brand shadow-soft"
-                type="button"
-                aria-label={`调整${space.name}大小`}
-                title="拖动或使用方向键调整大小"
-                onKeyDown={(event) => {
-                  if (event.key.startsWith('Arrow')) {
-                    event.preventDefault()
-                    resizeWithKeyboard(space.id, event.key)
-                  }
-                }}
-                onPointerDown={(event) => beginResize(event, space.id)}
-                onPointerMove={(event) => continueResize(event, space.id)}
-                onPointerUp={() => finishInteraction(space.id)}
-                onPointerCancel={() => cancelInteraction(space.id)}
-              >
-                <span aria-hidden="true" className="text-lg leading-none">↘</span>
-              </button>
+              <>
+                <button
+                  className="absolute top-1/2 right-0 z-10 h-12 w-7 -translate-y-1/2 touch-none cursor-ew-resize rounded-l-control border border-r-0 border-brand/40 bg-surface/90 text-brand shadow-soft"
+                  type="button"
+                  aria-label={`调整${space.name}宽度`}
+                  title="左右拖动或使用方向键调整宽度"
+                  onKeyDown={(event) => {
+                    if (event.key.startsWith('Arrow')) {
+                      event.preventDefault()
+                      resizeWithKeyboard(space.id, event.key, 'width')
+                    }
+                  }}
+                  onPointerDown={(event) => beginResize(event, space.id, 'width')}
+                  onPointerMove={(event) => continueResize(event, space.id)}
+                  onPointerUp={() => finishInteraction(space.id)}
+                  onPointerCancel={() => cancelInteraction(space.id)}
+                ><span aria-hidden="true">↔</span></button>
+                <button
+                  className="absolute bottom-0 left-1/2 z-10 h-7 w-12 -translate-x-1/2 touch-none cursor-ns-resize rounded-t-control border border-b-0 border-brand/40 bg-surface/90 text-brand shadow-soft"
+                  type="button"
+                  aria-label={`调整${space.name}长度`}
+                  title="上下拖动或使用方向键调整长度"
+                  onKeyDown={(event) => {
+                    if (event.key.startsWith('Arrow')) {
+                      event.preventDefault()
+                      resizeWithKeyboard(space.id, event.key, 'height')
+                    }
+                  }}
+                  onPointerDown={(event) => beginResize(event, space.id, 'height')}
+                  onPointerMove={(event) => continueResize(event, space.id)}
+                  onPointerUp={() => finishInteraction(space.id)}
+                  onPointerCancel={() => cancelInteraction(space.id)}
+                ><span aria-hidden="true">↕</span></button>
+                <button
+                  className="absolute bottom-1.5 right-1.5 z-20 grid size-9 touch-none cursor-nwse-resize place-items-center rounded-control border border-brand/40 bg-surface/95 text-brand shadow-soft"
+                  type="button"
+                  aria-label={`调整${space.name}大小`}
+                  title="拖动或使用方向键调整大小"
+                  onKeyDown={(event) => {
+                    if (event.key.startsWith('Arrow')) {
+                      event.preventDefault()
+                      resizeWithKeyboard(space.id, event.key)
+                    }
+                  }}
+                  onPointerDown={(event) => beginResize(event, space.id, 'both')}
+                  onPointerMove={(event) => continueResize(event, space.id)}
+                  onPointerUp={() => finishInteraction(space.id)}
+                  onPointerCancel={() => cancelInteraction(space.id)}
+                >
+                  <span aria-hidden="true" className="text-lg leading-none">↘</span>
+                </button>
+              </>
             ) : null}
           </div>
         )
