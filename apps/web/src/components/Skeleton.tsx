@@ -1,10 +1,13 @@
 import type { HTMLAttributes, ReactNode } from 'react'
 
-type SkeletonProps = HTMLAttributes<HTMLDivElement>
+type SkeletonProps = HTMLAttributes<HTMLElement> & {
+  as?: 'div' | 'span'
+}
 
-export function Skeleton({ className = '', ...props }: SkeletonProps) {
+export function Skeleton({ as, className = '', ...props }: SkeletonProps) {
+  const Component = as ?? 'div'
   return (
-    <div
+    <Component
       {...props}
       aria-hidden="true"
       className={`rounded-control bg-placeholder/80 motion-safe:animate-pulse ${className}`.trim()}
@@ -21,9 +24,9 @@ type SkeletonGroupProps = {
 
 export function SkeletonGroup({ label, className, children }: SkeletonGroupProps) {
   return (
-    <div aria-label={label} className={className} role="status">
+    <div aria-label={label} role="status">
       <span className="sr-only">{label}</span>
-      <div aria-hidden="true">{children}</div>
+      <div aria-hidden="true" className={className}>{children}</div>
     </div>
   )
 }

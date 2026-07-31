@@ -80,13 +80,30 @@ afterEach(() => {
   document.body.style.overflow = ''
 })
 
-test('shows a toolbar, space cards, and layout skeleton while spaces initially load', () => {
+test('shows toolbar and space-card skeletons while the cards view initially loads', () => {
   mockListSpaces.mockReturnValue(new Promise(() => undefined))
   renderSpaces()
 
   const loading = screen.getByRole('status', { name: '正在加载空间' })
-  expect(within(loading).getAllByTestId('skeleton').length).toBeGreaterThan(5)
+  const visualLayout = loading.querySelector(':scope > [aria-hidden="true"]')
+  expect(visualLayout).toHaveClass('grid', 'gap-5')
+  expect(visualLayout?.children).toHaveLength(2)
+  expect(visualLayout?.children[1]).toHaveClass('sm:grid-cols-2', 'xl:grid-cols-3')
+  expect(visualLayout?.querySelector('.rounded-shell')).not.toBeInTheDocument()
   expect(screen.queryByText('正在加载空间…')).not.toBeInTheDocument()
+})
+
+test('shows toolbar and plan skeletons while the plan view initially loads', () => {
+  mockStorageGetItem.mockReturnValue('plan')
+  mockListSpaces.mockReturnValue(new Promise(() => undefined))
+  renderSpaces()
+
+  const loading = screen.getByRole('status', { name: '正在加载空间' })
+  const visualLayout = loading.querySelector(':scope > [aria-hidden="true"]')
+  expect(visualLayout).toHaveClass('grid', 'gap-5')
+  expect(visualLayout?.children).toHaveLength(2)
+  expect(visualLayout?.children[1]).toHaveClass('rounded-shell')
+  expect(visualLayout?.querySelector('.sm\\:grid-cols-2')).not.toBeInTheDocument()
 })
 
 test('keeps the create editor closed until the prominent action is used', async () => {
@@ -514,7 +531,9 @@ test('does not enable layout editing before stored positions finish loading', as
   fireEvent.click(await screen.findByRole('button', { name: '平面视图' }))
   const loadingControl = screen.getByRole('button', { name: '布局加载中' })
   expect(loadingControl).toBeDisabled()
+  expect(loadingControl).toHaveAttribute('title', '布局加载中')
   expect(within(loadingControl).getByTestId('skeleton')).toBeInTheDocument()
+  expect(within(loadingControl).getByTestId('skeleton').tagName).toBe('SPAN')
   expect(screen.queryByText('正在加载布局…')).not.toBeInTheDocument()
   layoutResult.resolve([])
   expect(await screen.findByRole('button', { name: '调整布局' })).toBeEnabled()

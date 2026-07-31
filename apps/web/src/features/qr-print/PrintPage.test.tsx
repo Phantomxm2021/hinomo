@@ -331,7 +331,11 @@ test('blocks workspaces while loading and on an initial error, then retries', as
   const loadingView = renderPrint()
 
   const loading = screen.getByRole('status', { name: '正在加载打印工作台' })
-  expect(within(loading).getAllByTestId('skeleton').length).toBeGreaterThan(6)
+  const visualLayout = loading.querySelector(':scope > [aria-hidden="true"]')
+  expect(visualLayout).toHaveClass('grid', 'lg:grid-cols-[22rem_minmax(0,1fr)]')
+  expect(visualLayout?.children).toHaveLength(2)
+  expect(visualLayout?.children[0]).toContainElement(within(visualLayout as HTMLElement).getAllByTestId('skeleton')[0])
+  expect(visualLayout?.children[1].querySelector('[data-testid="skeleton"]')).toHaveClass('aspect-[210/297]')
   expect(screen.queryByText('正在加载箱子…')).not.toBeInTheDocument()
   expect(screen.queryByRole('region', { name: '批量标签工作台' })).not.toBeInTheDocument()
   loadingView.unmount()

@@ -361,17 +361,20 @@ export function SpacesPage() {
             <Skeleton className="h-11 w-56" />
             <Skeleton className="h-11 w-28" />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 3 }, (_, index) => (
-              <div className="grid min-h-44 content-between rounded-card border border-line bg-surface p-5" key={index}>
-                <Skeleton className="size-10 rounded-full" />
-                <div className="grid gap-2"><Skeleton className="h-6 w-2/3" /><Skeleton className="h-4 w-4/5" /></div>
-              </div>
-            ))}
-          </div>
-          <div className="rounded-shell border border-line bg-surface p-5">
-            <Skeleton className="h-64 w-full" />
-          </div>
+          {view === 'cards' ? (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 3 }, (_, index) => (
+                <div className="grid min-h-44 content-between rounded-card border border-line bg-surface p-5" key={index}>
+                  <Skeleton className="size-10 rounded-full" />
+                  <div className="grid gap-2"><Skeleton className="h-6 w-2/3" /><Skeleton className="h-4 w-4/5" /></div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-shell border border-line bg-surface p-5">
+              <Skeleton className="h-64 w-full" />
+            </div>
+          )}
         </SkeletonGroup>
       ) : null}
       {spacesQuery.isError ? <PageState state="error" message="空间加载失败，请重试" onRetry={() => void spacesQuery.refetch()} /> : null}
@@ -390,8 +393,8 @@ export function SpacesPage() {
               </button>
             </div>
             {view === 'plan' ? (
-              <button className={`min-h-11 rounded-control border px-4 py-2.5 font-bold disabled:cursor-not-allowed disabled:opacity-55 ${layoutEditMode && layoutsQuery.isSuccess ? 'border-brand bg-brand/10 text-brand-strong' : 'border-line bg-surface text-ink'}`} type="button" aria-label={layoutsQuery.isPending ? '布局加载中' : undefined} aria-pressed={layoutEditMode && layoutsQuery.isSuccess} disabled={!layoutsQuery.isSuccess} onClick={() => setLayoutEditMode((current) => !current)}>
-                {layoutsQuery.isPending ? <Skeleton className="h-4 w-16" /> : layoutEditMode && layoutsQuery.isSuccess ? '完成调整' : '调整布局'}
+              <button className={`min-h-11 rounded-control border px-4 py-2.5 font-bold disabled:cursor-not-allowed disabled:opacity-55 ${layoutEditMode && layoutsQuery.isSuccess ? 'border-brand bg-brand/10 text-brand-strong' : 'border-line bg-surface text-ink'}`} type="button" aria-label={layoutsQuery.isPending ? '布局加载中' : undefined} title={layoutsQuery.isPending ? '布局加载中' : undefined} aria-pressed={layoutEditMode && layoutsQuery.isSuccess} disabled={!layoutsQuery.isSuccess} onClick={() => setLayoutEditMode((current) => !current)}>
+                {layoutsQuery.isPending ? <Skeleton as="span" className="inline-block h-4 w-16" /> : layoutEditMode && layoutsQuery.isSuccess ? '完成调整' : '调整布局'}
               </button>
             ) : null}
           </div>

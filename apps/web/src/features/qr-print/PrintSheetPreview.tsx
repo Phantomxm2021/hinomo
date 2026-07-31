@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Skeleton } from '../../components/Skeleton'
 import { env } from '../../lib/env'
-import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import type { BoxSummary } from '../boxes/boxes.api'
 import { paginatePrintBoxes } from './print-model'
 import { PRINT_LABEL_COLORS, PRINT_SHEET_MM, labelPlacementPercent } from './print-label-layout'
@@ -53,9 +53,7 @@ function PrintLabel({ box, density, qr, placement }: {
           ) : qr.status === 'error' ? (
             <span>二维码预览生成失败</span>
           ) : (
-            <SkeletonGroup className="size-full" label={`正在生成${box.name}二维码`}>
-              <Skeleton className="aspect-square size-full rounded-none" />
-            </SkeletonGroup>
+            <Skeleton className="aspect-square size-full rounded-none" />
           )}
         </div>
         <div className="min-w-0 overflow-hidden">
@@ -93,6 +91,13 @@ export function PrintSheetPreview({ boxes, mode }: Props) {
     () => new Set(visibleBoxes.map(qrIdentity)),
     [visibleBoxes],
   )
+  const loadingQrCount = visibleBoxes.filter((box) => (
+    (qrCache.current.get(qrIdentity(box)) ?? { status: 'loading' }).status === 'loading'
+  )).length
+  const loadingLabel = `正在生成 ${loadingQrCount} 个二维码`
+  const loadingStatus = loadingQrCount > 0 ? (
+    <p className="sr-only" role="status" aria-label={loadingLabel} aria-live="polite">{loadingLabel}</p>
+  ) : null
 
   useEffect(() => {
     mounted.current = true
@@ -136,6 +141,7 @@ export function PrintSheetPreview({ boxes, mode }: Props) {
 
     return (
       <section className="min-w-0 overflow-hidden rounded-card border border-line bg-surface" aria-label="单个标签预览">
+        {loadingStatus}
         <header className="border-b border-line px-4 py-3">
           <h2 className="text-lg font-bold text-ink">单个标签预览</h2>
         </header>
@@ -150,6 +156,7 @@ export function PrintSheetPreview({ boxes, mode }: Props) {
 
   return (
     <section className="flex min-w-0 flex-col overflow-hidden rounded-card border border-line bg-surface" aria-label="A4 标签预览">
+      {loadingStatus}
       <header className="flex min-w-0 items-center justify-between gap-3 border-b border-line px-4 py-3">
         <h2 className="min-w-0 truncate text-lg font-bold text-ink">A4 标签预览</h2>
         <p className="shrink-0 text-sm text-muted">共 {pages.length} 页 · {boxes.length} 张标签</p>

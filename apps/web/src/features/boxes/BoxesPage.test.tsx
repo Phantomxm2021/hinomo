@@ -449,7 +449,12 @@ test('shows a toolbar and six-card skeleton until the catalogue request resolves
   renderBoxes()
 
   const loading = screen.getByRole('status', { name: '正在加载箱子目录' })
-  expect(within(loading).getAllByTestId('skeleton').length).toBeGreaterThan(12)
+  const visualLayout = loading.querySelector(':scope > [aria-hidden="true"]')
+  expect(visualLayout).toHaveClass('grid', 'gap-5')
+  const cardGrid = Array.from(visualLayout?.children ?? []).find((child) => child.classList.contains('lg:grid-cols-3'))
+  expect(cardGrid).toHaveClass('grid', 'min-[420px]:grid-cols-2')
+  expect(cardGrid?.children).toHaveLength(6)
+  expect(Array.from(cardGrid?.children ?? []).every((card) => card.querySelector('[data-testid="skeleton"]'))).toBe(true)
   expect(screen.queryByText('正在加载箱子…')).not.toBeInTheDocument()
   expect(screen.queryByRole('searchbox', { name: '搜索箱子' })).not.toBeInTheDocument()
 
