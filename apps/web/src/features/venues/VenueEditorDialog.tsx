@@ -48,8 +48,8 @@ export function VenueEditorDialog({ open, venue, pending, error, onClose, onSubm
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-ink/45 p-3 sm:items-center" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !pending) onClose() }}>
-      <section className="w-full max-w-lg rounded-shell border border-line bg-surface p-6 shadow-float" role="dialog" aria-modal="true" aria-busy={pending} aria-labelledby="venue-editor-title">
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-ink/30 p-0 backdrop-blur-[2px] lg:items-center lg:p-3" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !pending) onClose() }}>
+      <section className="w-full max-w-lg rounded-t-[1.5rem] border-x-0 border-t border-b-0 border-line bg-surface p-5 pb-[max(1.25rem,var(--safe-area-bottom))] shadow-float lg:rounded-shell lg:border lg:p-6" role="dialog" aria-modal="true" aria-busy={pending} aria-labelledby="venue-editor-title">
         <div className="mb-5 flex items-center justify-between gap-4">
           <h2 className="m-0 text-section-title font-bold" id="venue-editor-title">{venue ? '编辑场地' : '创建场地'}</h2>
           <button className="grid size-11 place-items-center rounded-control border border-line bg-canvas" type="button" aria-label="关闭场地编辑器" disabled={pending} onClick={onClose}><AppIcon name="close" /></button>

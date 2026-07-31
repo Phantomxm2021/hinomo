@@ -97,7 +97,7 @@ test('provides the complete desktop navigation without a scan destination', asyn
   )
 })
 
-test('provides five equal mobile destinations in an Apple-style tab bar', () => {
+test('keeps the approved central mobile scan action', () => {
   renderShell()
 
   const navigation = screen.getByRole('navigation', { name: '移动端主导航' })
@@ -117,8 +117,7 @@ test('provides five equal mobile destinations in an Apple-style tab bar', () => 
     '/app/boxes',
     '/app/me',
   ])
-  expect(within(navigation).getByRole('link', { name: '扫码' })).toHaveClass('min-h-[3.25rem]')
-  expect(within(navigation).getByRole('link', { name: '扫码' })).not.toHaveClass('mobile-scan-action')
+  expect(within(navigation).getByRole('link', { name: '扫码' })).toHaveClass('mobile-scan-action', '-translate-y-[18px]')
   expect(navigation).toHaveClass(
     'lg:hidden',
     'border-line/80',
@@ -171,7 +170,7 @@ test('keeps mobile content narrow-safe with responsive gutters and nav clearance
     'min-w-0',
     'px-4',
     'min-[360px]:px-5',
-    'pb-[calc(5.75rem+var(--safe-area-bottom))]',
+    'pb-[calc(8rem+var(--safe-area-bottom))]',
     'lg:px-[clamp(1.75rem,4vw,4rem)]',
   )
   expect(screen.getByRole('navigation', { name: '移动端主导航' })).toHaveClass(
@@ -179,14 +178,13 @@ test('keeps mobile content narrow-safe with responsive gutters and nav clearance
   )
 })
 
-test('marks the mobile scan tab active on the scan route', () => {
+test('marks the central mobile scan action active on the scan route', () => {
   renderShell('/app/scan')
 
   const navigation = screen.getByRole('navigation', { name: '移动端主导航' })
   const scanLink = within(navigation).getByRole('link', { name: '扫码' })
 
-  expect(scanLink).toHaveClass('active')
-  expect(scanLink).not.toHaveClass('mobile-scan-action')
+  expect(scanLink).toHaveClass('mobile-scan-action', 'active')
   expect(scanLink).toHaveAttribute('aria-current', 'page')
   expect(within(navigation).getByRole('link', { name: '首页' })).not.toHaveAttribute('aria-current')
 })

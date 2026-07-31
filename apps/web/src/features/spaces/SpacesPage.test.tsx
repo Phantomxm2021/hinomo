@@ -584,11 +584,14 @@ test('reports a real layout query failure without hiding the automatic plan', as
 
   expect(await screen.findByRole('alert')).toHaveTextContent('布局加载失败；当前显示自动布局')
   expect(screen.getByRole('region', { name: '空间平面总览' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: '调整布局' })).toBeDisabled()
+  const editLayout = screen.getByRole('button', { name: '调整布局' })
+  expect(editLayout).toBeEnabled()
+  await user.click(editLayout)
+  expect(screen.getByRole('region', { name: '调整客厅尺寸' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '重试布局' })).toBeInTheDocument()
 })
 
-test('keeps automatic layout read-only when layout SQL is not installed', async () => {
+test('allows local layout editing when layout SQL is not installed', async () => {
   const user = userEvent.setup()
   mockListSpaces.mockResolvedValue([
     { id: 's1', name: '客厅', description: null, box_count: 0, item_count: 0 },
@@ -599,7 +602,10 @@ test('keeps automatic layout read-only when layout SQL is not installed', async 
   await user.click(await screen.findByRole('button', { name: '平面视图' }))
 
   expect(await screen.findByRole('alert')).toHaveTextContent('布局保存尚未启用，请先执行 space_layouts 数据库迁移')
-  expect(screen.getByRole('button', { name: '调整布局' })).toBeDisabled()
+  const editLayout = screen.getByRole('button', { name: '调整布局' })
+  expect(editLayout).toBeEnabled()
+  await user.click(editLayout)
+  expect(screen.getByRole('region', { name: '调整客厅尺寸' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '重试布局' })).not.toBeInTheDocument()
   expect(screen.getByRole('region', { name: '空间平面总览' })).toBeInTheDocument()
 })

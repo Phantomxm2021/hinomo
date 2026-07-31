@@ -21,8 +21,10 @@ test('keeps the built-in default venue selectable and editable', async () => {
   />)
 
   expect(screen.getByRole('button', { name: '默认，0 个空间' })).toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: '编辑场地默认' }))
+  const renameDefault = screen.getByRole('button', { name: '重命名场地默认' })
+  expect(renameDefault).toHaveAttribute('title', '重命名默认')
+  await user.click(renameDefault)
   expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'default' }))
-  await user.click(screen.getByRole('button', { name: '编辑场地公司' }))
+  await user.click(screen.getByRole('button', { name: '重命名场地公司' }))
   expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'office' }))
 })

@@ -11,8 +11,8 @@ export function constrainResize(
 ): SpacePosition {
   return {
     ...position,
-    width: clamp(position.width + widthDelta, 20, Math.min(60, 100 - position.x)),
-    height: clamp(position.height + heightDelta, 10, Math.min(50, 100 - position.y)),
+    width: clamp(position.width + widthDelta, 12, 100 - position.x),
+    height: clamp(position.height + heightDelta, 12, 100 - position.y),
   }
 }
 

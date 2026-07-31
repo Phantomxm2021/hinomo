@@ -184,8 +184,8 @@ test('keeps the extracted box catalogue on approved visual tokens', () => {
   expectStaticClassToken(catalogueCardSource, 'border-line')
   expectStaticClassToken(boxCardMenuSource, 'bg-surface')
   expectStaticClassToken(boxCardMenuSource, 'border-line')
-  expectStaticClassToken(catalogueToolbarSource, 'rounded-card')
-  expectStaticClassToken(catalogueToolbarSource, 'border-line')
+  expectStaticClassToken(catalogueToolbarSource, 'lg:rounded-card')
+  expectStaticClassToken(catalogueToolbarSource, 'lg:border-line')
   expectStaticClassToken(spaceFilterChipsSource, 'overflow-x-auto')
 })
 

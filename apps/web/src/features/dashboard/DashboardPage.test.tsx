@@ -61,6 +61,8 @@ test('centers the dashboard on finding items, room totals, and recent activity',
   )
   expect(screen.getByText('空间总览')).not.toHaveClass('text-brand', 'uppercase')
   const venueSelect = await screen.findByRole('combobox', { name: '选择场地' })
+  expect(venueSelect).toHaveClass('border-0', 'bg-transparent', 'text-meta', 'font-medium', 'tracking-eyebrow', 'text-muted')
+  expect(venueSelect).not.toHaveClass('border-line', 'bg-surface', 'text-body', 'text-ink')
   expect(screen.getByText('空间总览').parentElement).toContainElement(
     venueSelect,
   )

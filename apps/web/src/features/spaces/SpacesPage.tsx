@@ -300,7 +300,7 @@ export function SpacesPage() {
   return (
     <section className="mx-auto grid min-w-0 w-full max-w-7xl gap-5 lg:gap-6" aria-labelledby="spaces-title">
       <header className="py-3">
-        <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">整理你的收纳范围</p>
+        <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">整理你的收纳范围</p>
         <div className="flex items-center justify-between gap-4">
           <h1 className="mb-0 text-page-title font-extrabold" id="spaces-title">空间</h1>
           <button
@@ -512,12 +512,12 @@ export function SpacesPage() {
               </button>
             </div>
             {view === 'plan' ? (
-              <button className={`min-h-11 rounded-control border px-4 py-2.5 font-bold disabled:cursor-not-allowed disabled:opacity-55 ${layoutEditMode && layoutsQuery.isSuccess ? 'border-brand bg-brand/10 text-brand-strong' : 'border-line bg-surface text-ink'}`} type="button" aria-label={layoutsQuery.isPending ? '布局加载中' : undefined} title={layoutsQuery.isPending ? '布局加载中' : undefined} aria-pressed={layoutEditMode && layoutsQuery.isSuccess} disabled={!layoutsQuery.isSuccess} onClick={() => setLayoutEditMode((current) => !current)}>
-                {layoutsQuery.isPending ? <Skeleton as="span" className="inline-block h-4 w-16" /> : layoutEditMode && layoutsQuery.isSuccess ? '完成调整' : '调整布局'}
+              <button className={`min-h-11 rounded-control border px-4 py-2.5 font-bold disabled:cursor-not-allowed disabled:opacity-55 ${layoutEditMode ? 'border-brand bg-brand/10 text-brand-strong' : 'border-line bg-surface text-ink'}`} type="button" aria-label={layoutsQuery.isPending ? '布局加载中' : undefined} title={layoutsQuery.isPending ? '布局加载中' : undefined} aria-pressed={layoutEditMode} disabled={layoutsQuery.isPending} onClick={() => setLayoutEditMode((current) => !current)}>
+                {layoutsQuery.isPending ? <Skeleton as="span" className="inline-block h-4 w-16" /> : layoutEditMode ? '完成调整' : '调整布局'}
               </button>
             ) : null}
           </div>
-          {view === 'plan' && layoutEditMode && layoutsQuery.isSuccess ? <p className="text-meta text-muted" role="status">拖动空间卡片，或聚焦后使用方向键微调；布局会自动保存。</p> : null}
+          {view === 'plan' && layoutEditMode ? <p className="text-meta text-muted" role="status">拖动空间卡片或使用尺寸滑杆调整。{layoutsQuery.isSuccess ? '布局会自动保存。' : '当前调整仅保留在页面中。'}</p> : null}
           {view === 'plan' && layoutStorageUnavailable ? <ResponsiveOperationError message="布局保存尚未启用，请先执行 space_layouts 数据库迁移。当前仍可浏览自动布局。" /> : null}
           {view === 'plan' && layoutsQuery.isError && !layoutStorageUnavailable ? <ResponsiveOperationError message="布局加载失败；当前显示自动布局。" busy={layoutsQuery.isFetching} retryLabel="重试布局" onRetry={() => void layoutsQuery.refetch()} /> : null}
           {layoutMutation.isError ? (
@@ -535,7 +535,7 @@ export function SpacesPage() {
               ))}
             </div>
           ) : (
-            <SpaceMap spaces={visibleSpaces} layouts={layoutsQuery.data ?? []} editMode={layoutEditMode && layoutsQuery.isSuccess} onLayoutChange={(spaceId, position) => layoutMutation.mutate({ spaceId, position })} />
+            <SpaceMap spaces={visibleSpaces} layouts={layoutsQuery.data ?? []} editMode={layoutEditMode} onLayoutChange={(spaceId, position) => { if (layoutsQuery.isSuccess) layoutMutation.mutate({ spaceId, position }) }} />
           )}
         </>
       ) : null}

@@ -203,7 +203,7 @@ export function PrintPage() {
     <section className="mx-auto flex min-w-0 w-full max-w-7xl flex-col gap-5 lg:gap-8" aria-labelledby="print-title">
       <header className="flex flex-col gap-2 py-3 lg:flex-row lg:items-end lg:justify-between lg:gap-6">
         <div className="min-w-0">
-          <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">打印中心</p>
+          <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">打印中心</p>
           <h1 className="m-0 text-page-title font-extrabold text-ink" id="print-title">
             <span className="lg:hidden">下载箱子标签</span>
             <span className="hidden lg:inline">打印二维码标签</span>

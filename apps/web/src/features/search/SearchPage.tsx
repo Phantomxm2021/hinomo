@@ -85,7 +85,7 @@ export function SearchPage() {
   return (
     <section className="mx-auto flex min-w-0 w-full max-w-5xl flex-col gap-5 lg:gap-8" aria-labelledby="search-title">
       <header className="flex flex-col gap-2 py-3">
-        <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">按名称、编号、空间或位置查找</p>
+        <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">按名称、编号、空间或位置查找</p>
         <h1 className="mb-0 text-page-title font-extrabold" id="search-title">查找收纳</h1>
       </header>
 

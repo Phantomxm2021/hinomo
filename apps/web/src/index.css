@@ -78,6 +78,28 @@
   .mobile-app-content .shadow-soft {
     box-shadow: 0 1px 2px rgb(86 58 36 / 5%);
   }
+
+  .mobile-app-content :where(.rounded-card, .rounded-shell):not(.border-dashed) {
+    border-color: transparent;
+  }
+
+  .mobile-app-content > :where(section, main) > header {
+    padding-top: 0.25rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .mobile-app-content :where(button, a) {
+    transition: opacity 120ms ease, transform 120ms ease, background-color 120ms ease;
+  }
+
+  .mobile-app-content :where(button, a):active {
+    opacity: 0.72;
+  }
+
+  .mobile-app-content :where(input:not([type="range"]):not([type="radio"]):not([type="checkbox"]), textarea, select) {
+    border-color: color-mix(in srgb, var(--color-line) 60%, transparent);
+    box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--color-line) 60%, transparent);
+  }
 }
 
 @layer base {

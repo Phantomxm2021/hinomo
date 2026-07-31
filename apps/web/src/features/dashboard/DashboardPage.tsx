@@ -54,7 +54,7 @@ export function DashboardPage() {
           ) : (
             <select
               aria-label="选择场地"
-              className="h-11 min-w-32 max-w-44 rounded-control border border-line bg-surface px-3 text-body font-medium text-ink outline-none focus:border-brand lg:w-48 lg:max-w-none"
+              className="h-11 min-w-24 max-w-44 border-0 bg-transparent px-0 text-right text-meta font-medium tracking-eyebrow text-muted outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/35 lg:w-48 lg:max-w-none"
               value={activeVenueId ?? ''}
               onChange={(event) => setSelectedVenueId(event.target.value)}
             >

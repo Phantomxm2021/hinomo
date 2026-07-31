@@ -13,6 +13,7 @@ type NavigationItem = {
   label: string
   icon: AppIconName
   end?: boolean
+  className?: string
 }
 
 const desktopNavigation: NavigationItem[] = [
@@ -26,7 +27,7 @@ const desktopNavigation: NavigationItem[] = [
 const mobileNavigation: NavigationItem[] = [
   { to: '/app', label: '首页', icon: 'home', end: true },
   { to: '/app/spaces', label: '空间', icon: 'space' },
-  { to: '/app/scan', label: '扫码', icon: 'scan' },
+  { to: '/app/scan', label: '扫码', icon: 'scan', className: 'mobile-scan-action -translate-y-[18px]' },
   { to: '/app/boxes', label: '箱子', icon: 'box' },
   { to: '/app/me', label: '我的', icon: 'user' },
 ]
@@ -40,6 +41,7 @@ function Navigation({ items, mobile = false }: { items: NavigationItem[]; mobile
       aria-label={item.label}
       className={({ isActive }: NavLinkRenderProps) =>
         [
+          item.className,
           'flex items-center gap-2.5 rounded-control no-underline',
           mobile
             ? 'min-h-[3.25rem] flex-col justify-center gap-0.5 rounded-none p-1 text-center text-[0.625rem] leading-none'
@@ -54,9 +56,11 @@ function Navigation({ items, mobile = false }: { items: NavigationItem[]; mobile
     >
       <span className={[
         'grid place-items-center',
-        mobile ? 'size-6' : undefined,
+        item.className
+          ? 'h-14 w-14 rounded-full bg-brand text-white shadow-float [.active_&]:ring-4 [.active_&]:ring-brand/15'
+          : mobile ? 'size-6' : undefined,
       ].filter(Boolean).join(' ')}><AppIcon name={item.icon} /></span>
-      <span>{item.label}</span>
+      <span className={item.className ? 'text-ink' : undefined}>{item.label}</span>
     </NavLink>
   ))
 }
@@ -98,7 +102,7 @@ export function AppShell() {
           Nomo
         </Link>
       </header>
-      <main className="mobile-app-content min-w-0 px-4 pt-4 pb-[calc(5.75rem+var(--safe-area-bottom))] min-[360px]:px-5 lg:ml-60 lg:px-[clamp(1.75rem,4vw,4rem)] lg:pt-10 lg:pb-16"><Outlet /></main>
+      <main className="mobile-app-content min-w-0 px-4 pt-4 pb-[calc(8rem+var(--safe-area-bottom))] min-[360px]:px-5 lg:ml-60 lg:px-[clamp(1.75rem,4vw,4rem)] lg:pt-10 lg:pb-16"><Outlet /></main>
       <nav className="fixed inset-x-0 bottom-0 z-30 grid min-h-[3.75rem] grid-cols-5 border-t border-line/80 bg-surface/90 px-1 pt-1 pb-[max(0.35rem,var(--safe-area-bottom))] shadow-[0_-1px_14px_rgb(86_58_36_/_7%)] backdrop-blur-xl lg:hidden" aria-label="移动端主导航"><Navigation items={mobileNavigation} mobile /></nav>
     </div>
   )

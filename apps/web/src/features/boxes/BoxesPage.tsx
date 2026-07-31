@@ -138,7 +138,7 @@ export function BoxesPage() {
   return (
     <section className="mx-auto flex min-w-0 w-full max-w-7xl flex-col gap-5 lg:gap-7" aria-labelledby="boxes-title">
       <header className="py-3">
-        <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">收纳目录</p>
+        <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">收纳目录</p>
         <div className="flex items-center justify-between gap-4">
           <h1 className="mb-0 text-page-title font-extrabold" id="boxes-title">全部箱子</h1>
           <button

@@ -138,7 +138,7 @@ async function expectShellSafeArea(page: Parameters<typeof installMockBackend>[0
   }, safeAreaBottom)
   try {
     await expect(page.getByRole('navigation', { name: '移动端主导航' })).toHaveCSS('padding-bottom', `${safeAreaBottom}px`)
-    await expect(page.getByRole('main')).toHaveCSS('padding-bottom', `${92 + safeAreaBottom}px`)
+    await expect(page.getByRole('main')).toHaveCSS('padding-bottom', `${128 + safeAreaBottom}px`)
   } finally {
     await page.evaluate(() => document.documentElement.style.removeProperty('--safe-area-bottom'))
   }
@@ -158,6 +158,10 @@ test('owner creates, finds, labels, and maintains a public box', async ({ browse
   await page.getByRole('button', { name: '平面视图' }).click()
   await expect(page.getByRole('region', { name: '空间平面总览' })).toBeVisible()
   await expect(page.getByRole('link', { name: /家/ })).toBeVisible()
+  await page.getByRole('button', { name: '调整布局' }).click()
+  await page.getByRole('slider', { name: '家宽度' }).press('End')
+  await expect.poll(() => state.spaceLayouts[0]?.width_percent ?? 0).toBeGreaterThan(60)
+  await page.getByRole('button', { name: '完成调整' }).click()
   await expectNoHorizontalOverflow(page)
   await page.goto('/app/boxes/new')
   await expect(page).toHaveURL(/\/app\/boxes\?create=1$/)

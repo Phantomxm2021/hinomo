@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useRef,
   useState,
   type DragEvent as ReactDragEvent,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -49,12 +50,29 @@ export function SpaceMap({
   onLayoutChange: (spaceId: string, position: SpacePosition) => void
 }) {
   const [positions, setPositions] = useState<Positions>(() => buildPositions(spaces, layouts))
+  const positionsRef = useRef(positions)
   const [interaction, setInteraction] = useState<InteractionState | null>(null)
+  const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(() => spaces[0]?.id ?? null)
 
-  useEffect(() => setPositions(buildPositions(spaces, layouts)), [spaces, layouts])
+  useEffect(() => {
+    const next = buildPositions(spaces, layouts)
+    positionsRef.current = next
+    setPositions(next)
+  }, [spaces, layouts])
+
+  useEffect(() => {
+    if (selectedSpaceId && spaces.some((space) => space.id === selectedSpaceId)) return
+    setSelectedSpaceId(spaces[0]?.id ?? null)
+  }, [selectedSpaceId, spaces])
+
+  function updateLocalPosition(id: string, position: SpacePosition) {
+    const next = { ...positionsRef.current, [id]: position }
+    positionsRef.current = next
+    setPositions(next)
+  }
 
   function commit(id: string, position: SpacePosition) {
-    setPositions((current) => ({ ...current, [id]: position }))
+    updateLocalPosition(id, position)
     onLayoutChange(id, position)
   }
 
@@ -105,19 +123,19 @@ export function SpaceMap({
       x: clamp(interaction.position.x + ((event.clientX - interaction.startX) / interaction.canvasWidth) * 100, 100 - interaction.position.width),
       y: clamp(interaction.position.y + ((event.clientY - interaction.startY) / interaction.canvasHeight) * 100, 100 - interaction.position.height),
     }
-    setPositions((current) => ({ ...current, [id]: next }))
+    updateLocalPosition(id, next)
   }
 
   function finishInteraction(id: string) {
     if (!interaction || interaction.id !== id) return
-    const position = positions[id]
+    const position = positionsRef.current[id]
     setInteraction(null)
     if (position) onLayoutChange(id, position)
   }
 
   function cancelInteraction(id: string) {
     if (!interaction || interaction.id !== id) return
-    setPositions((current) => ({ ...current, [id]: interaction.position }))
+    updateLocalPosition(id, interaction.position)
     setInteraction(null)
   }
 
@@ -139,12 +157,15 @@ export function SpaceMap({
       interaction.axis === 'height' ? 0 : ((event.clientX - interaction.startX) / interaction.canvasWidth) * 100,
       interaction.axis === 'width' ? 0 : ((event.clientY - interaction.startY) / interaction.canvasHeight) * 100,
     )
-    setPositions((current) => ({ ...current, [id]: next }))
+    updateLocalPosition(id, next)
   }
 
   const minimumHeight = Math.max(544, Math.ceil(spaces.length / 2) * 144 + 64)
+  const selectedSpace = spaces.find((space) => space.id === selectedSpaceId) ?? spaces[0]
+  const selectedPosition = selectedSpace ? positions[selectedSpace.id] : undefined
 
   return (
+    <>
     <section className="relative overflow-hidden rounded-shell border border-line bg-surface shadow-soft" style={{ minHeight: `${minimumHeight}px` }} role="region" aria-label="空间平面总览">
       <div className="pointer-events-none absolute inset-0 opacity-55" style={{ backgroundImage: 'linear-gradient(#e3d5c5 1px, transparent 1px), linear-gradient(90deg, #e3d5c5 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
       {spaces.map((space, index) => {
@@ -159,7 +180,11 @@ export function SpaceMap({
               draggable={false}
               className={`flex size-full flex-col justify-between overflow-hidden rounded-[inherit] p-3 text-inherit no-underline focus:outline-none focus:ring-2 focus:ring-brand sm:p-4 ${editMode ? 'touch-none cursor-move' : 'touch-pan-y'}`}
               to={`/app/boxes?space=${encodeURIComponent(space.id)}`}
-              onClick={(event: ReactMouseEvent<HTMLAnchorElement>) => { if (editMode) event.preventDefault() }}
+              onClick={(event: ReactMouseEvent<HTMLAnchorElement>) => {
+                if (!editMode) return
+                event.preventDefault()
+                setSelectedSpaceId(space.id)
+              }}
               onKeyDown={(event: ReactKeyboardEvent<HTMLAnchorElement>) => {
                 if (editMode && event.key.startsWith('Arrow')) {
                   event.preventDefault()
@@ -184,7 +209,7 @@ export function SpaceMap({
             {editMode ? (
               <>
                 <button
-                  className="absolute top-1/2 right-0 z-10 h-12 w-7 -translate-y-1/2 touch-none cursor-ew-resize rounded-l-control border border-r-0 border-brand/40 bg-surface/90 text-brand shadow-soft"
+                  className="absolute top-1/2 right-0 z-10 h-14 w-11 -translate-y-1/2 touch-none cursor-ew-resize rounded-l-control border border-r-0 border-brand/40 bg-surface/90 text-brand shadow-soft"
                   type="button"
                   aria-label={`调整${space.name}宽度`}
                   title="左右拖动或使用方向键调整宽度"
@@ -200,7 +225,7 @@ export function SpaceMap({
                   onPointerCancel={() => cancelInteraction(space.id)}
                 ><span aria-hidden="true">↔</span></button>
                 <button
-                  className="absolute bottom-0 left-1/2 z-10 h-7 w-12 -translate-x-1/2 touch-none cursor-ns-resize rounded-t-control border border-b-0 border-brand/40 bg-surface/90 text-brand shadow-soft"
+                  className="absolute bottom-0 left-1/2 z-10 h-11 w-14 -translate-x-1/2 touch-none cursor-ns-resize rounded-t-control border border-b-0 border-brand/40 bg-surface/90 text-brand shadow-soft"
                   type="button"
                   aria-label={`调整${space.name}长度`}
                   title="上下拖动或使用方向键调整长度"
@@ -216,7 +241,7 @@ export function SpaceMap({
                   onPointerCancel={() => cancelInteraction(space.id)}
                 ><span aria-hidden="true">↕</span></button>
                 <button
-                  className="absolute bottom-1.5 right-1.5 z-20 grid size-9 touch-none cursor-nwse-resize place-items-center rounded-control border border-brand/40 bg-surface/95 text-brand shadow-soft"
+                  className="absolute bottom-1.5 right-1.5 z-20 grid size-11 touch-none cursor-nwse-resize place-items-center rounded-control border border-brand/40 bg-surface/95 text-brand shadow-soft"
                   type="button"
                   aria-label={`调整${space.name}大小`}
                   title="拖动或使用方向键调整大小"
@@ -239,5 +264,36 @@ export function SpaceMap({
         )
       })}
     </section>
+    {editMode && selectedSpace && selectedPosition ? (
+      <section className="mt-3 grid gap-4 rounded-card bg-surface p-4 shadow-soft lg:grid-cols-2" role="region" aria-label={`调整${selectedSpace.name}尺寸`}>
+        <label className="grid gap-2 text-sm font-semibold text-ink">
+          <span className="flex items-center justify-between"><span>宽度</span><output>{selectedPosition.width}%</output></span>
+          <input
+            className="h-11 w-full accent-brand"
+            type="range"
+            min="12"
+            max={100 - selectedPosition.x}
+            step="2"
+            value={selectedPosition.width}
+            aria-label={`${selectedSpace.name}宽度`}
+            onChange={(event) => commit(selectedSpace.id, constrainResize(selectedPosition, Number(event.target.value) - selectedPosition.width, 0))}
+          />
+        </label>
+        <label className="grid gap-2 text-sm font-semibold text-ink">
+          <span className="flex items-center justify-between"><span>长度</span><output>{selectedPosition.height}%</output></span>
+          <input
+            className="h-11 w-full accent-brand"
+            type="range"
+            min="12"
+            max={100 - selectedPosition.y}
+            step="2"
+            value={selectedPosition.height}
+            aria-label={`${selectedSpace.name}长度`}
+            onChange={(event) => commit(selectedSpace.id, constrainResize(selectedPosition, 0, Number(event.target.value) - selectedPosition.height))}
+          />
+        </label>
+      </section>
+    ) : null}
+    </>
   )
 }

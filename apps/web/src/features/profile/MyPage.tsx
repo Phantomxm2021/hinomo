@@ -59,7 +59,7 @@ export function MyPage() {
   return (
     <section className="mx-auto grid w-full max-w-2xl gap-5" aria-labelledby="my-title">
       <header className="py-3">
-        <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">账户与偏好</p>
+        <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">账户与偏好</p>
         <h1 className="mb-0 text-page-title font-extrabold" id="my-title">我的</h1>
       </header>
 

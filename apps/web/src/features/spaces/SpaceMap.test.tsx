@@ -35,11 +35,34 @@ test('snaps resizing and constrains it to size and canvas boundaries', () => {
     x: 70, y: 70, width: 30, height: 30,
   })
   expect(constrainResize({ x: 10, y: 10, width: 40, height: 30 }, -99, -99)).toEqual({
-    x: 10, y: 10, width: 20, height: 10,
+    x: 10, y: 10, width: 12, height: 12,
   })
   expect(constrainResize({ x: 0, y: 0, width: 40, height: 30 }, 99, 99)).toEqual({
-    x: 0, y: 0, width: 60, height: 50,
+    x: 0, y: 0, width: 100, height: 100,
   })
+})
+
+test('offers touch-friendly width and length controls for the selected space', () => {
+  const onLayoutChange = vi.fn()
+  render(
+    <MemoryRouter>
+      <SpaceMap
+        spaces={[spaces[0]]}
+        layouts={[{ space_id: 's1', x: 10, y: 10, width: 40, height: 30 }]}
+        editMode
+        onLayoutChange={onLayoutChange}
+      />
+    </MemoryRouter>,
+  )
+
+  expect(screen.getByRole('region', { name: '调整客厅尺寸' })).toBeInTheDocument()
+  const width = screen.getByRole('slider', { name: '客厅宽度' })
+  const length = screen.getByRole('slider', { name: '客厅长度' })
+  fireEvent.change(width, { target: { value: '70' } })
+  fireEvent.change(length, { target: { value: '64' } })
+
+  expect(onLayoutChange).toHaveBeenNthCalledWith(1, 's1', { x: 10, y: 10, width: 70, height: 30 })
+  expect(onLayoutChange).toHaveBeenNthCalledWith(2, 's1', { x: 10, y: 10, width: 70, height: 64 })
 })
 
 test('renders room graphics and links to filtered boxes', () => {

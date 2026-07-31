@@ -209,7 +209,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
     <section className={presentation === 'page' ? 'mx-auto grid min-w-0 w-full max-w-4xl gap-5 lg:gap-6' : 'grid min-w-0 w-full gap-4'} data-presentation={presentation} aria-labelledby={presentation === 'page' ? 'box-form-title' : undefined}>
       {presentation === 'page' ? (
         <header className="py-3">
-          <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">为实体箱子建立数字身份</p>
+          <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">为实体箱子建立数字身份</p>
           <h1 className="m-0 text-page-title font-extrabold text-ink" id="box-form-title">{editing ? '编辑箱子' : '创建箱子'}</h1>
         </header>
       ) : null}
