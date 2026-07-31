@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Skeleton } from '../../components/Skeleton'
 import { createMediaDownload } from './media.api'
 
 type AuthorizedImageProps = {
@@ -17,7 +18,14 @@ export function AuthorizedImage({ objectKey, alt, className }: AuthorizedImagePr
     retry: 1,
   })
 
-  if (query.isPending) return <span role="status">图片加载中…</span>
+  if (query.isPending) {
+    return (
+      <span className={`inline-block ${className ?? ''}`.trim()} role="status" aria-label="正在加载授权图片">
+        <span className="sr-only">正在加载授权图片</span>
+        <Skeleton as="span" className="block h-full w-full" />
+      </span>
+    )
+  }
   if (query.isError || loadFailed) return <span className={className}>图片暂不可用</span>
   return (
     <img

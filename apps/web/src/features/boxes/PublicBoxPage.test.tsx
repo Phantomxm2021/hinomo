@@ -56,6 +56,15 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
+test('shows a structured skeleton while the public box is loading', () => {
+  mockGetBoxByPublicId.mockReturnValue(new Promise(() => undefined))
+  renderPublicBox()
+
+  expect(screen.getByRole('status', { name: '正在加载箱子' })).toBeInTheDocument()
+  expect(screen.getAllByTestId('skeleton').length).toBeGreaterThan(2)
+  expect(screen.queryByText('正在加载箱子…')).not.toBeInTheDocument()
+})
+
 test('renders a public box for an anonymous visitor without edit controls', async () => {
   mockGetBoxByPublicId.mockResolvedValue({
     id: 'box-1',

@@ -23,7 +23,9 @@ function renderEntry(auth: AuthContextValue) {
 
 test('shows a branded loading state while the session initializes', () => {
   renderEntry({ session: null, loading: true, isPasswordRecovery: false })
-  expect(screen.getByRole('status')).toHaveTextContent('正在进入 Nomo…')
+  expect(screen.getByRole('status', { name: '正在进入 Nomo' })).toBeInTheDocument()
+  expect(screen.getAllByTestId('skeleton').length).toBeGreaterThan(1)
+  expect(screen.queryByText('正在进入 Nomo…')).not.toBeInTheDocument()
 })
 
 test('sends an anonymous visitor to login', () => {

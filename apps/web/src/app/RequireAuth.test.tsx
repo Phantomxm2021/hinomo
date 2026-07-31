@@ -99,6 +99,8 @@ test('does not redirect while the initial session is loading', () => {
     </AuthContext.Provider>,
   )
 
-  expect(screen.getByRole('status')).toHaveTextContent('正在检查登录状态')
+  expect(screen.getByRole('status', { name: '正在检查登录状态' })).toBeInTheDocument()
+  expect(screen.getAllByTestId('skeleton').length).toBeGreaterThan(1)
+  expect(screen.queryByText('正在检查登录状态…')).not.toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: '登录' })).not.toBeInTheDocument()
 })

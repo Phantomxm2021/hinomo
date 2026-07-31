@@ -64,6 +64,15 @@ test('uses compact mobile page titles with a desktop scale-up', async () => {
   expect(heading).toHaveClass('text-page-title', 'font-extrabold')
 })
 
+test('shows a form-shaped skeleton while spaces are loading', () => {
+  mockListSpaces.mockReturnValue(new Promise(() => undefined))
+  renderBoxForm()
+
+  expect(screen.getByRole('status', { name: '正在加载箱子表单' })).toBeInTheDocument()
+  expect(screen.getAllByTestId('skeleton').length).toBeGreaterThan(2)
+  expect(screen.queryByText('正在加载空间…')).not.toBeInTheDocument()
+})
+
 test('omits independent page framing inside a modal', async () => {
   mockListSpaces.mockResolvedValue([])
   renderModalBoxForm()

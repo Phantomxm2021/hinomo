@@ -7,6 +7,21 @@ const { mockCreateDownload } = vi.hoisted(() => ({ mockCreateDownload: vi.fn() }
 vi.mock('./media.api', () => ({ createMediaDownload: mockCreateDownload }))
 afterEach(cleanup)
 
+test('keeps media dimensions stable with a named skeleton while authorizing', () => {
+  mockCreateDownload.mockReturnValue(new Promise(() => undefined))
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <QueryClientProvider client={client}>
+      <AuthorizedImage objectKey="users/u/image.webp" alt="箱子封面" className="h-full w-full object-cover" />
+    </QueryClientProvider>,
+  )
+
+  const status = screen.getByRole('status', { name: '正在加载授权图片' })
+  expect(status).toHaveClass('h-full', 'w-full', 'object-cover')
+  expect(screen.getByTestId('skeleton')).toBeInTheDocument()
+  expect(screen.queryByText('图片加载中…')).not.toBeInTheDocument()
+})
+
 test('renders an authorized short-lived image URL', async () => {
   mockCreateDownload.mockResolvedValue({
     download_url: 'https://r2.example/signed-image',

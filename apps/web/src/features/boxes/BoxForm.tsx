@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { PageState } from '../../components/PageState'
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { env } from '../../lib/env'
 import { isUploadPending, uploadStageLabel } from '../media/media-ui'
 import { useMediaUpload } from '../media/useMediaUpload'
@@ -151,7 +152,22 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCreated, onDone }
   })
 
   if (spacesQuery.isPending || (editing && boxQuery.isPending)) {
-    return <PageState state="loading" label={spacesQuery.isPending ? '正在加载空间…' : '正在加载箱子…'} />
+    return (
+      <SkeletonGroup
+        className={presentation === 'page' ? 'mx-auto grid w-full max-w-4xl gap-4' : 'grid w-full gap-4'}
+        label="正在加载箱子表单"
+      >
+        {presentation === 'page' ? <Skeleton className="h-10 w-44" /> : null}
+        <div className={`grid gap-4 ${presentation === 'page' ? 'rounded-shell border border-line bg-surface p-5 md:p-6' : ''}`}>
+          <Skeleton className="h-5 w-20" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-28 w-full" />
+          <Skeleton className="h-11 w-full" />
+        </div>
+      </SkeletonGroup>
+    )
   }
 
   if (spacesQuery.isError) {

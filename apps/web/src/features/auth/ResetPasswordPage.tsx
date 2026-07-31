@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { getAuthErrorMessage } from './auth-errors'
 import { useAuth } from './auth-context'
 import { completePasswordRecovery } from './auth-session-store'
@@ -38,7 +39,20 @@ export function ResetPasswordPage() {
     }
   })
 
-  if (loading) return <p role="status">正在验证重置链接…</p>
+  if (loading) {
+    return (
+      <SkeletonGroup className="mx-auto grid w-full max-w-md gap-5 px-4 py-10" label="正在验证重置链接">
+        <Skeleton className="h-10 w-40" />
+        <div className="grid gap-3 rounded-shell border border-line bg-surface p-5">
+          <Skeleton className="h-5 w-20" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-5 w-28" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-11 w-full" />
+        </div>
+      </SkeletonGroup>
+    )
+  }
   if (!session || !isPasswordRecovery) {
     return (
       <main>

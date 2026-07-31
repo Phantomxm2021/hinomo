@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { env } from '../../lib/env'
 import { useAuth } from '../auth/auth-context'
 import { ItemForm } from '../items/ItemForm'
@@ -43,7 +44,26 @@ export function PublicBoxPage() {
     },
   })
 
-  if (boxQuery.isPending) return <PageState state="loading" label="正在加载箱子…" />
+  if (boxQuery.isPending) {
+    return (
+      <SkeletonGroup className="mx-auto grid w-full max-w-6xl gap-6 px-4 pb-32 pt-5 sm:px-6 lg:px-8" label="正在加载箱子">
+        <div className="grid gap-6 rounded-shell border border-line bg-surface p-5 md:grid-cols-[minmax(16rem,0.8fr)_1.2fr]">
+          <Skeleton className="aspect-[4/3] min-h-56" />
+          <div className="grid content-center gap-4">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-10 w-3/4" />
+            <Skeleton className="h-5 w-1/2" />
+            <Skeleton className="h-5 w-full" />
+          </div>
+        </div>
+        <div className="grid gap-3">
+          <Skeleton className="h-8 w-28" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      </SkeletonGroup>
+    )
+  }
   if (boxQuery.isError || !boxQuery.data) {
     return <PageState state="error" message="无权限或内容不存在" onRetry={() => void boxQuery.refetch()} />
   }

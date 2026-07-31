@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { AppIcon } from '../../components/AppIcon'
+import { Skeleton } from '../../components/Skeleton'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/auth-context'
 import { getAvatarDownload, getProfile, updateLocale, uploadAvatar } from './profile.api'
@@ -41,6 +42,8 @@ export function UserAccountMenu() {
   if (!user) return null
   const name = profileQuery.data?.display_name || userName(user)
   const avatar = avatarQuery.data || user.user_metadata?.avatar_url
+  const accountPending = profileQuery.isPending
+    || (Boolean(profileQuery.data?.avatar_object_key) && avatarQuery.isPending)
 
   async function signOut() {
     await supabase.auth.signOut()
@@ -56,11 +59,25 @@ export function UserAccountMenu() {
         aria-label="打开账户菜单"
         onClick={() => setOpen((value) => !value)}
       >
-        <Avatar src={avatar} name={name} size="sm" />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-body font-bold text-ink">{name}</span>
-          <span className="block truncate text-meta text-muted">{user.email}</span>
-        </span>
+        {accountPending ? (
+          <span className="flex min-w-0 flex-1 items-center gap-3" role="status" aria-label="正在加载账户资料">
+            <span className="sr-only">正在加载账户资料</span>
+            <Skeleton as="span" className="block size-10 shrink-0 rounded-full" />
+            <span className="grid min-w-0 flex-1 gap-2">
+              <Skeleton as="span" className="block h-4 w-2/3" />
+              <Skeleton as="span" className="block h-3 w-5/6" />
+            </span>
+          </span>
+        ) : (
+          <>
+            <Avatar src={avatar} name={name} size="sm" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-body font-bold text-ink">{name}</span>
+              <span className="block truncate text-meta text-muted">{user.email}</span>
+            </span>
+          </>
+        )}
+        {accountPending && user.email ? <span className="sr-only">{user.email}</span> : null}
         <AppIcon name="chevron-right" size={18} />
       </button>
       {open ? createPortal(
