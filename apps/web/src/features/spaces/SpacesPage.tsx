@@ -45,6 +45,7 @@ export function SpacesPage() {
   const queryClient = useQueryClient()
   const editorOpenerRef = useRef<HTMLElement | null>(null)
   const headerCreateButtonRef = useRef<HTMLButtonElement | null>(null)
+  const deleteReturnFocusRef = useRef<HTMLElement | null>(null)
   const editorDialogRef = useRef<HTMLElement | null>(null)
   const editorCloseButtonRef = useRef<HTMLButtonElement | null>(null)
   const editorSubmitButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -65,6 +66,7 @@ export function SpacesPage() {
   const deleteMutation = useMutation({
     mutationFn: (spaceId: string) => deleteSpace(spaceId),
     onSuccess: async () => {
+      deleteReturnFocusRef.current = headerCreateButtonRef.current
       setDeleteTarget(null)
       await queryClient.invalidateQueries({ queryKey: ['spaces'] })
     },
@@ -205,12 +207,13 @@ export function SpacesPage() {
     setEditorOpen(true)
   }
 
-  function requestDelete(space: SpaceSummary) {
+  function requestDelete(space: SpaceSummary, trigger: HTMLButtonElement) {
     setBlockedMessage(null)
     if (space.box_count > 0) {
       setBlockedMessage(`请先移动或删除其中的 ${space.box_count} 个箱子`)
       return
     }
+    deleteReturnFocusRef.current = trigger
     setDeleteTarget(space)
   }
 
@@ -380,7 +383,7 @@ export function SpacesPage() {
           {view === 'cards' ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {spacesQuery.data.map((space, index) => (
-                <SpaceCard key={space.id} space={space} index={index} onEdit={() => beginEdit(space)} onDelete={() => requestDelete(space)} />
+                <SpaceCard key={space.id} space={space} index={index} onEdit={() => beginEdit(space)} onDelete={(trigger) => requestDelete(space, trigger)} />
               ))}
             </div>
           ) : (
@@ -394,6 +397,7 @@ export function SpacesPage() {
         title={`删除“${deleteTarget?.name ?? ''}”？`}
         description="删除后无法恢复。"
         busy={deleteMutation.isPending}
+        returnFocusRef={deleteReturnFocusRef}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={() => {
           if (deleteTarget) deleteMutation.mutate(deleteTarget.id)

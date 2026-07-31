@@ -564,7 +564,20 @@ test('explains why a non-empty space cannot be deleted', async () => {
   expect(mockDeleteSpace).not.toHaveBeenCalled()
 })
 
-test('deletes an empty space after confirmation', async () => {
+test('restores focus to a programmatically activated delete trigger on cancel', async () => {
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', name: '空房间', description: null, box_count: 0, item_count: 0 },
+  ])
+  renderSpaces()
+
+  const deleteButton = await screen.findByRole('button', { name: '删除空房间' })
+  fireEvent.click(deleteButton)
+  fireEvent.click(screen.getByRole('button', { name: '取消' }))
+
+  await waitFor(() => expect(deleteButton).toHaveFocus())
+})
+
+test('focuses the persistent create action after deleting an empty space', async () => {
   const user = userEvent.setup()
   mockListSpaces
     .mockResolvedValueOnce([
@@ -579,6 +592,7 @@ test('deletes an empty space after confirmation', async () => {
 
   expect(mockDeleteSpace).toHaveBeenCalledWith('s1')
   expect(await screen.findByText('还没有空间')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '创建空间' })).toHaveFocus()
 })
 
 test('keeps localized mutation errors without leaking backend text', async () => {
@@ -604,9 +618,14 @@ test('keeps localized mutation errors without leaking backend text', async () =>
   expect(screen.queryByText('sensitive create details')).not.toBeInTheDocument()
 
   await user.click(screen.getByRole('button', { name: '取消' }))
-  await user.click(screen.getByRole('button', { name: '删除空房间' }))
+  const deleteButton = screen.getByRole('button', { name: '删除空房间' })
+  await user.click(deleteButton)
   await user.click(screen.getByRole('button', { name: '确认删除' }))
 
   expect(await screen.findByRole('alert')).toHaveTextContent('删除失败，请稍后重试')
   expect(screen.queryByText('sensitive delete details')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '确认删除' })).toHaveFocus()
+
+  await user.click(screen.getByRole('button', { name: '取消' }))
+  await waitFor(() => expect(deleteButton).toHaveFocus())
 })

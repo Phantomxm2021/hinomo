@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -16,6 +16,9 @@ export function PublicBoxPage() {
   const { publicId = '' } = useParams<{ publicId: string }>()
   const { session } = useAuth()
   const queryClient = useQueryClient()
+  const desktopAddItemButtonRef = useRef<HTMLButtonElement | null>(null)
+  const mobileAddItemButtonRef = useRef<HTMLButtonElement | null>(null)
+  const deleteReturnFocusRef = useRef<HTMLElement | null>(null)
   const [showItemForm, setShowItemForm] = useState(false)
   const [editingItem, setEditingItem] = useState<ItemRecord | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ItemRecord | null>(null)
@@ -29,6 +32,9 @@ export function PublicBoxPage() {
   const deleteMutation = useMutation({
     mutationFn: (itemId: string) => deleteItem(itemId),
     onSuccess: async () => {
+      deleteReturnFocusRef.current = window.matchMedia('(min-width: 48rem)').matches
+        ? desktopAddItemButtonRef.current
+        : mobileAddItemButtonRef.current
       setDeleteTarget(null)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['box', publicId] }),
@@ -55,6 +61,10 @@ export function PublicBoxPage() {
   const openEditItem = (item: ItemRecord) => {
     setEditingItem(item)
     setShowItemForm(true)
+  }
+  const requestDelete = (item: ItemRecord, trigger: HTMLButtonElement) => {
+    deleteReturnFocusRef.current = trigger
+    setDeleteTarget(item)
   }
   const refreshItems = async () => {
     setShowItemForm(false)
@@ -112,7 +122,7 @@ export function PublicBoxPage() {
               <button className="inline-flex min-h-11 items-center gap-2 rounded-control border border-line bg-canvas px-4 font-bold text-ink" type="button" disabled={printing} onClick={() => void printLabel()}>
                 <AppIcon name="print" />{printing ? '生成中…' : '打印标签'}
               </button>
-              <button className="hidden min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white md:inline-flex" type="button" onClick={openNewItem}>
+              <button ref={desktopAddItemButtonRef} className="hidden min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white md:inline-flex" type="button" onClick={openNewItem}>
                 <AppIcon name="plus" />新增物品
               </button>
             </div>
@@ -164,7 +174,7 @@ export function PublicBoxPage() {
                 <button className="inline-flex size-11 items-center justify-center rounded-control border border-line bg-canvas text-ink" type="button" aria-label={`编辑${item.name}`} onClick={() => openEditItem(item)}>
                   <AppIcon name="edit" />
                 </button>
-                <button className="inline-flex size-11 items-center justify-center rounded-control border border-danger/30 bg-canvas text-danger" type="button" aria-label={`删除${item.name}`} onClick={() => setDeleteTarget(item)}>
+                <button className="inline-flex size-11 items-center justify-center rounded-control border border-danger/30 bg-canvas text-danger" type="button" aria-label={`删除${item.name}`} onClick={(event) => requestDelete(item, event.currentTarget)}>
                   <AppIcon name="trash" />
                 </button>
               </div>
@@ -178,6 +188,7 @@ export function PublicBoxPage() {
 
       {isOwner && !showItemForm && !editingItem ? (
         <button
+          ref={mobileAddItemButtonRef}
           className="fixed inset-x-5 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-20 inline-flex min-h-12 items-center justify-center gap-2 rounded-control border border-brand bg-brand px-5 font-extrabold text-white shadow-float md:hidden"
           type="button"
           aria-label="移动端新增物品"
@@ -192,6 +203,7 @@ export function PublicBoxPage() {
         title={`删除“${deleteTarget?.name ?? ''}”？`}
         description="删除后无法恢复。"
         busy={deleteMutation.isPending}
+        returnFocusRef={deleteReturnFocusRef}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={() => { if (deleteTarget) deleteMutation.mutate(deleteTarget.id) }}
       />

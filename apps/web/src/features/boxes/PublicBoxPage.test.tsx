@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
@@ -7,9 +7,11 @@ import type { Session } from '@supabase/supabase-js'
 import { AuthProvider } from '../auth/AuthProvider'
 import { PublicBoxPage } from './PublicBoxPage'
 
-const { mockGetBoxByPublicId, mockCreateItem, mockUpdateItem } = vi.hoisted(() => ({
+const { mockGetBoxByPublicId, mockCreateItem, mockDeleteItem, mockMatchMedia, mockUpdateItem } = vi.hoisted(() => ({
   mockGetBoxByPublicId: vi.fn(),
   mockCreateItem: vi.fn(),
+  mockDeleteItem: vi.fn(),
+  mockMatchMedia: vi.fn(),
   mockUpdateItem: vi.fn(),
 }))
 
@@ -17,7 +19,7 @@ vi.mock('./boxes.api', () => ({ getBoxByPublicId: mockGetBoxByPublicId }))
 vi.mock('../items/items.api', () => ({
   createItem: mockCreateItem,
   updateItem: mockUpdateItem,
-  deleteItem: vi.fn(),
+  deleteItem: mockDeleteItem,
 }))
 vi.mock('../media/AuthorizedImage', () => ({
   AuthorizedImage: ({ objectKey, alt }: { objectKey: string; alt: string }) => (
@@ -43,7 +45,14 @@ function renderPublicBox(session: Session | null = null) {
 beforeEach(() => {
   mockGetBoxByPublicId.mockReset()
   mockCreateItem.mockReset()
+  mockDeleteItem.mockReset()
+  mockMatchMedia.mockReset()
+  mockMatchMedia.mockReturnValue({ matches: true } as MediaQueryList)
   mockUpdateItem.mockReset()
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: mockMatchMedia,
+  })
 })
 afterEach(cleanup)
 
@@ -110,6 +119,53 @@ test('shows item controls only to the box owner', async () => {
     'inset-x-5',
     'bottom-[calc(6.75rem+env(safe-area-inset-bottom))]',
   )
+})
+
+test('restores focus to a programmatically activated delete trigger on Escape', async () => {
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    space_id: 'space-1', name: '工具', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z',
+    items: [{ id: 'i1', name: '锤子', category: null, quantity: 1, description: null }],
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session)
+
+  const deleteButton = await screen.findByRole('button', { name: '删除锤子' })
+  fireEvent.click(deleteButton)
+  fireEvent.keyDown(document, { key: 'Escape' })
+
+  await waitFor(() => expect(deleteButton).toHaveFocus())
+})
+
+test.each([
+  { matches: true, targetName: '新增物品', viewport: 'desktop' },
+  { matches: false, targetName: '移动端新增物品', viewport: 'mobile' },
+])('focuses the persistent $viewport add-item action after deleting an item', async ({ matches, targetName }) => {
+  const user = userEvent.setup()
+  const box = {
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    space_id: 'space-1', name: '工具', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z',
+  }
+  mockGetBoxByPublicId
+    .mockResolvedValueOnce({
+      ...box,
+      items: [{ id: 'i1', name: '锤子', category: null, quantity: 1, description: null }],
+    })
+    .mockResolvedValueOnce({ ...box, items: [] })
+  mockDeleteItem.mockResolvedValue(undefined)
+  mockMatchMedia.mockReturnValue({ matches } as MediaQueryList)
+  renderPublicBox({ user: { id: 'owner-1' } } as Session)
+
+  await user.click(await screen.findByRole('button', { name: '删除锤子' }))
+  await user.click(screen.getByRole('button', { name: '确认删除' }))
+
+  expect(mockDeleteItem).toHaveBeenCalledWith('i1')
+  expect(await screen.findByText('箱子里还没有物品')).toBeInTheDocument()
+  expect(mockMatchMedia).toHaveBeenCalledWith('(min-width: 48rem)')
+  expect(screen.getByRole('button', { name: targetName })).toHaveFocus()
 })
 
 test('hides the mobile add action while the item form is open', async () => {

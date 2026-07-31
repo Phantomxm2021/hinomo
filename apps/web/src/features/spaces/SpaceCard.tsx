@@ -12,7 +12,7 @@ export function SpaceCard({
   space: SpaceSummary
   index: number
   onEdit: () => void
-  onDelete: () => void
+  onDelete: (trigger: HTMLButtonElement) => void
 }) {
   return (
     <article className="group flex min-w-0 flex-col overflow-hidden rounded-card border border-line bg-surface">
@@ -29,7 +29,7 @@ export function SpaceCard({
       </Link>
       <div className="flex items-center justify-end gap-2 border-t border-line px-3 py-2.5">
         <button className="grid size-11 place-items-center rounded-control text-muted hover:bg-canvas hover:text-ink" type="button" aria-label={`编辑${space.name}`} onClick={onEdit}><AppIcon name="edit" size={19} /></button>
-        <button className="grid size-11 place-items-center rounded-control text-muted hover:bg-danger/5 hover:text-danger" type="button" aria-label={`删除${space.name}`} onClick={onDelete}><AppIcon name="trash" size={19} /></button>
+        <button className="grid size-11 place-items-center rounded-control text-muted hover:bg-danger/5 hover:text-danger" type="button" aria-label={`删除${space.name}`} onClick={(event) => onDelete(event.currentTarget)}><AppIcon name="trash" size={19} /></button>
       </div>
     </article>
   )
