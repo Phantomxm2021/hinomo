@@ -34,6 +34,18 @@ function expectStaticClassToken(source: string, token: string) {
   expect(staticClassNames.some((className) => className.split(/\s+/).includes(token))).toBe(true)
 }
 
+function hasHiddenGlobalOverflow(source: string) {
+  const globalSelectors = new Set(['html', 'body', '#root'])
+
+  return [...source.matchAll(/([^{}]+)\{([^{}]*)\}/g)].some(([, selectorList, declarations]) => {
+    const hasGlobalSelector = selectorList
+      .split(',')
+      .some((selector) => globalSelectors.has(selector.trim()))
+
+    return hasGlobalSelector && /\boverflow(?:-x)?\s*:\s*hidden\s*(?:!important\s*)?(?:;|$)/i.test(declarations)
+  })
+}
+
 test('defines the approved Tailwind warm-family theme', () => {
   expect(css.startsWith('@import "tailwindcss";')).toBe(true)
   for (const token of [
@@ -147,7 +159,16 @@ test('allows narrow viewports without a global minimum page width', () => {
 })
 
 test('does not hide horizontal overflow globally', () => {
-  expect(css).not.toMatch(/overflow-x:\s*hidden/)
+  expect(hasHiddenGlobalOverflow(css)).toBe(false)
+})
+
+test('allows hidden overflow on a local component', () => {
+  expect(hasHiddenGlobalOverflow('.crop { overflow-x: hidden; }')).toBe(false)
+})
+
+test('detects hidden overflow declarations on global root selectors', () => {
+  expect(hasHiddenGlobalOverflow('html { overflow: hidden; }')).toBe(true)
+  expect(hasHiddenGlobalOverflow('body, #root { overflow-x: hidden; }')).toBe(true)
 })
 
 test('removes the migrated box catalogue selector', () => {
