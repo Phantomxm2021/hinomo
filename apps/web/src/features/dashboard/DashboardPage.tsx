@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { GlobalFindBar } from '../../components/GlobalFindBar'
@@ -6,6 +7,7 @@ import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { listBoxes } from '../boxes/boxes.api'
 import { AuthorizedImage } from '../media/AuthorizedImage'
 import { listSpaces } from '../spaces/spaces.api'
+import { listVenues } from '../venues/venues.api'
 
 const boxPlaceholderTones = ['bg-[#a98b6e]', 'bg-[#788790]', 'bg-[#b7925c]'] as const
 
@@ -21,12 +23,23 @@ function spaceEmoji(name: string) {
 }
 
 export function DashboardPage() {
+  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null)
+  const venuesQuery = useQuery({ queryKey: ['venues'], queryFn: listVenues })
   const spacesQuery = useQuery({ queryKey: ['spaces'], queryFn: listSpaces })
   const boxesQuery = useQuery({ queryKey: ['boxes'], queryFn: listBoxes })
-  const spaces = spacesQuery.data ?? []
-  const boxes = boxesQuery.data ?? []
+  const venues = venuesQuery.data ?? []
+  const activeVenueId = venues.some((venue) => venue.id === selectedVenueId)
+    ? selectedVenueId
+    : (venues[0]?.id ?? null)
+  const spaces = activeVenueId
+    ? (spacesQuery.data ?? []).filter((space) => space.venue_id === activeVenueId)
+    : []
+  const visibleSpaceIds = new Set(spaces.map((space) => space.id))
+  const boxes = (boxesQuery.data ?? []).filter((box) => visibleSpaceIds.has(box.space_id))
   const itemTotal = boxes.reduce((sum, box) => sum + box.item_count, 0)
   const initiallyLoading = (
+    (venuesQuery.isPending && venuesQuery.data === undefined)
+    ||
     (spacesQuery.isPending && spacesQuery.data === undefined)
     || (boxesQuery.isPending && boxesQuery.data === undefined)
   )
@@ -38,11 +51,25 @@ export function DashboardPage() {
           <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">空间总览</p>
           <h1 className="mb-4 max-w-3xl text-display font-extrabold" id="dashboard-title">早上好，今天找什么？</h1>
         </div>
-        <GlobalFindBar />
+        <div className="flex min-w-0 flex-col items-stretch gap-2.5 lg:items-end">
+          {venuesQuery.isPending && venuesQuery.data === undefined ? (
+            <Skeleton className="h-11 w-full rounded-control lg:w-48" />
+          ) : (
+            <select
+              aria-label="选择场地"
+              className="h-11 w-full rounded-control border border-line bg-surface px-3 text-body font-medium text-ink outline-none focus:border-brand lg:w-48"
+              value={activeVenueId ?? ''}
+              onChange={(event) => setSelectedVenueId(event.target.value)}
+            >
+              {venues.map((venue) => <option value={venue.id} key={venue.id}>{venue.name}</option>)}
+            </select>
+          )}
+          <GlobalFindBar />
+        </div>
       </header>
 
-      {spacesQuery.isError || boxesQuery.isError ? (
-        <PageState state="error" message="部分数据加载失败，请稍后重试" onRetry={() => void Promise.all([spacesQuery.refetch(), boxesQuery.refetch()])} />
+      {venuesQuery.isError || spacesQuery.isError || boxesQuery.isError ? (
+        <PageState state="error" message="部分数据加载失败，请稍后重试" onRetry={() => void Promise.all([venuesQuery.refetch(), spacesQuery.refetch(), boxesQuery.refetch()])} />
       ) : null}
 
       {initiallyLoading ? (
@@ -78,12 +105,12 @@ export function DashboardPage() {
       <div className="hidden gap-4 sm:grid-cols-3 lg:grid" aria-label="收纳概览">
         <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label="空间统计">
           <span className="text-meta font-medium text-muted">空间</span>
-          <strong className="text-metric font-extrabold tracking-[-0.045em] text-ink">{spacesQuery.data?.length ?? '—'}</strong>
+          <strong className="text-metric font-extrabold tracking-[-0.045em] text-ink">{spacesQuery.data ? spaces.length : '—'}</strong>
           <span className="font-medium text-ink">客厅、卧室、书房...</span>
         </article>
         <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label="箱子统计">
           <span className="text-meta font-medium text-muted">箱子</span>
-          <strong className="text-metric font-extrabold tracking-[-0.045em] text-ink">{boxesQuery.data?.length ?? '—'}</strong>
+          <strong className="text-metric font-extrabold tracking-[-0.045em] text-ink">{boxesQuery.data ? boxes.length : '—'}</strong>
           <span className="font-medium text-ink">3 个最近更新</span>
         </article>
         <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label="物品统计">

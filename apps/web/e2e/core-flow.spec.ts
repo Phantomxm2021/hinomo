@@ -156,7 +156,7 @@ test('owner creates, finds, labels, and maintains a public box', async ({ browse
   await createSpace(page, '家')
   await expect(page.getByRole('button', { name: '卡片视图' })).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('button', { name: '平面视图' }).click()
-  await expect(page.getByRole('region', { name: '家庭平面总览' })).toBeVisible()
+  await expect(page.getByRole('region', { name: '空间平面总览' })).toBeVisible()
   await expect(page.getByRole('link', { name: /家/ })).toBeVisible()
   await expectNoHorizontalOverflow(page)
   await page.goto('/app/boxes/new')
@@ -266,6 +266,37 @@ test('owner creates, finds, labels, and maintains a public box', async ({ browse
   await expect(anonymous.getByRole('heading', { name: '冬季衣物' })).toBeVisible()
   await expect(anonymous.getByRole('button', { name: '新增物品' })).toHaveCount(0)
   await anonymousContext.close()
+})
+
+test('dashboard switches spaces and recent boxes with the selected venue', async ({ page }) => {
+  const state = createMockState()
+  await installMockBackend(page, state)
+  await register(page, 'owner@example.com')
+
+  const ownerId = '11111111-1111-4111-8111-111111111111'
+  const defaultVenue = state.venues.find((venue) => venue.owner_id === ownerId && venue.is_default)
+  if (!defaultVenue) throw new Error('mock registration did not create a default venue')
+  state.venues.push({ id: 'venue-office', owner_id: ownerId, name: '公司', description: null, is_default: false })
+  state.spaces.push(
+    { id: 'space-home', owner_id: ownerId, venue_id: defaultVenue.id, name: '客厅', description: null },
+    { id: 'space-office', owner_id: ownerId, venue_id: 'venue-office', name: '档案室', description: null },
+  )
+  state.boxes.push(
+    { id: 'box-home', owner_id: ownerId, public_id: 'home', box_code: 'BX-HOME', space_id: 'space-home', name: '家庭用品', category: null, location: null, description: null, visibility: 'private', updated_at: '2026-08-01T08:00:00Z' },
+    { id: 'box-office', owner_id: ownerId, public_id: 'office', box_code: 'BX-OFFICE', space_id: 'space-office', name: '公司档案', category: null, location: null, description: null, visibility: 'private', updated_at: '2026-08-01T09:00:00Z' },
+  )
+
+  await page.reload()
+  const venueSelect = page.getByRole('combobox', { name: '选择场地' })
+  await expect(venueSelect).toHaveValue(defaultVenue.id)
+  await expect(page.getByText('家庭用品', { exact: true })).toBeVisible()
+  await expect(page.getByText('公司档案', { exact: true })).toHaveCount(0)
+
+  await venueSelect.selectOption('venue-office')
+  await expect(page.getByText('公司档案', { exact: true })).toBeVisible()
+  await expect(page.getByText('档案室', { exact: true })).toBeVisible()
+  await expect(page.getByText('家庭用品', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('客厅', { exact: true })).toHaveCount(0)
 })
 
 test('navigation changes exactly at the 1024px desktop breakpoint', async ({ page }) => {

@@ -1,6 +1,6 @@
 import { expect, type Page, type Route } from '@playwright/test'
 
-type Venue = { id: string; owner_id: string; name: string; description: string | null }
+type Venue = { id: string; owner_id: string; name: string; description: string | null; is_default: boolean }
 type Space = { id: string; owner_id: string; venue_id: string; name: string; description: string | null }
 type SpaceLayout = { space_id: string; owner_id: string; x_percent: number; y_percent: number; width_percent: number; height_percent: number }
 type Item = { id: string; box_id: string; name: string; category: string | null; quantity: number; description: string | null }
@@ -58,6 +58,15 @@ export async function installMockBackend(page: Page, state: MockState) {
       if (!state.profiles.some((profile) => profile.id === currentUserId)) {
         state.profiles.push({ id: currentUserId, display_name: email.split('@')[0], avatar_object_key: null, locale: 'zh-CN' })
       }
+      if (!state.venues.some((venue) => venue.owner_id === currentUserId && venue.is_default)) {
+        state.venues.push({
+          id: `venue-default-${currentUserId}`,
+          owner_id: currentUserId,
+          name: '默认',
+          description: null,
+          is_default: true,
+        })
+      }
       const user = authUser(currentUserId, email)
       return json(route, {
         access_token: `token-${currentUserId}`,
@@ -96,12 +105,13 @@ export async function installMockBackend(page: Page, state: MockState) {
           id: venue.id,
           name: venue.name,
           description: venue.description,
+          is_default: venue.is_default,
           spaces: [{ count: state.spaces.filter((space) => space.venue_id === venue.id).length }],
         })))
       }
       if (method === 'POST' && currentUserId) {
         const input = request.postDataJSON() as { name: string; description: string | null }
-        const venue = { ...input, id: `venue-${state.venues.length + 1}`, owner_id: currentUserId }
+        const venue = { ...input, id: `venue-${state.venues.length + 1}`, owner_id: currentUserId, is_default: false }
         state.venues.push(venue)
         return json(route, { id: venue.id }, 201)
       }

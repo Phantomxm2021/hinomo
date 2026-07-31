@@ -1,16 +1,18 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { DashboardPage } from './DashboardPage'
 
-const { mockListBoxes, mockListSpaces } = vi.hoisted(() => ({
+const { mockListBoxes, mockListSpaces, mockListVenues } = vi.hoisted(() => ({
   mockListBoxes: vi.fn(),
   mockListSpaces: vi.fn(),
+  mockListVenues: vi.fn(),
 }))
 
 vi.mock('../boxes/boxes.api', () => ({ listBoxes: mockListBoxes }))
 vi.mock('../spaces/spaces.api', () => ({ listSpaces: mockListSpaces }))
+vi.mock('../venues/venues.api', () => ({ listVenues: mockListVenues }))
 vi.mock('../media/AuthorizedImage', () => ({
   AuthorizedImage: ({ objectKey, alt, className }: { objectKey: string; alt: string; className?: string }) => (
     <span><img src={`signed:${objectKey}`} alt={alt} className={className} /><button type="button" aria-label={`重试${alt}`}>重试</button></span>
@@ -20,6 +22,10 @@ vi.mock('../media/AuthorizedImage', () => ({
 beforeEach(() => {
   mockListBoxes.mockReset()
   mockListSpaces.mockReset()
+  mockListVenues.mockReset()
+  mockListVenues.mockResolvedValue([
+    { id: 'venue-home', name: '默认', description: null, is_default: true, space_count: 2 },
+  ])
 })
 afterEach(cleanup)
 
@@ -34,14 +40,14 @@ function renderDashboard() {
 
 test('centers the dashboard on finding items, room totals, and recent activity', async () => {
   mockListSpaces.mockResolvedValue([
-    { id: 'home / 1', name: '客厅', description: null, box_count: 2, item_count: 5 },
-    { id: 's2', name: '卧室', description: null, box_count: 1, item_count: 4 },
+    { id: 'home / 1', venue_id: 'venue-home', venue_name: '默认', name: '客厅', description: null, box_count: 2, item_count: 5 },
+    { id: 's2', venue_id: 'venue-home', venue_name: '默认', name: '卧室', description: null, box_count: 1, item_count: 4 },
   ])
   mockListBoxes.mockResolvedValue([
-    { id: 'b1', public_id: 'p1', box_code: 'BX-00001', name: '冬季衣物', location: '衣柜', visibility: 'public', space_name: '客厅', cover_object_key: 'covers/winter.webp', item_count: 5, updated_at: '2026-07-03' },
-    { id: 'b2', public_id: 'p2', box_code: 'BX-00002', name: '文件', location: null, visibility: 'private', space_name: '卧室', cover_object_key: null, item_count: 4, updated_at: '2026-07-02' },
-    { id: 'b3', public_id: 'p3', box_code: 'BX-00003', name: '工具', location: '车库', visibility: 'private', space_name: '客厅', cover_object_key: null, item_count: 0, updated_at: '2026-07-01' },
-    { id: 'b4', public_id: 'p4', box_code: 'BX-00004', name: '不应出现', location: null, visibility: 'private', space_name: '客厅', cover_object_key: null, item_count: 8, updated_at: '2026-06-30' },
+    { id: 'b1', public_id: 'p1', box_code: 'BX-00001', name: '冬季衣物', space_id: 'home / 1', location: '衣柜', visibility: 'public', space_name: '客厅', cover_object_key: 'covers/winter.webp', item_count: 5, updated_at: '2026-07-03' },
+    { id: 'b2', public_id: 'p2', box_code: 'BX-00002', name: '文件', space_id: 's2', location: null, visibility: 'private', space_name: '卧室', cover_object_key: null, item_count: 4, updated_at: '2026-07-02' },
+    { id: 'b3', public_id: 'p3', box_code: 'BX-00003', name: '工具', space_id: 'home / 1', location: '车库', visibility: 'private', space_name: '客厅', cover_object_key: null, item_count: 0, updated_at: '2026-07-01' },
+    { id: 'b4', public_id: 'p4', box_code: 'BX-00004', name: '不应出现', space_id: 'home / 1', location: null, visibility: 'private', space_name: '客厅', cover_object_key: null, item_count: 8, updated_at: '2026-06-30' },
   ])
   renderDashboard()
 
@@ -132,6 +138,7 @@ test('centers the dashboard on finding items, room totals, and recent activity',
 })
 
 test('shows a structural dashboard skeleton while initial data is pending', () => {
+  mockListVenues.mockReturnValue(new Promise(() => undefined))
   mockListSpaces.mockReturnValue(new Promise(() => undefined))
   mockListBoxes.mockReturnValue(new Promise(() => undefined))
   renderDashboard()
@@ -155,6 +162,7 @@ test('guides a first-time user to create a box', async () => {
 })
 
 test('keeps finding available when dashboard data fails', async () => {
+  mockListVenues.mockRejectedValue(new Error('offline'))
   mockListSpaces.mockRejectedValue(new Error('offline'))
   mockListBoxes.mockRejectedValue(new Error('offline'))
   renderDashboard()
@@ -162,4 +170,34 @@ test('keeps finding available when dashboard data fails', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent('部分数据加载失败')
   expect(screen.getByRole('searchbox', { name: '搜索物品或箱子' })).toBeInTheDocument()
   expect(screen.queryByText('快捷开始')).not.toBeInTheDocument()
+})
+
+test('defaults to the first venue and filters every dashboard section when venue changes', async () => {
+  mockListVenues.mockResolvedValue([
+    { id: 'venue-default', name: '默认', description: null, is_default: true, space_count: 1 },
+    { id: 'venue-office', name: '公司', description: null, is_default: false, space_count: 1 },
+  ])
+  mockListSpaces.mockResolvedValue([
+    { id: 'space-home', venue_id: 'venue-default', venue_name: '默认', name: '客厅', description: null, box_count: 1, item_count: 2 },
+    { id: 'space-office', venue_id: 'venue-office', venue_name: '公司', name: '档案室', description: null, box_count: 1, item_count: 7 },
+  ])
+  mockListBoxes.mockResolvedValue([
+    { id: 'box-home', public_id: 'home', box_code: 'BX-HOME', name: '家庭用品', space_id: 'space-home', location: null, visibility: 'private', space_name: '客厅', venue_name: '默认', cover_object_key: null, item_count: 2, updated_at: '2026-08-01' },
+    { id: 'box-office', public_id: 'office', box_code: 'BX-OFFICE', name: '公司档案', space_id: 'space-office', location: null, visibility: 'private', space_name: '档案室', venue_name: '公司', cover_object_key: null, item_count: 7, updated_at: '2026-08-01' },
+  ])
+  renderDashboard()
+
+  const venueSelect = await screen.findByRole('combobox', { name: '选择场地' })
+  expect(venueSelect).toHaveValue('venue-default')
+  expect(screen.getByText('家庭用品')).toBeInTheDocument()
+  expect(screen.queryByText('公司档案')).not.toBeInTheDocument()
+  expect(within(screen.getByLabelText('物品统计')).getByText('2')).toBeInTheDocument()
+
+  fireEvent.change(venueSelect, { target: { value: 'venue-office' } })
+
+  expect(screen.getByText('公司档案')).toBeInTheDocument()
+  expect(screen.queryByText('家庭用品')).not.toBeInTheDocument()
+  expect(screen.getByText('档案室')).toBeInTheDocument()
+  expect(screen.queryByText('客厅')).not.toBeInTheDocument()
+  expect(within(screen.getByLabelText('物品统计')).getByText('7')).toBeInTheDocument()
 })
