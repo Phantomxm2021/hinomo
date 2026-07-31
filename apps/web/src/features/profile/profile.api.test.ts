@@ -1,20 +1,45 @@
 import { beforeEach, expect, test, vi } from 'vitest'
-import { uploadAvatar } from './profile.api'
+import { getProfile, updateLocale, uploadAvatar } from './profile.api'
 
-const { mockCompress, mockRpc } = vi.hoisted(() => ({
+const { mockCompress, mockEq, mockFrom, mockMaybeSingle, mockRpc, mockSelect } = vi.hoisted(() => ({
   mockCompress: vi.fn(),
+  mockEq: vi.fn(),
+  mockFrom: vi.fn(),
+  mockMaybeSingle: vi.fn(),
   mockRpc: vi.fn(),
+  mockSelect: vi.fn(),
 }))
 
 vi.mock('browser-image-compression', () => ({ default: mockCompress }))
 vi.mock('../../lib/supabase', () => ({
-  supabase: { rpc: mockRpc },
+  supabase: { from: mockFrom, rpc: mockRpc },
 }))
 
 beforeEach(() => {
   mockCompress.mockReset()
+  mockFrom.mockReset().mockReturnValue({ select: mockSelect })
+  mockSelect.mockReset().mockReturnValue({ eq: mockEq })
+  mockEq.mockReset().mockReturnValue({ maybeSingle: mockMaybeSingle })
+  mockMaybeSingle.mockReset()
   mockRpc.mockReset()
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
+})
+
+test('loads the signed-in profile through the profiles API', async () => {
+  const profile = { id: 'user-1', display_name: '林家', avatar_object_key: null, locale: 'zh-CN' }
+  mockMaybeSingle.mockResolvedValue({ data: profile, error: null })
+
+  await expect(getProfile('user-1')).resolves.toEqual(profile)
+  expect(mockFrom).toHaveBeenCalledWith('profiles')
+  expect(mockSelect).toHaveBeenCalledWith('*')
+  expect(mockEq).toHaveBeenCalledWith('id', 'user-1')
+})
+
+test('updates locale through the authenticated RPC', async () => {
+  mockRpc.mockResolvedValue({ data: null, error: null })
+
+  await expect(updateLocale('en-US')).resolves.toBeUndefined()
+  expect(mockRpc).toHaveBeenCalledWith('update_profile_locale', { p_locale: 'en-US' })
 })
 
 test('compresses an avatar before signing and uploading it', async () => {

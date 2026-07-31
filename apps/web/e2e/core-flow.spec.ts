@@ -318,6 +318,25 @@ test('mobile home search submits from the visible action', async ({ page }, test
   await expectNoHorizontalOverflow(page)
 })
 
+test('mobile My tab exposes profile settings and confirmed sign out', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'desktop-chromium', 'mobile account navigation is mobile-only')
+  const state = createMockState()
+  await installMockBackend(page, state)
+  await register(page, 'mobile-profile@example.com')
+
+  await page.getByRole('navigation', { name: '移动端主导航' }).getByRole('link', { name: '我的' }).click()
+  await expect(page).toHaveURL('/app/me')
+  await expect(page.getByLabel('昵称')).toHaveValue('mobile-profile')
+  await expect(page.getByLabel('邮箱')).toHaveValue('mobile-profile@example.com')
+  await page.getByLabel('语言').selectOption('en-US')
+  await expect(page.getByRole('status')).toContainText('设置已保存')
+
+  await page.getByRole('button', { name: '退出登录' }).click()
+  await expect(page.getByRole('alertdialog', { name: '退出登录？' })).toBeVisible()
+  await page.getByRole('button', { name: '确认退出' }).click()
+  await expect(page).toHaveURL('/login')
+})
+
 test('route alignment across required viewport breakpoints', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium', 'the test covers all required viewports internally')
   test.setTimeout(60_000)
@@ -335,6 +354,7 @@ test('route alignment across required viewport breakpoints', async ({ page }, te
     { path: '/app/search', heading: '查找收纳', expectShell: true },
     { path: '/app/scan', heading: '扫码查看', expectShell: true },
     { path: '/app/print', heading: '下载箱子标签', desktopHeading: '打印二维码标签', expectShell: true },
+    { path: '/app/me', heading: '我的', expectShell: true },
     { path: publicUrl, heading: '窄屏收纳箱', expectShell: false },
   ]
 

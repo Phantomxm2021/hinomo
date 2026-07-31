@@ -4,6 +4,7 @@ type Venue = { id: string; owner_id: string; name: string; description: string |
 type Space = { id: string; owner_id: string; venue_id: string; name: string; description: string | null }
 type SpaceLayout = { space_id: string; owner_id: string; x_percent: number; y_percent: number; width_percent: number; height_percent: number }
 type Item = { id: string; box_id: string; name: string; category: string | null; quantity: number; description: string | null }
+type Profile = { id: string; display_name: string | null; avatar_object_key: string | null; locale: 'zh-CN' | 'en-US' }
 type Box = {
   id: string
   owner_id: string
@@ -18,9 +19,9 @@ type Box = {
   updated_at: string
 }
 
-export type MockState = { venues: Venue[]; spaces: Space[]; spaceLayouts: SpaceLayout[]; boxes: Box[]; items: Item[] }
+export type MockState = { venues: Venue[]; spaces: Space[]; spaceLayouts: SpaceLayout[]; boxes: Box[]; items: Item[]; profiles: Profile[] }
 
-export const createMockState = (): MockState => ({ venues: [], spaces: [], spaceLayouts: [], boxes: [], items: [] })
+export const createMockState = (): MockState => ({ venues: [], spaces: [], spaceLayouts: [], boxes: [], items: [], profiles: [] })
 
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
@@ -54,6 +55,9 @@ export async function installMockBackend(page: Page, state: MockState) {
       currentUserId = email.includes('other')
         ? '22222222-2222-4222-8222-222222222222'
         : '11111111-1111-4111-8111-111111111111'
+      if (!state.profiles.some((profile) => profile.id === currentUserId)) {
+        state.profiles.push({ id: currentUserId, display_name: email.split('@')[0], avatar_object_key: null, locale: 'zh-CN' })
+      }
       const user = authUser(currentUserId, email)
       return json(route, {
         access_token: `token-${currentUserId}`,
@@ -67,6 +71,23 @@ export async function installMockBackend(page: Page, state: MockState) {
       return currentUserId
         ? json(route, authUser(currentUserId, 'owner@example.com'))
         : json(route, { message: 'not authenticated' }, 401)
+    }
+    if (url.pathname === '/auth/v1/logout' && method === 'POST') {
+      currentUserId = null
+      return route.fulfill({ status: 204, body: '' })
+    }
+
+    if (url.pathname === '/rest/v1/profiles' && method === 'GET') {
+      const profileId = eqValue(url, 'id')
+      const profile = state.profiles.find((candidate) => candidate.id === profileId && candidate.id === currentUserId)
+      return profile ? json(route, profile) : json(route, null)
+    }
+
+    if (url.pathname === '/rest/v1/rpc/update_profile_locale' && method === 'POST' && currentUserId) {
+      const { p_locale: locale } = request.postDataJSON() as { p_locale: 'zh-CN' | 'en-US' }
+      const profile = state.profiles.find((candidate) => candidate.id === currentUserId)
+      if (profile) profile.locale = locale
+      return json(route, null)
     }
 
     if (url.pathname === '/rest/v1/venues') {
