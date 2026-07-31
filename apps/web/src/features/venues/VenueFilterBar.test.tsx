@@ -5,7 +5,7 @@ import { VenueFilterBar } from './VenueFilterBar'
 
 afterEach(cleanup)
 
-test('keeps the built-in default venue selectable but not editable', async () => {
+test('keeps the built-in default venue selectable and editable', async () => {
   const user = userEvent.setup()
   const onEdit = vi.fn()
   const onSelect = vi.fn()
@@ -21,7 +21,8 @@ test('keeps the built-in default venue selectable but not editable', async () =>
   />)
 
   expect(screen.getByRole('button', { name: '默认，0 个空间' })).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: '编辑场地默认' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '编辑场地默认' }))
+  expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'default' }))
   await user.click(screen.getByRole('button', { name: '编辑场地公司' }))
   expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'office' }))
 })

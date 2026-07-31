@@ -65,12 +65,17 @@ test('allows an empty venue to be deleted', async () => {
   })
 })
 
-test('does not allow the built-in default venue to be changed or deleted', () => {
-  renderEditor({
+test('allows the built-in default venue to be renamed but not deleted', async () => {
+  const user = userEvent.setup()
+  const props = renderEditor({
     venue: { id: 'default', name: '默认', description: null, is_default: true, space_count: 0 },
   })
 
-  expect(screen.getByText('默认场地不可修改或删除。')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: '保存场地' })).toBeDisabled()
+  expect(screen.getByText('默认场地可以更名，但不能删除。')).toBeInTheDocument()
+  await user.clear(screen.getByLabelText('场地名称'))
+  await user.type(screen.getByLabelText('场地名称'), '我的家')
+  await user.click(screen.getByRole('button', { name: '保存场地' }))
+
+  expect(props.onSubmit).toHaveBeenCalledWith({ name: '我的家', description: null })
   expect(screen.getByRole('button', { name: '删除场地' })).toBeDisabled()
 })

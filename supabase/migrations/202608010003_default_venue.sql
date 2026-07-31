@@ -52,12 +52,13 @@ create policy venues_update_own on public.venues
 for update to authenticated
 using (
   owner_id = auth.uid()
-  and not is_default
 )
 with check (
   owner_id = auth.uid()
-  and not is_default
 );
+
+revoke update on table public.venues from authenticated;
+grant update (name, description) on table public.venues to authenticated;
 
 drop policy venues_delete_own on public.venues;
 create policy venues_delete_own on public.venues

@@ -38,7 +38,6 @@ export function VenueEditorDialog({ open, venue, pending, error, onClose, onSubm
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (defaultVenue) return
     const result = venueSchema.safeParse({ name, description })
     if (!result.success) {
       setValidationError(result.error.issues[0]?.message ?? '请检查场地信息')
@@ -57,17 +56,17 @@ export function VenueEditorDialog({ open, venue, pending, error, onClose, onSubm
         </div>
         <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
           <label className="font-bold" htmlFor="venue-name">场地名称</label>
-          <input className="min-h-12 rounded-control border border-line bg-surface px-3" id="venue-name" value={name} autoFocus readOnly={pending || defaultVenue} onChange={(event) => setName(event.target.value)} />
+          <input className="min-h-12 rounded-control border border-line bg-surface px-3" id="venue-name" value={name} autoFocus readOnly={pending} onChange={(event) => setName(event.target.value)} />
           <label className="font-bold" htmlFor="venue-description">描述（可选）</label>
-          <textarea className="min-h-24 resize-y rounded-control border border-line bg-surface px-3 py-2" id="venue-description" value={description} readOnly={pending || defaultVenue} onChange={(event) => setDescription(event.target.value)} />
+          <textarea className="min-h-24 resize-y rounded-control border border-line bg-surface px-3 py-2" id="venue-description" value={description} readOnly={pending} onChange={(event) => setDescription(event.target.value)} />
           {validationError ? <p className="text-danger" role="alert">{validationError}</p> : null}
           {error ? <p className="text-danger" role="alert">场地保存失败，请重试</p> : null}
-          {defaultVenue ? <p className="text-sm text-muted">默认场地不可修改或删除。</p> : null}
+          {defaultVenue ? <p className="text-sm text-muted">默认场地可以更名，但不能删除。</p> : null}
           {venue && venue.space_count > 0 ? <p className="text-sm text-muted">该场地包含 {venue.space_count} 个空间，移走空间后才能删除。</p> : null}
           <div className="mt-3 flex flex-wrap justify-end gap-2">
             {venue ? <button className="mr-auto min-h-11 rounded-control px-4 font-bold text-danger disabled:opacity-50" type="button" disabled={pending || defaultVenue || venue.space_count > 0} onClick={() => void onDelete(venue)}>删除场地</button> : null}
             <button className="min-h-11 rounded-control border border-line px-4 font-bold" type="button" disabled={pending} onClick={onClose}>取消</button>
-            <button className="min-h-11 rounded-control bg-brand px-5 font-bold text-white disabled:opacity-50" type="submit" disabled={pending || defaultVenue}>{pending ? '保存中…' : venue ? '保存场地' : '创建场地'}</button>
+            <button className="min-h-11 rounded-control bg-brand px-5 font-bold text-white disabled:opacity-50" type="submit" disabled={pending}>{pending ? '保存中…' : venue ? '保存场地' : '创建场地'}</button>
           </div>
         </form>
       </section>
