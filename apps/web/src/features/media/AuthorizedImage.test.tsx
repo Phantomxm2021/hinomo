@@ -18,7 +18,7 @@ test('keeps media dimensions stable with a named skeleton while authorizing', ()
 
   const status = screen.getByRole('status', { name: '正在加载授权图片' })
   expect(status).toHaveClass('h-full', 'w-full', 'object-cover')
-  expect(screen.getByTestId('skeleton')).toBeInTheDocument()
+  expect(screen.getByTestId('skeleton')).toHaveClass('min-h-16')
   expect(screen.queryByText('图片加载中…')).not.toBeInTheDocument()
 })
 

@@ -22,7 +22,7 @@ export function AuthorizedImage({ objectKey, alt, className }: AuthorizedImagePr
     return (
       <span className={`inline-block ${className ?? ''}`.trim()} role="status" aria-label="正在加载授权图片">
         <span className="sr-only">正在加载授权图片</span>
-        <Skeleton as="span" className="block h-full w-full" />
+        <Skeleton as="span" className="block min-h-16 h-full w-full" />
       </span>
     )
   }
