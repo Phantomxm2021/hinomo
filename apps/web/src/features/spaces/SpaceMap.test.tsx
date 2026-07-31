@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, expect, test, vi } from 'vitest'
-import { autoSpaceLayout } from './space-layout'
+import { autoSpaceLayout, constrainResize } from './space-layout'
 import { SpaceMap } from './SpaceMap'
 
 const spaces = [
@@ -28,6 +28,18 @@ test('automatically lays out one to twelve rooms inside the canvas', () => {
     }
   }
   expect(autoSpaceLayout(0, 12).width).toBeGreaterThanOrEqual(40)
+})
+
+test('snaps resizing and constrains it to size and canvas boundaries', () => {
+  expect(constrainResize({ x: 70, y: 70, width: 20, height: 10 }, 17, 19)).toEqual({
+    x: 70, y: 70, width: 30, height: 30,
+  })
+  expect(constrainResize({ x: 10, y: 10, width: 40, height: 30 }, -99, -99)).toEqual({
+    x: 10, y: 10, width: 20, height: 10,
+  })
+  expect(constrainResize({ x: 0, y: 0, width: 40, height: 30 }, 99, 99)).toEqual({
+    x: 0, y: 0, width: 60, height: 50,
+  })
 })
 
 test('renders room graphics and links to filtered boxes', () => {
@@ -96,12 +108,69 @@ test('clears an interrupted pointer drag without saving', () => {
     </MemoryRouter>,
   )
   const room = screen.getByRole('link', { name: /客厅/ })
-  const originalStyle = room.getAttribute('style')
+  const roomFrame = room.parentElement
+  const originalStyle = roomFrame?.getAttribute('style')
   fireEvent.pointerDown(room, { clientX: 0, clientY: 0, pointerId: 1 })
   fireEvent.pointerMove(room, { clientX: 100, clientY: 50, pointerId: 1 })
   fireEvent.pointerCancel(room, { pointerId: 1 })
   fireEvent.pointerUp(room, { pointerId: 1 })
 
   expect(onLayoutChange).not.toHaveBeenCalled()
-  expect(room).toHaveAttribute('style', originalStyle)
+  expect(roomFrame).toHaveAttribute('style', originalStyle)
+})
+
+test('resizes a room from its bottom-right handle and commits once', () => {
+  const onLayoutChange = vi.fn()
+  render(
+    <MemoryRouter>
+      <SpaceMap
+        spaces={[spaces[0]]}
+        layouts={[{ space_id: 's1', x: 10, y: 10, width: 40, height: 30 }]}
+        editMode
+        onLayoutChange={onLayoutChange}
+      />
+    </MemoryRouter>,
+  )
+  const map = screen.getByRole('region', { name: '家庭平面总览' })
+  vi.spyOn(map, 'getBoundingClientRect').mockReturnValue({
+    bottom: 500, height: 500, left: 0, right: 1000, top: 0, width: 1000, x: 0, y: 0, toJSON: () => ({}),
+  })
+  const handle = screen.getByRole('button', { name: '调整客厅大小' })
+
+  fireEvent.pointerDown(handle, { clientX: 400, clientY: 150, pointerId: 2 })
+  fireEvent.pointerMove(handle, { clientX: 520, clientY: 200, pointerId: 2 })
+  fireEvent.pointerUp(handle, { pointerId: 2 })
+
+  expect(onLayoutChange).toHaveBeenCalledTimes(1)
+  expect(onLayoutChange).toHaveBeenCalledWith('s1', {
+    x: 10, y: 10, width: 52, height: 40,
+  })
+})
+
+test('supports keyboard resizing and cancels an interrupted pointer resize', () => {
+  const onLayoutChange = vi.fn()
+  render(
+    <MemoryRouter>
+      <SpaceMap
+        spaces={[spaces[0]]}
+        layouts={[{ space_id: 's1', x: 10, y: 10, width: 40, height: 30 }]}
+        editMode
+        onLayoutChange={onLayoutChange}
+      />
+    </MemoryRouter>,
+  )
+  const handle = screen.getByRole('button', { name: '调整客厅大小' })
+
+  fireEvent.keyDown(handle, { key: 'ArrowRight' })
+  expect(onLayoutChange).toHaveBeenLastCalledWith('s1', {
+    x: 10, y: 10, width: 42, height: 30,
+  })
+
+  onLayoutChange.mockClear()
+  fireEvent.pointerDown(handle, { clientX: 0, clientY: 0, pointerId: 3 })
+  fireEvent.pointerMove(handle, { clientX: 100, clientY: 100, pointerId: 3 })
+  fireEvent.pointerCancel(handle, { pointerId: 3 })
+  fireEvent.pointerUp(handle, { pointerId: 3 })
+
+  expect(onLayoutChange).not.toHaveBeenCalled()
 })

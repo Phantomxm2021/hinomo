@@ -515,7 +515,21 @@ export function SpacesPage() {
           {view === 'plan' && layoutEditMode && layoutsQuery.isSuccess ? <p className="text-meta text-muted" role="status">拖动房间卡片，或聚焦后使用方向键微调；布局会自动保存。</p> : null}
           {view === 'plan' && layoutStorageUnavailable ? <p role="alert">布局保存尚未启用，请先执行 space_layouts 数据库迁移。当前仍可浏览自动布局。</p> : null}
           {view === 'plan' && layoutsQuery.isError && !layoutStorageUnavailable ? <p role="alert">布局加载失败；当前显示自动布局。<button className="ml-2 font-bold underline" type="button" onClick={() => void layoutsQuery.refetch()}>重试布局</button></p> : null}
-          {layoutMutation.isError ? <p role="alert">布局保存失败；自动布局仍可使用</p> : null}
+          {layoutMutation.isError ? (
+            <p role="alert">
+              布局保存失败；当前调整仍保留在页面中。
+              {layoutMutation.variables ? (
+                <button
+                  className="ml-2 font-bold underline"
+                  type="button"
+                  disabled={layoutMutation.isPending}
+                  onClick={() => layoutMutation.mutate(layoutMutation.variables!)}
+                >
+                  {layoutMutation.isPending ? '正在重试…' : '重试保存布局'}
+                </button>
+              ) : null}
+            </p>
+          ) : null}
           {view === 'cards' ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {visibleSpaces.map((space, index) => (

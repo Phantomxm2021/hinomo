@@ -1,5 +1,21 @@
 import type { SpacePosition } from './spaces.api'
 
+const snap = (value: number) => Math.round(value / 2) * 2
+const clamp = (value: number, minimum: number, maximum: number) =>
+  Math.max(minimum, Math.min(maximum, snap(value)))
+
+export function constrainResize(
+  position: SpacePosition,
+  widthDelta: number,
+  heightDelta: number,
+): SpacePosition {
+  return {
+    ...position,
+    width: clamp(position.width + widthDelta, 20, Math.min(60, 100 - position.x)),
+    height: clamp(position.height + heightDelta, 10, Math.min(50, 100 - position.y)),
+  }
+}
+
 export function autoSpaceLayout(index: number, total: number): SpacePosition {
   const columns = total <= 1 ? 1 : 2
   const rows = Math.ceil(total / columns)

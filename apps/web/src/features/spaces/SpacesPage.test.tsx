@@ -643,6 +643,30 @@ test('serializes repeated layout saves so older writes cannot finish last', asyn
   expect(mockSaveSpaceLayout).toHaveBeenLastCalledWith('s1', { x: 24, y: 29, width: 60, height: 42 })
 })
 
+test('retries the last layout payload after a save failure', async () => {
+  const user = userEvent.setup()
+  mockSaveSpaceLayout.mockReset()
+  mockSaveSpaceLayout.mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce(undefined)
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', venue_id: 'venue-home', venue_name: '家里', name: '客厅', description: null, box_count: 2, item_count: 5 },
+  ])
+  renderSpaces()
+
+  await user.click(await screen.findByRole('button', { name: '平面视图' }))
+  await user.click(screen.getByRole('button', { name: '调整布局' }))
+  fireEvent.keyDown(screen.getByRole('link', { name: /客厅/ }), { key: 'ArrowRight' })
+
+  const alert = await screen.findByRole('alert')
+  expect(alert).toHaveTextContent('布局保存失败')
+  await user.click(within(alert).getByRole('button', { name: '重试保存布局' }))
+
+  await waitFor(() => expect(mockSaveSpaceLayout).toHaveBeenCalledTimes(2))
+  expect(mockSaveSpaceLayout).toHaveBeenLastCalledWith('s1', {
+    x: 22, y: 29, width: 60, height: 42,
+  })
+  await waitFor(() => expect(screen.queryByText('布局保存失败')).not.toBeInTheDocument())
+})
+
 test('explains why a non-empty space cannot be deleted', async () => {
   const user = userEvent.setup()
   mockListSpaces.mockResolvedValue([
