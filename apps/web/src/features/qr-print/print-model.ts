@@ -1,3 +1,5 @@
+import { PRINT_LABEL_MM } from './print-label-layout'
+
 export type PrintBox = {
   id: string
   name: string
@@ -41,7 +43,10 @@ export function selectedPrintBoxes<T extends { id: string }>(boxes: readonly T[]
 
 export function paginatePrintBoxes<T>(boxes: readonly T[]): T[][] {
   return Array.from(
-    { length: Math.ceil(boxes.length / 8) },
-    (_, page) => boxes.slice(page * 8, page * 8 + 8),
+    { length: Math.ceil(boxes.length / PRINT_LABEL_MM.perPage) },
+    (_, page) => boxes.slice(
+      page * PRINT_LABEL_MM.perPage,
+      page * PRINT_LABEL_MM.perPage + PRINT_LABEL_MM.perPage,
+    ),
   )
 }

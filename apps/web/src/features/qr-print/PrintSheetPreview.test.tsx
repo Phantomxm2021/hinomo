@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { BoxSummary } from '../boxes/boxes.api'
 import { PrintSheetPreview } from './PrintSheetPreview'
+import { PRINT_LABEL_COLORS, labelPlacementPercent } from './print-label-layout'
 
 const { mockBoxQrPng } = vi.hoisted(() => ({ mockBoxQrPng: vi.fn() }))
 
@@ -56,13 +57,16 @@ test('paginates nine labels over two A4 sheets', async () => {
   expect(within(preview).getByRole('group', { name: '箱子 9标签' })).toBeInTheDocument()
 
   const firstSheet = within(preview).getAllByTestId('a4-sheet')[0]
-  expect(firstSheet).toHaveClass('aspect-[210/297]', 'w-full', 'max-w-[42rem]', 'grid', 'grid-cols-2', 'grid-rows-4', 'bg-surface', 'shadow-soft')
+  expect(firstSheet).toHaveClass('w-full', 'max-w-[42rem]', 'relative', 'bg-surface', 'shadow-soft')
+  expect(firstSheet).toHaveStyle({ aspectRatio: '210/297' })
   const stage = firstSheet.parentElement?.parentElement
   expect(stage).toHaveClass('bg-canvas', 'overflow-auto')
   expect(firstSheet.parentElement?.className).not.toMatch(/\bmin-w-/)
   expect(stage?.className).not.toMatch(/\bmin-w-/)
   const firstLabel = within(preview).getByRole('group', { name: '箱子 1标签' })
-  expect(firstLabel).toHaveClass('min-w-0', 'overflow-hidden')
+  expect(firstLabel).toHaveClass('absolute', 'min-w-0', 'overflow-hidden')
+  expect(firstLabel).toHaveStyle(labelPlacementPercent(0))
+  expect(within(preview).getByRole('group', { name: '箱子 8标签' })).toHaveStyle(labelPlacementPercent(7))
   expect(firstLabel.className).not.toMatch(/\bshadow/)
 })
 
@@ -73,7 +77,12 @@ test('renders label metadata in order and generates its QR from the public URL',
 
   const label = screen.getByRole('group', { name: '冬季衣物标签' })
   expect(within(label).getByText('正在生成二维码…')).toBeInTheDocument()
-  expect(label).toHaveTextContent('冬季衣物BX-00001家 · 衣柜上层扫码查看箱内物品')
+  expect(label).toHaveTextContent('冬季衣物BX-00001空间：家位置：衣柜上层扫码查看箱内物品')
+  expect(within(label).getByText('冬季衣物')).toHaveStyle({ color: PRINT_LABEL_COLORS.ink })
+  expect(within(label).getByText('BX-00001')).toHaveStyle({ color: PRINT_LABEL_COLORS.brand })
+  expect(within(label).getByText('空间：家')).toHaveStyle({ color: PRINT_LABEL_COLORS.ink })
+  expect(within(label).getByText('位置：衣柜上层')).toHaveStyle({ color: PRINT_LABEL_COLORS.ink })
+  expect(within(label).getByText('扫码查看箱内物品')).toHaveStyle({ color: PRINT_LABEL_COLORS.muted })
   expect(mockBoxQrPng).toHaveBeenCalledWith('http://localhost:5173/b/public-1')
 
   await act(async () => {
@@ -97,7 +106,7 @@ test('uses compact base density for A4 labels and comfortable density for single
     'xl:gap-3',
   )
   expect(within(sheetLabel).getByRole('heading', { name: '箱子 1' })).toHaveClass('text-[0.625rem]', 'xl:text-base')
-  expect(within(sheetLabel).getByText('扫码查看箱内物品')).toHaveClass('hidden', 'xl:block')
+  expect(within(sheetLabel).getByText('扫码查看箱内物品')).not.toHaveClass('hidden')
 
   sheetView.unmount()
   render(<PrintSheetPreview boxes={[box(1)]} mode="single" />)
@@ -110,6 +119,23 @@ test('uses compact base density for A4 labels and comfortable density for single
     'gap-3',
   )
   expect(within(singleLabel).getByText('扫码查看箱内物品')).not.toHaveClass('hidden', 'xl:block')
+})
+
+test('shows separate space and fallback location rows in compact and single labels', () => {
+  mockBoxQrPng.mockReturnValue(new Promise(() => {}))
+  const sheetView = render(<PrintSheetPreview boxes={[box(2)]} mode="a4" />)
+
+  const compact = screen.getByRole('group', { name: '箱子 2标签' })
+  expect(within(compact).getByText('空间：家')).toBeVisible()
+  expect(within(compact).getByText('位置：未填写')).toBeVisible()
+  expect(within(compact).getByText('扫码查看箱内物品')).toBeVisible()
+
+  sheetView.unmount()
+  render(<PrintSheetPreview boxes={[box(2)]} mode="single" />)
+  const comfortable = screen.getByRole('group', { name: '箱子 2标签' })
+  expect(within(comfortable).getByText('空间：家')).toBeVisible()
+  expect(within(comfortable).getByText('位置：未填写')).toBeVisible()
+  expect(within(comfortable).getByText('扫码查看箱内物品')).toBeVisible()
 })
 
 test('keeps a failed QR local to its label while another succeeds', async () => {
@@ -281,7 +307,8 @@ test('shows an empty A4 sheet outline without generating a QR', () => {
   expect(within(preview).getByText('共 0 页 · 0 张标签')).toBeInTheDocument()
   const emptySheet = within(preview).getByTestId('a4-sheet')
   expect(emptySheet).toHaveTextContent('选择箱子后将在这里生成 A4 预览')
-  expect(emptySheet).toHaveClass('aspect-[210/297]', 'bg-surface', 'shadow-soft')
+  expect(emptySheet).toHaveClass('bg-surface', 'shadow-soft')
+  expect(emptySheet).toHaveStyle({ aspectRatio: '210/297' })
   expect(within(preview).queryByRole('img')).not.toBeInTheDocument()
   expect(mockBoxQrPng).not.toHaveBeenCalled()
 })

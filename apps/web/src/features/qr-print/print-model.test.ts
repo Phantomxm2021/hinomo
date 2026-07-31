@@ -6,6 +6,7 @@ import {
   toggleVisibleSelection,
   type PrintBox,
 } from './print-model'
+import { PRINT_LABEL_MM } from './print-label-layout'
 
 type TestBox = PrintBox & { marker: number }
 
@@ -87,8 +88,8 @@ describe('print model', () => {
 
   it.each([
     [0, []],
-    [8, [8]],
-    [9, [8, 1]],
+    [PRINT_LABEL_MM.perPage, [PRINT_LABEL_MM.perPage]],
+    [PRINT_LABEL_MM.perPage + 1, [PRINT_LABEL_MM.perPage, 1]],
   ])('paginates %i boxes eight per page without mutating input', (length, pageSizes) => {
     const input = Array.from({ length }, (_, index) => ({
       ...boxes[0], id: `box-${index + 1}`, marker: index + 1,
@@ -100,5 +101,9 @@ describe('print model', () => {
     expect(pages.map((page) => page.length)).toEqual(pageSizes)
     expect(pages.flat().map((box) => box.id)).toEqual(input.map((box) => box.id))
     expect(input).toEqual(snapshot)
+  })
+
+  it('keeps the shared page size equal to the label grid capacity', () => {
+    expect(PRINT_LABEL_MM.perPage).toBe(PRINT_LABEL_MM.columns * PRINT_LABEL_MM.rows)
   })
 })

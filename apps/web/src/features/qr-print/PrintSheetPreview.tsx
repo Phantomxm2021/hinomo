@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { env } from '../../lib/env'
 import type { BoxSummary } from '../boxes/boxes.api'
 import { paginatePrintBoxes } from './print-model'
+import { PRINT_LABEL_COLORS, PRINT_SHEET_MM, labelPlacementPercent } from './print-label-layout'
 import { boxQrPng, boxQrUrl } from './qr'
 
 type Props = {
@@ -18,15 +19,25 @@ function qrIdentity(box: BoxSummary): string {
   return JSON.stringify([box.id, box.public_id])
 }
 
-function PrintLabel({ box, density, qr }: { box: BoxSummary; density: 'compact' | 'comfortable'; qr: QrState }) {
-  const location = box.location || '未填写位置'
+function PrintLabel({ box, density, qr, placement }: {
+  box: BoxSummary
+  density: 'compact' | 'comfortable'
+  qr: QrState
+  placement?: ReturnType<typeof labelPlacementPercent>
+}) {
+  const location = box.location || '未填写'
   const compact = density === 'compact'
 
   return (
     <article
-      className={compact
-        ? 'min-w-0 overflow-hidden border border-line bg-surface p-1.5 xl:p-3'
-        : 'min-w-0 overflow-hidden border border-line bg-surface p-3'}
+      className={`${placement ? 'absolute ' : ''}${compact
+        ? 'min-w-0 overflow-hidden border p-1.5 xl:p-3'
+        : 'min-w-0 overflow-hidden border border-line bg-surface p-3'}`}
+      style={{
+        ...placement,
+        backgroundColor: PRINT_LABEL_COLORS.surface,
+        borderColor: PRINT_LABEL_COLORS.line,
+      }}
       role="group"
       aria-label={`${box.name}标签`}
     >
@@ -46,17 +57,20 @@ function PrintLabel({ box, density, qr }: { box: BoxSummary; density: 'compact' 
         </div>
         <div className="min-w-0 overflow-hidden">
           <h3 className={compact
-            ? 'truncate text-[0.625rem] leading-tight font-bold text-ink xl:text-base xl:leading-normal'
-            : 'truncate text-base font-bold text-ink'}>{box.name}</h3>
+            ? 'truncate text-[0.625rem] leading-tight font-bold xl:text-base xl:leading-normal'
+            : 'truncate text-base font-bold'} style={{ color: PRINT_LABEL_COLORS.ink }}>{box.name}</h3>
           <p className={compact
-            ? 'mt-0.5 truncate text-[0.5625rem] leading-tight font-semibold tracking-wide text-ink xl:mt-1 xl:text-sm xl:leading-normal'
-            : 'mt-1 truncate text-sm font-semibold tracking-wide text-ink'}>{box.box_code}</p>
+            ? 'mt-0.5 truncate text-[0.5625rem] leading-tight font-semibold tracking-wide xl:mt-1 xl:text-sm xl:leading-normal'
+            : 'mt-1 truncate text-sm font-semibold tracking-wide'} style={{ color: PRINT_LABEL_COLORS.brand }}>{box.box_code}</p>
           <p className={compact
-            ? 'mt-0.5 truncate text-[0.5rem] leading-tight text-muted xl:mt-1 xl:text-xs xl:leading-normal'
-            : 'mt-1 truncate text-xs text-muted'}>{box.space_name} · {location}</p>
+            ? 'mt-0.5 truncate text-[0.5rem] leading-tight xl:mt-1 xl:text-xs xl:leading-normal'
+            : 'mt-1 truncate text-xs'} style={{ color: PRINT_LABEL_COLORS.ink }}>空间：{box.space_name}</p>
           <p className={compact
-            ? 'hidden truncate font-semibold text-brand xl:mt-2 xl:block xl:text-xs'
-            : 'mt-2 truncate text-xs font-semibold text-brand'}>扫码查看箱内物品</p>
+            ? 'truncate text-[0.5rem] leading-tight xl:mt-1 xl:text-xs xl:leading-normal'
+            : 'mt-1 truncate text-xs'} style={{ color: PRINT_LABEL_COLORS.ink }}>位置：{location}</p>
+          <p className={compact
+            ? 'truncate text-[0.4375rem] leading-tight font-semibold xl:mt-2 xl:text-xs'
+            : 'mt-2 truncate text-xs font-semibold'} style={{ color: PRINT_LABEL_COLORS.muted }}>扫码查看箱内物品</p>
         </div>
       </div>
     </article>
@@ -140,8 +154,9 @@ export function PrintSheetPreview({ boxes, mode }: Props) {
       <div className="max-h-[70dvh] min-h-0 overflow-auto bg-canvas p-3 sm:p-5">
         {pages.length === 0 ? (
           <div
-            className="mx-auto grid aspect-[210/297] w-full max-w-[42rem] place-items-center border border-line bg-surface p-6 text-center text-sm text-muted shadow-soft"
+            className="mx-auto grid w-full max-w-[42rem] place-items-center border border-line bg-surface p-6 text-center text-sm text-muted shadow-soft"
             data-testid="a4-sheet"
+            style={{ aspectRatio: `${PRINT_SHEET_MM.width}/${PRINT_SHEET_MM.height}` }}
           >
             选择箱子后将在这里生成 A4 预览
           </div>
@@ -149,15 +164,17 @@ export function PrintSheetPreview({ boxes, mode }: Props) {
           <div className="grid w-full gap-5">
             {pages.map((page, pageIndex) => (
               <div
-                className="mx-auto grid aspect-[210/297] w-full max-w-[42rem] grid-cols-2 grid-rows-4 gap-px overflow-hidden border border-line bg-surface p-px shadow-soft"
+                className="relative mx-auto w-full max-w-[42rem] overflow-hidden border border-line bg-surface shadow-soft"
                 data-testid="a4-sheet"
                 key={pageIndex}
+                style={{ aspectRatio: `${PRINT_SHEET_MM.width}/${PRINT_SHEET_MM.height}` }}
               >
-                {page.map((box) => (
+                {page.map((box, labelIndex) => (
                   <PrintLabel
                     box={box}
                     density="compact"
                     key={qrIdentity(box)}
+                    placement={labelPlacementPercent(labelIndex)}
                     qr={qrCache.current.get(qrIdentity(box)) ?? { status: 'loading' }}
                   />
                 ))}

@@ -1,4 +1,11 @@
 import type { BoxSummary } from '../boxes/boxes.api'
+import {
+  PRINT_LABEL_CANVAS_PX,
+  PRINT_LABEL_COLORS,
+  PRINT_LABEL_MM,
+  PRINT_SHEET_MM,
+  labelPlacementMm,
+} from './print-label-layout'
 import { boxQrPng, boxQrUrl } from './qr'
 
 export type PrintableLabel = {
@@ -23,8 +30,8 @@ export function buildLabels(boxes: LabelSource[], origin: string): PrintableLabe
 
 export function paginateLabels(labels: PrintableLabel[]) {
   return Array.from(
-    { length: Math.ceil(labels.length / 8) },
-    (_, page) => labels.slice(page * 8, page * 8 + 8),
+    { length: Math.ceil(labels.length / PRINT_LABEL_MM.perPage) },
+    (_, page) => labels.slice(page * PRINT_LABEL_MM.perPage, page * PRINT_LABEL_MM.perPage + PRINT_LABEL_MM.perPage),
   )
 }
 
@@ -48,32 +55,34 @@ function fitText(context: CanvasRenderingContext2D, text: string, maxWidth: numb
 
 async function renderLabelPng(label: PrintableLabel) {
   const canvas = document.createElement('canvas')
-  canvas.width = 1000
-  canvas.height = 680
+  canvas.width = PRINT_LABEL_CANVAS_PX.width
+  canvas.height = PRINT_LABEL_CANVAS_PX.height
   const context = canvas.getContext('2d')
   if (!context) throw new Error('Canvas is unavailable')
+  const textX = 490
+  const textMaxWidth = canvas.width - textX - 55
 
-  context.fillStyle = '#fffdf8'
+  context.fillStyle = PRINT_LABEL_COLORS.surface
   context.fillRect(0, 0, canvas.width, canvas.height)
-  context.strokeStyle = '#e3d5c5'
+  context.strokeStyle = PRINT_LABEL_COLORS.line
   context.lineWidth = 4
   context.strokeRect(2, 2, canvas.width - 4, canvas.height - 4)
   const qrImage = await loadImage(await boxQrPng(label.qrUrl))
   context.drawImage(qrImage, 55, 110, 390, 390)
 
-  context.fillStyle = '#30271e'
+  context.fillStyle = PRINT_LABEL_COLORS.ink
   context.font = '700 48px system-ui, sans-serif'
-  context.fillText(fitText(context, label.name, 460), 490, 180)
+  context.fillText(fitText(context, label.name, textMaxWidth), textX, 180)
   context.font = '700 34px ui-monospace, monospace'
-  context.fillStyle = '#df6538'
-  context.fillText(label.code, 490, 245)
+  context.fillStyle = PRINT_LABEL_COLORS.brand
+  context.fillText(fitText(context, label.code, textMaxWidth), textX, 245)
   context.font = '32px system-ui, sans-serif'
-  context.fillStyle = '#30271e'
-  context.fillText(fitText(context, `空间：${label.space}`, 460), 490, 330)
-  context.fillText(fitText(context, `位置：${label.location || '未填写'}`, 460), 490, 385)
+  context.fillStyle = PRINT_LABEL_COLORS.ink
+  context.fillText(fitText(context, `空间：${label.space}`, textMaxWidth), textX, 330)
+  context.fillText(fitText(context, `位置：${label.location || '未填写'}`, textMaxWidth), textX, 385)
   context.font = '24px system-ui, sans-serif'
-  context.fillStyle = '#756a5e'
-  context.fillText('扫码查看箱内物品', 490, 485)
+  context.fillStyle = PRINT_LABEL_COLORS.muted
+  context.fillText('扫码查看箱内物品', textX, 485)
   return canvas.toDataURL('image/png')
 }
 
@@ -83,7 +92,10 @@ export async function renderLabelsPdf(
 ) {
   if (labels.length === 0) throw new Error('Select at least one box')
   const { jsPDF } = await import('jspdf')
-  const documentPdf = new jsPDF({ unit: 'mm', format: 'a4' })
+  const documentPdf = new jsPDF({
+    unit: 'mm',
+    format: [PRINT_SHEET_MM.width, PRINT_SHEET_MM.height],
+  })
   const pages = paginateLabels(labels)
   let completed = 0
 
@@ -91,9 +103,8 @@ export async function renderLabelsPdf(
     if (pageIndex > 0) documentPdf.addPage()
     for (let labelIndex = 0; labelIndex < pages[pageIndex].length; labelIndex += 1) {
       const image = await renderLabelPng(pages[pageIndex][labelIndex])
-      const column = labelIndex % 2
-      const row = Math.floor(labelIndex / 2)
-      documentPdf.addImage(image, 'PNG', 10 + column * 97.5, 10 + row * 69, 92.5, 64)
+      const placement = labelPlacementMm(labelIndex)
+      documentPdf.addImage(image, 'PNG', placement.left, placement.top, placement.width, placement.height)
       completed += 1
       onProgress?.(completed, labels.length)
     }

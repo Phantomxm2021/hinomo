@@ -122,7 +122,9 @@ test('connects desktop selection to the summary and A4 preview', async () => {
   await user.click(within(desktop).getByRole('checkbox', { name: /露营装备/ }))
 
   expect(within(getPageHeader()).getByText('A4 · 双列 · 已选 1 张')).toBeInTheDocument()
-  expect(within(preview).getByRole('group', { name: '露营装备标签' })).toHaveTextContent('储藏室 · 未填写位置')
+  const label = within(preview).getByRole('group', { name: '露营装备标签' })
+  expect(within(label).getByText('空间：储藏室')).toBeInTheDocument()
+  expect(within(label).getByText('位置：未填写')).toBeInTheDocument()
 })
 
 test('filters real desktop results and visible selection preserves hidden choices', async () => {
