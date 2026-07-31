@@ -138,12 +138,19 @@ export async function installMockBackend(page: Page, state: MockState) {
             items: state.items.filter((item) => item.box_id === box.id).map((item) => ({ ...item, image_object_key: null })),
           })
         }
-        return json(route, state.boxes.filter((box) => box.owner_id === currentUserId).map((box) => ({
-          ...box,
-          cover_object_key: null,
-          items: [{ count: state.items.filter((item) => item.box_id === box.id).length }],
-          spaces: { name: state.spaces.find((space) => space.id === box.space_id)?.name ?? '' },
-        })))
+        const ownerId = eqValue(url, 'owner_id')
+        return json(route, state.boxes
+          .filter((box) => box.visibility === 'public' || box.owner_id === currentUserId)
+          .filter((box) => !ownerId || box.owner_id === ownerId)
+          .map((box) => {
+            const space = state.spaces.find((candidate) => candidate.id === box.space_id && candidate.owner_id === currentUserId)
+            return {
+              ...box,
+              cover_object_key: null,
+              items: [{ count: state.items.filter((item) => item.box_id === box.id).length }],
+              spaces: space ? { name: space.name } : null,
+            }
+          }))
       }
     }
 

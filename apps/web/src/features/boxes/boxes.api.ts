@@ -77,9 +77,14 @@ export async function getBox(boxId: string): Promise<EditableBox> {
 }
 
 export async function listBoxes(): Promise<BoxSummary[]> {
+  const { data: sessionData } = await supabase.auth.getSession()
+  const ownerId = sessionData.session?.user.id
+  if (!ownerId) throw new Error('authentication is required')
+
   const { data, error } = await supabase
     .from('boxes')
     .select('id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), spaces(name)')
+    .eq('owner_id', ownerId)
     .order('updated_at', { ascending: false })
 
   if (error) throw error
@@ -91,7 +96,7 @@ export async function listBoxes(): Promise<BoxSummary[]> {
     name: box.name,
     location: box.location,
     visibility: box.visibility,
-    space_name: box.spaces.name,
+    space_name: box.spaces?.name ?? '',
     cover_object_key: box.cover_object_key,
     item_count: box.items[0]?.count ?? 0,
     updated_at: box.updated_at,

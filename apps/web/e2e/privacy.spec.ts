@@ -1,13 +1,14 @@
 import { expect, test } from '@playwright/test'
 import { createBox, createMockState, createSpace, installMockBackend, register } from './mock-backend'
 
-test('private box is hidden from anonymous visitors and another account', async ({ browser, page }) => {
+test('private details and the owner catalogue stay scoped to the current account', async ({ browser, page }) => {
   const state = createMockState()
   await installMockBackend(page, state)
   await register(page, 'owner@example.com')
   await expect(page.getByRole('heading', { name: '早上好，今天找什么？' })).toBeVisible()
   await createSpace(page, '家')
   const privateUrl = await createBox(page, '证件箱', 'private')
+  await createBox(page, '公开纪念品', 'public')
 
   const anonymousContext = await browser.newContext()
   const anonymous = await anonymousContext.newPage()
@@ -21,6 +22,9 @@ test('private box is hidden from anonymous visitors and another account', async 
   await register(other, 'other@example.com')
   await other.goto(privateUrl)
   await expect(other.getByRole('heading', { name: '无权限或内容不存在' })).toBeVisible()
+  await other.goto('/app/boxes')
+  await expect(other.getByText('0 个箱子 · 0 件物品', { exact: true })).toBeVisible()
+  await expect(other.getByRole('link', { name: '打开公开纪念品' })).toHaveCount(0)
 
   await anonymousContext.close()
   await otherContext.close()
