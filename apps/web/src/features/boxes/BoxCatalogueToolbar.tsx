@@ -27,7 +27,7 @@ export function BoxCatalogueToolbar({ query, sort, onQueryChange, onSortChange }
       >
         <option value="recent">最近更新</option>
         <option value="name">名称 A–Z</option>
-        <option value="items">物品数量</option>
+        <option value="items">物品数量从多到少</option>
       </select>
     </div>
   )

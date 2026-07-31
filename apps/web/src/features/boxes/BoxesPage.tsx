@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useBlocker, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -19,6 +19,8 @@ import { SpaceFilterChips } from './SpaceFilterChips'
 
 type CatalogueParam = 'q' | 'space' | 'sort'
 
+const EMPTY_BOXES: readonly BoxSummary[] = []
+
 export function BoxesPage() {
   const queryClient = useQueryClient()
   const createButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -30,26 +32,36 @@ export function BoxesPage() {
   const boxesQuery = useQuery({ queryKey: ['boxes'], queryFn: listBoxes })
   const deleteMutation = useMutation({
     mutationFn: (boxId: string) => deleteBox(boxId),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['boxes'] })
+    onSuccess: (_data, boxId) => {
+      queryClient.setQueryData<BoxSummary[]>(['boxes'], (current) => current?.filter((box) => box.id !== boxId))
       deleteReturnFocusRef.current = createButtonRef.current
       setDeleteTarget(null)
+      void queryClient.invalidateQueries({ queryKey: ['boxes'] })
     },
   })
-  const boxes = boxesQuery.data ?? []
+  const boxes = boxesQuery.data ?? EMPTY_BOXES
+  const hasCatalogueData = boxesQuery.data !== undefined
   const query = searchParams.get('q') ?? ''
   const selectedSpace = searchParams.get('space') ?? ''
-  const sort = parseCatalogueSort(searchParams.get('sort'))
+  const rawSort = searchParams.get('sort')
+  const sort = parseCatalogueSort(rawSort)
   const creating = searchParams.get('create') === '1'
   const wasCreating = useRef(creating)
   const createBlocker = useBlocker(creating && createBusy)
-  const spaces = catalogueSpaces(boxes)
-  const summary = catalogueSummary(boxes)
-  const visibleBoxes = filterAndSortBoxes(boxes, {
+  const spaces = useMemo(() => catalogueSpaces(boxes), [boxes])
+  const summary = useMemo(() => catalogueSummary(boxes), [boxes])
+  const visibleBoxes = useMemo(() => filterAndSortBoxes(boxes, {
     query,
     spaceId: selectedSpace,
     sort,
-  })
+  }), [boxes, query, selectedSpace, sort])
+
+  useEffect(() => {
+    if (rawSort === null || rawSort === 'name' || rawSort === 'items') return
+    const next = new URLSearchParams(searchParams)
+    next.delete('sort')
+    setSearchParams(next, { replace: true })
+  }, [rawSort, searchParams, setSearchParams])
 
   const updateCatalogueParam = (key: CatalogueParam, value: string) => {
     const next = new URLSearchParams(searchParams)
@@ -100,7 +112,7 @@ export function BoxesPage() {
         <div>
           <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">收纳目录</p>
           <h1 className="mb-0 text-page-title font-extrabold" id="boxes-title">全部箱子</h1>
-          {boxesQuery.isSuccess ? (
+          {hasCatalogueData ? (
             <p className="mt-2 text-sm text-muted">{summary.boxCount} 个箱子 · {summary.itemCount} 件物品</p>
           ) : null}
         </div>
@@ -118,8 +130,14 @@ export function BoxesPage() {
       </header>
 
       {boxesQuery.isPending ? <PageState state="loading" label="正在加载箱子…" /> : null}
-      {boxesQuery.isError ? <PageState state="error" message="箱子加载失败，请重试" onRetry={() => void boxesQuery.refetch()} /> : null}
-      {boxesQuery.isSuccess && boxes.length > 0 ? (
+      {boxesQuery.isError && !hasCatalogueData ? <PageState state="error" message="箱子加载失败，请重试" onRetry={() => void boxesQuery.refetch()} /> : null}
+      {boxesQuery.isError && hasCatalogueData ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
+          <p className="m-0 font-medium">箱子刷新失败，正在显示上次结果</p>
+          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" onClick={() => void boxesQuery.refetch()}>重试</button>
+        </div>
+      ) : null}
+      {hasCatalogueData && boxes.length > 0 ? (
         <>
           <BoxCatalogueToolbar
             query={query}
@@ -136,12 +154,15 @@ export function BoxesPage() {
                 onChange={(spaceId) => updateCatalogueParam('space', spaceId)}
               />
             </div>
-            <p className="hidden shrink-0 text-sm font-bold text-muted sm:block">显示 {visibleBoxes.length} 个</p>
+            <p className="shrink-0 text-sm font-bold text-muted" role="status" aria-label={`显示 ${visibleBoxes.length} 个箱子`}>
+              <span className="sm:hidden" aria-hidden="true">{visibleBoxes.length} 个</span>
+              <span className="hidden sm:inline" aria-hidden="true">显示 {visibleBoxes.length} 个</span>
+            </p>
           </div>
         </>
       ) : null}
 
-      {boxesQuery.isSuccess && boxes.length === 0 ? (
+      {hasCatalogueData && boxes.length === 0 ? (
         <PageState
           state="empty"
           title="还没有箱子"
@@ -153,7 +174,7 @@ export function BoxesPage() {
         />
       ) : null}
 
-      {boxesQuery.isSuccess && boxes.length > 0 && visibleBoxes.length === 0 ? (
+      {hasCatalogueData && boxes.length > 0 && visibleBoxes.length === 0 ? (
         <PageState
           state="empty"
           title="没有匹配的箱子"

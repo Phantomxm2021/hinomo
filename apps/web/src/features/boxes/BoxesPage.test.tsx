@@ -10,10 +10,24 @@ const { mockDeleteBox, mockListBoxes } = vi.hoisted(() => ({
   mockListBoxes: vi.fn(),
 }))
 
+const catalogueSpies = vi.hoisted(() => ({
+  catalogueSpaces: vi.fn(),
+  catalogueSummary: vi.fn(),
+  filterAndSortBoxes: vi.fn(),
+}))
+
 vi.mock('./boxes.api', () => ({
   deleteBox: mockDeleteBox,
   listBoxes: mockListBoxes,
 }))
+
+vi.mock('./box-catalogue', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./box-catalogue')>()
+  catalogueSpies.catalogueSpaces.mockImplementation(actual.catalogueSpaces)
+  catalogueSpies.catalogueSummary.mockImplementation(actual.catalogueSummary)
+  catalogueSpies.filterAndSortBoxes.mockImplementation(actual.filterAndSortBoxes)
+  return { ...actual, ...catalogueSpies }
+})
 
 vi.mock('../media/AuthorizedImage', () => ({
   AuthorizedImage: ({ objectKey, alt, className }: { objectKey: string; alt: string; className?: string }) => (
@@ -112,6 +126,9 @@ function primaryLinkNames() {
 beforeEach(() => {
   mockDeleteBox.mockReset()
   mockListBoxes.mockReset()
+  catalogueSpies.catalogueSpaces.mockClear()
+  catalogueSpies.catalogueSummary.mockClear()
+  catalogueSpies.filterAndSortBoxes.mockClear()
 })
 
 afterEach(cleanup)
@@ -150,6 +167,22 @@ test('writes search and sort with replacement while preserving other URL state',
   expect(screen.getByTestId('navigation-type')).toHaveTextContent('REPLACE')
 })
 
+test.each(['recent', 'unsupported'])('normalizes sort=%s out of the URL and keeps it out of later filter updates', async (rawSort) => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes(`/app/boxes?sort=${rawSort}&panel=keep`)
+
+  await screen.findByRole('link', { name: '打开冬季衣物' })
+  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?panel=keep'))
+  expect(screen.getByTestId('location')).not.toHaveTextContent('sort=')
+  expect(screen.getByTestId('navigation-type')).toHaveTextContent('REPLACE')
+
+  await user.click(screen.getByRole('button', { name: '卧室 1' }))
+  expect(screen.getByTestId('location')).toHaveTextContent('space=space-1')
+  expect(screen.getByTestId('location')).toHaveTextContent('panel=keep')
+  expect(screen.getByTestId('location')).not.toHaveTextContent('sort=')
+})
+
 test('space chips preserve search, sort, and unknown URL parameters', async () => {
   const user = userEvent.setup()
   mockListBoxes.mockResolvedValue(boxes)
@@ -181,12 +214,26 @@ test('shows the global catalogue summary after loading', async () => {
   expect(screen.getByText('收纳目录')).toBeInTheDocument()
 })
 
+test('shows a compact result count on mobile and keeps the desktop wording', async () => {
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes('/app/boxes?space=space-1')
+
+  await screen.findByRole('link', { name: '打开冬季衣物' })
+  const resultStatus = screen.getByRole('status', { name: '显示 1 个箱子' })
+  expect(screen.getByText('1 个', { selector: 'span' })).toHaveClass('sm:hidden')
+  expect(screen.getByText('1 个', { selector: 'span' })).toHaveAttribute('aria-hidden', 'true')
+  expect(screen.getByText('显示 1 个')).toHaveClass('hidden', 'sm:inline')
+  expect(screen.getByText('显示 1 个')).toHaveAttribute('aria-hidden', 'true')
+  expect(resultStatus).not.toHaveClass('hidden')
+})
+
 test('sorts rendered card links by items and name', async () => {
   const user = userEvent.setup()
   mockListBoxes.mockResolvedValue(boxes)
   renderBoxes('/app/boxes?sort=items')
 
   await screen.findByRole('link', { name: '打开冬季衣物' })
+  expect(screen.getByRole('option', { name: '物品数量从多到少' })).toHaveValue('items')
   expect(primaryLinkNames()).toEqual(['打开露营用品', '打开冬季衣物'])
 
   await user.selectOptions(screen.getByRole('combobox', { name: '箱子排序' }), 'name')
@@ -227,6 +274,29 @@ test('keeps only one catalogue card menu open', async () => {
   await user.click(screen.getByRole('button', { name: '管理露营用品' }))
   expect(screen.queryByRole('link', { name: '编辑冬季衣物' })).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: '编辑露营用品' })).toHaveAttribute('href', '/app/boxes/box-2/edit')
+})
+
+test('does not recompute catalogue derivations for menu and mutation rerenders', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  mockDeleteBox.mockReturnValue(new Promise(() => {}))
+  renderBoxes()
+
+  await screen.findByRole('link', { name: '打开冬季衣物' })
+  const callsAfterLoad = {
+    spaces: catalogueSpies.catalogueSpaces.mock.calls.length,
+    summary: catalogueSpies.catalogueSummary.mock.calls.length,
+    visible: catalogueSpies.filterAndSortBoxes.mock.calls.length,
+  }
+
+  await user.click(screen.getByRole('button', { name: '管理冬季衣物' }))
+  await user.click(screen.getByRole('button', { name: '删除冬季衣物' }))
+  await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: '确认删除' }))
+  await screen.findByRole('button', { name: '处理中…' })
+
+  expect(catalogueSpies.catalogueSpaces).toHaveBeenCalledTimes(callsAfterLoad.spaces)
+  expect(catalogueSpies.catalogueSummary).toHaveBeenCalledTimes(callsAfterLoad.summary)
+  expect(catalogueSpies.filterAndSortBoxes).toHaveBeenCalledTimes(callsAfterLoad.visible)
 })
 
 test('keeps a restored card menu closed after catalogue criteria change through history', async () => {
@@ -337,11 +407,14 @@ test('blocks browser back while creation is busy', async () => {
   expect(screen.queryByRole('dialog', { name: '创建箱子' })).not.toBeInTheDocument()
 })
 
-test('deletes a box from its menu after confirmation and refreshes the list', async () => {
+test('removes a deleted box and closes the dialog before catalogue revalidation finishes', async () => {
   const user = userEvent.setup()
-  mockListBoxes.mockResolvedValueOnce([boxes[0]]).mockResolvedValueOnce([])
+  let resolveRefetch!: (value: typeof boxes) => void
+  mockListBoxes
+    .mockResolvedValueOnce(boxes)
+    .mockReturnValueOnce(new Promise((resolve) => { resolveRefetch = resolve }))
   mockDeleteBox.mockResolvedValue(undefined)
-  renderBoxes()
+  const { client } = renderBoxes()
 
   expect(await screen.findByRole('link', { name: '打开冬季衣物' })).toHaveAttribute('href', '/b/public-1')
   const stableCreateAction = screen.getByRole('button', { name: '创建箱子' })
@@ -352,9 +425,14 @@ test('deletes a box from its menu after confirmation and refreshes the list', as
   await user.click(screen.getByRole('button', { name: '确认删除' }))
 
   expect(mockDeleteBox).toHaveBeenCalledWith('box-1')
-  expect(await screen.findByText('还没有箱子')).toBeInTheDocument()
-  expect(mockListBoxes).toHaveBeenCalledTimes(2)
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+  expect(screen.queryByRole('link', { name: '打开冬季衣物' })).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: '打开露营用品' })).toBeInTheDocument()
+  expect(client.getQueryData(['boxes'])).toEqual([boxes[1]])
   await waitFor(() => expect(stableCreateAction).toHaveFocus())
+  expect(mockListBoxes).toHaveBeenCalledTimes(2)
+
+  await act(async () => { resolveRefetch([boxes[1]]) })
 })
 
 test('shows the loading state until the catalogue request resolves', async () => {
@@ -380,6 +458,29 @@ test('retries a failed catalogue load', async () => {
   await user.click(screen.getByRole('button', { name: '重试' }))
 
   expect(await screen.findByRole('link', { name: '打开冬季衣物' })).toBeInTheDocument()
+})
+
+test('keeps the stale catalogue available when a background refetch fails', async () => {
+  const user = userEvent.setup()
+  mockListBoxes
+    .mockResolvedValueOnce(boxes)
+    .mockRejectedValueOnce(new Error('refetch failed'))
+    .mockResolvedValueOnce(boxes)
+  const { client } = renderBoxes('/app/boxes?space=space-1')
+
+  expect(await screen.findByRole('link', { name: '打开冬季衣物' })).toBeInTheDocument()
+  await act(async () => { await client.invalidateQueries({ queryKey: ['boxes'] }) })
+
+  const refetchAlert = await screen.findByRole('alert')
+  expect(refetchAlert).toHaveTextContent('箱子刷新失败，正在显示上次结果')
+  expect(screen.getByText('2 个箱子 · 20 件物品')).toBeInTheDocument()
+  expect(screen.getByRole('searchbox', { name: '搜索箱子' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '卧室 1' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('link', { name: '打开冬季衣物' })).toBeInTheDocument()
+  expect(screen.queryByText('箱子加载失败，请重试')).not.toBeInTheDocument()
+
+  await user.click(within(refetchAlert).getByRole('button', { name: '重试' }))
+  await waitFor(() => expect(screen.queryByText('箱子刷新失败，正在显示上次结果')).not.toBeInTheDocument())
 })
 
 test('keeps a failed delete inline and restores focus to its card trigger on cancel', async () => {
