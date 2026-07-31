@@ -60,7 +60,7 @@ export function SearchPage() {
   const noResults = query && !isLoading && !hasError && matchingBoxes.length === 0 && items.length === 0
 
   return (
-    <section className="mx-auto flex w-full max-w-5xl flex-col gap-8" aria-labelledby="search-title">
+    <section className="mx-auto flex min-w-0 w-full max-w-5xl flex-col gap-5 lg:gap-8" aria-labelledby="search-title">
       <header className="flex flex-col gap-2 py-3">
         <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">按名称、编号、空间或位置查找</p>
         <h1 className="mb-0 text-page-title font-extrabold" id="search-title">查找收纳</h1>
@@ -153,7 +153,7 @@ export function SearchPage() {
         <div className="grid min-h-52 place-content-center justify-items-center gap-4 rounded-card border border-dashed border-line bg-surface/70 p-8 text-center">
           <span className="grid size-14 place-items-center rounded-full bg-brand/10 text-brand"><AppIcon name="scan" size={26} /></span>
           <div><h2 className="mb-1">没有找到相关内容</h2><p>也可以扫描箱子标签，直接打开清单。</p></div>
-          <Link className="inline-flex min-h-11 items-center gap-2 rounded-control bg-brand px-4 py-2 font-bold text-white no-underline hover:bg-brand-strong" to="/app/scan"><AppIcon name="scan" />扫码查看箱子</Link>
+          <Link className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-brand px-4 py-2 font-bold text-white no-underline hover:bg-brand-strong sm:min-h-11 sm:w-auto" to="/app/scan"><AppIcon name="scan" />扫码查看箱子</Link>
         </div>
       ) : null}
     </section>

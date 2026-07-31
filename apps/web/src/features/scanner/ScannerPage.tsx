@@ -83,7 +83,7 @@ export function ScannerPage() {
   }
 
   return (
-    <section className="mx-auto grid w-full max-w-4xl gap-6" aria-labelledby="scanner-title">
+    <section className="mx-auto grid min-w-0 w-full max-w-4xl gap-5 lg:gap-6" aria-labelledby="scanner-title">
       <header className="py-3">
         <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">对准箱子上的二维码</p>
         <h1 className="m-0 text-page-title font-extrabold text-ink" id="scanner-title">扫码查看</h1>
@@ -91,7 +91,7 @@ export function ScannerPage() {
       <video className="block aspect-[4/5] max-h-[65dvh] w-full overflow-hidden rounded-shell bg-ink object-cover shadow-float md:aspect-video" ref={videoRef} muted playsInline aria-label="二维码扫描画面" />
       {cameraMessage ? <p role="status">{cameraMessage}</p> : null}
       {cameraCanRetry ? (
-        <button className="min-h-11 rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white hover:bg-brand-strong" type="button" onClick={retryCamera}>
+        <button className="min-h-12 w-full rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white hover:bg-brand-strong sm:min-h-11 sm:w-auto" type="button" onClick={retryCamera}>
           重新尝试相机
         </button>
       ) : null}

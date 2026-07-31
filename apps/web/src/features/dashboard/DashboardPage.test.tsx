@@ -103,9 +103,11 @@ test('centers the dashboard on finding items, room totals, and recent activity',
 
   expect(screen.getByRole('region', { name: '早上好，今天找什么？' })).toHaveClass(
     'mx-auto',
+    'min-w-0',
     'w-full',
     'max-w-7xl',
-    'gap-10',
+    'gap-6',
+    'lg:gap-10',
   )
   expect(screen.getByRole('region', { name: '早上好，今天找什么？' }).querySelector('header')).toHaveClass(
     'lg:grid',

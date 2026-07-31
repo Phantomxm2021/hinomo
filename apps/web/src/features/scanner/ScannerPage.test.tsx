@@ -76,7 +76,12 @@ test.each([
   render(<ScannerPage />)
 
   expect(await screen.findByRole('status')).toHaveTextContent(message)
-  expect(screen.getByRole('button', { name: '重新尝试相机' })).toHaveClass('min-h-11')
+  expect(screen.getByRole('button', { name: '重新尝试相机' })).toHaveClass(
+    'min-h-12',
+    'w-full',
+    'sm:min-h-11',
+    'sm:w-auto',
+  )
   expect(screen.queryByText(/手动输入/)).not.toBeInTheDocument()
 })
 

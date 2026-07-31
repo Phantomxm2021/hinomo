@@ -32,7 +32,7 @@ export function DashboardPage() {
   )
 
   return (
-    <section className="mx-auto flex w-full max-w-7xl flex-col gap-10" aria-labelledby="dashboard-title">
+    <section className="mx-auto flex min-w-0 w-full max-w-7xl flex-col gap-6 lg:gap-10" aria-labelledby="dashboard-title">
       <header className="flex flex-col gap-2 py-3 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(26rem,auto)] lg:items-center lg:gap-6">
         <div>
           <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">家庭总览</p>
@@ -96,7 +96,7 @@ export function DashboardPage() {
       <section className="min-w-0" aria-labelledby="rooms-title">
         <div className="my-3.5 flex items-center justify-between gap-4">
           <h2 className="mb-0 text-section-title font-bold" id="rooms-title">按房间查看</h2>
-          <Link className="text-meta font-medium text-muted no-underline hover:text-ink" to="/app/spaces">
+          <Link className="inline-flex min-h-11 items-center text-meta font-medium text-muted no-underline hover:text-ink" to="/app/spaces">
             管理空间 <span aria-hidden="true">›</span>
           </Link>
         </div>
@@ -129,7 +129,7 @@ export function DashboardPage() {
             <h2 className="mb-0 text-section-title font-bold" id="recent-boxes-title">最近打开</h2>
           </div>
           {boxes.length > 0 ? (
-            <Link className="text-meta font-medium text-muted no-underline hover:text-ink" to="/app/boxes">
+            <Link className="inline-flex min-h-11 items-center text-meta font-medium text-muted no-underline hover:text-ink" to="/app/boxes">
               查看全部 <span aria-hidden="true">›</span>
             </Link>
           ) : null}
@@ -141,7 +141,7 @@ export function DashboardPage() {
           <div className="grid min-h-56 place-content-center justify-items-center gap-4 rounded-card border border-dashed border-line bg-surface/70 p-7 text-center">
             <h3>给每件物品一个好找的家</h3>
             <p>从第一个箱子开始，记录它放在哪里、里面有什么。</p>
-            <Link className="inline-flex min-h-11 items-center justify-center rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white no-underline" to="/app/boxes?create=1">创建第一个箱子</Link>
+            <Link className="inline-flex min-h-12 w-full items-center justify-center rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white no-underline sm:w-auto" to="/app/boxes?create=1">创建第一个箱子</Link>
           </div>
         ) : null}
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

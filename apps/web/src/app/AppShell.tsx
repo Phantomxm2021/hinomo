@@ -96,21 +96,13 @@ export function AppShell() {
         <nav className="grid gap-2" aria-label="主导航"><Navigation items={desktopNavigation} /></nav>
         <UserAccountMenu />
       </aside>
-      <header className="flex items-center justify-between px-5 pt-5 lg:hidden" role="banner">
-        <span className="flex items-center gap-2 text-xl font-black tracking-[-0.05em] text-ink">
+      <header className="flex items-center px-4 pt-5 min-[360px]:px-5 lg:hidden" role="banner">
+        <Link className="flex items-center gap-2 text-xl font-black tracking-[-0.05em] text-ink no-underline" to="/app">
           <span className="grid size-9 place-items-center rounded-control bg-brand text-xl font-black tracking-normal text-white" aria-hidden="true">N</span>
           Nomo
-        </span>
-        <Link
-          className="grid size-11 place-items-center rounded-full border border-line bg-surface text-muted shadow-soft"
-          to="/app/spaces"
-          aria-label="我的收纳空间"
-          title="我的收纳空间"
-        >
-          <AppIcon name="space" size={20} />
         </Link>
       </header>
-      <main className="min-w-0 px-5 pt-6 pb-[calc(8rem+env(safe-area-inset-bottom))] lg:ml-60 lg:px-[clamp(1.75rem,4vw,4rem)] lg:pt-10 lg:pb-16"><Outlet /></main>
+      <main className="min-w-0 px-4 pt-6 pb-[calc(8rem+env(safe-area-inset-bottom))] min-[360px]:px-5 lg:ml-60 lg:px-[clamp(1.75rem,4vw,4rem)] lg:pt-10 lg:pb-16"><Outlet /></main>
       <nav className="fixed inset-x-0 bottom-0 z-30 grid min-h-18 grid-cols-5 border-t border-line bg-surface/95 px-2 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-float backdrop-blur lg:hidden" aria-label="移动端主导航"><Navigation items={mobileNavigation} mobile /></nav>
     </div>
   )

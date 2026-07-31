@@ -140,7 +140,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
   if (spacesQuery.isPending || (editing && boxQuery.isPending)) {
     return (
       <SkeletonGroup
-        className={presentation === 'page' ? 'mx-auto grid w-full max-w-4xl gap-4' : 'grid w-full gap-4'}
+        className={presentation === 'page' ? 'mx-auto grid min-w-0 w-full max-w-4xl gap-4' : 'grid min-w-0 w-full gap-4'}
         label="正在加载箱子表单"
       >
         {presentation === 'page' ? <Skeleton className="h-10 w-44" /> : null}
@@ -165,7 +165,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
   }
 
   return (
-    <section className={presentation === 'page' ? 'mx-auto grid w-full max-w-4xl gap-6' : 'grid w-full gap-4'} data-presentation={presentation} aria-labelledby={presentation === 'page' ? 'box-form-title' : undefined}>
+    <section className={presentation === 'page' ? 'mx-auto grid min-w-0 w-full max-w-4xl gap-5 lg:gap-6' : 'grid min-w-0 w-full gap-4'} data-presentation={presentation} aria-labelledby={presentation === 'page' ? 'box-form-title' : undefined}>
       {presentation === 'page' ? (
         <header className="py-3">
           <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">为实体箱子建立数字身份</p>
@@ -237,7 +237,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
         ) : null}
         {!editing && pendingBox ? null : (
           <button
-            className="mt-2 min-h-11 rounded-control border border-brand bg-brand px-5 py-2 font-bold text-white hover:bg-brand-strong"
+            className="mt-2 min-h-12 w-full rounded-control border border-brand bg-brand px-5 py-2 font-bold text-white hover:bg-brand-strong sm:min-h-11 sm:w-auto"
             type="submit"
             disabled={busy}
           >

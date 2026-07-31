@@ -77,8 +77,9 @@ test('provides the complete desktop navigation without a scan destination', asyn
     '/app/print',
   ])
   expect(within(navigation).queryByRole('link', { name: '扫码' })).not.toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/app')
-  expect(within(screen.getByRole('link', { name: 'Nomo' })).getByText('N')).toHaveAttribute('aria-hidden', 'true')
+  const desktopBrand = within(screen.getByRole('complementary')).getByRole('link', { name: 'Nomo' })
+  expect(desktopBrand).toHaveAttribute('href', '/app')
+  expect(within(desktopBrand).getByText('N')).toHaveAttribute('aria-hidden', 'true')
   expect(await screen.findByText('林家')).toBeInTheDocument()
   expect(screen.getByText('lin@example.com')).toBeInTheDocument()
   expect(screen.getByRole('complementary')).toHaveClass('lg:flex')
@@ -155,15 +156,24 @@ test('uses the avatar itself as the upload control with a hover cover', async ()
   expect(cover).toHaveClass('absolute', 'opacity-0', 'group-hover:opacity-100')
 })
 
-test('keeps a mobile brand and account entry above page content', () => {
+test('links the mobile brand home without a competing spaces action', () => {
   renderShell()
 
   const mobileHeader = screen.getByRole('banner')
   expect(mobileHeader).toHaveClass('lg:hidden')
-  expect(within(mobileHeader).getByText('Nomo')).toBeInTheDocument()
-  expect(within(mobileHeader).getByRole('link', { name: '我的收纳空间' })).toHaveAttribute(
-    'href',
-    '/app/spaces',
+  expect(within(mobileHeader).getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/app')
+  expect(within(mobileHeader).queryByRole('link', { name: '我的收纳空间' })).not.toBeInTheDocument()
+})
+
+test('keeps mobile content narrow-safe with responsive gutters and nav clearance', () => {
+  renderShell()
+
+  expect(screen.getByRole('main')).toHaveClass(
+    'min-w-0',
+    'px-4',
+    'min-[360px]:px-5',
+    'pb-[calc(8rem+env(safe-area-inset-bottom))]',
+    'lg:px-[clamp(1.75rem,4vw,4rem)]',
   )
 })
 

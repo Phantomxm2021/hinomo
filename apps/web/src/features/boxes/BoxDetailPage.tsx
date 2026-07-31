@@ -9,7 +9,7 @@ export function BoxDetailPage() {
   const query = useQuery({ queryKey: ['box-id', boxId], queryFn: () => getBox(boxId) })
   if (query.isPending) {
     return (
-      <SkeletonGroup className="mx-auto grid w-full max-w-4xl gap-4 px-4 py-6" label="正在加载箱子详情">
+      <SkeletonGroup className="mx-auto grid min-w-0 w-full max-w-4xl gap-5 py-6" label="正在加载箱子详情">
         <Skeleton className="h-5 w-28" />
         <Skeleton className="h-10 w-2/3" />
         <Skeleton className="h-5 w-full" />

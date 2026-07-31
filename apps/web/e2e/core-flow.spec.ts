@@ -2,9 +2,28 @@ import { expect, test } from '@playwright/test'
 import { createBox, createMockState, createSpace, installMockBackend, register } from './mock-backend'
 
 async function expectNoHorizontalOverflow(page: Parameters<typeof installMockBackend>[0]) {
-  await expect.poll(() => page.evaluate(() =>
-    document.documentElement.scrollWidth <= document.documentElement.clientWidth,
-  )).toBe(true)
+  await expect.poll(() => page.evaluate(() => {
+    const root = document.documentElement
+    const overflowing = [...document.querySelectorAll<HTMLElement>('body *')]
+      .filter((element) => {
+        const rect = element.getBoundingClientRect()
+        return rect.right > root.clientWidth + 0.5 || rect.left < -0.5
+      })
+      .slice(0, 8)
+      .map((element) => `${element.tagName.toLowerCase()}.${element.className}`)
+    return {
+      url: location.pathname,
+      hasOverflow: root.scrollWidth > root.clientWidth,
+      clientWidth: root.clientWidth,
+      scrollWidth: root.scrollWidth,
+      overflowing,
+    }
+  })).toMatchObject({
+    hasOverflow: false,
+    clientWidth: expect.any(Number),
+    scrollWidth: expect.any(Number),
+    overflowing: [],
+  })
 }
 
 async function expectDesktopNavigation(page: Parameters<typeof installMockBackend>[0]) {
@@ -20,6 +39,24 @@ async function expectMobileNavigation(page: Parameters<typeof installMockBackend
   await expect(navigation.getByRole('link')).toHaveCount(5)
   await expect(navigation.getByRole('link', { name: '扫码' })).toBeVisible()
   await expect(page.getByRole('link', { name: '扫码查看' })).toBeHidden()
+}
+
+async function expectMobileRouteFrame(page: Parameters<typeof installMockBackend>[0]) {
+  await expectNoHorizontalOverflow(page)
+  await expect(page.getByRole('link', { name: '我的收纳空间' })).toHaveCount(0)
+
+  const shell = page.locator('[data-app-shell]')
+  if (await shell.count() === 0) return
+
+  const banner = shell.getByRole('banner')
+  await expect(banner.getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/app')
+  const navigation = shell.getByRole('navigation', { name: '移动端主导航' })
+  await expect(navigation).toBeVisible()
+  await expect.poll(async () => {
+    const mainPadding = await shell.getByRole('main').evaluate((main) => Number.parseFloat(getComputedStyle(main).paddingBottom))
+    const navigationHeight = await navigation.evaluate((nav) => nav.getBoundingClientRect().height)
+    return mainPadding >= navigationHeight
+  }).toBe(true)
 }
 
 test('owner creates, finds, labels, and maintains a public box', async ({ browser, page }, testInfo) => {
@@ -177,4 +214,32 @@ test('navigation changes exactly at the 1024px desktop breakpoint', async ({ pag
   await expect(page.getByRole('region', { name: '批量标签工作台' })).toBeVisible()
   await expect(page.getByRole('region', { name: '单个标签下载' })).toBeHidden()
   await expectNoHorizontalOverflow(page)
+})
+
+test('mobile route alignment', async ({ page }) => {
+  const state = createMockState()
+  await installMockBackend(page, state)
+  await register(page, 'owner@example.com')
+  await createSpace(page, '家')
+  const publicUrl = await createBox(page, '窄屏收纳箱', 'public')
+
+  const routes = [
+    { path: '/app', heading: '早上好，今天找什么？' },
+    { path: '/app/spaces', heading: '空间' },
+    { path: '/app/boxes', heading: '全部箱子' },
+    { path: '/app/boxes/box-1', heading: '窄屏收纳箱' },
+    { path: '/app/search', heading: '查找收纳' },
+    { path: '/app/scan', heading: '扫码查看' },
+    { path: '/app/print', heading: '下载箱子标签' },
+    { path: publicUrl, heading: '窄屏收纳箱' },
+  ]
+
+  for (const width of [320, 390, 768]) {
+    await page.setViewportSize({ width, height: width === 320 ? 568 : 844 })
+    for (const route of routes) {
+      await page.goto(route.path)
+      await expect(page.getByRole('heading', { level: 1, name: route.heading, exact: true })).toBeVisible()
+      await expectMobileRouteFrame(page)
+    }
+  }
 })

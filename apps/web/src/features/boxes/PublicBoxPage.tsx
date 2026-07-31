@@ -46,9 +46,9 @@ export function PublicBoxPage() {
 
   if (boxQuery.isPending) {
     return (
-      <SkeletonGroup className="mx-auto grid w-full max-w-6xl gap-6 px-4 pb-32 pt-5 sm:px-6 lg:px-8" label="正在加载箱子">
+      <SkeletonGroup className="mx-auto grid min-w-0 w-full max-w-6xl gap-5 px-4 pb-32 pt-5 min-[360px]:px-5 lg:gap-6 lg:px-8" label="正在加载箱子">
         <div className="grid gap-6 rounded-shell border border-line bg-surface p-5 md:grid-cols-[minmax(16rem,0.8fr)_1.2fr]">
-          <Skeleton className="aspect-[4/3] min-h-56" />
+          <Skeleton className="aspect-[4/3] min-h-0 sm:min-h-56" />
           <div className="grid content-center gap-4">
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-10 w-3/4" />
@@ -107,9 +107,9 @@ export function PublicBoxPage() {
   }
 
   return (
-    <main className="mx-auto grid w-full max-w-6xl gap-6 px-4 pb-32 pt-5 sm:px-6 lg:px-8 lg:pb-10">
+    <main className="mx-auto grid min-w-0 w-full max-w-6xl gap-5 px-4 pb-32 pt-5 min-[360px]:px-5 lg:gap-6 lg:px-8 lg:pb-10">
       <section className="grid gap-6 rounded-shell border border-line bg-surface p-5 md:grid-cols-[minmax(16rem,0.8fr)_1.2fr]">
-        <div className="aspect-[4/3] min-h-56 overflow-hidden rounded-card bg-placeholder">
+        <div className="aspect-[4/3] min-h-0 overflow-hidden rounded-card bg-placeholder sm:min-h-56">
           {box.cover_object_key ? (
             <AuthorizedImage objectKey={box.cover_object_key} alt={`${box.name}封面`} className="h-full w-full object-cover" />
           ) : (
@@ -209,7 +209,7 @@ export function PublicBoxPage() {
       {isOwner && !showItemForm && !editingItem ? (
         <button
           ref={mobileAddItemButtonRef}
-          className="fixed inset-x-5 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-20 inline-flex min-h-12 items-center justify-center gap-2 rounded-control border border-brand bg-brand px-5 font-extrabold text-white shadow-float md:hidden"
+          className="fixed inset-x-4 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-20 inline-flex min-h-12 items-center justify-center gap-2 rounded-control border border-brand bg-brand px-5 font-extrabold text-white shadow-float min-[360px]:inset-x-5 md:hidden"
           type="button"
           aria-label="移动端新增物品"
           onClick={openNewItem}

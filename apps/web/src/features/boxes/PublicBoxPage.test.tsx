@@ -125,7 +125,8 @@ test('shows item controls only to the box owner', async () => {
   const mobileAdd = screen.getByRole('button', { name: '移动端新增物品' })
   expect(mobileAdd).toHaveClass(
     'fixed',
-    'inset-x-5',
+    'inset-x-4',
+    'min-[360px]:inset-x-5',
     'bottom-[calc(6.75rem+env(safe-area-inset-bottom))]',
   )
 })

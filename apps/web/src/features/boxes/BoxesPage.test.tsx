@@ -401,7 +401,7 @@ test('closes, refreshes, announces success, renders the new card, and restores f
 
   await screen.findByRole('link', { name: '打开冬季衣物' })
   const createButton = screen.getByRole('button', { name: '创建箱子' })
-  expect(createButton).toHaveClass('min-h-11', 'bg-brand')
+  expect(createButton).toHaveClass('min-h-12', 'w-full', 'bg-brand', 'sm:min-h-11', 'sm:w-auto')
   expect(within(createButton).getByText('新建')).toHaveClass('sm:hidden')
   expect(within(createButton).getByText('创建箱子')).toHaveClass('hidden', 'sm:inline')
   await user.click(createButton)

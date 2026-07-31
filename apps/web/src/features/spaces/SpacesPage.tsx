@@ -229,7 +229,7 @@ export function SpacesPage() {
   }
 
   return (
-    <section className="mx-auto grid w-full max-w-7xl gap-6" aria-labelledby="spaces-title">
+    <section className="mx-auto grid min-w-0 w-full max-w-7xl gap-5 lg:gap-6" aria-labelledby="spaces-title">
       <header className="flex flex-col items-stretch justify-between gap-5 py-3 sm:flex-row sm:items-center">
         <div>
           <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">整理你的收纳范围</p>
@@ -385,10 +385,10 @@ export function SpacesPage() {
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="inline-flex rounded-control border border-line bg-surface p-1" role="group" aria-label="空间视图">
-              <button className={`inline-flex min-h-10 items-center gap-2 rounded-control px-3.5 py-2 font-bold ${view === 'cards' ? 'bg-brand text-white' : 'text-muted hover:bg-canvas hover:text-ink'}`} type="button" aria-pressed={view === 'cards'} onClick={() => selectView('cards')}>
+              <button className={`inline-flex min-h-11 items-center gap-2 rounded-control px-3.5 py-2 font-bold ${view === 'cards' ? 'bg-brand text-white' : 'text-muted hover:bg-canvas hover:text-ink'}`} type="button" aria-pressed={view === 'cards'} onClick={() => selectView('cards')}>
                 <AppIcon name="space" size={18} />卡片视图
               </button>
-              <button className={`inline-flex min-h-10 items-center gap-2 rounded-control px-3.5 py-2 font-bold ${view === 'plan' ? 'bg-brand text-white' : 'text-muted hover:bg-canvas hover:text-ink'}`} type="button" aria-pressed={view === 'plan'} onClick={() => selectView('plan')}>
+              <button className={`inline-flex min-h-11 items-center gap-2 rounded-control px-3.5 py-2 font-bold ${view === 'plan' ? 'bg-brand text-white' : 'text-muted hover:bg-canvas hover:text-ink'}`} type="button" aria-pressed={view === 'plan'} onClick={() => selectView('plan')}>
                 <AppIcon name="box" size={18} />平面视图
               </button>
             </div>

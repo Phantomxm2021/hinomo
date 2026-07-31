@@ -132,7 +132,7 @@ export function BoxesPage() {
   }, [creating])
 
   return (
-    <section className="mx-auto flex w-full max-w-7xl flex-col gap-7" aria-labelledby="boxes-title">
+    <section className="mx-auto flex min-w-0 w-full max-w-7xl flex-col gap-5 lg:gap-7" aria-labelledby="boxes-title">
       <header className="flex flex-col gap-5 py-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">收纳目录</p>
@@ -143,7 +143,7 @@ export function BoxesPage() {
         </div>
         <button
           ref={createButtonRef}
-          className="inline-flex min-h-11 items-center justify-center self-start rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white transition hover:bg-brand-strong sm:self-auto"
+          className="inline-flex min-h-12 w-full items-center justify-center rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white transition hover:bg-brand-strong sm:min-h-11 sm:w-auto sm:self-auto"
           type="button"
           aria-label="创建箱子"
           onClick={openCreate}
