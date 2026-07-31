@@ -1,39 +1,74 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
 import { env } from '../../lib/env'
-import { listBoxes } from '../boxes/boxes.api'
+import { listBoxes, type BoxSummary } from '../boxes/boxes.api'
 import { buildLabels, renderLabelsPdf } from './pdf'
-import { boxQrPng, boxQrUrl } from './qr'
+import { PrintBoxSelector } from './PrintBoxSelector'
+import { filterPrintBoxes, selectedPrintBoxes, toggleVisibleSelection } from './print-model'
+import { PrintSheetPreview } from './PrintSheetPreview'
+
+const EMPTY_BOXES: BoxSummary[] = []
+const DESKTOP_MEDIA_QUERY = '(min-width: 64rem)'
+
+function subscribeDesktopViewport(onStoreChange: () => void) {
+  const mediaQuery = window.matchMedia(DESKTOP_MEDIA_QUERY)
+  mediaQuery.addEventListener('change', onStoreChange)
+  return () => mediaQuery.removeEventListener('change', onStoreChange)
+}
+
+function getDesktopViewportSnapshot() {
+  return window.matchMedia(DESKTOP_MEDIA_QUERY).matches
+}
+
+function getServerDesktopViewportSnapshot() {
+  return false
+}
 
 export function PrintPage() {
   const boxesQuery = useQuery({ queryKey: ['boxes'], queryFn: listBoxes })
+  const mounted = useRef(false)
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [mobileSelectedId, setMobileSelectedId] = useState('')
-  const [previewQr, setPreviewQr] = useState<{ boxId: string; src: string } | null>(null)
+  const [query, setQuery] = useState('')
   const [progress, setProgress] = useState<{ completed: number; total: number } | null>(null)
   const [error, setError] = useState(false)
   const [generating, setGenerating] = useState(false)
-  const selectedBox = useMemo(
-    () => boxesQuery.data?.find((box) => selected.has(box.id)) ?? null,
-    [boxesQuery.data, selected],
+  const isDesktopViewport = useSyncExternalStore(
+    subscribeDesktopViewport,
+    getDesktopViewportSnapshot,
+    getServerDesktopViewportSnapshot,
+  )
+  const allBoxes = useMemo(() => boxesQuery.data ?? EMPTY_BOXES, [boxesQuery.data])
+  const visibleBoxes = useMemo(() => filterPrintBoxes(allBoxes, query), [allBoxes, query])
+  const selectedBoxes = useMemo(() => selectedPrintBoxes(allBoxes, selected), [allBoxes, selected])
+  const effectiveSelected = useMemo(
+    () => new Set(selectedBoxes.map((box) => box.id)),
+    [selectedBoxes],
+  )
+  const mobileBox = useMemo(
+    () => allBoxes.find((box) => box.id === mobileSelectedId) ?? null,
+    [allBoxes, mobileSelectedId],
   )
 
   useEffect(() => {
-    let active = true
-    setPreviewQr(null)
-    if (!selectedBox) {
-      return
+    mounted.current = true
+    return () => {
+      mounted.current = false
     }
-    const qrUrl = boxQrUrl(env.VITE_PUBLIC_APP_ORIGIN, selectedBox.public_id)
-    void boxQrPng(qrUrl).then((image) => {
-      if (active) setPreviewQr({ boxId: selectedBox.id, src: image })
-    }).catch(() => {
-      if (active) setPreviewQr(null)
+  }, [])
+
+  useEffect(() => {
+    if (boxesQuery.data === undefined) return
+    const validIds = new Set(boxesQuery.data.map((box) => box.id))
+    setSelected((current) => {
+      const next = new Set([...current].filter((id) => validIds.has(id)))
+      return next.size === current.size ? current : next
     })
-    return () => { active = false }
-  }, [selectedBox])
+    setMobileSelectedId((current) => current && !validIds.has(current) ? '' : current)
+  }, [boxesQuery.data])
 
   function toggle(boxId: string) {
     setSelected((current) => {
@@ -44,83 +79,146 @@ export function PrintPage() {
     })
   }
 
-  async function generate(boxIds: Set<string>) {
-    const boxes = boxesQuery.data?.filter((box) => boxIds.has(box.id)) ?? []
-    if (boxes.length === 0) return
+  async function generate(boxes: BoxSummary[]) {
+    if (boxes.length === 0 || generating) return
     setGenerating(true)
     setError(false)
     setProgress({ completed: 0, total: boxes.length })
     try {
       await renderLabelsPdf(
         buildLabels(boxes, env.VITE_PUBLIC_APP_ORIGIN),
-        (completed, total) => setProgress({ completed, total }),
+        (completed, total) => {
+          if (mounted.current) setProgress({ completed, total })
+        },
       )
     } catch {
-      setError(true)
+      if (mounted.current) setError(true)
     } finally {
-      setGenerating(false)
+      if (mounted.current) setGenerating(false)
     }
   }
 
-  const option = (box: NonNullable<typeof boxesQuery.data>[number], mode: 'desktop' | 'mobile') => (
-    <label className="flex min-h-18 cursor-pointer items-center gap-3 rounded-control border border-line bg-surface px-4 py-3 hover:border-brand/40" key={box.id}>
-      <input
-        className="size-5 accent-brand"
-        type={mode === 'desktop' ? 'checkbox' : 'radio'}
-        name={mode === 'mobile' ? 'mobile-label' : undefined}
-        checked={mode === 'desktop' ? selected.has(box.id) : mobileSelectedId === box.id}
-        onChange={() => mode === 'desktop' ? toggle(box.id) : setMobileSelectedId(box.id)}
-      />
-      <span className="min-w-0 flex-1">
-        <strong className="block truncate text-ink">{box.name}</strong>
-        <small className="block truncate text-muted">{box.box_code} · {box.space_name}</small>
-      </span>
-    </label>
+  const content = boxesQuery.isPending ? (
+    <PageState state="loading" label="正在加载箱子…" />
+  ) : boxesQuery.isError && boxesQuery.data === undefined ? (
+    <PageState state="error" message="箱子加载失败，请重试" onRetry={() => void boxesQuery.refetch()} />
+  ) : allBoxes.length === 0 ? (
+    <PageState
+      state="empty"
+      title="请先创建箱子"
+      action={(
+        <Link className="min-h-11 rounded-control bg-brand px-4 py-2 font-bold text-white hover:bg-brand-strong" to="/app/boxes">
+          查看全部箱子
+        </Link>
+      )}
+    />
+  ) : (
+    <>
+      <section
+        className="hidden min-w-0 gap-6 lg:grid lg:grid-cols-[22rem_minmax(0,1fr)]"
+        aria-label="批量标签工作台"
+      >
+        <div className="min-w-0">
+          <PrintBoxSelector
+            boxes={visibleBoxes}
+            totalCount={allBoxes.length}
+            selected={effectiveSelected}
+            query={query}
+            generating={generating}
+            onQueryChange={setQuery}
+            onToggle={toggle}
+            onToggleVisible={() => setSelected((current) => toggleVisibleSelection(
+              current,
+              visibleBoxes.map((box) => box.id),
+            ))}
+            onDownload={() => void generate(selectedBoxes)}
+          />
+        </div>
+        <div className="min-w-0">
+          {isDesktopViewport ? <PrintSheetPreview boxes={selectedBoxes} mode="a4" /> : null}
+        </div>
+      </section>
+
+      <section className="flex min-w-0 flex-col gap-4 lg:hidden" aria-label="单个标签下载">
+        <h2 className="m-0 text-section-title font-bold text-ink">选择一个箱子</h2>
+        <div className="grid min-w-0 gap-2">
+          {allBoxes.map((box) => {
+            const checked = mobileSelectedId === box.id
+            const location = box.location || '未填写位置'
+            return (
+              <label
+                className={`grid min-h-14 min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-control border px-3 py-2 ${checked ? 'border-brand bg-brand/10' : 'border-line bg-surface'}`}
+                key={box.id}
+              >
+                <input
+                  className="size-5 accent-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                  type="radio"
+                  name="mobile-label"
+                  checked={checked}
+                  onChange={() => setMobileSelectedId(box.id)}
+                />
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold text-ink">{box.name}</span>
+                  <span className="mt-0.5 block truncate text-xs text-muted">{box.box_code} · {box.space_name} · {location}</span>
+                </span>
+              </label>
+            )
+          })}
+        </div>
+        {!isDesktopViewport && mobileBox ? (
+          <PrintSheetPreview boxes={[mobileBox]} mode="single" />
+        ) : !mobileBox ? (
+          <p className="rounded-card border border-dashed border-line bg-surface/70 p-6 text-center text-sm text-muted">
+            选择一个箱子查看标签预览
+          </p>
+        ) : null}
+        <button
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-control bg-brand px-4 py-2 font-bold text-white hover:bg-brand-strong disabled:cursor-not-allowed disabled:bg-muted focus-visible:ring-2 focus-visible:ring-brand/30"
+          type="button"
+          disabled={!mobileBox || generating}
+          onClick={() => mobileBox ? void generate([mobileBox]) : undefined}
+        >
+          <AppIcon name="print" />
+          {generating ? '生成中…' : '下载单个标签'}
+        </button>
+      </section>
+    </>
   )
 
   return (
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-8" aria-labelledby="print-title">
-      <header className="flex flex-col gap-2 py-3">
-        <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">整理、预览并下载标签</p>
-        <h1 className="mb-0 text-page-title font-extrabold" id="print-title">打印二维码标签</h1>
+      <header className="flex flex-col gap-2 py-3 lg:flex-row lg:items-end lg:justify-between lg:gap-6">
+        <div className="min-w-0">
+          <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">打印中心</p>
+          <h1 className="m-0 text-page-title font-extrabold text-ink" id="print-title">
+            <span className="lg:hidden">下载箱子标签</span>
+            <span className="hidden lg:inline">打印二维码标签</span>
+          </h1>
+          <p className="mt-2 text-sm text-muted">
+            <span className="lg:hidden">移动设备每次处理一张标签</span>
+            <span className="hidden lg:block">选择箱子，预览 A4 排版并下载可打印 PDF</span>
+          </p>
+        </div>
+        <p className="hidden shrink-0 text-sm font-semibold text-muted lg:block">
+          A4 · 双列 · 已选 {selectedBoxes.length} 张
+        </p>
       </header>
-      {boxesQuery.isPending ? <PageState state="loading" label="正在加载箱子…" /> : null}
-      {boxesQuery.isError ? <PageState state="error" message="箱子加载失败，请重试" onRetry={() => void boxesQuery.refetch()} /> : null}
 
-      <section className="hidden gap-6 lg:grid lg:grid-cols-[minmax(18rem,0.75fr)_1.25fr]" aria-label="批量标签工作台">
-        <div className="flex min-w-0 flex-col gap-4">
-          <div className="flex items-center justify-between gap-3"><h2 className="mb-0 text-section-title font-bold">选择箱子</h2><span className="text-meta font-medium text-muted">已选择 {selected.size} 个</span></div>
-          <div className="grid max-h-[34rem] gap-2 overflow-y-auto pr-1">{boxesQuery.data?.map((box) => option(box, 'desktop'))}</div>
-          <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control bg-brand px-4 py-2 font-bold text-white disabled:cursor-not-allowed disabled:opacity-45" type="button" disabled={selected.size === 0 || generating} onClick={() => void generate(selected)}>
-            <AppIcon name="print" />{generating ? '生成中…' : '生成 PDF'}
+      {boxesQuery.isError && boxesQuery.data !== undefined ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
+          <p className="m-0 font-medium">箱子列表刷新失败，正在显示上次结果</p>
+          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" onClick={() => void boxesQuery.refetch()}>
+            重试
           </button>
         </div>
-
-        <div className="min-h-[32rem] rounded-card border border-line bg-surface p-6">
-          <h2 className="text-section-title font-bold">标签预览</h2>
-          {selectedBox ? (
-            <article className="mx-auto mt-8 grid max-w-2xl grid-cols-[minmax(10rem,0.9fr)_1.1fr] items-center gap-8 rounded-card border-2 border-line bg-surface p-8">
-              <div className="aspect-square overflow-hidden rounded-control bg-canvas p-3">
-                {previewQr?.boxId === selectedBox.id ? <img className="h-full w-full object-contain" src={previewQr.src} alt="二维码标签预览" /> : <span className="grid h-full place-items-center text-muted">正在生成二维码…</span>}
-              </div>
-              <div className="min-w-0"><h3 className="mb-3 text-3xl">{selectedBox.name}</h3><p className="mb-2 font-mono text-xl font-bold text-brand">{selectedBox.box_code}</p><p>{selectedBox.space_name} · {selectedBox.location || '未填写位置'}</p><p className="mt-8 text-sm">扫码查看箱内物品</p></div>
-            </article>
-          ) : (
-            <div className="grid min-h-96 place-content-center justify-items-center gap-3 text-center text-muted"><span className="grid size-16 place-items-center rounded-full bg-placeholder"><AppIcon name="print" size={28} /></span><p>选择箱子后，在这里预览标签。</p></div>
-          )}
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-4 lg:hidden" aria-label="单个标签">
-        <div><h2 className="mb-1">选择一个箱子</h2><p>移动设备每次下载一张标签。</p></div>
-        <div className="grid gap-2">{boxesQuery.data?.map((box) => option(box, 'mobile'))}</div>
-        <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-control bg-brand px-4 py-2 font-bold text-white disabled:cursor-not-allowed disabled:opacity-45" type="button" disabled={!mobileSelectedId || generating} onClick={() => void generate(new Set([mobileSelectedId]))}>
-          <AppIcon name="print" />{generating ? '生成中…' : '下载单个标签'}
-        </button>
-      </section>
-
-      {progress ? <p role="status">二维码渲染进度：{progress.completed}/{progress.total}</p> : null}
-      {error ? <p role="alert">PDF 生成失败，请重试</p> : null}
+      ) : null}
+      {content}
+      {progress ? (
+        <p className="text-sm text-muted" role="status" aria-label={`二维码渲染进度：${progress.completed}/${progress.total}`}>
+          二维码渲染进度：{progress.completed}/{progress.total}
+        </p>
+      ) : null}
+      {error ? <p className="text-sm font-medium text-danger" role="alert">PDF 生成失败，请重试</p> : null}
     </section>
   )
 }

@@ -117,15 +117,20 @@ test('owner creates, finds, labels, and maintains a public box', async ({ browse
 
   await page.goto('/app/print')
   if (testInfo.project.name === 'desktop-chromium') {
+    await expect(page.getByRole('heading', { level: 1, name: '打印二维码标签', exact: true })).toBeVisible()
     const workspace = page.getByRole('region', { name: '批量标签工作台' })
     await expect(workspace).toBeVisible()
     await workspace.getByRole('checkbox', { name: /冬季衣物/ }).check()
-    await expect(workspace.getByRole('heading', { name: '标签预览' })).toBeVisible()
-    await expect(workspace.getByRole('img', { name: '二维码标签预览' })).toBeVisible()
+    const a4Preview = workspace.getByRole('region', { name: 'A4 标签预览' })
+    await expect(a4Preview).toBeVisible()
+    await expect(a4Preview.getByTestId('a4-sheet')).toBeVisible()
+    await expect(a4Preview.getByRole('img', { name: '冬季衣物二维码' })).toBeVisible()
   } else {
-    const singleLabel = page.getByRole('region', { name: '单个标签' })
+    await expect(page.getByRole('heading', { level: 1, name: '下载箱子标签', exact: true })).toBeVisible()
+    const singleLabel = page.getByRole('region', { name: '单个标签下载' })
     await expect(singleLabel).toBeVisible()
     await singleLabel.getByRole('radio', { name: /冬季衣物/ }).check()
+    await expect(singleLabel.getByRole('region', { name: '单个标签预览' })).toBeVisible()
     await expect(singleLabel.getByRole('button', { name: '下载单个标签' })).toBeEnabled()
   }
   await expectNoHorizontalOverflow(page)
@@ -146,9 +151,22 @@ test('navigation changes exactly at the 1024px desktop breakpoint', async ({ pag
 
   await page.setViewportSize({ width: 768, height: 1024 })
   await expectMobileNavigation(page)
+  await page.setViewportSize({ width: 1024, height: 768 })
+  await expectDesktopNavigation(page)
+
+  await createSpace(page, '家')
+  await createBox(page, '断点测试箱', 'private')
+
+  await page.setViewportSize({ width: 768, height: 1024 })
+  await page.goto('/app/print')
+  await expect(page.getByRole('region', { name: '单个标签下载' })).toBeVisible()
+  await expect(page.getByRole('region', { name: '批量标签工作台' })).toBeHidden()
   await expectNoHorizontalOverflow(page)
 
   await page.setViewportSize({ width: 1024, height: 768 })
-  await expectDesktopNavigation(page)
+  await expect(page.getByRole('complementary')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: '移动端主导航' })).toBeHidden()
+  await expect(page.getByRole('region', { name: '批量标签工作台' })).toBeVisible()
+  await expect(page.getByRole('region', { name: '单个标签下载' })).toBeHidden()
   await expectNoHorizontalOverflow(page)
 })
