@@ -10,12 +10,12 @@ afterEach(cleanup)
 const boxes: BoxSummary[] = [
   {
     id: 'box-winter', public_id: 'winter-public', box_code: 'BX-001', name: '冬季衣物',
-    space_id: 'space-bedroom', space_name: '卧室', location: '衣柜上层', visibility: 'private',
+    space_id: 'space-bedroom', venue_name: '家里', space_name: '卧室', location: '衣柜上层', visibility: 'private',
     cover_object_key: null, item_count: 3, updated_at: '2026-07-30T00:00:00.000Z',
   },
   {
     id: 'box-tools', public_id: 'tools-public', box_code: 'BX-002', name: '修理工具',
-    space_id: 'space-garage', space_name: '车库', location: null, visibility: 'private',
+    space_id: 'space-garage', venue_name: '家里', space_name: '车库', location: null, visibility: 'private',
     cover_object_key: null, item_count: 5, updated_at: '2026-07-29T00:00:00.000Z',
   },
 ]

@@ -112,6 +112,7 @@ test('renders a public box for an anonymous visitor without edit controls', asyn
     description: null,
     location: '卧室',
     visibility: 'public',
+    venue_name: '家里',
     space_name: '家',
     updated_at: '2026-07-29T10:00:00Z',
     items: [
@@ -130,7 +131,7 @@ test('renders a public box for an anonymous visitor without edit controls', asyn
   expect(screen.getByText('BX-00001')).toBeInTheDocument()
   expect(screen.getByText('公开箱子')).toBeInTheDocument()
   expect(screen.getByText(/最近更新/)).toBeInTheDocument()
-  expect(screen.getByText('家 · 卧室')).toBeInTheDocument()
+  expect(screen.getByText('家里 · 家 · 卧室')).toBeInTheDocument()
   expect(screen.getByText('衣物')).toBeInTheDocument()
   expect(screen.getByText('黑色长款')).toBeInTheDocument()
   expect(screen.getAllByText('2 件')).toHaveLength(2)

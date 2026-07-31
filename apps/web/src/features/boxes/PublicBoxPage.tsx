@@ -6,6 +6,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { env } from '../../lib/env'
+import { formatStoragePath } from '../../lib/format-storage-path'
 import { useAuth } from '../auth/auth-context'
 import { ItemForm } from '../items/ItemForm'
 import { deleteItem, type ItemRecord } from '../items/items.api'
@@ -139,7 +140,7 @@ export function PublicBoxPage() {
               </span>
               <span className="rounded-full border border-line px-3 py-1.5 text-muted">最近更新 {updatedAt}</span>
             </div>
-            <p className="text-base text-muted">{box.space_name} · {box.location || '未填写位置'}</p>
+            <p className="text-base text-muted">{formatStoragePath([box.venue_name, box.space_name, box.location || '未填写位置'])}</p>
             <p className="leading-7 text-muted">{box.description || '暂无备注'}</p>
             <p className="font-extrabold text-ink">共 {totalQuantity} 件 · {box.items.length} 种物品</p>
           </div>

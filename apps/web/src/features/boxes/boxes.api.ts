@@ -23,6 +23,7 @@ export type BoxSummary = CreatedBox & {
   location: string | null
   visibility: Database['public']['Enums']['box_visibility']
   space_name: string
+  venue_name: string
   cover_object_key: string | null
   item_count: number
   updated_at: string
@@ -33,6 +34,7 @@ export type EditableBox = CreatedBox & BoxInput
 export type PublicBox = EditableBox & {
   owner_id: string
   space_name: string
+  venue_name: string
   cover_object_key: string | null
   updated_at: string
   items: ItemRecord[]
@@ -60,7 +62,7 @@ function mapOwnedBox(data: {
   visibility: Database['public']['Enums']['box_visibility']
   cover_object_key: string | null
   updated_at: string
-  spaces: { name: string }
+  spaces: { name: string; venues: { name: string } }
   items: ItemRecord[]
 }): PublicBox {
   return mapPublicBox({
@@ -76,6 +78,7 @@ function mapOwnedBox(data: {
     visibility: data.visibility,
     cover_object_key: data.cover_object_key,
     updated_at: data.updated_at,
+    venue_name: data.spaces.venues.name,
     space_name: data.spaces.name,
     items: data.items,
   })
@@ -84,7 +87,7 @@ function mapOwnedBox(data: {
 async function getOwnedBoxByPublicId(publicId: string, ownerId: string): Promise<PublicBox | null> {
   const { data, error } = await supabase
     .from('boxes')
-    .select('id, owner_id, public_id, box_code, space_id, name, category, location, description, visibility, cover_object_key, updated_at, spaces(name), items(id, name, category, quantity, description, image_object_key)')
+    .select('id, owner_id, public_id, box_code, space_id, name, category, location, description, visibility, cover_object_key, updated_at, spaces(name, venues(name)), items(id, name, category, quantity, description, image_object_key)')
     .eq('public_id', publicId)
     .eq('owner_id', ownerId)
     .single()
@@ -125,7 +128,7 @@ export async function listBoxes(): Promise<BoxSummary[]> {
 
   const { data, error } = await supabase
     .from('boxes')
-    .select('id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), spaces(name)')
+    .select('id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), spaces(name, venues(name))')
     .eq('owner_id', ownerId)
     .order('updated_at', { ascending: false })
 
@@ -139,6 +142,7 @@ export async function listBoxes(): Promise<BoxSummary[]> {
     location: box.location,
     visibility: box.visibility,
     space_name: box.spaces?.name ?? '',
+    venue_name: box.spaces?.venues?.name ?? '',
     cover_object_key: box.cover_object_key,
     item_count: box.items[0]?.count ?? 0,
     updated_at: box.updated_at,

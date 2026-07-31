@@ -329,7 +329,7 @@ test('route alignment across required viewport breakpoints', async ({ page }, te
 
   const routes = [
     { path: '/app', heading: '早上好，今天找什么？', expectShell: true },
-    { path: '/app/spaces', heading: '空间', expectShell: true },
+    { path: '/app/spaces', heading: '场地与空间', expectShell: true },
     { path: '/app/boxes', heading: '全部箱子', expectShell: true },
     { path: '/app/boxes/box-1/edit', heading: '编辑箱子', expectShell: true },
     { path: '/app/search', heading: '查找收纳', expectShell: true },

@@ -2,6 +2,8 @@ import { supabase } from '../../lib/supabase'
 
 export type SpaceSummary = {
   id: string
+  venue_id: string
+  venue_name: string
   name: string
   description: string | null
   box_count: number
@@ -9,6 +11,7 @@ export type SpaceSummary = {
 }
 
 export type SpaceInput = {
+  venue_id: string
   name: string
   description: string | null
 }
@@ -37,7 +40,7 @@ export function isLayoutStorageUnavailable(error: unknown) {
 export async function listSpaces(): Promise<SpaceSummary[]> {
   const { data, error } = await supabase
     .from('spaces')
-    .select('id, name, description, boxes(id, items(count))')
+    .select('id, venue_id, name, description, venues(name), boxes(id, items(count))')
     .order('name')
 
   if (error) throw error
@@ -47,6 +50,8 @@ export async function listSpaces(): Promise<SpaceSummary[]> {
 
     return {
       id: space.id,
+      venue_id: space.venue_id,
+      venue_name: space.venues?.name ?? '',
       name: space.name,
       description: space.description,
       box_count: boxes.length,

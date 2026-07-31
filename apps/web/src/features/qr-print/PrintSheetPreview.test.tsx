@@ -19,6 +19,7 @@ function box(index: number, overrides: Partial<BoxSummary> = {}): BoxSummary {
     box_code: `BX-${String(index).padStart(5, '0')}`,
     name: `箱子 ${index}`,
     space_id: 'space-1',
+    venue_name: '家里',
     space_name: '家',
     location: index % 2 ? '衣柜上层' : null,
     visibility: 'private',

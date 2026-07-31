@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
+import { formatStoragePath } from '../../lib/format-storage-path'
 import { listBoxes } from '../boxes/boxes.api'
 import { searchItems } from './search.api'
 
@@ -64,7 +65,7 @@ export function SearchPage() {
     if (!query) return []
     const needle = query.toLocaleLowerCase()
     return (boxesQuery.data ?? []).filter((box) => (
-      [box.name, box.box_code, box.space_name, box.location]
+      [box.name, box.box_code, box.venue_name, box.space_name, box.location]
         .some((value) => value?.toLocaleLowerCase().includes(needle))
     ))
   }, [boxesQuery.data, query])
@@ -161,7 +162,7 @@ export function SearchPage() {
                 <span className="grid size-12 shrink-0 place-items-center rounded-control bg-placeholder text-brand"><AppIcon name="box" /></span>
                 <span className="min-w-0 flex-1">
                   <strong className="block truncate">{box.name}</strong>
-                  <span className="block truncate text-sm text-muted">{box.box_code} · {box.space_name} · {box.location || '未填写位置'}</span>
+                  <span className="block truncate text-sm text-muted">{formatStoragePath([box.box_code, box.venue_name, box.space_name, box.location || '未填写位置'])}</span>
                 </span>
                 <AppIcon className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5" name="chevron-right" />
               </Link>
@@ -182,7 +183,7 @@ export function SearchPage() {
                 <span className="grid size-12 shrink-0 place-items-center rounded-control bg-brand/10 text-brand"><AppIcon name="search" /></span>
                 <span className="min-w-0 flex-1">
                   <strong className="block truncate">{result.item_name} × {result.quantity}</strong>
-                  <span className="block truncate text-sm text-muted">{result.space_name} · {result.box_name} · {result.location || '未填写位置'}</span>
+                  <span className="block truncate text-sm text-muted">{formatStoragePath([result.venue_name, result.space_name, result.box_name, result.location || '未填写位置'])}</span>
                 </span>
                 <AppIcon className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5" name="chevron-right" />
               </Link>

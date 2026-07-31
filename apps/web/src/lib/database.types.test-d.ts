@@ -3,6 +3,8 @@ import type { Database } from './database.types'
 type BoxInsert = Database['public']['Tables']['boxes']['Insert']
 type BoxUpdate = Database['public']['Tables']['boxes']['Update']
 type PublicBoxArgs = Database['public']['Functions']['get_public_box']['Args']
+type VenueInsert = Database['public']['Tables']['venues']['Insert']
+type SpaceInsert = Database['public']['Tables']['spaces']['Insert']
 
 const validBoxInsert = {
   name: '文具',
@@ -26,6 +28,15 @@ const validBoxUpdate = { name: '工具' } satisfies BoxUpdate
 const validPublicBoxArgs = {
   p_public_id: '00000000-0000-0000-0000-000000000003',
 } satisfies PublicBoxArgs
+const validVenueInsert = {
+  name: '家里',
+  owner_id: '00000000-0000-0000-0000-000000000001',
+} satisfies VenueInsert
+const validSpaceInsert = {
+  name: '卧室',
+  owner_id: '00000000-0000-0000-0000-000000000001',
+  venue_id: '00000000-0000-0000-0000-000000000004',
+} satisfies SpaceInsert
 
 const updateWithPublicId: BoxUpdate = {
   ...validBoxUpdate,
@@ -44,3 +55,5 @@ void insertWithBoxCode
 void updateWithPublicId
 void updateWithBoxCode
 void validPublicBoxArgs
+void validVenueInsert
+void validSpaceInsert

@@ -9,19 +9,19 @@ import {
 const boxes: BoxSummary[] = [
   {
     id: 'box-1', public_id: 'public-1', box_code: 'LAT-001', name: 'Apple Box',
-    space_id: 'space-kitchen', space_name: '厨房', location: 'Pantry Shelf',
+    space_id: 'space-kitchen', venue_name: '家里', space_name: '厨房', location: 'Pantry Shelf',
     visibility: 'private', cover_object_key: null, item_count: 2,
     updated_at: '2026-07-29T08:00:00Z',
   },
   {
     id: 'box-2', public_id: 'public-2', box_code: 'CN-002', name: '测试收纳箱',
-    space_id: 'space-living', space_name: '客厅', location: '电视柜',
+    space_id: 'space-living', venue_name: '家里', space_name: '客厅', location: '电视柜',
     visibility: 'private', cover_object_key: null, item_count: 7,
     updated_at: '2026-07-31T08:00:00Z',
   },
   {
     id: 'box-3', public_id: 'public-3', box_code: 'GAM-002', name: '阿尔法盒',
-    space_id: 'space-kitchen', space_name: '厨房', location: null,
+    space_id: 'space-kitchen', venue_name: '家里', space_name: '厨房', location: null,
     visibility: 'private', cover_object_key: null, item_count: 7,
     updated_at: '2026-07-30T08:00:00Z',
   },

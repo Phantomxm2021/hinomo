@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { listSpaceLayouts, listSpaces, saveSpaceLayout } from './spaces.api'
+import { createSpace, listSpaceLayouts, listSpaces, saveSpaceLayout } from './spaces.api'
 
 const { mockFrom, mockGetSession, mockLayoutSelect, mockOrder, mockSelect, mockUpsert } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
@@ -36,8 +36,10 @@ describe('spaces api', () => {
       data: [
         {
           id: 'space-1',
+          venue_id: 'venue-home',
           name: '客厅',
           description: '日常用品',
+          venues: { name: '家里' },
           boxes: [
             { id: 'box-1', items: [{ count: 2 }] },
             { id: 'box-2', items: [{ count: 3 }] },
@@ -50,6 +52,8 @@ describe('spaces api', () => {
     await expect(listSpaces()).resolves.toEqual([
       {
         id: 'space-1',
+        venue_id: 'venue-home',
+        venue_name: '家里',
         name: '客厅',
         description: '日常用品',
         box_count: 2,
@@ -57,8 +61,23 @@ describe('spaces api', () => {
       },
     ])
     expect(mockSelect).toHaveBeenCalledWith(
-      'id, name, description, boxes(id, items(count))',
+      'id, venue_id, name, description, venues(name), boxes(id, items(count))',
     )
+  })
+
+  it('creates a space in the selected venue', async () => {
+    const mockSingle = vi.fn().mockResolvedValue({ data: { id: 'space-2' }, error: null })
+    const mockInsert = vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ single: mockSingle }) })
+    mockFrom.mockImplementation((table: string) => table === 'spaces'
+      ? { select: mockSelect, insert: mockInsert }
+      : { select: mockLayoutSelect, upsert: mockUpsert })
+    mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'user-1' } } } })
+
+    await createSpace({ venue_id: 'venue-home', name: '卧室', description: null })
+
+    expect(mockInsert).toHaveBeenCalledWith({
+      owner_id: 'user-1', venue_id: 'venue-home', name: '卧室', description: null,
+    })
   })
 
   it('maps persisted percentage layouts', async () => {

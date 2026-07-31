@@ -24,6 +24,7 @@ const fallbackBox: BoxSummary = {
   name: '冬季衣物',
   space_id: 'space-1',
   space_name: '卧室',
+  venue_name: '家里',
   location: null,
   visibility: 'private',
   cover_object_key: null,
@@ -79,7 +80,7 @@ test('renders the fallback catalogue card details and primary link', () => {
   renderCard()
 
   expect(screen.getByRole('link', { name: '打开冬季衣物' })).toHaveAttribute('href', '/b/public-1')
-  expect(screen.getByText('卧室 · 未填写位置')).toBeInTheDocument()
+  expect(screen.getByText('家里 · 卧室 · 未填写位置')).toBeInTheDocument()
   expect(screen.getByText('8 件物品')).toBeInTheDocument()
   expect(screen.getByText('BX-00001')).toBeInTheDocument()
   expect(screen.getByText('私有')).toBeInTheDocument()

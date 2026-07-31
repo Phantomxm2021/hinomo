@@ -274,6 +274,7 @@ export type Database = {
           name: string
           owner_id: string
           updated_at: string
+          venue_id: string
         }
         Insert: {
           created_at?: string
@@ -282,6 +283,7 @@ export type Database = {
           name: string
           owner_id: string
           updated_at?: string
+          venue_id: string
         }
         Update: {
           created_at?: string
@@ -290,8 +292,17 @@ export type Database = {
           name?: string
           owner_id?: string
           updated_at?: string
+          venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'spaces_venue_id_fkey'
+            columns: ['venue_id']
+            isOneToOne: false
+            referencedRelation: 'venues'
+            referencedColumns: ['id']
+          },
+        ]
       }
       space_layouts: {
         Row: {
@@ -357,6 +368,33 @@ export type Database = {
           display_name?: string | null
           id?: string
           locale?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      venues: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          owner_id?: string
           updated_at?: string
         }
         Relationships: []
@@ -439,6 +477,7 @@ export type Database = {
           space_id: string
           space_name: string
           updated_at: string
+          venue_name: string
           visibility: Database['public']['Enums']['box_visibility']
         }[]
       }
@@ -461,6 +500,7 @@ export type Database = {
           location: string | null
           quantity: number
           space_name: string
+          venue_name: string
         }[]
       }
       set_updated_at: {

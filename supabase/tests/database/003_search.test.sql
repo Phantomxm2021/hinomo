@@ -7,8 +7,10 @@ select tests.create_supabase_user('search-other');
 
 select tests.authenticate_as('search-owner');
 
-insert into public.spaces (id, owner_id, name)
-values ('13000000-0000-0000-0000-000000000001', auth.uid(), 'Owner search space');
+insert into public.venues (id, owner_id, name)
+values ('03000000-0000-0000-0000-000000000001', auth.uid(), 'Owner search venue');
+insert into public.spaces (id, owner_id, venue_id, name)
+values ('13000000-0000-0000-0000-000000000001', auth.uid(), '03000000-0000-0000-0000-000000000001', 'Owner search space');
 
 insert into public.boxes (id, public_id, box_code, owner_id, space_id, name, location, visibility)
 values ('23000000-0000-0000-0000-000000000001', '33000000-0000-0000-0000-000000000001', 'SUPPLIED-SEARCH-OWNER', auth.uid(), '13000000-0000-0000-0000-000000000001', 'Owner search box', 'Studio shelf', 'public');
@@ -24,8 +26,10 @@ values
 
 select tests.authenticate_as('search-other');
 
-insert into public.spaces (id, owner_id, name)
-values ('14000000-0000-0000-0000-000000000001', auth.uid(), 'Other search space');
+insert into public.venues (id, owner_id, name)
+values ('04000000-0000-0000-0000-000000000001', auth.uid(), 'Other search venue');
+insert into public.spaces (id, owner_id, venue_id, name)
+values ('14000000-0000-0000-0000-000000000001', auth.uid(), '04000000-0000-0000-0000-000000000001', 'Other search space');
 
 insert into public.boxes (id, public_id, box_code, owner_id, space_id, name, location, visibility)
 values ('24000000-0000-0000-0000-000000000001', '34000000-0000-0000-0000-000000000001', 'SUPPLIED-SEARCH-OTHER', auth.uid(), '14000000-0000-0000-0000-000000000001', 'Other search box', 'Garage shelf', 'public');
@@ -37,7 +41,7 @@ select tests.authenticate_as('search-owner');
 
 select has_function('public', 'search_my_items', array['text'], 'search_my_items accepts text');
 select is(
-  (select row(item_id, item_name, quantity, box_id, box_public_id, box_name, space_name, location)::text
+  (select row(item_id, item_name, quantity, box_id, box_public_id, box_name, venue_name, space_name, location)::text
    from public.search_my_items('needle')
    where item_id = '43000000-0000-0000-0000-000000000001'),
   (select row(
@@ -47,6 +51,7 @@ select is(
     '23000000-0000-0000-0000-000000000001'::uuid,
     public_id,
     'Owner search box'::text,
+    'Owner search venue'::text,
     'Owner search space'::text,
     'Studio shelf'::text
   )::text

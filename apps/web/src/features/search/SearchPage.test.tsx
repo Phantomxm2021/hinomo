@@ -16,12 +16,12 @@ vi.mock('../boxes/boxes.api', () => ({ listBoxes: mockListBoxes }))
 const boxes = [
   {
     id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', name: '充电器收纳箱',
-    space_id: 'space-1', space_name: '办公室', location: '书房柜子', visibility: 'private',
+    space_id: 'space-1', venue_name: '公司', space_name: '办公室', location: '书房柜子', visibility: 'private',
     cover_object_key: null, item_count: 2, updated_at: '2026-07-29T10:00:00Z',
   },
   {
     id: 'box-2', public_id: 'public-2', box_code: 'CAMP-002', name: '露营装备',
-    space_id: 'space-2', space_name: '储藏室', location: '北侧', visibility: 'public',
+    space_id: 'space-2', venue_name: '家里', space_name: '储藏室', location: '北侧', visibility: 'public',
     cover_object_key: null, item_count: 4, updated_at: '2026-07-28T10:00:00Z',
   },
 ]
@@ -92,7 +92,7 @@ test('shows item results with a local retry when boxes initially fail', async ()
   mockSearchItems.mockResolvedValue([{
     item_id: 'item-1', item_name: 'USB-C 充电器', quantity: 2,
     box_id: 'box-1', box_public_id: 'public-1', box_name: '电子设备箱',
-    space_name: '办公室', location: '书房柜子',
+    venue_name: '公司', space_name: '办公室', location: '书房柜子',
   }])
   renderSearch('/app/search?q=充电器')
 
@@ -158,7 +158,7 @@ test('initializes from q and groups matching boxes and items', async () => {
   const boxesGroup = await screen.findByRole('region', { name: '箱子' })
   const itemsGroup = await screen.findByRole('region', { name: '物品' })
   expect(within(boxesGroup).getByText('充电器收纳箱')).toBeInTheDocument()
-  expect(within(boxesGroup).getByText('BX-00001 · 办公室 · 书房柜子')).toBeInTheDocument()
+  expect(within(boxesGroup).getByText('BX-00001 · 公司 · 办公室 · 书房柜子')).toBeInTheDocument()
   expect(within(itemsGroup).getByText('USB-C 充电器 × 2')).toBeInTheDocument()
   expect(mockSearchItems).toHaveBeenCalledWith('充电器')
 })

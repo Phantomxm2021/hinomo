@@ -5,8 +5,10 @@ create extension if not exists "basejump-supabase_test_helpers" with schema test
 select tests.create_supabase_user('public-rpc-owner');
 select tests.authenticate_as('public-rpc-owner');
 
-insert into public.spaces (id, owner_id, name)
-values ('91000000-0000-4000-8000-000000000001', auth.uid(), 'Public RPC space');
+insert into public.venues (id, owner_id, name)
+values ('90000000-0000-4000-8000-000000000001', auth.uid(), 'Public RPC venue');
+insert into public.spaces (id, owner_id, venue_id, name)
+values ('91000000-0000-4000-8000-000000000001', auth.uid(), '90000000-0000-4000-8000-000000000001', 'Public RPC space');
 
 insert into public.boxes (id, owner_id, space_id, name, visibility)
 values

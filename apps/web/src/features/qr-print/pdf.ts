@@ -1,4 +1,5 @@
 import type { BoxSummary } from '../boxes/boxes.api'
+import { formatStoragePath } from '../../lib/format-storage-path'
 import {
   PRINT_LABEL_CANVAS_PX,
   PRINT_LABEL_COLORS,
@@ -16,13 +17,13 @@ export type PrintableLabel = {
   qrUrl: string
 }
 
-type LabelSource = Pick<BoxSummary, 'public_id' | 'box_code' | 'name' | 'space_name' | 'location'>
+type LabelSource = Pick<BoxSummary, 'public_id' | 'box_code' | 'name' | 'venue_name' | 'space_name' | 'location'>
 
 export function buildLabels(boxes: LabelSource[], origin: string): PrintableLabel[] {
   return boxes.map((box) => ({
     code: box.box_code,
     name: box.name,
-    space: box.space_name,
+    space: formatStoragePath([box.venue_name, box.space_name]),
     location: box.location,
     qrUrl: boxQrUrl(origin, box.public_id),
   }))

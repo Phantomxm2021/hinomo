@@ -34,8 +34,12 @@ insert into media_cleanup_state values (
   '82000000-0000-0000-0000-000000000006'
 );
 
-insert into public.spaces (id, owner_id, name)
-select space_id, owner_id, 'Media cleanup fixtures'
+insert into public.venues (id, owner_id, name)
+select '80000000-0000-0000-0000-000000000001', owner_id, 'Media cleanup venue'
+from media_cleanup_state;
+
+insert into public.spaces (id, owner_id, venue_id, name)
+select space_id, owner_id, '80000000-0000-0000-0000-000000000001', 'Media cleanup fixtures'
 from media_cleanup_state;
 
 insert into public.boxes (

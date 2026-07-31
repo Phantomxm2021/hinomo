@@ -5,8 +5,10 @@ create extension if not exists "basejump-supabase_test_helpers" with schema test
 select tests.create_supabase_user('core-schema-owner');
 select tests.authenticate_as('core-schema-owner');
 
-insert into public.spaces(id, owner_id, name)
-values ('10000000-0000-0000-0000-000000000001', auth.uid(), 'Home');
+insert into public.venues(id, owner_id, name)
+values ('09000000-0000-0000-0000-000000000001', auth.uid(), 'Home venue');
+insert into public.spaces(id, owner_id, venue_id, name)
+values ('10000000-0000-0000-0000-000000000001', auth.uid(), '09000000-0000-0000-0000-000000000001', 'Home');
 
 insert into public.boxes(id, public_id, box_code, owner_id, space_id, name)
 values (

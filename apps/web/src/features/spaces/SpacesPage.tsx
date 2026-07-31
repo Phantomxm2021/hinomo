@@ -7,6 +7,17 @@ import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
+import { VenueEditorDialog } from '../venues/VenueEditorDialog'
+import { VenueFilterBar } from '../venues/VenueFilterBar'
+import {
+  createVenue,
+  deleteVenue,
+  isVenuesSchemaUnavailable,
+  listVenues,
+  type VenueInput,
+  type VenueSummary,
+  updateVenue,
+} from '../venues/venues.api'
 import { SpaceCard } from './SpaceCard'
 import { SpaceMap } from './SpaceMap'
 import { spaceSchema, type SpaceFormValues } from './space.schema'
@@ -37,7 +48,7 @@ function getEditorControls(dialog: HTMLElement | null) {
   if (!dialog) return []
   return Array.from(
     dialog.querySelectorAll<HTMLElement>(
-      'button:not(:disabled), input:not(:disabled), textarea:not(:disabled)',
+      'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled)',
     ),
   )
 }
@@ -57,7 +68,11 @@ export function SpacesPage() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<SpaceSummary | null>(null)
   const [layoutEditMode, setLayoutEditMode] = useState(false)
+  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null)
+  const [venueEditorOpen, setVenueEditorOpen] = useState(false)
+  const [venueEditTarget, setVenueEditTarget] = useState<VenueSummary | null>(null)
   const [view, setView] = useState<SpaceView>(getInitialView)
+  const venuesQuery = useQuery({ queryKey: ['venues'], queryFn: listVenues })
   const spacesQuery = useQuery({ queryKey: ['spaces'], queryFn: listSpaces })
   const layoutsQuery = useQuery({ queryKey: ['space-layouts'], queryFn: listSpaceLayouts })
   const createMutation = useMutation({
@@ -76,6 +91,21 @@ export function SpacesPage() {
     mutationFn: ({ id, input }: { id: string; input: Parameters<typeof updateSpace>[1] }) =>
       updateSpace(id, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['spaces'] }),
+  })
+  const createVenueMutation = useMutation({
+    mutationFn: (input: VenueInput) => createVenue(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['venues'] }),
+  })
+  const updateVenueMutation = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: VenueInput }) => updateVenue(id, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['venues'] }),
+  })
+  const deleteVenueMutation = useMutation({
+    mutationFn: (venueId: string) => deleteVenue(venueId),
+    onSuccess: async (_, venueId) => {
+      if (selectedVenueId === venueId) setSelectedVenueId(null)
+      await queryClient.invalidateQueries({ queryKey: ['venues'] })
+    },
   })
   const layoutMutation = useMutation({
     mutationFn: ({ spaceId, position }: { spaceId: string; position: SpacePosition }) => {
@@ -99,7 +129,7 @@ export function SpacesPage() {
     formState: { errors },
   } = useForm<SpaceFormValues>({
     resolver: zodResolver(spaceSchema),
-    defaultValues: { name: '', description: '' },
+    defaultValues: { venue_id: '', name: '', description: '' },
   })
   const editorPending = createMutation.isPending || updateMutation.isPending
   const layoutStorageUnavailable = isLayoutStorageUnavailable(layoutsQuery.error)
@@ -119,7 +149,7 @@ export function SpacesPage() {
     if (editorPending) return
     setEditorOpen(false)
     setEditTarget(null)
-    reset({ name: '', description: '' })
+    reset({ venue_id: '', name: '', description: '' })
     resetCreateMutation()
     resetUpdateMutation()
   }, [editorPending, reset, resetCreateMutation, resetUpdateMutation])
@@ -166,6 +196,7 @@ export function SpacesPage() {
     if (submissionPendingRef.current) return
     submissionPendingRef.current = true
     const input = {
+      venue_id: values.venue_id,
       name: values.name,
       description: values.description || null,
     }
@@ -178,7 +209,7 @@ export function SpacesPage() {
       }
       setEditorOpen(false)
       setEditTarget(null)
-      reset({ name: '', description: '' })
+      reset({ venue_id: '', name: '', description: '' })
     } catch {
       // Mutation state renders a stable Chinese error without leaking backend text.
     } finally {
@@ -193,7 +224,11 @@ export function SpacesPage() {
     createMutation.reset()
     updateMutation.reset()
     setEditTarget(space)
-    reset({ name: space.name, description: space.description ?? '' })
+    reset({
+      venue_id: space.venue_id || selectedVenueId || venuesQuery.data?.[0]?.id || '',
+      name: space.name,
+      description: space.description ?? '',
+    })
     setEditorOpen(true)
   }
 
@@ -204,7 +239,11 @@ export function SpacesPage() {
     createMutation.reset()
     updateMutation.reset()
     setEditTarget(null)
-    reset({ name: '', description: '' })
+    reset({
+      venue_id: selectedVenueId ?? venuesQuery.data?.[0]?.id ?? '',
+      name: '',
+      description: '',
+    })
     setEditorOpen(true)
   }
 
@@ -228,24 +267,86 @@ export function SpacesPage() {
     }
   }
 
+  const venues = venuesQuery.data ?? []
+  const spaces = spacesQuery.data ?? []
+  const visibleSpaces = selectedVenueId
+    ? spaces.filter((space) => space.venue_id === selectedVenueId)
+    : spaces
+  const venuePending = createVenueMutation.isPending || updateVenueMutation.isPending || deleteVenueMutation.isPending
+
+  async function saveVenue(input: VenueInput) {
+    if (venueEditTarget) {
+      await updateVenueMutation.mutateAsync({ id: venueEditTarget.id, input })
+    } else {
+      const created = await createVenueMutation.mutateAsync(input)
+      setSelectedVenueId(created.id)
+    }
+    setVenueEditorOpen(false)
+    setVenueEditTarget(null)
+  }
+
+  async function removeVenue(venue: VenueSummary) {
+    if (venue.space_count > 0) return
+    await deleteVenueMutation.mutateAsync(venue.id)
+    setVenueEditorOpen(false)
+    setVenueEditTarget(null)
+  }
+
   return (
     <section className="mx-auto grid min-w-0 w-full max-w-7xl gap-5 lg:gap-6" aria-labelledby="spaces-title">
       <header className="py-3">
         <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">整理你的收纳范围</p>
         <div className="flex items-center justify-between gap-4">
-          <h1 className="mb-0 text-page-title font-extrabold" id="spaces-title">空间</h1>
+          <h1 className="mb-0 text-page-title font-extrabold" id="spaces-title">场地与空间</h1>
           <button
             ref={headerCreateButtonRef}
             className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-brand bg-brand text-white transition hover:bg-brand-strong"
             type="button"
             aria-label="创建空间"
             title="创建空间"
+            disabled={venues.length === 0}
             onClick={beginCreate}
           >
             <AppIcon name="plus" size={20} />
           </button>
         </div>
       </header>
+
+      {venuesQuery.isPending && venuesQuery.data === undefined ? (
+        <SkeletonGroup className="flex gap-2" label="正在加载场地">
+          <Skeleton className="h-11 w-20 rounded-full" />
+          <Skeleton className="h-11 w-28 rounded-full" />
+          <Skeleton className="h-11 w-28 rounded-full" />
+        </SkeletonGroup>
+      ) : null}
+      {venuesQuery.data ? (
+        <VenueFilterBar
+          venues={venues}
+          selectedId={selectedVenueId}
+          onSelect={setSelectedVenueId}
+          onCreate={() => { setVenueEditTarget(null); setVenueEditorOpen(true) }}
+          onEdit={(venue) => { setVenueEditTarget(venue); setVenueEditorOpen(true) }}
+        />
+      ) : null}
+      {venuesQuery.isError ? (
+        <PageState
+          state="error"
+          message={isVenuesSchemaUnavailable(venuesQuery.error)
+            ? '场地功能尚未部署，请先执行 venues 数据库迁移。'
+            : '场地加载失败，请重试'}
+          onRetry={() => void venuesQuery.refetch()}
+        />
+      ) : null}
+
+      <VenueEditorDialog
+        open={venueEditorOpen}
+        venue={venueEditTarget}
+        pending={venuePending}
+        error={createVenueMutation.isError || updateVenueMutation.isError || deleteVenueMutation.isError}
+        onClose={() => { if (!venuePending) { setVenueEditorOpen(false); setVenueEditTarget(null) } }}
+        onSubmit={saveVenue}
+        onDelete={removeVenue}
+      />
 
       {editorOpen
         ? createPortal(
@@ -289,6 +390,18 @@ export function SpacesPage() {
               </button>
             </div>
             <form className="grid gap-3" onSubmit={submit} noValidate>
+              <label className="font-bold text-ink" htmlFor="space-venue">场地</label>
+              <select
+                className="min-h-12 w-full rounded-control border border-line bg-surface px-3 py-2.5 text-ink focus:border-brand"
+                id="space-venue"
+                {...register('venue_id')}
+                disabled={editorPending}
+                aria-invalid={errors.venue_id ? 'true' : undefined}
+              >
+                <option value="">请选择场地</option>
+                {venues.map((venue) => <option value={venue.id} key={venue.id}>{venue.name}</option>)}
+              </select>
+              {errors.venue_id ? <p role="alert">{errors.venue_id.message}</p> : null}
               <label className="font-bold text-ink" htmlFor="space-name">空间名称</label>
               <input
                 className="min-h-12 w-full rounded-control border border-line bg-surface px-3 py-2.5 text-ink focus:border-brand"
@@ -380,7 +493,7 @@ export function SpacesPage() {
       ) : null}
       {spacesQuery.isError ? <PageState state="error" message="空间加载失败，请重试" onRetry={() => void spacesQuery.refetch()} /> : null}
       {spacesQuery.data?.length === 0 ? (
-        <PageState state="empty" title="还没有空间" action={<button className="inline-flex min-h-12 w-full items-center justify-center rounded-control border border-brand bg-brand px-4 py-2.5 font-bold text-white hover:bg-brand-strong sm:w-auto" type="button" onClick={beginCreate}>创建第一个空间</button>} />
+        <PageState state="empty" title="还没有空间" action={venues.length ? <button className="inline-flex min-h-12 w-full items-center justify-center rounded-control border border-brand bg-brand px-4 py-2.5 font-bold text-white hover:bg-brand-strong sm:w-auto" type="button" onClick={beginCreate}>创建第一个空间</button> : <button className="inline-flex min-h-12 w-full items-center justify-center rounded-control border border-brand bg-brand px-4 py-2.5 font-bold text-white sm:w-auto" type="button" onClick={() => setVenueEditorOpen(true)}>先创建场地</button>} />
       ) : null}
       {spacesQuery.data?.length ? (
         <>
@@ -405,12 +518,12 @@ export function SpacesPage() {
           {layoutMutation.isError ? <p role="alert">布局保存失败；自动布局仍可使用</p> : null}
           {view === 'cards' ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {spacesQuery.data.map((space, index) => (
+              {visibleSpaces.map((space, index) => (
                 <SpaceCard key={space.id} space={space} index={index} onEdit={() => beginEdit(space)} onDelete={(trigger) => requestDelete(space, trigger)} />
               ))}
             </div>
           ) : (
-            <SpaceMap spaces={spacesQuery.data} layouts={layoutsQuery.data ?? []} editMode={layoutEditMode && layoutsQuery.isSuccess} onLayoutChange={(spaceId, position) => layoutMutation.mutate({ spaceId, position })} />
+            <SpaceMap spaces={visibleSpaces} layouts={layoutsQuery.data ?? []} editMode={layoutEditMode && layoutsQuery.isSuccess} onLayoutChange={(spaceId, position) => layoutMutation.mutate({ spaceId, position })} />
           )}
         </>
       ) : null}

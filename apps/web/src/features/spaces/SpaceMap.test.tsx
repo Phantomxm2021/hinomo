@@ -5,8 +5,8 @@ import { autoSpaceLayout } from './space-layout'
 import { SpaceMap } from './SpaceMap'
 
 const spaces = [
-  { id: 's1', name: '客厅', description: '日常用品', box_count: 6, item_count: 42 },
-  { id: 's2', name: '卧室', description: null, box_count: 9, item_count: 67 },
+  { id: 's1', venue_id: 'home', venue_name: '家里', name: '客厅', description: '日常用品', box_count: 6, item_count: 42 },
+  { id: 's2', venue_id: 'home', venue_name: '家里', name: '卧室', description: null, box_count: 9, item_count: 67 },
 ]
 
 afterEach(cleanup)

@@ -12,15 +12,15 @@ type TestBox = PrintBox & { marker: number }
 
 const boxes: TestBox[] = [
   {
-    id: 'box-1', name: '冬季衣物', box_code: 'BX-WARM', space_name: '家',
+    id: 'box-1', name: '冬季衣物', box_code: 'BX-WARM', venue_name: '家里', space_name: '家',
     location: '卧室衣柜上层', marker: 1,
   },
   {
-    id: 'box-2', name: '露营装备', box_code: 'camp-002', space_name: '储藏室',
+    id: 'box-2', name: '露营装备', box_code: 'camp-002', venue_name: '家里', space_name: '储藏室',
     location: null, marker: 2,
   },
   {
-    id: 'box-3', name: '文件', box_code: 'DOC-003', space_name: '书房',
+    id: 'box-3', name: '文件', box_code: 'DOC-003', venue_name: '公司', space_name: '书房',
     location: '书桌抽屉', marker: 3,
   },
 ]
@@ -30,6 +30,7 @@ describe('print model', () => {
     ['中文名称', ' 冬季 ', ['box-1']],
     ['大小写无关的编号', 'CAMP-002', ['box-2']],
     ['空间', '储藏室', ['box-2']],
+    ['场地', '公司', ['box-3']],
     ['位置', '抽屉', ['box-3']],
   ])('filters by %s with a trimmed case-insensitive query', (_field, query, ids) => {
     expect(filterPrintBoxes(boxes, query).map((box) => box.id)).toEqual(ids)

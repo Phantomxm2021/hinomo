@@ -22,6 +22,7 @@ export function SpaceCard({
           <span className="rounded-full bg-surface/75 px-3 py-1 text-meta font-bold text-ink">{space.box_count} 个箱子</span>
         </span>
         <span className="block p-5">
+          <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-brand">{space.venue_name}</span>
           <h2 className="mb-1 text-card-title font-bold">{space.name}</h2>
           <p className="min-h-6 truncate text-meta text-muted">{space.description || '未填写空间说明'}</p>
           <strong className="mt-4 block text-body font-bold text-ink">{space.item_count} 件物品</strong>

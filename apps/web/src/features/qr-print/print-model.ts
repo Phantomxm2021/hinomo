@@ -4,6 +4,7 @@ export type PrintBox = {
   id: string
   name: string
   box_code: string
+  venue_name: string
   space_name: string
   location: string | null
 }
@@ -17,7 +18,7 @@ export function filterPrintBoxes<T extends PrintBox>(boxes: readonly T[], query:
 
   if (!normalizedQuery) return [...boxes]
 
-  return boxes.filter((box) => [box.name, box.box_code, box.space_name, box.location ?? '']
+  return boxes.filter((box) => [box.name, box.box_code, box.venue_name, box.space_name, box.location ?? '']
     .some((value) => normalized(value).includes(normalizedQuery)))
 }
 

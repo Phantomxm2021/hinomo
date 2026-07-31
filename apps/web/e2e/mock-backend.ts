@@ -1,6 +1,7 @@
 import { expect, type Page, type Route } from '@playwright/test'
 
-type Space = { id: string; owner_id: string; name: string; description: string | null }
+type Venue = { id: string; owner_id: string; name: string; description: string | null }
+type Space = { id: string; owner_id: string; venue_id: string; name: string; description: string | null }
 type SpaceLayout = { space_id: string; owner_id: string; x_percent: number; y_percent: number; width_percent: number; height_percent: number }
 type Item = { id: string; box_id: string; name: string; category: string | null; quantity: number; description: string | null }
 type Box = {
@@ -17,9 +18,9 @@ type Box = {
   updated_at: string
 }
 
-export type MockState = { spaces: Space[]; spaceLayouts: SpaceLayout[]; boxes: Box[]; items: Item[] }
+export type MockState = { venues: Venue[]; spaces: Space[]; spaceLayouts: SpaceLayout[]; boxes: Box[]; items: Item[] }
 
-export const createMockState = (): MockState => ({ spaces: [], spaceLayouts: [], boxes: [], items: [] })
+export const createMockState = (): MockState => ({ venues: [], spaces: [], spaceLayouts: [], boxes: [], items: [] })
 
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
@@ -68,12 +69,43 @@ export async function installMockBackend(page: Page, state: MockState) {
         : json(route, { message: 'not authenticated' }, 401)
     }
 
+    if (url.pathname === '/rest/v1/venues') {
+      if (method === 'GET') {
+        return json(route, state.venues.filter((venue) => venue.owner_id === currentUserId).map((venue) => ({
+          id: venue.id,
+          name: venue.name,
+          description: venue.description,
+          spaces: [{ count: state.spaces.filter((space) => space.venue_id === venue.id).length }],
+        })))
+      }
+      if (method === 'POST' && currentUserId) {
+        const input = request.postDataJSON() as { name: string; description: string | null }
+        const venue = { ...input, id: `venue-${state.venues.length + 1}`, owner_id: currentUserId }
+        state.venues.push(venue)
+        return json(route, { id: venue.id }, 201)
+      }
+      if (method === 'PATCH' && currentUserId) {
+        const venueId = eqValue(url, 'id')
+        const venue = state.venues.find((candidate) => candidate.id === venueId && candidate.owner_id === currentUserId)
+        if (venue) Object.assign(venue, request.postDataJSON())
+        return json(route, null, 204)
+      }
+      if (method === 'DELETE' && currentUserId) {
+        const venueId = eqValue(url, 'id')
+        if (state.spaces.some((space) => space.venue_id === venueId)) return json(route, { code: '23503', message: 'venue is not empty' }, 409)
+        state.venues = state.venues.filter((venue) => venue.id !== venueId || venue.owner_id !== currentUserId)
+        return json(route, null, 204)
+      }
+    }
+
     if (url.pathname === '/rest/v1/spaces') {
       if (method === 'GET') {
         return json(route, state.spaces.filter((space) => space.owner_id === currentUserId).map((space) => ({
           id: space.id,
+          venue_id: space.venue_id,
           name: space.name,
           description: space.description,
+          venues: { name: state.venues.find((venue) => venue.id === space.venue_id)?.name ?? '' },
           boxes: state.boxes.filter((box) => box.space_id === space.id).map((box) => ({
             id: box.id,
             items: [{ count: state.items.filter((item) => item.box_id === box.id).length }],
@@ -81,7 +113,7 @@ export async function installMockBackend(page: Page, state: MockState) {
         })))
       }
       if (method === 'POST' && currentUserId) {
-        const input = request.postDataJSON() as { name: string; description: string | null }
+        const input = request.postDataJSON() as { venue_id: string; name: string; description: string | null }
         const space = { ...input, id: `space-${state.spaces.length + 1}`, owner_id: currentUserId }
         state.spaces.push(space)
         return json(route, { id: space.id }, 201)
@@ -134,7 +166,10 @@ export async function installMockBackend(page: Page, state: MockState) {
           return json(route, {
             ...box,
             cover_object_key: null,
-            spaces: { name: space.name },
+            spaces: {
+              name: space.name,
+              venues: { name: state.venues.find((venue) => venue.id === space.venue_id)?.name ?? '' },
+            },
             items: state.items.filter((item) => item.box_id === box.id).map((item) => ({ ...item, image_object_key: null })),
           })
         }
@@ -148,7 +183,10 @@ export async function installMockBackend(page: Page, state: MockState) {
               ...box,
               cover_object_key: null,
               items: [{ count: state.items.filter((item) => item.box_id === box.id).length }],
-              spaces: space ? { name: space.name } : null,
+              spaces: space ? {
+                name: space.name,
+                venues: { name: state.venues.find((venue) => venue.id === space.venue_id)?.name ?? '' },
+              } : null,
             }
           }))
       }
@@ -161,9 +199,11 @@ export async function installMockBackend(page: Page, state: MockState) {
       ))
       if (!box) return json(route, [])
       const space = state.spaces.find((candidate) => candidate.id === box.space_id)
+      const venue = state.venues.find((candidate) => candidate.id === space?.venue_id)
       return json(route, [{
         ...box,
         cover_object_key: null,
+        venue_name: venue?.name ?? '',
         space_name: space?.name ?? '',
         items: state.items
           .filter((item) => item.box_id === box.id)
@@ -188,6 +228,7 @@ export async function installMockBackend(page: Page, state: MockState) {
           box_public_id: box.public_id,
           box_code: box.box_code,
           location: box.location,
+          venue_name: state.venues.find((venue) => venue.id === space?.venue_id)?.name ?? '',
           space_name: space?.name ?? '',
         }]
       }))
@@ -214,7 +255,20 @@ export async function register(page: Page, email: string) {
 
 export async function createSpace(page: Page, name: string) {
   await page.goto('/app/spaces')
-  await page.getByRole('button', { name: '创建空间', exact: true }).click()
+  const createVenueButton = page.getByRole('button', { name: '先创建场地' })
+  const createSpaceButton = page.getByRole('button', { name: '创建空间', exact: true })
+  await expect.poll(async () => (
+    await createVenueButton.isVisible().catch(() => false)
+    || await createSpaceButton.isEnabled().catch(() => false)
+  )).toBe(true)
+  if (await createVenueButton.isVisible()) {
+    await createVenueButton.click()
+    const venueDialog = page.getByRole('dialog', { name: '创建场地' })
+    await venueDialog.getByLabel('场地名称').fill('家里')
+    await venueDialog.getByRole('button', { name: '创建场地' }).click()
+    await venueDialog.waitFor({ state: 'hidden' })
+  }
+  await createSpaceButton.click()
   const dialog = page.getByRole('dialog', { name: '创建空间' })
   await dialog.getByLabel('空间名称').fill(name)
   await dialog.getByRole('button', { name: '创建空间', exact: true }).click()

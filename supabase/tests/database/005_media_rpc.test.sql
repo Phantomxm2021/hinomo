@@ -63,11 +63,18 @@ values (
   '71000000-0000-0000-0000-000000000002'
 );
 
-insert into public.spaces (id, owner_id, name)
-select owner_space_id, owner_id, 'Media RPC owner space'
+insert into public.venues (id, owner_id, name)
+select '50000000-0000-0000-0000-000000000001', owner_id, 'Media RPC owner venue'
 from media_rpc_state
 union all
-select other_space_id, other_id, 'Media RPC other space'
+select '50000000-0000-0000-0000-000000000002', other_id, 'Media RPC other venue'
+from media_rpc_state;
+
+insert into public.spaces (id, owner_id, venue_id, name)
+select owner_space_id, owner_id, '50000000-0000-0000-0000-000000000001', 'Media RPC owner space'
+from media_rpc_state
+union all
+select other_space_id, other_id, '50000000-0000-0000-0000-000000000002', 'Media RPC other space'
 from media_rpc_state;
 
 insert into public.boxes (id, owner_id, space_id, name, visibility)

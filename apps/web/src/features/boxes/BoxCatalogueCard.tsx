@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
+import { formatStoragePath } from '../../lib/format-storage-path'
 import { AuthorizedImage } from '../media/AuthorizedImage'
 import type { BoxSummary } from './boxes.api'
 import { BoxCardMenu } from './BoxCardMenu'
@@ -41,7 +42,7 @@ export function BoxCatalogueCard({ box, menuOpen, onMenuToggle, onMenuClose, onD
 
       <div className="flex flex-1 flex-col gap-2 p-4">
         <h2 className="truncate text-card-title font-bold text-ink">{box.name}</h2>
-        <p className="truncate text-sm text-muted">{box.space_name} · {box.location || '未填写位置'}</p>
+        <p className="truncate text-sm text-muted">{formatStoragePath([box.venue_name, box.space_name, box.location || '未填写位置'])}</p>
         <div className="mt-auto flex items-center justify-between gap-3 pt-2 text-sm">
           <span className="font-bold text-ink">{box.item_count} 件物品</span>
           <span className="font-mono text-xs font-extrabold text-brand">{box.box_code}</span>

@@ -23,11 +23,11 @@ vi.mock('./pdf', async (importOriginal) => {
 
 const boxes: BoxSummary[] = [{
   id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', name: '冬季衣物',
-  space_id: 'space-1', space_name: '家', location: '衣柜上层', visibility: 'private',
+  space_id: 'space-1', venue_name: '家里', space_name: '家', location: '衣柜上层', visibility: 'private',
   cover_object_key: null, item_count: 8, updated_at: '2026-07-29T10:00:00Z',
 }, {
   id: 'box-2', public_id: 'public-2', box_code: 'BX-00002', name: '露营装备',
-  space_id: 'space-2', space_name: '储藏室', location: null, visibility: 'public',
+  space_id: 'space-2', venue_name: '家里', space_name: '储藏室', location: null, visibility: 'public',
   cover_object_key: null, item_count: 4, updated_at: '2026-07-28T10:00:00Z',
 }]
 

@@ -8,15 +8,19 @@ import { AppShell } from '../../app/AppShell'
 import { AuthProvider } from '../../features/auth/AuthProvider'
 import { SpacesPage } from './SpacesPage'
 
-const { mockCreateSpace, mockDeleteSpace, mockListSpaceLayouts, mockListSpaces, mockSaveSpaceLayout, mockStorageGetItem, mockStorageSetItem, mockUpdateSpace } = vi.hoisted(() => ({
+const { mockCreateSpace, mockCreateVenue, mockDeleteSpace, mockDeleteVenue, mockListSpaceLayouts, mockListSpaces, mockListVenues, mockSaveSpaceLayout, mockStorageGetItem, mockStorageSetItem, mockUpdateSpace, mockUpdateVenue } = vi.hoisted(() => ({
   mockCreateSpace: vi.fn(),
+  mockCreateVenue: vi.fn(),
   mockDeleteSpace: vi.fn(),
+  mockDeleteVenue: vi.fn(),
   mockListSpaceLayouts: vi.fn(),
   mockListSpaces: vi.fn(),
+  mockListVenues: vi.fn(),
   mockSaveSpaceLayout: vi.fn(),
   mockStorageGetItem: vi.fn(),
   mockStorageSetItem: vi.fn(),
   mockUpdateSpace: vi.fn(),
+  mockUpdateVenue: vi.fn(),
 }))
 
 vi.mock('./spaces.api', () => ({
@@ -27,6 +31,14 @@ vi.mock('./spaces.api', () => ({
   isLayoutStorageUnavailable: (error: unknown) => Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'LAYOUT_STORAGE_UNAVAILABLE'),
   saveSpaceLayout: mockSaveSpaceLayout,
   updateSpace: mockUpdateSpace,
+}))
+
+vi.mock('../venues/venues.api', () => ({
+  createVenue: mockCreateVenue,
+  deleteVenue: mockDeleteVenue,
+  listVenues: mockListVenues,
+  updateVenue: mockUpdateVenue,
+  isVenuesSchemaUnavailable: (error: unknown) => Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'VENUES_SCHEMA_UNAVAILABLE'),
 }))
 
 function renderSpaces() {
@@ -59,13 +71,20 @@ function deferred<T>() {
 
 beforeEach(() => {
   mockCreateSpace.mockReset()
+  mockCreateVenue.mockReset()
   mockDeleteSpace.mockReset()
+  mockDeleteVenue.mockReset()
   mockListSpaceLayouts.mockReset()
   mockListSpaces.mockReset()
+  mockListVenues.mockReset()
   mockSaveSpaceLayout.mockReset()
   mockStorageGetItem.mockReset()
   mockStorageSetItem.mockReset()
   mockUpdateSpace.mockReset()
+  mockUpdateVenue.mockReset()
+  mockListVenues.mockResolvedValue([
+    { id: 'venue-home', name: '家里', description: null, space_count: 0 },
+  ])
   mockListSpaceLayouts.mockResolvedValue([])
   mockSaveSpaceLayout.mockResolvedValue(undefined)
   mockStorageGetItem.mockReturnValue(null)
@@ -139,6 +158,26 @@ test('keeps the create editor closed until the prominent action is used', async 
   expect(within(dialog).getByLabelText('描述（可选）')).toHaveValue('')
 })
 
+test('filters by venue and defaults a new space to the selected venue', async () => {
+  const user = userEvent.setup()
+  mockListVenues.mockResolvedValue([
+    { id: 'venue-home', name: '家里', description: null, space_count: 1 },
+    { id: 'venue-office', name: '公司', description: null, space_count: 1 },
+  ])
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', venue_id: 'venue-home', venue_name: '家里', name: '卧室', description: null, box_count: 0, item_count: 0 },
+    { id: 's2', venue_id: 'venue-office', venue_name: '公司', name: '会议室', description: null, box_count: 0, item_count: 0 },
+  ])
+  renderSpaces()
+
+  await user.click(await screen.findByRole('button', { name: '公司，1 个空间' }))
+  expect(screen.getByRole('heading', { name: '会议室' })).toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: '卧室' })).not.toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: '创建空间' }))
+  expect(screen.getByLabelText('场地')).toHaveValue('venue-office')
+})
+
 test('keeps the mobile create action compact and aligned with the space title', async () => {
   const user = userEvent.setup()
   mockListSpaces.mockResolvedValue([])
@@ -147,7 +186,7 @@ test('keeps the mobile create action compact and aligned with the space title', 
   await screen.findByText('还没有空间')
   const headerCreate = screen.getByRole('button', { name: '创建空间' })
   const emptyCreate = screen.getByRole('button', { name: '创建第一个空间' })
-  const title = screen.getByRole('heading', { name: '空间', level: 1 })
+  const title = screen.getByRole('heading', { name: '场地与空间', level: 1 })
   expect(title.parentElement).toContainElement(headerCreate)
   expect(title.parentElement).toHaveClass('flex', 'items-center', 'justify-between')
   expect(headerCreate).toHaveClass('size-11', 'shrink-0')
@@ -214,6 +253,7 @@ test('creates a space, closes the editor, and resets it for the next create', as
   )
 
   expect(mockCreateSpace).toHaveBeenCalledWith({
+    venue_id: 'venue-home',
     name: '家',
     description: null,
   })
@@ -324,6 +364,7 @@ test('opens the edit panel with populated values, then updates and resets it', a
   await user.click(screen.getByRole('button', { name: '保存空间' }))
 
   expect(mockUpdateSpace).toHaveBeenCalledWith('s1', {
+    venue_id: 'venue-home',
     name: '新家',
     description: '搬家后',
   })

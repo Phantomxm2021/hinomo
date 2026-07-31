@@ -48,7 +48,7 @@ describe('boxes api', () => {
           cover_object_key: 'users/u/boxes/b/cover.webp',
           updated_at: '2026-07-30T08:00:00Z',
           items: [{ count: 3 }],
-          spaces: { name: '客厅' },
+          spaces: { name: '客厅', venues: { name: '家里' } },
         },
       ],
       error: null,
@@ -64,13 +64,14 @@ describe('boxes api', () => {
         location: '衣柜顶层',
         visibility: 'private',
         space_name: '客厅',
+        venue_name: '家里',
         cover_object_key: 'users/u/boxes/b/cover.webp',
         item_count: 3,
         updated_at: '2026-07-30T08:00:00Z',
       },
     ])
     expect(mockSelect).toHaveBeenCalledWith(
-      'id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), spaces(name)',
+      'id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), spaces(name, venues(name))',
     )
     expect(mockEq).toHaveBeenCalledWith('owner_id', 'user-1')
   })
@@ -121,6 +122,7 @@ describe('boxes api', () => {
         cover_object_key: null,
         updated_at: '2026-07-30T08:00:00Z',
         space_name: '客厅',
+        venue_name: '家里',
         items: [],
       }],
       error: null,
@@ -146,13 +148,13 @@ describe('boxes api', () => {
         id: 'box-private', owner_id: 'user-1', public_id: 'private-1', box_code: 'B002',
         space_id: 'space-1', name: '证件箱', category: null, location: null,
         description: null, visibility: 'private', cover_object_key: null,
-        updated_at: '2026-07-30T08:00:00Z', spaces: { name: '书房' }, items: [],
+        updated_at: '2026-07-30T08:00:00Z', spaces: { name: '书房', venues: { name: '家里' } }, items: [],
       },
       error: null,
     })
 
     await expect(getBoxByPublicId('private-1')).resolves.toMatchObject({
-      id: 'box-private', visibility: 'private', space_name: '书房',
+      id: 'box-private', visibility: 'private', venue_name: '家里', space_name: '书房',
     })
     expect(mockEq).toHaveBeenNthCalledWith(1, 'public_id', 'private-1')
     expect(mockEq).toHaveBeenNthCalledWith(2, 'owner_id', 'user-1')

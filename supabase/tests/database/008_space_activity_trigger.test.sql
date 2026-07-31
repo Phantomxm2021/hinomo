@@ -5,9 +5,12 @@ create extension if not exists "basejump-supabase_test_helpers" with schema test
 select tests.create_supabase_user('space-audit-owner');
 select tests.authenticate_as('space-audit-owner');
 
+insert into public.venues (id, owner_id, name)
+values ('05000000-0000-0000-0000-000000000001', auth.uid(), 'Audit venue');
+
 select lives_ok(
-  $$insert into public.spaces (id, owner_id, name)
-    values ('15000000-0000-0000-0000-000000000001', auth.uid(), 'Audited space')$$,
+  $$insert into public.spaces (id, owner_id, venue_id, name)
+    values ('15000000-0000-0000-0000-000000000001', auth.uid(), '05000000-0000-0000-0000-000000000001', 'Audited space')$$,
   'creating a space does not access a nonexistent box_id field'
 );
 select is(

@@ -7,8 +7,10 @@ select tests.create_supabase_user('rls-other');
 
 select tests.authenticate_as('rls-owner');
 
-insert into public.spaces (id, owner_id, name, updated_at)
-values ('11000000-0000-0000-0000-000000000001', auth.uid(), 'Owner space', '2000-01-01 00:00:00+00');
+insert into public.venues (id, owner_id, name)
+values ('01000000-0000-0000-0000-000000000001', auth.uid(), 'Owner venue');
+insert into public.spaces (id, owner_id, venue_id, name, updated_at)
+values ('11000000-0000-0000-0000-000000000001', auth.uid(), '01000000-0000-0000-0000-000000000001', 'Owner space', '2000-01-01 00:00:00+00');
 
 insert into public.boxes (id, public_id, box_code, owner_id, space_id, name, location, visibility, updated_at)
 values
@@ -22,8 +24,10 @@ values
 
 select tests.authenticate_as('rls-other');
 
-insert into public.spaces (id, owner_id, name)
-values ('12000000-0000-0000-0000-000000000001', auth.uid(), 'Other space');
+insert into public.venues (id, owner_id, name)
+values ('02000000-0000-0000-0000-000000000001', auth.uid(), 'Other venue');
+insert into public.spaces (id, owner_id, venue_id, name)
+values ('12000000-0000-0000-0000-000000000001', auth.uid(), '02000000-0000-0000-0000-000000000001', 'Other space');
 
 insert into public.boxes (id, public_id, box_code, owner_id, space_id, name, visibility)
 values ('22000000-0000-0000-0000-000000000001', '32000000-0000-0000-0000-000000000001', 'SUPPLIED-OTHER', auth.uid(), '12000000-0000-0000-0000-000000000001', 'Other box', 'private');
