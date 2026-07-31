@@ -301,7 +301,9 @@ test('navigation changes exactly at the 1024px desktop breakpoint', async ({ pag
   await expectNoHorizontalOverflow(page)
 })
 
-test('route alignment across required viewport breakpoints', async ({ page }) => {
+test('route alignment across required viewport breakpoints', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'the test covers all required viewports internally')
+  test.setTimeout(60_000)
   const state = createMockState()
   await installMockBackend(page, state)
   await register(page, 'owner@example.com')

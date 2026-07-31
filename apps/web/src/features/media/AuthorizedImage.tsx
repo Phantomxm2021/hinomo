@@ -38,7 +38,7 @@ export function AuthorizedImage({ objectKey, alt, className }: AuthorizedImagePr
       {query.isError ? (
         <span className="absolute right-1 bottom-1 z-20 rounded-control bg-surface/95 p-1 text-xs text-danger shadow-sm" role="alert">
           <span className="sr-only">图片刷新失败，正在显示缓存图片</span>
-          <button className="min-h-8 rounded-control border border-danger/30 px-2 font-bold" type="button" aria-label="重试加载图片" onClick={() => void query.refetch()}>重试</button>
+          <button className="min-h-8 rounded-control border border-danger/30 px-2 font-bold" type="button" disabled={query.isFetching} aria-busy={query.isFetching} aria-label={query.isFetching ? '重试中…' : '重试加载图片'} onClick={() => void query.refetch()}>{query.isFetching ? '重试中…' : '重试'}</button>
         </span>
       ) : null}
     </span>

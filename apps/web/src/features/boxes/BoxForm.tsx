@@ -38,6 +38,9 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
   const updateMutation = useMutation({
     mutationFn: (input: Parameters<typeof updateBox>[1]) => updateBox(boxId!, input),
   })
+  const resetMediaUpload = mediaUpload.reset
+  const resetCreateMutation = createMutation.reset
+  const resetUpdateMutation = updateMutation.reset
   const {
     register,
     handleSubmit,
@@ -63,7 +66,14 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
 
   useEffect(() => {
     initializedBoxId.current = undefined
-  }, [boxId])
+    setCoverFile(null)
+    setSaved(false)
+    setMediaError(false)
+    setPendingBox(null)
+    resetMediaUpload()
+    resetCreateMutation()
+    resetUpdateMutation()
+  }, [boxId, resetCreateMutation, resetMediaUpload, resetUpdateMutation])
 
   useEffect(() => {
     if (!boxId || !boxQuery.data || initializedBoxId.current === boxId) return
@@ -182,13 +192,13 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
       {spacesQuery.isError ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
           <p className="m-0 font-medium">空间刷新失败，正在显示上次结果</p>
-          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" onClick={() => void spacesQuery.refetch()}>重试</button>
+          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" disabled={spacesQuery.isFetching} aria-busy={spacesQuery.isFetching} onClick={() => void spacesQuery.refetch()}>{spacesQuery.isFetching ? '重试中…' : '重试'}</button>
         </div>
       ) : null}
       {editing && boxQuery.isError ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
           <p className="m-0 font-medium">箱子刷新失败，正在显示上次内容</p>
-          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" onClick={() => void boxQuery.refetch()}>重试</button>
+          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" disabled={boxQuery.isFetching} aria-busy={boxQuery.isFetching} onClick={() => void boxQuery.refetch()}>{boxQuery.isFetching ? '重试中…' : '重试'}</button>
         </div>
       ) : null}
       <form className={`grid gap-3 [&_label]:font-bold [&_label]:text-ink ${presentation === 'page' ? 'rounded-shell border border-line bg-surface p-5 md:p-6' : ''}`} onSubmit={submit} noValidate>
@@ -214,6 +224,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
 
         <label htmlFor="box-cover">箱子封面（可选）</label>
         <input
+          key={boxId ?? 'create'}
           className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 py-2 text-ink file:mr-3 file:rounded-lg file:border-0 file:bg-placeholder file:px-3 file:py-2 file:font-bold file:text-ink"
           id="box-cover"
           type="file"

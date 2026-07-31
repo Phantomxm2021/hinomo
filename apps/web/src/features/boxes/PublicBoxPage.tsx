@@ -114,7 +114,7 @@ export function PublicBoxPage() {
       {boxQuery.isError ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
           <p className="m-0 font-medium">箱子刷新失败，正在显示上次内容</p>
-          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" onClick={() => void boxQuery.refetch()}>重试</button>
+          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" disabled={boxQuery.isFetching} aria-busy={boxQuery.isFetching} onClick={() => void boxQuery.refetch()}>{boxQuery.isFetching ? '重试中…' : '重试'}</button>
         </div>
       ) : null}
       <section className="grid gap-6 rounded-shell border border-line bg-surface p-5 md:grid-cols-[minmax(16rem,0.8fr)_1.2fr]">

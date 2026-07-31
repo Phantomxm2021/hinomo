@@ -1,11 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { AuthorizedImage } from './AuthorizedImage'
 
 const { mockCreateDownload } = vi.hoisted(() => ({ mockCreateDownload: vi.fn() }))
 vi.mock('./media.api', () => ({ createMediaDownload: mockCreateDownload }))
+beforeEach(() => {
+  mockCreateDownload.mockReset()
+})
 afterEach(cleanup)
 
 test('keeps media dimensions stable with a named skeleton while authorizing', () => {
@@ -61,7 +64,10 @@ test('keeps a cached image and its geometry while a refetch fails', async () => 
     download_url: 'https://r2.example/cached-image',
     expires_at: '2026-07-30T12:00:00Z',
   }, { updatedAt: 1 })
-  mockCreateDownload.mockRejectedValue(new Error('network'))
+  mockCreateDownload
+    .mockRejectedValueOnce(new Error('network'))
+    .mockRejectedValueOnce(new Error('network'))
+    .mockReturnValueOnce(new Promise(() => undefined))
   render(
     <QueryClientProvider client={client}>
       <AuthorizedImage objectKey="users/u/image.webp" alt="箱子封面" className="block h-full w-full object-cover" />
@@ -74,5 +80,9 @@ test('keeps a cached image and its geometry while a refetch fails', async () => 
   const alert = await screen.findByRole('alert', {}, { timeout: 4_000 })
   expect(alert.parentElement).toHaveClass('relative', 'h-full', 'w-full')
   await user.click(within(alert).getByRole('button', { name: '重试加载图片' }))
-  await waitFor(() => expect(mockCreateDownload.mock.calls.length).toBeGreaterThanOrEqual(3))
+  const retrying = within(alert).getByRole('button', { name: '重试中…' })
+  expect(retrying).toBeDisabled()
+  expect(retrying).toHaveAttribute('aria-busy', 'true')
+  await user.click(retrying)
+  await waitFor(() => expect(mockCreateDownload).toHaveBeenCalledTimes(3))
 })

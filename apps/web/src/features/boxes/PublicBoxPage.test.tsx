@@ -88,13 +88,17 @@ test('keeps cached public-box details visible when a refetch fails', async () =>
   }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   client.setQueryData(['box', 'public-1'], cachedBox)
-  mockGetBoxByPublicId.mockRejectedValue(new Error('network'))
+  mockGetBoxByPublicId.mockRejectedValueOnce(new Error('network')).mockReturnValueOnce(new Promise(() => undefined))
   renderPublicBox(null, client)
 
   expect(await screen.findByRole('heading', { name: '缓存工具箱' })).toBeInTheDocument()
   const alert = await screen.findByRole('alert')
   expect(alert).toHaveTextContent('箱子刷新失败，正在显示上次内容')
   await user.click(within(alert).getByRole('button', { name: '重试' }))
+  const retrying = within(alert).getByRole('button', { name: '重试中…' })
+  expect(retrying).toBeDisabled()
+  expect(retrying).toHaveAttribute('aria-busy', 'true')
+  await user.click(retrying)
   expect(mockGetBoxByPublicId).toHaveBeenCalledTimes(2)
 })
 

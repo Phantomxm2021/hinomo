@@ -56,10 +56,11 @@ export function SearchPage() {
     (resultsQuery.isPending && resultsQuery.data === undefined)
     || (boxesQuery.isPending && boxesQuery.data === undefined)
   )
-  const hasInitialError = (resultsQuery.isError && resultsQuery.data === undefined)
-    || (boxesQuery.isError && boxesQuery.data === undefined)
-  const hasCachedError = !hasInitialError && (resultsQuery.isError || boxesQuery.isError)
-  const noResults = query && !isLoading && !hasInitialError && matchingBoxes.length === 0 && items.length === 0
+  const boxesInitialError = boxesQuery.isError && boxesQuery.data === undefined
+  const itemsInitialError = resultsQuery.isError && resultsQuery.data === undefined
+  const bothInitialError = boxesInitialError && itemsInitialError
+  const noResults = query && !isLoading && !boxesQuery.isError && !resultsQuery.isError
+    && matchingBoxes.length === 0 && items.length === 0
 
   return (
     <section className="mx-auto flex min-w-0 w-full max-w-5xl flex-col gap-5 lg:gap-8" aria-labelledby="search-title">
@@ -107,15 +108,21 @@ export function SearchPage() {
           ))}
         </SkeletonGroup>
       ) : null}
-      {hasInitialError ? <PageState state="error" message="搜索失败，请重试" onRetry={() => void Promise.all([boxesQuery.refetch(), resultsQuery.refetch()])} /> : null}
-      {hasCachedError ? (
+      {bothInitialError ? <PageState state="error" message="搜索失败，请重试" onRetry={() => void Promise.all([boxesQuery.refetch(), resultsQuery.refetch()])} /> : null}
+      {!bothInitialError && boxesQuery.isError ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
-          <p className="m-0 font-medium">搜索刷新失败，正在显示上次结果</p>
-          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" onClick={() => void Promise.all([boxesQuery.refetch(), resultsQuery.refetch()])}>重试</button>
+          <p className="m-0 font-medium">{boxesInitialError ? '箱子结果加载失败' : '箱子结果刷新失败，正在显示上次结果'}</p>
+          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" disabled={boxesQuery.isFetching} aria-busy={boxesQuery.isFetching} onClick={() => void boxesQuery.refetch()}>{boxesQuery.isFetching ? '重试中…' : '重试'}</button>
+        </div>
+      ) : null}
+      {!bothInitialError && resultsQuery.isError ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
+          <p className="m-0 font-medium">{itemsInitialError ? '物品结果加载失败' : '物品结果刷新失败，正在显示上次结果'}</p>
+          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" disabled={resultsQuery.isFetching} aria-busy={resultsQuery.isFetching} onClick={() => void resultsQuery.refetch()}>{resultsQuery.isFetching ? '重试中…' : '重试'}</button>
         </div>
       ) : null}
 
-      {!isLoading && !hasInitialError && matchingBoxes.length > 0 ? (
+      {!isLoading && !boxesInitialError && matchingBoxes.length > 0 ? (
         <section aria-labelledby="box-results-title">
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <h2 className="mb-0 text-section-title font-bold" id="box-results-title">箱子</h2>
@@ -136,7 +143,7 @@ export function SearchPage() {
         </section>
       ) : null}
 
-      {!isLoading && !hasInitialError && items.length > 0 ? (
+      {!isLoading && !itemsInitialError && items.length > 0 ? (
         <section aria-labelledby="item-results-title">
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <h2 className="mb-0 text-section-title font-bold" id="item-results-title">物品</h2>

@@ -6,13 +6,14 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { BoxFormPage } from './BoxFormPage'
 import { BoxForm } from './BoxForm'
 
-const { mockCreateBox, mockGetBox, mockListSpaces, mockBoxQrPng, mockUpdateBox, mockUpload } = vi.hoisted(() => ({
+const { mockCreateBox, mockGetBox, mockListSpaces, mockBoxQrPng, mockUpdateBox, mockUpload, mockUploadReset } = vi.hoisted(() => ({
   mockCreateBox: vi.fn(),
   mockGetBox: vi.fn(),
   mockListSpaces: vi.fn(),
   mockBoxQrPng: vi.fn(),
   mockUpdateBox: vi.fn(),
   mockUpload: vi.fn(),
+  mockUploadReset: vi.fn(),
 }))
 
 vi.mock('./boxes.api', () => ({
@@ -26,7 +27,7 @@ vi.mock('../qr-print/qr', () => ({
   boxQrPng: mockBoxQrPng,
 }))
 vi.mock('../media/useMediaUpload', () => ({
-  useMediaUpload: () => ({ stage: 'idle', upload: mockUpload, reset: vi.fn() }),
+  useMediaUpload: () => ({ stage: 'idle', upload: mockUpload, reset: mockUploadReset }),
 }))
 
 function renderBoxForm(initialEntry = '/app/boxes/new', client = new QueryClient({
@@ -94,6 +95,7 @@ beforeEach(() => {
   mockBoxQrPng.mockReset()
   mockUpdateBox.mockReset()
   mockUpload.mockReset()
+  mockUploadReset.mockReset()
 })
 
 test('uploads a selected cover before completing box creation', async () => {
@@ -212,7 +214,7 @@ test('can finish a pending box without its failed cover upload', async () => {
 
 test('offers a retry when spaces cannot be loaded', async () => {
   const user = userEvent.setup()
-  mockListSpaces.mockRejectedValue(new Error('network'))
+  mockListSpaces.mockRejectedValueOnce(new Error('network')).mockReturnValueOnce(new Promise(() => undefined))
   renderBoxForm()
 
   expect(await screen.findByRole('alert')).toHaveTextContent('空间加载失败')
@@ -226,7 +228,7 @@ test('keeps form values visible when cached spaces fail to refetch', async () =>
   client.setQueryData(['spaces'], [
     { id: 'space-home', name: '家', description: null, box_count: 0 },
   ])
-  mockListSpaces.mockRejectedValue(new Error('network'))
+  mockListSpaces.mockRejectedValueOnce(new Error('network')).mockReturnValueOnce(new Promise(() => undefined))
   renderBoxForm('/app/boxes/new', client)
 
   await user.selectOptions(screen.getByLabelText('空间'), 'space-home')
@@ -235,6 +237,10 @@ test('keeps form values visible when cached spaces fail to refetch', async () =>
   expect(alert).toHaveTextContent('空间刷新失败，正在显示上次结果')
   expect(screen.getByLabelText('箱子名称')).toHaveValue('保留中的填写')
   await user.click(within(alert).getByRole('button', { name: '重试' }))
+  const retrying = within(alert).getByRole('button', { name: '重试中…' })
+  expect(retrying).toBeDisabled()
+  expect(retrying).toHaveAttribute('aria-busy', 'true')
+  await user.click(retrying)
   expect(mockListSpaces).toHaveBeenCalledTimes(2)
 })
 
@@ -250,7 +256,7 @@ test('keeps edited values visible when the cached box fails to refetch', async (
   ])
   client.setQueryData(['box-edit', 'box-1'], cachedBox)
   mockListSpaces.mockResolvedValue(client.getQueryData(['spaces']))
-  mockGetBox.mockRejectedValue(new Error('network'))
+  mockGetBox.mockRejectedValueOnce(new Error('network')).mockReturnValueOnce(new Promise(() => undefined))
   renderBoxForm('/app/boxes/box-1/edit', client)
 
   const nameInput = await screen.findByDisplayValue('旧名称')
@@ -260,7 +266,39 @@ test('keeps edited values visible when the cached box fails to refetch', async (
   expect(alert).toHaveTextContent('箱子刷新失败，正在显示上次内容')
   expect(nameInput).toHaveValue('用户未保存的名称')
   await user.click(within(alert).getByRole('button', { name: '重试' }))
+  const retrying = within(alert).getByRole('button', { name: '重试中…' })
+  expect(retrying).toBeDisabled()
+  expect(retrying).toHaveAttribute('aria-busy', 'true')
+  await user.click(retrying)
   expect(mockGetBox).toHaveBeenCalledTimes(2)
+})
+
+test('clears saved state and a selected cover when switching boxes', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([{ id: 'space-home', name: '家', description: null, box_count: 2 }])
+  mockGetBox.mockImplementation(async (id: string) => ({
+    id, public_id: `public-${id}`, box_code: id === 'box-1' ? 'BX-00001' : 'BX-00002',
+    space_id: 'space-home', name: id === 'box-1' ? '第一个箱子' : '第二个箱子',
+    category: null, location: null, description: null, visibility: 'private',
+  }))
+  mockUpdateBox.mockResolvedValue(undefined)
+  mockUpload.mockResolvedValue('cover.webp')
+  renderBoxForm('/app/boxes/box-1/edit')
+
+  await screen.findByDisplayValue('第一个箱子')
+  const cover = new File(['cover'], 'box-1.png', { type: 'image/png' })
+  await user.upload(screen.getByLabelText('箱子封面（可选）'), cover)
+  await user.click(screen.getByRole('button', { name: '保存修改' }))
+  expect(await screen.findByText('修改已保存')).toBeInTheDocument()
+  expect(mockUpload).toHaveBeenCalledWith({ file: cover, boxId: 'box-1', itemId: null, kind: 'cover' })
+
+  await user.click(screen.getByRole('button', { name: '切换箱子' }))
+  expect(await screen.findByDisplayValue('第二个箱子')).toBeInTheDocument()
+  expect(screen.queryByText('修改已保存')).not.toBeInTheDocument()
+  expect(screen.getByLabelText('箱子封面（可选）')).toHaveValue('')
+  await user.click(screen.getByRole('button', { name: '保存修改' }))
+  await waitFor(() => expect(mockUpdateBox).toHaveBeenLastCalledWith('box-2', expect.any(Object)))
+  expect(mockUpload).toHaveBeenCalledTimes(1)
 })
 
 test('preserves user edits when retrying a cached box returns a new object', async () => {
