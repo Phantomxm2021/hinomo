@@ -2,18 +2,27 @@ import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { Session } from '@supabase/supabase-js'
 import { AuthProvider } from '../features/auth/AuthProvider'
 import { AppShell } from './AppShell'
 
+const { mockGetAvatarDownload, mockGetProfile } = vi.hoisted(() => ({
+  mockGetAvatarDownload: vi.fn(),
+  mockGetProfile: vi.fn(),
+}))
+
 vi.mock('../features/profile/profile.api', () => ({
-  getProfile: vi.fn().mockResolvedValue({ id: 'user-1', display_name: '林家', avatar_object_key: null, locale: 'zh-CN' }),
-  getAvatarDownload: vi.fn().mockResolvedValue(null),
+  getProfile: mockGetProfile,
+  getAvatarDownload: mockGetAvatarDownload,
   updateLocale: vi.fn(),
   uploadAvatar: vi.fn(),
 }))
 
+beforeEach(() => {
+  mockGetProfile.mockReset().mockResolvedValue({ id: 'user-1', display_name: '林家', avatar_object_key: null, locale: 'zh-CN' })
+  mockGetAvatarDownload.mockReset().mockResolvedValue(null)
+})
 afterEach(cleanup)
 
 test('announces offline state and clears it when connectivity returns', () => {
@@ -22,7 +31,7 @@ test('announces offline state and clears it when connectivity returns', () => {
   expect(screen.queryByText('当前离线，部分操作可能不可用')).not.toBeInTheDocument()
 
   act(() => window.dispatchEvent(new Event('offline')))
-  expect(screen.getByRole('status')).toHaveTextContent('当前离线，部分操作可能不可用')
+  expect(screen.getByRole('status', { name: '' })).toHaveTextContent('当前离线，部分操作可能不可用')
 
   act(() => window.dispatchEvent(new Event('online')))
   expect(screen.queryByText('当前离线，部分操作可能不可用')).not.toBeInTheDocument()
