@@ -230,20 +230,21 @@ export function SpacesPage() {
 
   return (
     <section className="mx-auto grid min-w-0 w-full max-w-7xl gap-5 lg:gap-6" aria-labelledby="spaces-title">
-      <header className="flex flex-col items-stretch justify-between gap-5 py-3 sm:flex-row sm:items-center">
-        <div>
-          <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">整理你的收纳范围</p>
+      <header className="py-3">
+        <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">整理你的收纳范围</p>
+        <div className="flex items-center justify-between gap-4">
           <h1 className="mb-0 text-page-title font-extrabold" id="spaces-title">空间</h1>
+          <button
+            ref={headerCreateButtonRef}
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-brand bg-brand text-white transition hover:bg-brand-strong"
+            type="button"
+            aria-label="创建空间"
+            title="创建空间"
+            onClick={beginCreate}
+          >
+            <AppIcon name="plus" size={20} />
+          </button>
         </div>
-        <button
-          ref={headerCreateButtonRef}
-          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-control border border-brand bg-brand px-4 py-2.5 font-bold text-white hover:bg-brand-strong sm:w-auto"
-          type="button"
-          onClick={beginCreate}
-        >
-          <AppIcon name="plus" size={20} />
-          创建空间
-        </button>
       </header>
 
       {editorOpen

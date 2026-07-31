@@ -133,25 +133,24 @@ export function BoxesPage() {
 
   return (
     <section className="mx-auto flex min-w-0 w-full max-w-7xl flex-col gap-5 lg:gap-7" aria-labelledby="boxes-title">
-      <header className="flex flex-col gap-5 py-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">收纳目录</p>
+      <header className="py-3">
+        <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">收纳目录</p>
+        <div className="flex items-center justify-between gap-4">
           <h1 className="mb-0 text-page-title font-extrabold" id="boxes-title">全部箱子</h1>
-          {hasCatalogueData ? (
-            <p className="mt-2 text-sm text-muted">{summary.boxCount} 个箱子 · {summary.itemCount} 件物品</p>
-          ) : null}
+          <button
+            ref={createButtonRef}
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-brand bg-brand text-white transition hover:bg-brand-strong"
+            type="button"
+            aria-label="创建箱子"
+            title="创建箱子"
+            onClick={openCreate}
+          >
+            <AppIcon name="plus" />
+          </button>
         </div>
-        <button
-          ref={createButtonRef}
-          className="inline-flex min-h-12 w-full items-center justify-center rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white transition hover:bg-brand-strong sm:min-h-11 sm:w-auto sm:self-auto"
-          type="button"
-          aria-label="创建箱子"
-          onClick={openCreate}
-        >
-          <AppIcon name="plus" className="mr-2" />
-          <span className="sm:hidden">新建</span>
-          <span className="hidden sm:inline">创建箱子</span>
-        </button>
+        {hasCatalogueData ? (
+          <p className="mt-2 text-sm text-muted">{summary.boxCount} 个箱子 · {summary.itemCount} 件物品</p>
+        ) : null}
       </header>
 
       {boxesQuery.isPending && boxesQuery.data === undefined ? (

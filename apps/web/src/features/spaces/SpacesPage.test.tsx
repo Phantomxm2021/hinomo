@@ -139,7 +139,7 @@ test('keeps the create editor closed until the prominent action is used', async 
   expect(within(dialog).getByLabelText('描述（可选）')).toHaveValue('')
 })
 
-test('keeps mobile space creation actions at least 48px tall', async () => {
+test('keeps the mobile create action compact and aligned with the space title', async () => {
   const user = userEvent.setup()
   mockListSpaces.mockResolvedValue([])
   renderSpaces()
@@ -147,7 +147,13 @@ test('keeps mobile space creation actions at least 48px tall', async () => {
   await screen.findByText('还没有空间')
   const headerCreate = screen.getByRole('button', { name: '创建空间' })
   const emptyCreate = screen.getByRole('button', { name: '创建第一个空间' })
-  expect(headerCreate).toHaveClass('min-h-12', 'w-full', 'sm:w-auto')
+  const title = screen.getByRole('heading', { name: '空间', level: 1 })
+  expect(title.parentElement).toContainElement(headerCreate)
+  expect(title.parentElement).toHaveClass('flex', 'items-center', 'justify-between')
+  expect(headerCreate).toHaveClass('size-11', 'shrink-0')
+  expect(headerCreate).not.toHaveClass('w-full')
+  expect(headerCreate).toHaveTextContent('')
+  expect(headerCreate).toHaveAttribute('title', '创建空间')
   expect(emptyCreate).toHaveClass('min-h-12')
 
   await user.click(headerCreate)
