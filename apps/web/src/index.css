@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+:root {
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 @theme {
   --font-sans: "SF Pro Text", "SF Pro Display", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
   --text-display: clamp(2rem, 3.25vw, 3rem);

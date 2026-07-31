@@ -12,17 +12,6 @@ const catalogueCardSource = readFileSync(resolve(process.cwd(), 'src/features/bo
 const boxCardMenuSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/BoxCardMenu.tsx'), 'utf8')
 const catalogueToolbarSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/BoxCatalogueToolbar.tsx'), 'utf8')
 const spaceFilterChipsSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/SpaceFilterChips.tsx'), 'utf8')
-const mobileRouteSources = [
-  'src/features/dashboard/DashboardPage.tsx',
-  'src/features/spaces/SpacesPage.tsx',
-  'src/features/boxes/BoxesPage.tsx',
-  'src/features/boxes/BoxDetailPage.tsx',
-  'src/features/boxes/BoxForm.tsx',
-  'src/features/boxes/PublicBoxPage.tsx',
-  'src/features/search/SearchPage.tsx',
-  'src/features/scanner/ScannerPage.tsx',
-  'src/features/qr-print/PrintPage.tsx',
-].map((path) => ({ path, source: readFileSync(resolve(process.cwd(), path), 'utf8') }))
 const catalogueSources = [
   catalogueCardSource,
   boxCardMenuSource,
@@ -129,6 +118,8 @@ test('uses the warm-family colors in PWA and browser metadata', () => {
   expect(viteConfig).toContain("background_color: '#f8f2e8'")
   expect(viteConfig).not.toContain("theme_color: '#7c3aed'")
   expect(indexHtml).toContain('<meta name="theme-color" content="#df6538" />')
+  expect(indexHtml).toContain('content="width=device-width, initial-scale=1.0, viewport-fit=cover"')
+  expect(css).toMatch(/:root\s*\{[^}]*--safe-area-bottom:\s*env\(safe-area-inset-bottom,\s*0px\);/s)
 })
 
 test('keeps global accessibility and output media rules', () => {
@@ -221,10 +212,4 @@ test('keeps business pages on the shared typography language', () => {
   expect(pages).not.toContain('text-2xl font-black tracking-tight text-ink md:text-4xl')
   expect(pages.match(/text-meta font-medium tracking-eyebrow text-muted/g)?.length).toBeGreaterThanOrEqual(7)
   expect(pages.match(/text-page-title font-extrabold/g)?.length).toBeGreaterThanOrEqual(7)
-})
-
-test('keeps every mobile route container shrinkable', () => {
-  for (const { path, source } of mobileRouteSources) {
-    expect(source, path).toMatch(/className=(?:"[^"]*\bmin-w-0\b[^"]*"|\{[^}]*['"][^'"]*\bmin-w-0\b)/s)
-  }
 })

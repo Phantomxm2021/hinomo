@@ -102,8 +102,8 @@ export function AppShell() {
           Nomo
         </Link>
       </header>
-      <main className="min-w-0 px-4 pt-6 pb-[calc(8rem+env(safe-area-inset-bottom))] min-[360px]:px-5 lg:ml-60 lg:px-[clamp(1.75rem,4vw,4rem)] lg:pt-10 lg:pb-16"><Outlet /></main>
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid min-h-18 grid-cols-5 border-t border-line bg-surface/95 px-2 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-float backdrop-blur lg:hidden" aria-label="移动端主导航"><Navigation items={mobileNavigation} mobile /></nav>
+      <main className="min-w-0 px-4 pt-6 pb-[calc(8rem+var(--safe-area-bottom))] min-[360px]:px-5 lg:ml-60 lg:px-[clamp(1.75rem,4vw,4rem)] lg:pt-10 lg:pb-16"><Outlet /></main>
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid min-h-18 grid-cols-5 border-t border-line bg-surface/95 px-2 pt-2 pb-[max(0.75rem,var(--safe-area-bottom))] shadow-float backdrop-blur lg:hidden" aria-label="移动端主导航"><Navigation items={mobileNavigation} mobile /></nav>
     </div>
   )
 }

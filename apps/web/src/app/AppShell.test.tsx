@@ -121,7 +121,7 @@ test('provides five mobile destinations with a central scan action', () => {
   expect(navigation).toHaveClass(
     'lg:hidden',
     'border-line',
-    'pb-[max(0.75rem,env(safe-area-inset-bottom))]',
+    'pb-[max(0.75rem,var(--safe-area-bottom))]',
     'shadow-float',
     'backdrop-blur',
   )
@@ -172,8 +172,11 @@ test('keeps mobile content narrow-safe with responsive gutters and nav clearance
     'min-w-0',
     'px-4',
     'min-[360px]:px-5',
-    'pb-[calc(8rem+env(safe-area-inset-bottom))]',
+    'pb-[calc(8rem+var(--safe-area-bottom))]',
     'lg:px-[clamp(1.75rem,4vw,4rem)]',
+  )
+  expect(screen.getByRole('navigation', { name: '移动端主导航' })).toHaveClass(
+    'pb-[max(0.75rem,var(--safe-area-bottom))]',
   )
 })
 

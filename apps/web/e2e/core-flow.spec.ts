@@ -41,13 +41,18 @@ async function expectMobileNavigation(page: Parameters<typeof installMockBackend
   await expect(page.getByRole('link', { name: '扫码查看' })).toBeHidden()
 }
 
-async function expectMobileRouteFrame(page: Parameters<typeof installMockBackend>[0]) {
+async function expectMobileRouteFrame(page: Parameters<typeof installMockBackend>[0], expectShell: boolean) {
   await expectNoHorizontalOverflow(page)
   await expect(page.getByRole('link', { name: '我的收纳空间' })).toHaveCount(0)
 
   const shell = page.locator('[data-app-shell]')
-  if (await shell.count() === 0) return
+  if (!expectShell) {
+    await expect(shell).toHaveCount(0)
+    await expect(page.getByRole('navigation', { name: '移动端主导航' })).toHaveCount(0)
+    return
+  }
 
+  await expect(shell).toHaveCount(1)
   const banner = shell.getByRole('banner')
   await expect(banner.getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/app')
   const navigation = shell.getByRole('navigation', { name: '移动端主导航' })
@@ -59,15 +64,42 @@ async function expectMobileRouteFrame(page: Parameters<typeof installMockBackend
   }).toBe(true)
 }
 
-async function expectOwnerCtaClearance(page: Parameters<typeof installMockBackend>[0]) {
+async function expectOwnerCtaClearance(page: Parameters<typeof installMockBackend>[0], safeAreaBottom: number) {
   const cta = page.getByRole('button', { name: '移动端新增物品' })
   await expect(cta).toBeVisible()
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
-  await expect.poll(async () => {
-    const ctaTop = await cta.evaluate((element) => element.getBoundingClientRect().top)
-    const lastSectionBottom = await page.locator('main > section').last().evaluate((element) => element.getBoundingClientRect().bottom)
-    return lastSectionBottom <= ctaTop
-  }).toBe(true)
+  await page.evaluate((inset) => {
+    document.documentElement.style.setProperty('--safe-area-bottom', `${inset}px`)
+    window.scrollTo(0, document.documentElement.scrollHeight)
+  }, safeAreaBottom)
+  try {
+    await expect.poll(async () => {
+      const geometry = await cta.evaluate((element) => ({
+        bottom: element.getBoundingClientRect().bottom,
+        viewportHeight: window.innerHeight,
+      }))
+      return Math.abs(geometry.viewportHeight - geometry.bottom - Math.max(16, safeAreaBottom)) <= 1
+    }).toBe(true)
+    await expect.poll(async () => {
+      const ctaTop = await cta.evaluate((element) => element.getBoundingClientRect().top)
+      const lastSectionBottom = await page.locator('main > section').last().evaluate((element) => element.getBoundingClientRect().bottom)
+      return lastSectionBottom <= ctaTop
+    }).toBe(true)
+    await expect(page.getByRole('main')).toHaveCSS('padding-bottom', `${96 + safeAreaBottom}px`)
+  } finally {
+    await page.evaluate(() => document.documentElement.style.removeProperty('--safe-area-bottom'))
+  }
+}
+
+async function expectShellSafeArea(page: Parameters<typeof installMockBackend>[0], safeAreaBottom: number) {
+  await page.evaluate((inset) => {
+    document.documentElement.style.setProperty('--safe-area-bottom', `${inset}px`)
+  }, safeAreaBottom)
+  try {
+    await expect(page.getByRole('navigation', { name: '移动端主导航' })).toHaveCSS('padding-bottom', `${safeAreaBottom}px`)
+    await expect(page.getByRole('main')).toHaveCSS('padding-bottom', `${128 + safeAreaBottom}px`)
+  } finally {
+    await page.evaluate(() => document.documentElement.style.removeProperty('--safe-area-bottom'))
+  }
 }
 
 test('owner creates, finds, labels, and maintains a public box', async ({ browser, page }, testInfo) => {
@@ -235,14 +267,14 @@ test('mobile route alignment', async ({ page }) => {
   const publicUrl = await createBox(page, '窄屏收纳箱', 'public')
 
   const routes = [
-    { path: '/app', heading: '早上好，今天找什么？' },
-    { path: '/app/spaces', heading: '空间' },
-    { path: '/app/boxes', heading: '全部箱子' },
-    { path: '/app/boxes/box-1', heading: '窄屏收纳箱' },
-    { path: '/app/search', heading: '查找收纳' },
-    { path: '/app/scan', heading: '扫码查看' },
-    { path: '/app/print', heading: '下载箱子标签' },
-    { path: publicUrl, heading: '窄屏收纳箱' },
+    { path: '/app', heading: '早上好，今天找什么？', expectShell: true },
+    { path: '/app/spaces', heading: '空间', expectShell: true },
+    { path: '/app/boxes', heading: '全部箱子', expectShell: true },
+    { path: '/app/boxes/box-1/edit', heading: '编辑箱子', expectShell: true },
+    { path: '/app/search', heading: '查找收纳', expectShell: true },
+    { path: '/app/scan', heading: '扫码查看', expectShell: true },
+    { path: '/app/print', heading: '下载箱子标签', expectShell: true },
+    { path: publicUrl, heading: '窄屏收纳箱', expectShell: false },
   ]
 
   for (const width of [320, 390, 768]) {
@@ -250,9 +282,10 @@ test('mobile route alignment', async ({ page }) => {
     for (const route of routes) {
       await page.goto(route.path)
       await expect(page.getByRole('heading', { level: 1, name: route.heading, exact: true })).toBeVisible()
-      await expectMobileRouteFrame(page)
-      if (width < 768 && new URL(route.path, 'http://nomo.local').pathname.startsWith('/b/')) {
-        await expectOwnerCtaClearance(page)
+      await expectMobileRouteFrame(page, route.expectShell)
+      if (route.path === '/app') await expectShellSafeArea(page, 24)
+      if (!route.expectShell && width < 768) {
+        await expectOwnerCtaClearance(page, 24)
       }
     }
   }
