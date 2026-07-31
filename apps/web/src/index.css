@@ -43,12 +43,10 @@
   }
 
   html {
-    min-width: 320px;
     background: var(--color-canvas);
   }
 
   body {
-    min-width: 320px;
     min-height: 100svh;
     margin: 0;
     background: var(--color-canvas);

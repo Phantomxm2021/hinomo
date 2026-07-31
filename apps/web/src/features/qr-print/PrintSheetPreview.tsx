@@ -18,17 +18,24 @@ function qrIdentity(box: BoxSummary): string {
   return JSON.stringify([box.id, box.public_id])
 }
 
-function PrintLabel({ box, qr }: { box: BoxSummary; qr: QrState }) {
+function PrintLabel({ box, density, qr }: { box: BoxSummary; density: 'compact' | 'comfortable'; qr: QrState }) {
   const location = box.location || '未填写位置'
+  const compact = density === 'compact'
 
   return (
     <article
-      className="min-w-0 overflow-hidden border border-line bg-surface p-3"
+      className={compact
+        ? 'min-w-0 overflow-hidden border border-line bg-surface p-1.5 xl:p-3'
+        : 'min-w-0 overflow-hidden border border-line bg-surface p-3'}
       role="group"
       aria-label={`${box.name}标签`}
     >
-      <div className="grid min-w-0 grid-cols-[minmax(4.5rem,0.8fr)_minmax(0,1.2fr)] items-center gap-3">
-        <div className="grid aspect-square min-w-0 place-items-center overflow-hidden bg-canvas p-2 text-center text-xs text-muted">
+      <div className={compact
+        ? 'grid min-w-0 grid-cols-[minmax(2.75rem,0.65fr)_minmax(0,1.35fr)] items-center gap-1.5 xl:grid-cols-[minmax(4.5rem,0.8fr)_minmax(0,1.2fr)] xl:gap-3'
+        : 'grid min-w-0 grid-cols-[minmax(4.5rem,0.8fr)_minmax(0,1.2fr)] items-center gap-3'}>
+        <div className={compact
+          ? 'grid aspect-square min-w-0 place-items-center overflow-hidden bg-canvas p-1 text-center text-[0.5rem] text-muted xl:p-2 xl:text-xs'
+          : 'grid aspect-square min-w-0 place-items-center overflow-hidden bg-canvas p-2 text-center text-xs text-muted'}>
           {qr.status === 'ready' ? (
             <img className="size-full object-contain" src={qr.image} alt={`${box.name}二维码`} />
           ) : qr.status === 'error' ? (
@@ -38,10 +45,18 @@ function PrintLabel({ box, qr }: { box: BoxSummary; qr: QrState }) {
           )}
         </div>
         <div className="min-w-0 overflow-hidden">
-          <h3 className="truncate text-base font-bold text-ink">{box.name}</h3>
-          <p className="mt-1 truncate text-sm font-semibold tracking-wide text-ink">{box.box_code}</p>
-          <p className="mt-1 truncate text-xs text-muted">{box.space_name} · {location}</p>
-          <p className="mt-2 truncate text-xs font-semibold text-brand">扫码查看箱内物品</p>
+          <h3 className={compact
+            ? 'truncate text-[0.625rem] leading-tight font-bold text-ink xl:text-base xl:leading-normal'
+            : 'truncate text-base font-bold text-ink'}>{box.name}</h3>
+          <p className={compact
+            ? 'mt-0.5 truncate text-[0.5625rem] leading-tight font-semibold tracking-wide text-ink xl:mt-1 xl:text-sm xl:leading-normal'
+            : 'mt-1 truncate text-sm font-semibold tracking-wide text-ink'}>{box.box_code}</p>
+          <p className={compact
+            ? 'mt-0.5 truncate text-[0.5rem] leading-tight text-muted xl:mt-1 xl:text-xs xl:leading-normal'
+            : 'mt-1 truncate text-xs text-muted'}>{box.space_name} · {location}</p>
+          <p className={compact
+            ? 'hidden truncate font-semibold text-brand xl:mt-2 xl:block xl:text-xs'
+            : 'mt-2 truncate text-xs font-semibold text-brand'}>扫码查看箱内物品</p>
         </div>
       </div>
     </article>
@@ -108,7 +123,7 @@ export function PrintSheetPreview({ boxes, mode }: Props) {
           <h2 className="text-lg font-bold text-ink">单个标签预览</h2>
         </header>
         <div className="min-w-0 overflow-auto bg-canvas p-4">
-          <PrintLabel box={box} qr={qrCache.current.get(qrIdentity(box)) ?? { status: 'loading' }} />
+          <PrintLabel box={box} density="comfortable" qr={qrCache.current.get(qrIdentity(box)) ?? { status: 'loading' }} />
         </div>
       </section>
     )
@@ -141,6 +156,7 @@ export function PrintSheetPreview({ boxes, mode }: Props) {
                 {page.map((box) => (
                   <PrintLabel
                     box={box}
+                    density="compact"
                     key={qrIdentity(box)}
                     qr={qrCache.current.get(qrIdentity(box)) ?? { status: 'loading' }}
                   />

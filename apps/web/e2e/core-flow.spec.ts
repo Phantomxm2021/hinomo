@@ -157,6 +157,12 @@ test('navigation changes exactly at the 1024px desktop breakpoint', async ({ pag
   await createSpace(page, '家')
   await createBox(page, '断点测试箱', 'private')
 
+  await page.setViewportSize({ width: 320, height: 568 })
+  await page.goto('/app/print')
+  await expect(page.getByRole('region', { name: '单个标签下载' })).toBeVisible()
+  await expect(page.getByRole('region', { name: '批量标签工作台' })).toBeHidden()
+  await expectNoHorizontalOverflow(page)
+
   await page.setViewportSize({ width: 768, height: 1024 })
   await page.goto('/app/print')
   await expect(page.getByRole('region', { name: '单个标签下载' })).toBeVisible()

@@ -142,6 +142,10 @@ test('preserves the global focus affordance after Preflight', () => {
   expect(css).toMatch(/(?:^|\n)\s*:focus-visible\s*\{[^}]*outline:/)
 })
 
+test('allows narrow viewports without a global minimum page width', () => {
+  expect(css).not.toMatch(/(?:html|body)\s*\{[^}]*min-width:\s*320px\s*;/s)
+})
+
 test('removes the migrated box catalogue selector', () => {
   expect(css).not.toContain('.box-card')
 })

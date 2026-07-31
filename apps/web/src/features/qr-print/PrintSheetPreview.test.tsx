@@ -84,6 +84,34 @@ test('renders label metadata in order and generates its QR from the public URL',
     .toHaveAttribute('src', 'data:image/png;base64,first')
 })
 
+test('uses compact base density for A4 labels and comfortable density for single labels', () => {
+  mockBoxQrPng.mockReturnValue(new Promise(() => {}))
+  const sheetView = render(<PrintSheetPreview boxes={[box(1)]} mode="a4" />)
+
+  const sheetLabel = screen.getByRole('group', { name: '箱子 1标签' })
+  expect(sheetLabel).toHaveClass('p-1.5', 'xl:p-3')
+  expect(sheetLabel.firstElementChild).toHaveClass(
+    'grid-cols-[minmax(2.75rem,0.65fr)_minmax(0,1.35fr)]',
+    'gap-1.5',
+    'xl:grid-cols-[minmax(4.5rem,0.8fr)_minmax(0,1.2fr)]',
+    'xl:gap-3',
+  )
+  expect(within(sheetLabel).getByRole('heading', { name: '箱子 1' })).toHaveClass('text-[0.625rem]', 'xl:text-base')
+  expect(within(sheetLabel).getByText('扫码查看箱内物品')).toHaveClass('hidden', 'xl:block')
+
+  sheetView.unmount()
+  render(<PrintSheetPreview boxes={[box(1)]} mode="single" />)
+
+  const singleLabel = screen.getByRole('group', { name: '箱子 1标签' })
+  expect(singleLabel).toHaveClass('p-3')
+  expect(singleLabel).not.toHaveClass('p-1.5', 'xl:p-3')
+  expect(singleLabel.firstElementChild).toHaveClass(
+    'grid-cols-[minmax(4.5rem,0.8fr)_minmax(0,1.2fr)]',
+    'gap-3',
+  )
+  expect(within(singleLabel).getByText('扫码查看箱内物品')).not.toHaveClass('hidden', 'xl:block')
+})
+
 test('keeps a failed QR local to its label while another succeeds', async () => {
   const failed = deferred<string>()
   const ready = deferred<string>()
