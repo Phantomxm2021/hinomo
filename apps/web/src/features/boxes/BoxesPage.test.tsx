@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
@@ -96,6 +96,7 @@ function renderBoxes(initialEntry = '/app/boxes') {
   }], { initialEntries: [initialEntry] })
   return {
     client,
+    router,
     ...render(
       <QueryClientProvider client={client}>
         <RouterProvider router={router} />
@@ -228,6 +229,24 @@ test('keeps only one catalogue card menu open', async () => {
   expect(screen.getByRole('link', { name: '编辑露营用品' })).toHaveAttribute('href', '/app/boxes/box-2/edit')
 })
 
+test('keeps a restored card menu closed after catalogue criteria change through history', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  const { router } = renderBoxes()
+
+  await screen.findByRole('link', { name: '打开冬季衣物' })
+  await user.click(screen.getByRole('button', { name: '管理冬季衣物' }))
+  expect(screen.getByRole('link', { name: '编辑冬季衣物' })).toBeInTheDocument()
+
+  await act(async () => { await router.navigate('/app/boxes?q=missing') })
+  expect(await screen.findByText('没有匹配的箱子')).toBeInTheDocument()
+  await act(async () => { await router.navigate(-1) })
+
+  expect(await screen.findByRole('link', { name: '打开冬季衣物' })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: '编辑冬季衣物' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '管理冬季衣物' })).toHaveAttribute('aria-expanded', 'false')
+})
+
 test('distinguishes a true empty catalogue from filtered no-match results', async () => {
   const user = userEvent.setup()
   mockListBoxes.mockResolvedValue(boxes)
@@ -325,6 +344,7 @@ test('deletes a box from its menu after confirmation and refreshes the list', as
   renderBoxes()
 
   expect(await screen.findByRole('link', { name: '打开冬季衣物' })).toHaveAttribute('href', '/b/public-1')
+  const stableCreateAction = screen.getByRole('button', { name: '创建箱子' })
   await user.click(screen.getByRole('button', { name: '管理冬季衣物' }))
   expect(screen.getByRole('link', { name: '编辑冬季衣物' })).toHaveAttribute('href', '/app/boxes/box-1/edit')
   await user.click(screen.getByRole('button', { name: '删除冬季衣物' }))
@@ -334,20 +354,77 @@ test('deletes a box from its menu after confirmation and refreshes the list', as
   expect(mockDeleteBox).toHaveBeenCalledWith('box-1')
   expect(await screen.findByText('还没有箱子')).toBeInTheDocument()
   expect(mockListBoxes).toHaveBeenCalledTimes(2)
+  await waitFor(() => expect(stableCreateAction).toHaveFocus())
 })
 
-test('keeps loading, retryable error, and delete error states', async () => {
+test('shows the loading state until the catalogue request resolves', async () => {
+  let resolveBoxes!: (value: typeof boxes) => void
+  mockListBoxes.mockReturnValue(new Promise((resolve) => { resolveBoxes = resolve }))
+  renderBoxes()
+
+  expect(screen.getByText('正在加载箱子…')).toBeInTheDocument()
+  expect(screen.queryByRole('searchbox', { name: '搜索箱子' })).not.toBeInTheDocument()
+
+  await act(async () => { resolveBoxes(boxes) })
+
+  expect(await screen.findByRole('link', { name: '打开冬季衣物' })).toBeInTheDocument()
+  expect(screen.queryByText('正在加载箱子…')).not.toBeInTheDocument()
+})
+
+test('retries a failed catalogue load', async () => {
   const user = userEvent.setup()
   mockListBoxes.mockRejectedValueOnce(new Error('load failed')).mockResolvedValueOnce(boxes)
-  mockDeleteBox.mockRejectedValue(new Error('delete failed'))
   renderBoxes()
 
   expect(await screen.findByRole('alert')).toHaveTextContent('箱子加载失败，请重试')
   await user.click(screen.getByRole('button', { name: '重试' }))
+
+  expect(await screen.findByRole('link', { name: '打开冬季衣物' })).toBeInTheDocument()
+})
+
+test('keeps a failed delete inline and restores focus to its card trigger on cancel', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  mockDeleteBox.mockRejectedValue(new Error('delete failed'))
+  renderBoxes()
+
+  await screen.findByRole('link', { name: '打开冬季衣物' })
+  const winterTrigger = screen.getByRole('button', { name: '管理冬季衣物' })
+  await user.click(winterTrigger)
+  await user.click(screen.getByRole('button', { name: '删除冬季衣物' }))
+
+  const dialog = screen.getByRole('alertdialog', { name: '删除“冬季衣物”？' })
+  await waitFor(() => expect(within(dialog).getByRole('button', { name: '取消' })).toHaveFocus())
+  await user.click(within(dialog).getByRole('button', { name: '确认删除' }))
+
+  expect(await within(dialog).findByRole('alert')).toHaveTextContent('删除失败，请稍后重试')
+  expect(within(dialog).getByRole('button', { name: '确认删除' })).toBeEnabled()
+  expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+  await user.click(within(dialog).getByRole('button', { name: '取消' }))
+
+  await waitFor(() => expect(winterTrigger).toHaveFocus())
+
+  await user.click(screen.getByRole('button', { name: '管理露营用品' }))
+  await user.click(screen.getByRole('button', { name: '删除露营用品' }))
+  expect(within(screen.getByRole('alertdialog')).queryByRole('alert')).not.toBeInTheDocument()
+})
+
+test('retries a failed inline deletion', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValueOnce([boxes[0]]).mockResolvedValueOnce([])
+  mockDeleteBox.mockRejectedValueOnce(new Error('delete failed')).mockResolvedValueOnce(undefined)
+  renderBoxes()
+
   await screen.findByRole('link', { name: '打开冬季衣物' })
   await user.click(screen.getByRole('button', { name: '管理冬季衣物' }))
   await user.click(screen.getByRole('button', { name: '删除冬季衣物' }))
-  await user.click(screen.getByRole('button', { name: '确认删除' }))
+  const dialog = screen.getByRole('alertdialog')
+  await user.click(within(dialog).getByRole('button', { name: '确认删除' }))
+  await within(dialog).findByRole('alert')
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('删除失败，请稍后重试')
+  await user.click(within(dialog).getByRole('button', { name: '确认删除' }))
+
+  expect(mockDeleteBox).toHaveBeenCalledTimes(2)
+  expect(await screen.findByText('还没有箱子')).toBeInTheDocument()
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
 })

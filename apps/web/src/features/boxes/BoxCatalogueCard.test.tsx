@@ -47,7 +47,7 @@ function renderCard(overrides: Partial<React.ComponentProps<typeof BoxCatalogueC
   }
 }
 
-function StatefulCardHarness({ onClose, onDelete = vi.fn() }: { onClose: () => void; onDelete?: (box: BoxSummary) => void }) {
+function StatefulCardHarness({ onClose, onDelete = vi.fn() }: { onClose: () => void; onDelete?: (box: BoxSummary, trigger: HTMLButtonElement | null) => void }) {
   const [menuOpen, setMenuOpen] = useState(true)
   return (
     <MemoryRouter>
@@ -122,7 +122,7 @@ test('provides edit and delete menu actions for the supplied box', async () => {
 
   expect(screen.getByRole('link', { name: '编辑冬季衣物' })).toHaveAttribute('href', '/app/boxes/box-1/edit')
   await user.click(screen.getByRole('button', { name: '删除冬季衣物' }))
-  expect(props.onDelete).toHaveBeenCalledWith(fallbackBox)
+  expect(props.onDelete).toHaveBeenCalledWith(fallbackBox, screen.getByRole('button', { name: '管理冬季衣物' }))
 })
 
 test('closes on Escape and restores focus to the management trigger', async () => {
@@ -163,7 +163,7 @@ test('deleting closes without returning focus to the management trigger', async 
 
   await user.click(screen.getByRole('button', { name: '删除冬季衣物' }))
 
-  expect(onDelete).toHaveBeenCalledWith(fallbackBox)
+  expect(onDelete).toHaveBeenCalledWith(fallbackBox, trigger)
   expect(onClose).toHaveBeenCalledTimes(1)
   await nextAnimationFrame()
   expect(trigger).not.toHaveFocus()

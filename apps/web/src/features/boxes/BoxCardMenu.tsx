@@ -8,7 +8,7 @@ type BoxCardMenuProps = {
   open: boolean
   triggerRef: React.RefObject<HTMLButtonElement | null>
   onClose: (restoreFocus: boolean) => void
-  onDelete: (box: BoxSummary) => void
+  onDelete: (box: BoxSummary, trigger: HTMLButtonElement | null) => void
 }
 
 export function BoxCardMenu({ box, open, triggerRef, onClose, onDelete }: BoxCardMenuProps) {
@@ -52,7 +52,7 @@ export function BoxCardMenu({ box, open, triggerRef, onClose, onDelete }: BoxCar
         type="button"
         aria-label={`删除${box.name}`}
         onClick={() => {
-          onDelete(box)
+          onDelete(box, triggerRef.current)
           onClose(false)
         }}
       >

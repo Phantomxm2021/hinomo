@@ -10,7 +10,7 @@ type BoxCatalogueCardProps = {
   menuOpen: boolean
   onMenuToggle: () => void
   onMenuClose: () => void
-  onDelete: (box: BoxSummary) => void
+  onDelete: (box: BoxSummary, trigger: HTMLButtonElement | null) => void
 }
 
 export function BoxCatalogueCard({ box, menuOpen, onMenuToggle, onMenuClose, onDelete }: BoxCatalogueCardProps) {

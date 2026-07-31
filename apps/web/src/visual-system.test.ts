@@ -9,10 +9,12 @@ const viteConfig = readFileSync(resolve(process.cwd(), 'vite.config.ts'), 'utf8'
 const indexHtml = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8')
 const boxesPageSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/BoxesPage.tsx'), 'utf8')
 const catalogueCardSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/BoxCatalogueCard.tsx'), 'utf8')
+const boxCardMenuSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/BoxCardMenu.tsx'), 'utf8')
 const catalogueToolbarSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/BoxCatalogueToolbar.tsx'), 'utf8')
 const spaceFilterChipsSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/SpaceFilterChips.tsx'), 'utf8')
 const catalogueSources = [
   catalogueCardSource,
+  boxCardMenuSource,
   catalogueToolbarSource,
   spaceFilterChipsSource,
 ]
@@ -144,6 +146,8 @@ test('keeps the extracted box catalogue on approved visual tokens', () => {
   expect(catalogueCardSource).toContain('text-card-title')
   expect(catalogueCardSource).toContain('rounded-card')
   expect(catalogueCardSource).toContain('border-line')
+  expect(boxCardMenuSource).toContain('bg-surface')
+  expect(boxCardMenuSource).toContain('border-line')
   expect(catalogueToolbarSource).toContain('rounded-card')
   expect(catalogueToolbarSource).toContain('border-line')
   expect(spaceFilterChipsSource).toContain('border-line')

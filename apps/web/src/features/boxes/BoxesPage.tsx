@@ -22,6 +22,7 @@ type CatalogueParam = 'q' | 'space' | 'sort'
 export function BoxesPage() {
   const queryClient = useQueryClient()
   const createButtonRef = useRef<HTMLButtonElement | null>(null)
+  const deleteReturnFocusRef = useRef<HTMLElement | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const [deleteTarget, setDeleteTarget] = useState<BoxSummary | null>(null)
   const [openMenuBoxId, setOpenMenuBoxId] = useState<string | null>(null)
@@ -30,8 +31,9 @@ export function BoxesPage() {
   const deleteMutation = useMutation({
     mutationFn: (boxId: string) => deleteBox(boxId),
     onSuccess: async () => {
-      setDeleteTarget(null)
       await queryClient.invalidateQueries({ queryKey: ['boxes'] })
+      deleteReturnFocusRef.current = createButtonRef.current
+      setDeleteTarget(null)
     },
   })
   const boxes = boxesQuery.data ?? []
@@ -81,6 +83,10 @@ export function BoxesPage() {
   }, [createBlocker, createBusy])
 
   useEffect(() => {
+    setOpenMenuBoxId(null)
+  }, [query, selectedSpace, sort])
+
+  useEffect(() => {
     const shouldRestoreFocus = wasCreating.current && !creating
     wasCreating.current = creating
     if (!shouldRestoreFocus) return
@@ -113,8 +119,6 @@ export function BoxesPage() {
 
       {boxesQuery.isPending ? <PageState state="loading" label="正在加载箱子…" /> : null}
       {boxesQuery.isError ? <PageState state="error" message="箱子加载失败，请重试" onRetry={() => void boxesQuery.refetch()} /> : null}
-      {deleteMutation.isError ? <p role="alert">删除失败，请稍后重试</p> : null}
-
       {boxesQuery.isSuccess && boxes.length > 0 ? (
         <>
           <BoxCatalogueToolbar
@@ -169,7 +173,9 @@ export function BoxesPage() {
               menuOpen={openMenuBoxId === box.id}
               onMenuToggle={() => setOpenMenuBoxId((current) => current === box.id ? null : box.id)}
               onMenuClose={() => setOpenMenuBoxId(null)}
-              onDelete={(target) => {
+              onDelete={(target, trigger) => {
+                deleteMutation.reset()
+                deleteReturnFocusRef.current = trigger
                 setOpenMenuBoxId(null)
                 setDeleteTarget(target)
               }}
@@ -184,7 +190,12 @@ export function BoxesPage() {
         title={`删除“${deleteTarget?.name ?? ''}”？`}
         description="箱子内的物品也会被删除，此操作无法恢复。"
         busy={deleteMutation.isPending}
-        onCancel={() => setDeleteTarget(null)}
+        error={deleteMutation.isError ? '删除失败，请稍后重试' : undefined}
+        returnFocusRef={deleteReturnFocusRef}
+        onCancel={() => {
+          deleteMutation.reset()
+          setDeleteTarget(null)
+        }}
         onConfirm={() => {
           if (deleteTarget) deleteMutation.mutate(deleteTarget.id)
         }}
