@@ -139,6 +139,23 @@ test('keeps the create editor closed until the prominent action is used', async 
   expect(within(dialog).getByLabelText('描述（可选）')).toHaveValue('')
 })
 
+test('keeps mobile space creation actions at least 48px tall', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([])
+  renderSpaces()
+
+  await screen.findByText('还没有空间')
+  const headerCreate = screen.getByRole('button', { name: '创建空间' })
+  const emptyCreate = screen.getByRole('button', { name: '创建第一个空间' })
+  expect(headerCreate).toHaveClass('min-h-12', 'w-full', 'sm:w-auto')
+  expect(emptyCreate).toHaveClass('min-h-12')
+
+  await user.click(headerCreate)
+  const dialog = screen.getByRole('dialog', { name: '创建空间' })
+  expect(within(dialog).getByRole('button', { name: '创建空间' })).toHaveClass('min-h-12')
+  expect(within(dialog).getByRole('button', { name: '取消' })).toHaveClass('min-h-11')
+})
+
 test('isolates and restores the real application shell around the portalled editor', async () => {
   const user = userEvent.setup()
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })

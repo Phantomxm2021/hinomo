@@ -237,7 +237,7 @@ export function SpacesPage() {
         </div>
         <button
           ref={headerCreateButtonRef}
-          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-brand bg-brand px-4 py-2.5 font-bold text-white hover:bg-brand-strong sm:w-auto"
+          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-control border border-brand bg-brand px-4 py-2.5 font-bold text-white hover:bg-brand-strong sm:w-auto"
           type="button"
           onClick={beginCreate}
         >
@@ -328,7 +328,7 @@ export function SpacesPage() {
                 </button>
                 <button
                   ref={editorSubmitButtonRef}
-                  className="min-h-11 rounded-control border border-brand bg-brand px-4.5 py-2.5 font-bold text-white hover:bg-brand-strong"
+                  className="min-h-12 rounded-control border border-brand bg-brand px-4.5 py-2.5 font-bold text-white hover:bg-brand-strong"
                   type="submit"
                   disabled={editorPending}
                   onKeyDown={(event) => {
@@ -379,7 +379,7 @@ export function SpacesPage() {
       ) : null}
       {spacesQuery.isError ? <PageState state="error" message="空间加载失败，请重试" onRetry={() => void spacesQuery.refetch()} /> : null}
       {spacesQuery.data?.length === 0 ? (
-        <PageState state="empty" title="还没有空间" action={<button className="inline-flex min-h-11 items-center justify-center rounded-control border border-brand bg-brand px-4 py-2.5 font-bold text-white hover:bg-brand-strong" type="button" onClick={beginCreate}>创建第一个空间</button>} />
+        <PageState state="empty" title="还没有空间" action={<button className="inline-flex min-h-12 w-full items-center justify-center rounded-control border border-brand bg-brand px-4 py-2.5 font-bold text-white hover:bg-brand-strong sm:w-auto" type="button" onClick={beginCreate}>创建第一个空间</button>} />
       ) : null}
       {spacesQuery.data?.length ? (
         <>

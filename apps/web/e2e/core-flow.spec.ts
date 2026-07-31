@@ -59,6 +59,17 @@ async function expectMobileRouteFrame(page: Parameters<typeof installMockBackend
   }).toBe(true)
 }
 
+async function expectOwnerCtaClearance(page: Parameters<typeof installMockBackend>[0]) {
+  const cta = page.getByRole('button', { name: '移动端新增物品' })
+  await expect(cta).toBeVisible()
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+  await expect.poll(async () => {
+    const ctaTop = await cta.evaluate((element) => element.getBoundingClientRect().top)
+    const lastSectionBottom = await page.locator('main > section').last().evaluate((element) => element.getBoundingClientRect().bottom)
+    return lastSectionBottom <= ctaTop
+  }).toBe(true)
+}
+
 test('owner creates, finds, labels, and maintains a public box', async ({ browser, page }, testInfo) => {
   const state = createMockState()
   await installMockBackend(page, state)
@@ -240,6 +251,9 @@ test('mobile route alignment', async ({ page }) => {
       await page.goto(route.path)
       await expect(page.getByRole('heading', { level: 1, name: route.heading, exact: true })).toBeVisible()
       await expectMobileRouteFrame(page)
+      if (width < 768 && new URL(route.path, 'http://nomo.local').pathname.startsWith('/b/')) {
+        await expectOwnerCtaClearance(page)
+      }
     }
   }
 })

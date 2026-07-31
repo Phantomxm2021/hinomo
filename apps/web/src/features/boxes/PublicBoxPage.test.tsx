@@ -129,6 +129,10 @@ test('shows item controls only to the box owner', async () => {
     'min-[360px]:inset-x-5',
     'bottom-[calc(6.75rem+env(safe-area-inset-bottom))]',
   )
+  expect(screen.getByRole('main')).toHaveClass(
+    'pb-[calc(10rem+env(safe-area-inset-bottom))]',
+    'lg:pb-10',
+  )
 })
 
 test('restores focus to a programmatically activated delete trigger on Escape', async () => {
