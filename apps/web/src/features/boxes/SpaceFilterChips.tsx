@@ -18,7 +18,7 @@ const chipClassName = (selected: boolean) => `min-h-11 shrink-0 rounded-full bor
 
 export function SpaceFilterChips({ spaces, selectedSpace, totalCount, onChange }: SpaceFilterChipsProps) {
   return (
-    <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1" aria-label="按空间筛选">
+    <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1" role="group" aria-label="按空间筛选">
       <button
         className={chipClassName(selectedSpace === '')}
         type="button"

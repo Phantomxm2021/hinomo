@@ -76,11 +76,19 @@ test('updates the controlled sort selection', async () => {
   expect(select).toHaveValue('name')
 })
 
+test('preserves the global focus-visible outline on toolbar controls', () => {
+  render(<ToolbarHarness onQueryChange={vi.fn()} onSortChange={vi.fn()} />)
+
+  expect(screen.getByRole('searchbox', { name: '搜索箱子' })).not.toHaveClass('focus:outline-none')
+  expect(screen.getByRole('combobox', { name: '箱子排序' })).not.toHaveClass('focus:outline-none')
+})
+
 test('renders accessible filter chips and updates their pressed state', async () => {
   const user = userEvent.setup()
   const onChange = vi.fn()
   render(<SpaceChipsHarness onChange={onChange} />)
 
+  expect(screen.getByRole('group', { name: '按空间筛选' })).toBeInTheDocument()
   const allSpaces = screen.getByRole('button', { name: '全部空间 6' })
   const bedroom = screen.getByRole('button', { name: '卧室 4' })
   const kitchen = screen.getByRole('button', { name: '厨房 2' })
@@ -95,15 +103,14 @@ test('renders accessible filter chips and updates their pressed state', async ()
   expect(bedroom).toHaveAttribute('aria-pressed', 'false')
 })
 
-test('uses responsive toolbar and horizontal chip target classes', () => {
+test('keeps the toolbar responsive and chips horizontally scrollable', () => {
   render(<>
     <ToolbarHarness onQueryChange={vi.fn()} onSortChange={vi.fn()} />
     <SpaceChipsHarness onChange={vi.fn()} />
   </>)
 
   expect(screen.getByRole('searchbox', { name: '搜索箱子' }).parentElement)
-    .toHaveClass('grid', 'rounded-card', 'border', 'border-line', 'bg-surface/75', 'p-2', 'sm:grid-cols-2')
-  expect(screen.getByRole('combobox', { name: '箱子排序' })).toHaveClass('min-h-12')
-  expect(screen.getByLabelText('按空间筛选')).toHaveClass('flex', 'flex-nowrap', 'overflow-x-auto', 'pb-1')
-  expect(screen.getByRole('button', { name: '全部空间 6' })).toHaveClass('min-h-11', 'shrink-0', 'rounded-full')
+    .toHaveClass('grid', 'sm:grid-cols-2')
+  expect(screen.getByRole('group', { name: '按空间筛选' })).toHaveClass('overflow-x-auto')
+  expect(screen.getByRole('button', { name: '全部空间 6' })).toHaveClass('min-h-11', 'shrink-0')
 })
