@@ -11,7 +11,8 @@
 3. 本次场地与公开访问功能依次执行：
    - `202608010001_public_box_rpc.sql`
    - `202608010002_venues.sql`
-4. 执行后运行下面的只读验证查询。预期：公开 RPC 存在；`venues` 有数据（已有空间的用户至少有“家里”）；没有 `venue_id` 为空的空间。
+   - `202608010003_default_venue.sql`
+4. 执行后运行下面的只读验证查询。预期：公开 RPC 存在；`venues` 有数据；没有 `venue_id` 为空的空间；最后一条查询返回零行，即每位用户恰好有一个内置默认场地。
 
 ```sql
 select n.nspname as schema_name, p.proname, pg_get_function_identity_arguments(p.oid) as arguments
@@ -21,6 +22,10 @@ where n.nspname = 'public' and p.proname = 'get_public_box';
 
 select count(*) as venue_count from public.venues;
 select count(*) as spaces_without_venue from public.spaces where venue_id is null;
+select owner_id, count(*) filter (where is_default) as default_count
+from public.venues
+group by owner_id
+having count(*) filter (where is_default) <> 1;
 ```
 
 5. 在 Dashboard Vault 写入所需的四项 R2 配置。值只从密码管理器粘贴，不记录到文档、代码、日志或查询结果中。
