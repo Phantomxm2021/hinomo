@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getBoxByPublicId, listBoxes } from './boxes.api'
 
-const { mockEq, mockFrom, mockGetSession, mockOrder, mockSelect, mockSingle } = vi.hoisted(() => ({
+const { mockEq, mockFrom, mockGetSession, mockOrder, mockRpc, mockSelect, mockSingle } = vi.hoisted(() => ({
   mockEq: vi.fn(),
   mockFrom: vi.fn(),
   mockGetSession: vi.fn(),
   mockOrder: vi.fn(),
+  mockRpc: vi.fn(),
   mockSelect: vi.fn(),
   mockSingle: vi.fn(),
 }))
@@ -14,6 +15,7 @@ vi.mock('../../lib/supabase', () => ({
   supabase: {
     auth: { getSession: mockGetSession },
     from: mockFrom,
+    rpc: mockRpc,
   },
 }))
 
@@ -23,6 +25,7 @@ describe('boxes api', () => {
     mockFrom.mockReset()
     mockGetSession.mockReset()
     mockOrder.mockReset()
+    mockRpc.mockReset()
     mockSelect.mockReset()
     mockSingle.mockReset()
     mockFrom.mockReturnValue({ select: mockSelect })
@@ -102,11 +105,9 @@ describe('boxes api', () => {
     expect(mockFrom).not.toHaveBeenCalled()
   })
 
-  it('maps updated_at for public box details', async () => {
-    mockSelect.mockReturnValue({ eq: mockEq })
-    mockEq.mockReturnValue({ single: mockSingle })
-    mockSingle.mockResolvedValue({
-      data: {
+  it('loads public box details through the safe RPC', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{
         id: 'box-1',
         owner_id: 'user-1',
         public_id: 'public-1',
@@ -119,18 +120,49 @@ describe('boxes api', () => {
         visibility: 'public',
         cover_object_key: null,
         updated_at: '2026-07-30T08:00:00Z',
-        spaces: { name: '客厅' },
+        space_name: '客厅',
         items: [],
-      },
+      }],
       error: null,
     })
 
     await expect(getBoxByPublicId('public-1')).resolves.toMatchObject({
       id: 'box-1',
       updated_at: '2026-07-30T08:00:00Z',
+      space_name: '客厅',
     })
-    expect(mockSelect).toHaveBeenCalledWith(
-      expect.stringContaining('updated_at'),
-    )
+    expect(mockRpc).toHaveBeenCalledWith('get_public_box', { p_public_id: 'public-1' })
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the owner query for a signed-in private box', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
+    mockSelect.mockReturnValue({ eq: mockEq })
+    mockEq
+      .mockReturnValueOnce({ eq: mockEq })
+      .mockReturnValueOnce({ single: mockSingle })
+    mockSingle.mockResolvedValue({
+      data: {
+        id: 'box-private', owner_id: 'user-1', public_id: 'private-1', box_code: 'B002',
+        space_id: 'space-1', name: '证件箱', category: null, location: null,
+        description: null, visibility: 'private', cover_object_key: null,
+        updated_at: '2026-07-30T08:00:00Z', spaces: { name: '书房' }, items: [],
+      },
+      error: null,
+    })
+
+    await expect(getBoxByPublicId('private-1')).resolves.toMatchObject({
+      id: 'box-private', visibility: 'private', space_name: '书房',
+    })
+    expect(mockEq).toHaveBeenNthCalledWith(1, 'public_id', 'private-1')
+    expect(mockEq).toHaveBeenNthCalledWith(2, 'owner_id', 'user-1')
+  })
+
+  it('does not issue an owner query when the visitor is anonymous', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
+    mockGetSession.mockResolvedValue({ data: { session: null } })
+
+    await expect(getBoxByPublicId('private-1')).resolves.toBeNull()
+    expect(mockFrom).not.toHaveBeenCalled()
   })
 })

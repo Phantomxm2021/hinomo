@@ -154,6 +154,23 @@ export async function installMockBackend(page: Page, state: MockState) {
       }
     }
 
+    if (url.pathname === '/rest/v1/rpc/get_public_box' && method === 'POST') {
+      const { p_public_id: publicId } = request.postDataJSON() as { p_public_id?: string }
+      const box = state.boxes.find((candidate) => (
+        candidate.public_id === publicId && candidate.visibility === 'public'
+      ))
+      if (!box) return json(route, [])
+      const space = state.spaces.find((candidate) => candidate.id === box.space_id)
+      return json(route, [{
+        ...box,
+        cover_object_key: null,
+        space_name: space?.name ?? '',
+        items: state.items
+          .filter((item) => item.box_id === box.id)
+          .map((item) => ({ ...item, image_object_key: null })),
+      }])
+    }
+
     if (url.pathname === '/rest/v1/rpc/search_my_items' && method === 'POST' && currentUserId) {
       const { p_query: query = '' } = request.postDataJSON() as { p_query?: string }
       const needle = query.toLocaleLowerCase()

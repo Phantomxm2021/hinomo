@@ -8,13 +8,16 @@ test('private details and the owner catalogue stay scoped to the current account
   await expect(page.getByRole('heading', { name: '早上好，今天找什么？' })).toBeVisible()
   await createSpace(page, '家')
   const privateUrl = await createBox(page, '证件箱', 'private')
-  await createBox(page, '公开纪念品', 'public')
+  const publicUrl = await createBox(page, '公开纪念品', 'public')
 
   const anonymousContext = await browser.newContext()
   const anonymous = await anonymousContext.newPage()
   await installMockBackend(anonymous, state)
   await anonymous.goto(privateUrl)
   await expect(anonymous.getByRole('heading', { name: '无权限或内容不存在' })).toBeVisible()
+  await anonymous.goto(publicUrl)
+  await expect(anonymous.getByRole('heading', { name: '公开纪念品' })).toBeVisible()
+  await expect(anonymous.getByText('公开箱子')).toBeVisible()
 
   const otherContext = await browser.newContext()
   const other = await otherContext.newPage()

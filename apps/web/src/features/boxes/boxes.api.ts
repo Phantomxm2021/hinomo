@@ -38,16 +38,32 @@ export type PublicBox = EditableBox & {
   items: ItemRecord[]
 }
 
-export async function getBoxByPublicId(publicId: string): Promise<PublicBox | null> {
-  const { data, error } = await supabase
-    .from('boxes')
-    .select('id, owner_id, public_id, box_code, space_id, name, category, location, description, visibility, cover_object_key, updated_at, spaces(name), items(id, name, category, quantity, description, image_object_key)')
-    .eq('public_id', publicId)
-    .single()
+type PublicBoxRpcRow = Database['public']['Functions']['get_public_box']['Returns'][number]
 
-  if (error?.code === 'PGRST116') return null
-  if (error) throw error
+function mapPublicBox(row: Omit<PublicBox, 'items'> & { items: unknown }): PublicBox {
   return {
+    ...row,
+    items: Array.isArray(row.items) ? row.items as ItemRecord[] : [],
+  }
+}
+
+function mapOwnedBox(data: {
+  id: string
+  owner_id: string
+  public_id: string
+  box_code: string
+  space_id: string
+  name: string
+  category: string | null
+  location: string | null
+  description: string | null
+  visibility: Database['public']['Enums']['box_visibility']
+  cover_object_key: string | null
+  updated_at: string
+  spaces: { name: string }
+  items: ItemRecord[]
+}): PublicBox {
+  return mapPublicBox({
     id: data.id,
     owner_id: data.owner_id,
     public_id: data.public_id,
@@ -62,7 +78,33 @@ export async function getBoxByPublicId(publicId: string): Promise<PublicBox | nu
     updated_at: data.updated_at,
     space_name: data.spaces.name,
     items: data.items,
-  }
+  })
+}
+
+async function getOwnedBoxByPublicId(publicId: string, ownerId: string): Promise<PublicBox | null> {
+  const { data, error } = await supabase
+    .from('boxes')
+    .select('id, owner_id, public_id, box_code, space_id, name, category, location, description, visibility, cover_object_key, updated_at, spaces(name), items(id, name, category, quantity, description, image_object_key)')
+    .eq('public_id', publicId)
+    .eq('owner_id', ownerId)
+    .single()
+
+  if (error?.code === 'PGRST116') return null
+  if (error) throw error
+  return mapOwnedBox(data)
+}
+
+export async function getBoxByPublicId(publicId: string): Promise<PublicBox | null> {
+  const { data, error } = await supabase.rpc('get_public_box', { p_public_id: publicId })
+
+  if (error) throw error
+  const row = data?.[0] as PublicBoxRpcRow | undefined
+  if (row) return mapPublicBox(row)
+
+  const { data: sessionData } = await supabase.auth.getSession()
+  const ownerId = sessionData.session?.user.id
+  if (!ownerId) return null
+  return getOwnedBoxByPublicId(publicId, ownerId)
 }
 
 export async function getBox(boxId: string): Promise<EditableBox> {

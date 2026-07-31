@@ -423,6 +423,25 @@ export type Database = {
         Args: { p_cutoff?: string }
         Returns: number
       }
+      get_public_box: {
+        Args: { p_public_id: string }
+        Returns: {
+          box_code: string
+          category: string | null
+          cover_object_key: string | null
+          description: string | null
+          id: string
+          items: Json
+          location: string | null
+          name: string
+          owner_id: string
+          public_id: string
+          space_id: string
+          space_name: string
+          updated_at: string
+          visibility: Database['public']['Enums']['box_visibility']
+        }[]
+      }
       prevent_box_identifier_update: {
         Args: Record<PropertyKey, never>
         Returns: unknown
