@@ -100,9 +100,6 @@ export function DashboardPage() {
             管理空间 <span aria-hidden="true">›</span>
           </Link>
         </div>
-        {spacesQuery.isPending ? (
-          <p role="status" aria-label="正在加载空间">正在加载空间…</p>
-        ) : null}
         {spacesQuery.isSuccess && spaces.length === 0 ? (
           <p className="rounded-control border border-dashed border-line bg-surface/70 p-4">还没有空间，创建箱子时可以设置它所在的房间。</p>
         ) : null}
@@ -134,9 +131,6 @@ export function DashboardPage() {
             </Link>
           ) : null}
         </div>
-        {boxesQuery.isPending ? (
-          <p role="status" aria-label="正在加载箱子">正在加载箱子…</p>
-        ) : null}
         {boxesQuery.isSuccess && boxes.length === 0 ? (
           <div className="grid min-h-56 place-content-center justify-items-center gap-4 rounded-card border border-dashed border-line bg-surface/70 p-7 text-center">
             <h3>给每件物品一个好找的家</h3>
