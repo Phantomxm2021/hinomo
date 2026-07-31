@@ -297,7 +297,7 @@ export function SpacesPage() {
       <header className="py-3">
         <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">整理你的收纳范围</p>
         <div className="flex items-center justify-between gap-4">
-          <h1 className="mb-0 text-page-title font-extrabold" id="spaces-title">场地与空间</h1>
+          <h1 className="mb-0 text-page-title font-extrabold" id="spaces-title">空间</h1>
           <button
             ref={headerCreateButtonRef}
             className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-brand bg-brand text-white transition hover:bg-brand-strong"
@@ -512,7 +512,7 @@ export function SpacesPage() {
               </button>
             ) : null}
           </div>
-          {view === 'plan' && layoutEditMode && layoutsQuery.isSuccess ? <p className="text-meta text-muted" role="status">拖动房间卡片，或聚焦后使用方向键微调；布局会自动保存。</p> : null}
+          {view === 'plan' && layoutEditMode && layoutsQuery.isSuccess ? <p className="text-meta text-muted" role="status">拖动空间卡片，或聚焦后使用方向键微调；布局会自动保存。</p> : null}
           {view === 'plan' && layoutStorageUnavailable ? <p role="alert">布局保存尚未启用，请先执行 space_layouts 数据库迁移。当前仍可浏览自动布局。</p> : null}
           {view === 'plan' && layoutsQuery.isError && !layoutStorageUnavailable ? <p role="alert">布局加载失败；当前显示自动布局。<button className="ml-2 font-bold underline" type="button" onClick={() => void layoutsQuery.refetch()}>重试布局</button></p> : null}
           {layoutMutation.isError ? (

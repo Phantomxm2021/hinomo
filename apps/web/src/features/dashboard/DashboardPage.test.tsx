@@ -47,13 +47,13 @@ test('centers the dashboard on finding items, room totals, and recent activity',
 
   const displayTitle = await screen.findByRole('heading', { name: /今天找什么？/ })
   expect(displayTitle).toHaveClass('text-display', 'font-extrabold')
-  expect(screen.getByText('家庭总览')).toHaveClass(
+  expect(screen.getByText('空间总览')).toHaveClass(
     'text-meta',
     'font-medium',
     'tracking-eyebrow',
     'text-muted',
   )
-  expect(screen.getByText('家庭总览')).not.toHaveClass('text-brand', 'uppercase')
+  expect(screen.getByText('空间总览')).not.toHaveClass('text-brand', 'uppercase')
   expect(screen.getByRole('searchbox', { name: '搜索物品或箱子' })).toBeInTheDocument()
   expect(screen.queryByText('空间分布')).not.toBeInTheDocument()
   expect(screen.queryByText('最近活动')).not.toBeInTheDocument()
@@ -67,8 +67,8 @@ test('centers the dashboard on finding items, room totals, and recent activity',
   expect(within(screen.getByLabelText('空间统计')).getByText('2')).toHaveClass('text-metric')
   expect(screen.queryByText(/公开|私有/)).not.toBeInTheDocument()
 
-  const rooms = screen.getByRole('region', { name: '按房间查看' })
-  expect(within(rooms).getByRole('heading', { name: '按房间查看' })).toHaveClass(
+  const rooms = screen.getByRole('region', { name: '按空间查看' })
+  expect(within(rooms).getByRole('heading', { name: '按空间查看' })).toHaveClass(
     'text-section-title',
     'font-bold',
   )
@@ -116,7 +116,7 @@ test('centers the dashboard on finding items, room totals, and recent activity',
   )
   expect(screen.getByLabelText('收纳概览')).toHaveClass('sm:grid-cols-3')
   expect(screen.getByLabelText('收纳概览')).toHaveClass('hidden', 'lg:grid')
-  expect(screen.getByRole('region', { name: '按房间查看' }).querySelector('div.grid')).toHaveClass(
+  expect(screen.getByRole('region', { name: '按空间查看' }).querySelector('div.grid')).toHaveClass(
     'sm:grid-cols-2',
     'xl:grid-cols-4',
   )
@@ -136,7 +136,7 @@ test('shows a structural dashboard skeleton while initial data is pending', () =
   mockListBoxes.mockReturnValue(new Promise(() => undefined))
   renderDashboard()
 
-  const loading = screen.getByRole('status', { name: '正在加载家庭总览' })
+  const loading = screen.getByRole('status', { name: '正在加载空间总览' })
   expect(within(loading).getAllByTestId('skeleton').length).toBeGreaterThan(6)
   expect(screen.queryByText('正在加载空间…')).not.toBeInTheDocument()
   expect(screen.queryByText('正在加载箱子…')).not.toBeInTheDocument()

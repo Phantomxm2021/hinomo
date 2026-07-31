@@ -64,7 +64,7 @@ test('provides the complete desktop navigation without a scan destination', asyn
 
   expect(links.map((link) => link.textContent)).toEqual([
     '今日收纳',
-    '场地与空间',
+    '空间',
     '全部箱子',
     '查找物品',
     '打印标签',
@@ -90,7 +90,7 @@ test('provides the complete desktop navigation without a scan destination', asyn
     'text-body',
     'text-ink',
   )
-  expect(within(navigation).getByRole('link', { name: '场地与空间' })).toHaveClass(
+  expect(within(navigation).getByRole('link', { name: '空间' })).toHaveClass(
     'font-medium',
     'text-body',
     'text-muted',
@@ -105,7 +105,7 @@ test('provides five mobile destinations with a central scan action', () => {
 
   expect(links.map((link) => link.getAttribute('aria-label'))).toEqual([
     '首页',
-    '场地',
+    '空间',
     '扫码',
     '箱子',
     '我的',

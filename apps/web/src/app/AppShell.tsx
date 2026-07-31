@@ -18,7 +18,7 @@ type NavigationItem = {
 
 const desktopNavigation: NavigationItem[] = [
   { to: '/app', label: '今日收纳', icon: 'home', end: true },
-  { to: '/app/spaces', label: '场地与空间', icon: 'space' },
+  { to: '/app/spaces', label: '空间', icon: 'space' },
   { to: '/app/boxes', label: '全部箱子', icon: 'box' },
   { to: '/app/search', label: '查找物品', icon: 'search' },
   { to: '/app/print', label: '打印标签', icon: 'print' },
@@ -26,7 +26,7 @@ const desktopNavigation: NavigationItem[] = [
 
 const mobileNavigation: NavigationItem[] = [
   { to: '/app', label: '首页', icon: 'home', end: true },
-  { to: '/app/spaces', label: '场地', icon: 'space' },
+  { to: '/app/spaces', label: '空间', icon: 'space' },
   { to: '/app/scan', label: '扫码', icon: 'scan', className: 'mobile-scan-action -translate-y-[18px]' },
   { to: '/app/boxes', label: '箱子', icon: 'box' },
   { to: '/app/me', label: '我的', icon: 'user' },

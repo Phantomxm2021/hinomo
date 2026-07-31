@@ -64,3 +64,13 @@ test('allows an empty venue to be deleted', async () => {
     id: 'office', name: '公司', description: null, is_default: false, space_count: 0,
   })
 })
+
+test('does not allow the built-in default venue to be changed or deleted', () => {
+  renderEditor({
+    venue: { id: 'default', name: '默认', description: null, is_default: true, space_count: 0 },
+  })
+
+  expect(screen.getByText('默认场地不可修改或删除。')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '保存场地' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: '删除场地' })).toBeDisabled()
+})

@@ -45,7 +45,7 @@ test('snaps resizing and constrains it to size and canvas boundaries', () => {
 test('renders room graphics and links to filtered boxes', () => {
   render(<MemoryRouter><SpaceMap spaces={spaces} layouts={[]} editMode={false} onLayoutChange={vi.fn()} /></MemoryRouter>)
 
-  expect(screen.getByRole('region', { name: '家庭平面总览' })).toBeInTheDocument()
+  expect(screen.getByRole('region', { name: '空间平面总览' })).toBeInTheDocument()
   expect(screen.getByRole('img', { name: '客厅图标' })).toHaveTextContent('🛋️')
   expect(screen.getByRole('link', { name: /客厅/ })).toHaveAttribute('href', '/app/boxes?space=s1')
   expect(screen.getByRole('link', { name: /客厅/ })).toHaveClass('touch-pan-y')
@@ -86,7 +86,7 @@ test('snaps pointer dragging and commits the resulting percentage position', () 
       <SpaceMap spaces={[spaces[0]]} layouts={[]} editMode onLayoutChange={onLayoutChange} />
     </MemoryRouter>,
   )
-  const map = screen.getByRole('region', { name: '家庭平面总览' })
+  const map = screen.getByRole('region', { name: '空间平面总览' })
   vi.spyOn(map, 'getBoundingClientRect').mockReturnValue({
     bottom: 500, height: 500, left: 0, right: 1000, top: 0, width: 1000, x: 0, y: 0, toJSON: () => ({}),
   })
@@ -131,7 +131,7 @@ test('resizes a room from its bottom-right handle and commits once', () => {
       />
     </MemoryRouter>,
   )
-  const map = screen.getByRole('region', { name: '家庭平面总览' })
+  const map = screen.getByRole('region', { name: '空间平面总览' })
   vi.spyOn(map, 'getBoundingClientRect').mockReturnValue({
     bottom: 500, height: 500, left: 0, right: 1000, top: 0, width: 1000, x: 0, y: 0, toJSON: () => ({}),
   })

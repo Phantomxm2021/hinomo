@@ -16,12 +16,14 @@ export function VenueFilterBar({ venues, selectedId, onSelect, onCreate, onEdit 
         </button>
         {venues.map((venue) => (
           <span className="inline-flex shrink-0 items-center rounded-full border border-line bg-surface" key={venue.id}>
-            <button className={`min-h-11 rounded-l-full px-4 text-sm font-bold ${selectedId === venue.id ? 'bg-brand text-white' : 'text-muted'}`} type="button" aria-label={`${venue.name}，${venue.space_count} 个空间`} aria-pressed={selectedId === venue.id} onClick={() => onSelect(venue.id)}>
+            <button className={`min-h-11 px-4 text-sm font-bold ${venue.is_default ? 'rounded-full' : 'rounded-l-full'} ${selectedId === venue.id ? 'bg-brand text-white' : 'text-muted'}`} type="button" aria-label={`${venue.name}，${venue.space_count} 个空间`} aria-pressed={selectedId === venue.id} onClick={() => onSelect(venue.id)}>
               {venue.name}<span className="ml-1 opacity-70">{venue.space_count}</span>
             </button>
-            <button className="grid size-11 place-items-center rounded-r-full text-muted hover:bg-canvas hover:text-ink" type="button" aria-label={`编辑场地${venue.name}`} onClick={() => onEdit(venue)}>
-              <AppIcon name="edit" size={16} />
-            </button>
+            {!venue.is_default ? (
+              <button className="grid size-11 place-items-center rounded-r-full text-muted hover:bg-canvas hover:text-ink" type="button" aria-label={`编辑场地${venue.name}`} onClick={() => onEdit(venue)}>
+                <AppIcon name="edit" size={16} />
+              </button>
+            ) : null}
           </span>
         ))}
       </div>

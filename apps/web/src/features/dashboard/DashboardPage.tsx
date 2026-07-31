@@ -35,7 +35,7 @@ export function DashboardPage() {
     <section className="mx-auto flex min-w-0 w-full max-w-7xl flex-col gap-6 lg:gap-10" aria-labelledby="dashboard-title">
       <header className="flex flex-col gap-2 py-3 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(26rem,auto)] lg:items-center lg:gap-6">
         <div>
-          <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">家庭总览</p>
+          <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">空间总览</p>
           <h1 className="mb-4 max-w-3xl text-display font-extrabold" id="dashboard-title">早上好，今天找什么？</h1>
         </div>
         <GlobalFindBar />
@@ -46,7 +46,7 @@ export function DashboardPage() {
       ) : null}
 
       {initiallyLoading ? (
-        <SkeletonGroup className="grid gap-8" label="正在加载家庭总览">
+        <SkeletonGroup className="grid gap-8" label="正在加载空间总览">
           <div className="hidden gap-4 sm:grid-cols-3 lg:grid">
             {Array.from({ length: 3 }, (_, index) => (
               <div className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" key={index}>
@@ -95,13 +95,13 @@ export function DashboardPage() {
 
       <section className="min-w-0" aria-labelledby="rooms-title">
         <div className="my-3.5 flex items-center justify-between gap-4">
-          <h2 className="mb-0 text-section-title font-bold" id="rooms-title">按房间查看</h2>
+          <h2 className="mb-0 text-section-title font-bold" id="rooms-title">按空间查看</h2>
           <Link className="inline-flex min-h-11 items-center text-meta font-medium text-muted no-underline hover:text-ink" to="/app/spaces">
             管理空间 <span aria-hidden="true">›</span>
           </Link>
         </div>
         {spacesQuery.isSuccess && spaces.length === 0 ? (
-          <p className="rounded-control border border-dashed border-line bg-surface/70 p-4">还没有空间，创建箱子时可以设置它所在的房间。</p>
+          <p className="rounded-control border border-dashed border-line bg-surface/70 p-4">还没有空间，创建箱子时可以设置它所在的空间。</p>
         ) : null}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {spaces.map((space) => (

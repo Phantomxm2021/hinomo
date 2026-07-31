@@ -186,7 +186,7 @@ test('keeps the mobile create action compact and aligned with the space title', 
   await screen.findByText('还没有空间')
   const headerCreate = screen.getByRole('button', { name: '创建空间' })
   const emptyCreate = screen.getByRole('button', { name: '创建第一个空间' })
-  const title = screen.getByRole('heading', { name: '场地与空间', level: 1 })
+  const title = screen.getByRole('heading', { name: '空间', level: 1 })
   expect(title.parentElement).toContainElement(headerCreate)
   expect(title.parentElement).toHaveClass('flex', 'items-center', 'justify-between')
   expect(headerCreate).toHaveClass('size-11', 'shrink-0')
@@ -536,7 +536,7 @@ test('defaults to cards and remembers the optional plan view', async () => {
   await user.click(screen.getByRole('button', { name: '平面视图' }))
 
   expect(screen.getByRole('button', { name: '平面视图' })).toHaveAttribute('aria-pressed', 'true')
-  expect(screen.getByRole('region', { name: '家庭平面总览' })).toBeInTheDocument()
+  expect(screen.getByRole('region', { name: '空间平面总览' })).toBeInTheDocument()
   expect(screen.queryByRole('article')).not.toBeInTheDocument()
   expect(mockStorageSetItem).toHaveBeenCalledWith('nomo-space-view', 'plan')
 })
@@ -549,7 +549,7 @@ test('restores a previously selected plan view', async () => {
   renderSpaces()
 
   expect(await screen.findByRole('button', { name: '平面视图' })).toHaveAttribute('aria-pressed', 'true')
-  expect(screen.getByRole('region', { name: '家庭平面总览' })).toBeInTheDocument()
+  expect(screen.getByRole('region', { name: '空间平面总览' })).toBeInTheDocument()
 })
 
 test('reports a real layout query failure without hiding the automatic plan', async () => {
@@ -563,7 +563,7 @@ test('reports a real layout query failure without hiding the automatic plan', as
   await user.click(await screen.findByRole('button', { name: '平面视图' }))
 
   expect(await screen.findByRole('alert')).toHaveTextContent('布局加载失败；当前显示自动布局')
-  expect(screen.getByRole('region', { name: '家庭平面总览' })).toBeInTheDocument()
+  expect(screen.getByRole('region', { name: '空间平面总览' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '调整布局' })).toBeDisabled()
   expect(screen.getByRole('button', { name: '重试布局' })).toBeInTheDocument()
 })
@@ -581,7 +581,7 @@ test('keeps automatic layout read-only when layout SQL is not installed', async 
   expect(await screen.findByRole('alert')).toHaveTextContent('布局保存尚未启用，请先执行 space_layouts 数据库迁移')
   expect(screen.getByRole('button', { name: '调整布局' })).toBeDisabled()
   expect(screen.queryByRole('button', { name: '重试布局' })).not.toBeInTheDocument()
-  expect(screen.getByRole('region', { name: '家庭平面总览' })).toBeInTheDocument()
+  expect(screen.getByRole('region', { name: '空间平面总览' })).toBeInTheDocument()
 })
 
 test('does not enable layout editing before stored positions finish loading', async () => {

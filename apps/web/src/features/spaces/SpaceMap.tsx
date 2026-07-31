@@ -139,7 +139,7 @@ export function SpaceMap({
   const minimumHeight = Math.max(544, Math.ceil(spaces.length / 2) * 144 + 64)
 
   return (
-    <section className="relative overflow-hidden rounded-shell border border-line bg-surface shadow-soft" style={{ minHeight: `${minimumHeight}px` }} role="region" aria-label="家庭平面总览">
+    <section className="relative overflow-hidden rounded-shell border border-line bg-surface shadow-soft" style={{ minHeight: `${minimumHeight}px` }} role="region" aria-label="空间平面总览">
       <div className="pointer-events-none absolute inset-0 opacity-55" style={{ backgroundImage: 'linear-gradient(#e3d5c5 1px, transparent 1px), linear-gradient(90deg, #e3d5c5 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
       {spaces.map((space, index) => {
         const position = positions[space.id] ?? autoSpaceLayout(index, spaces.length)
