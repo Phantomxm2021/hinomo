@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { BoxSummary } from './boxes.api'
@@ -46,6 +47,29 @@ function renderCard(overrides: Partial<React.ComponentProps<typeof BoxCatalogueC
   }
 }
 
+function StatefulCardHarness({ onClose, onDelete = vi.fn() }: { onClose: () => void; onDelete?: (box: BoxSummary) => void }) {
+  const [menuOpen, setMenuOpen] = useState(true)
+  return (
+    <MemoryRouter>
+      <BoxCatalogueCard
+        box={fallbackBox}
+        menuOpen={menuOpen}
+        onMenuToggle={vi.fn()}
+        onMenuClose={() => {
+          onClose()
+          setMenuOpen(false)
+        }}
+        onDelete={onDelete}
+      />
+      <button type="button">外部操作</button>
+    </MemoryRouter>
+  )
+}
+
+function nextAnimationFrame() {
+  return new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
+}
+
 afterEach(() => {
   cleanup()
   mockAuthorizedImage.mockReset()
@@ -60,6 +84,12 @@ test('renders the fallback catalogue card details and primary link', () => {
   expect(screen.getByText('BX-00001')).toBeInTheDocument()
   expect(screen.getByText('私有')).toBeInTheDocument()
   expect(screen.getByRole('img', { name: '箱子封面占位图' })).toBeInTheDocument()
+})
+
+test('keeps the stretched primary link focus treatment inside the clipped card', () => {
+  renderCard()
+
+  expect(screen.getByRole('link', { name: '打开冬季衣物' })).toHaveClass('focus-visible:outline-offset-[-3px]')
 })
 
 test('renders the authorized cover image with its object key and alt text', () => {
@@ -96,26 +126,56 @@ test('provides edit and delete menu actions for the supplied box', async () => {
 })
 
 test('closes on Escape and restores focus to the management trigger', async () => {
-  const { props } = renderCard({ menuOpen: true })
+  const onClose = vi.fn()
+  render(<StatefulCardHarness onClose={onClose} />)
   const trigger = screen.getByRole('button', { name: '管理冬季衣物' })
   screen.getByRole('link', { name: '编辑冬季衣物' }).focus()
 
   fireEvent.keyDown(document, { key: 'Escape' })
 
-  expect(props.onMenuClose).toHaveBeenCalledTimes(1)
+  expect(onClose).toHaveBeenCalledTimes(1)
+  expect(screen.queryByRole('link', { name: '编辑冬季衣物' })).not.toBeInTheDocument()
   await waitFor(() => expect(trigger).toHaveFocus())
 })
 
-test('closes on outside mousedown but leaves trigger clicks to the parent toggle', async () => {
+test('outside interaction closes once and preserves focus on the outside control', async () => {
+  const user = userEvent.setup()
+  const onClose = vi.fn()
+  render(<StatefulCardHarness onClose={onClose} />)
+  const outsideButton = screen.getByRole('button', { name: '外部操作' })
+
+  await user.click(outsideButton)
+  expect(onClose).toHaveBeenCalledTimes(1)
+  expect(screen.queryByRole('link', { name: '编辑冬季衣物' })).not.toBeInTheDocument()
+  await nextAnimationFrame()
+  expect(outsideButton).toHaveFocus()
+
+  fireEvent.mouseDown(document.body)
+  expect(onClose).toHaveBeenCalledTimes(1)
+})
+
+test('deleting closes without returning focus to the management trigger', async () => {
+  const user = userEvent.setup()
+  const onClose = vi.fn()
+  const onDelete = vi.fn()
+  render(<StatefulCardHarness onClose={onClose} onDelete={onDelete} />)
+  const trigger = screen.getByRole('button', { name: '管理冬季衣物' })
+
+  await user.click(screen.getByRole('button', { name: '删除冬季衣物' }))
+
+  expect(onDelete).toHaveBeenCalledWith(fallbackBox)
+  expect(onClose).toHaveBeenCalledTimes(1)
+  await nextAnimationFrame()
+  expect(trigger).not.toHaveFocus()
+})
+
+test('clicking the management trigger is ignored by the outside handler', async () => {
   const user = userEvent.setup()
   const { props } = renderCard({ menuOpen: true })
 
-  fireEvent.mouseDown(document.body)
-  expect(props.onMenuClose).toHaveBeenCalledTimes(1)
-
   await user.click(screen.getByRole('button', { name: '管理冬季衣物' }))
   expect(props.onMenuToggle).toHaveBeenCalledTimes(1)
-  expect(props.onMenuClose).toHaveBeenCalledTimes(1)
+  expect(props.onMenuClose).not.toHaveBeenCalled()
 })
 
 test('closes the menu after editing or deleting', async () => {

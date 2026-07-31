@@ -7,7 +7,7 @@ type BoxCardMenuProps = {
   box: BoxSummary
   open: boolean
   triggerRef: React.RefObject<HTMLButtonElement | null>
-  onClose: () => void
+  onClose: (restoreFocus: boolean) => void
   onDelete: (box: BoxSummary) => void
 }
 
@@ -17,17 +17,13 @@ export function BoxCardMenu({ box, open, triggerRef, onClose, onDelete }: BoxCar
   useEffect(() => {
     if (!open) return
 
-    const closeAndRestoreFocus = () => {
-      onClose()
-      window.requestAnimationFrame(() => triggerRef.current?.focus())
-    }
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeAndRestoreFocus()
+      if (event.key === 'Escape') onClose(true)
     }
     const handleMouseDown = (event: MouseEvent) => {
       const target = event.target as Node
       if (menuRef.current?.contains(target) || triggerRef.current?.contains(target)) return
-      closeAndRestoreFocus()
+      onClose(false)
     }
 
     document.addEventListener('keydown', handleKeyDown)
@@ -40,18 +36,13 @@ export function BoxCardMenu({ box, open, triggerRef, onClose, onDelete }: BoxCar
 
   if (!open) return null
 
-  const closeAndRestoreFocus = () => {
-    onClose()
-    window.requestAnimationFrame(() => triggerRef.current?.focus())
-  }
-
   return (
     <div ref={menuRef} className="absolute top-14 right-3 z-30 grid min-w-36 gap-1 rounded-control border border-line bg-surface p-1 shadow-float">
       <Link
         className="inline-flex min-h-11 items-center gap-2 rounded-control px-3 text-sm font-bold text-ink no-underline hover:bg-canvas"
         to={`/app/boxes/${box.id}/edit`}
         aria-label={`编辑${box.name}`}
-        onClick={closeAndRestoreFocus}
+        onClick={() => onClose(false)}
       >
         <AppIcon name="edit" size={16} />
         编辑箱子
@@ -62,7 +53,7 @@ export function BoxCardMenu({ box, open, triggerRef, onClose, onDelete }: BoxCar
         aria-label={`删除${box.name}`}
         onClick={() => {
           onDelete(box)
-          closeAndRestoreFocus()
+          onClose(false)
         }}
       >
         <AppIcon name="trash" size={16} />

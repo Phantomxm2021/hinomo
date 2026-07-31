@@ -16,6 +16,10 @@ type BoxCatalogueCardProps = {
 export function BoxCatalogueCard({ box, menuOpen, onMenuToggle, onMenuClose, onDelete }: BoxCatalogueCardProps) {
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const visibilityLabel = box.visibility === 'public' ? '公开' : '私有'
+  const closeMenu = (restoreFocus: boolean) => {
+    onMenuClose()
+    if (restoreFocus) window.requestAnimationFrame(() => triggerRef.current?.focus())
+  }
 
   return (
     <article className="group relative flex min-w-0 flex-col overflow-hidden rounded-card border border-line bg-surface transition duration-200 hover:-translate-y-0.5 hover:shadow-soft" aria-label={box.name}>
@@ -44,7 +48,7 @@ export function BoxCatalogueCard({ box, menuOpen, onMenuToggle, onMenuClose, onD
         </div>
       </div>
 
-      <Link className="absolute inset-0 z-10" to={`/b/${box.public_id}`} aria-label={`打开${box.name}`} />
+      <Link className="absolute inset-0 z-10 focus-visible:outline-offset-[-3px]" to={`/b/${box.public_id}`} aria-label={`打开${box.name}`} />
       <button
         ref={triggerRef}
         className="absolute top-3 right-3 z-20 grid size-11 place-items-center rounded-control border border-line bg-surface/90 text-ink shadow-soft hover:bg-surface"
@@ -55,7 +59,7 @@ export function BoxCatalogueCard({ box, menuOpen, onMenuToggle, onMenuClose, onD
       >
         <AppIcon name="more" size={20} />
       </button>
-      <BoxCardMenu box={box} open={menuOpen} triggerRef={triggerRef} onClose={onMenuClose} onDelete={onDelete} />
+      <BoxCardMenu box={box} open={menuOpen} triggerRef={triggerRef} onClose={closeMenu} onDelete={onDelete} />
     </article>
   )
 }
