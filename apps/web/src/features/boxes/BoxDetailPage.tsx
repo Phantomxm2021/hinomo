@@ -18,14 +18,6 @@ export function BoxDetailPage() {
     )
   }
   if ((query.isError && query.data === undefined) || !query.data) return <PageState state="error" message="无权限或内容不存在" onRetry={() => void query.refetch()} />
-  if (query.isFetching) {
-    return (
-      <SkeletonGroup className="mx-auto grid min-w-0 w-full max-w-4xl gap-4 py-6" label="正在确认缓存箱子">
-        <Skeleton className="h-5 w-28" />
-        <Skeleton className="h-10 w-2/3" />
-      </SkeletonGroup>
-    )
-  }
   if (query.isError) {
     return (
       <section className="mx-auto grid min-w-0 w-full max-w-4xl gap-4 py-6" aria-labelledby="cached-box-title">
