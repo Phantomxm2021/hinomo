@@ -18,6 +18,7 @@ export type AppIconName =
   | 'user'
   | 'settings'
   | 'logout'
+  | 'more'
 
 const iconPaths: Record<AppIconName, ReactNode> = {
   home: (
@@ -97,6 +98,13 @@ const iconPaths: Record<AppIconName, ReactNode> = {
     </>
   ),
   logout: <path d="M14 4H5v16h9M11 12h10M17 8l4 4-4 4" />,
+  more: (
+    <>
+      <circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" />
+    </>
+  ),
 }
 
 type AppIconProps = Omit<SVGProps<SVGSVGElement>, 'children'> & {
