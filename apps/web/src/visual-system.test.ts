@@ -29,6 +29,11 @@ const alignedPageSources = [
   'src/features/spaces/SpacesPage.tsx',
 ].map((path) => readFileSync(resolve(process.cwd(), path), 'utf8')).concat(catalogueSources)
 
+function expectStaticClassToken(source: string, token: string) {
+  const staticClassNames = [...source.matchAll(/className="([^"]*)"/g)].map((match) => match[1])
+  expect(staticClassNames.some((className) => className.split(/\s+/).includes(token))).toBe(true)
+}
+
 test('defines the approved Tailwind warm-family theme', () => {
   expect(css.startsWith('@import "tailwindcss";')).toBe(true)
   for (const token of [
@@ -142,15 +147,15 @@ test('removes the migrated box catalogue selector', () => {
 })
 
 test('keeps the extracted box catalogue on approved visual tokens', () => {
-  expect(boxesPageSource).toContain('text-page-title')
-  expect(catalogueCardSource).toContain('text-card-title')
-  expect(catalogueCardSource).toContain('rounded-card')
-  expect(catalogueCardSource).toContain('border-line')
-  expect(boxCardMenuSource).toContain('bg-surface')
-  expect(boxCardMenuSource).toContain('border-line')
-  expect(catalogueToolbarSource).toContain('rounded-card')
-  expect(catalogueToolbarSource).toContain('border-line')
-  expect(spaceFilterChipsSource).toContain('border-line')
+  expectStaticClassToken(boxesPageSource, 'text-page-title')
+  expectStaticClassToken(catalogueCardSource, 'text-card-title')
+  expectStaticClassToken(catalogueCardSource, 'rounded-card')
+  expectStaticClassToken(catalogueCardSource, 'border-line')
+  expectStaticClassToken(boxCardMenuSource, 'bg-surface')
+  expectStaticClassToken(boxCardMenuSource, 'border-line')
+  expectStaticClassToken(catalogueToolbarSource, 'rounded-card')
+  expectStaticClassToken(catalogueToolbarSource, 'border-line')
+  expectStaticClassToken(spaceFilterChipsSource, 'overflow-x-auto')
 })
 
 test('removes migrated box detail and item form selectors', () => {

@@ -29,14 +29,25 @@ export function ConfirmDialog({
   const dialogRef = useRef<HTMLElement | null>(null)
   const cancelRef = useRef<HTMLButtonElement | null>(null)
   const confirmRef = useRef<HTMLButtonElement | null>(null)
+  const implicitReturnFocusRef = useRef<HTMLElement | null>(null)
   const restoreFocus = useCallback(() => {
-    const returnTarget = returnFocusRef?.current
-    if (returnTarget?.isConnected) returnTarget.focus()
+    const explicitTarget = returnFocusRef?.current
+    if (explicitTarget?.isConnected) {
+      explicitTarget.focus()
+      return
+    }
+
+    const implicitTarget = implicitReturnFocusRef.current
+    if (implicitTarget?.isConnected) implicitTarget.focus()
   }, [returnFocusRef])
 
   useEffect(() => {
     if (!open) return
 
+    const activeElement = document.activeElement
+    implicitReturnFocusRef.current = activeElement instanceof HTMLElement && activeElement !== document.body
+      ? activeElement
+      : null
     cancelRef.current?.focus()
     return restoreFocus
   }, [open, restoreFocus])

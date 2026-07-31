@@ -146,3 +146,31 @@ test('restores focus to the supplied trigger after cancel closes the dialog', as
 
   await waitFor(() => expect(trigger).toHaveFocus())
 })
+
+function ImplicitReturnFocusHarness() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>打开共享确认</button>
+      <ConfirmDialog
+        open={open}
+        title="确认操作？"
+        description="此操作需要确认。"
+        onCancel={() => setOpen(false)}
+        onConfirm={vi.fn()}
+      />
+    </>
+  )
+}
+
+test('restores the focused opener when no return-focus ref is supplied', async () => {
+  const user = userEvent.setup()
+  render(<ImplicitReturnFocusHarness />)
+  const trigger = screen.getByRole('button', { name: '打开共享确认' })
+
+  await user.click(trigger)
+  await user.click(screen.getByRole('button', { name: '取消' }))
+
+  await waitFor(() => expect(trigger).toHaveFocus())
+})
