@@ -128,7 +128,7 @@ export function DashboardPage() {
           </Link>
         </div>
         {spacesQuery.isSuccess && spaces.length === 0 ? (
-          <p className="rounded-control border border-dashed border-line bg-surface/70 p-4">还没有空间，创建箱子时可以设置它所在的空间。</p>
+          <PageState state="empty" title="这个场地还没有空间" />
         ) : null}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {spaces.map((space) => (
@@ -147,7 +147,7 @@ export function DashboardPage() {
         </div>
       </section>
 
-      <section className="min-w-0" aria-labelledby="recent-boxes-title">
+      {spaces.length > 0 ? <section className="min-w-0" aria-labelledby="recent-boxes-title">
         <div className="my-3.5 flex items-center justify-between gap-4">
           <div>
             <h2 className="mb-0 text-section-title font-bold" id="recent-boxes-title">最近打开</h2>
@@ -193,7 +193,7 @@ export function DashboardPage() {
             </article>
           ))}
         </div>
-      </section>
+      </section> : null}
         </>
       )}
     </section>

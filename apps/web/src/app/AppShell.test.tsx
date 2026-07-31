@@ -97,7 +97,7 @@ test('provides the complete desktop navigation without a scan destination', asyn
   )
 })
 
-test('provides five mobile destinations with a central scan action', () => {
+test('provides five equal mobile destinations in an Apple-style tab bar', () => {
   renderShell()
 
   const navigation = screen.getByRole('navigation', { name: '移动端主导航' })
@@ -117,15 +117,14 @@ test('provides five mobile destinations with a central scan action', () => {
     '/app/boxes',
     '/app/me',
   ])
-  expect(within(navigation).getByRole('link', { name: '扫码' })).toHaveClass('mobile-scan-action')
+  expect(within(navigation).getByRole('link', { name: '扫码' })).toHaveClass('min-h-[3.25rem]')
+  expect(within(navigation).getByRole('link', { name: '扫码' })).not.toHaveClass('mobile-scan-action')
   expect(navigation).toHaveClass(
     'lg:hidden',
-    'border-line',
-    'pb-[max(0.75rem,var(--safe-area-bottom))]',
-    'shadow-float',
-    'backdrop-blur',
+    'border-line/80',
+    'pb-[max(0.35rem,var(--safe-area-bottom))]',
+    'backdrop-blur-xl',
   )
-  expect(navigation).not.toHaveClass('border-line/80')
 })
 
 test('opens real account actions and read-only profile details', async () => {
@@ -172,21 +171,22 @@ test('keeps mobile content narrow-safe with responsive gutters and nav clearance
     'min-w-0',
     'px-4',
     'min-[360px]:px-5',
-    'pb-[calc(8rem+var(--safe-area-bottom))]',
+    'pb-[calc(5.75rem+var(--safe-area-bottom))]',
     'lg:px-[clamp(1.75rem,4vw,4rem)]',
   )
   expect(screen.getByRole('navigation', { name: '移动端主导航' })).toHaveClass(
-    'pb-[max(0.75rem,var(--safe-area-bottom))]',
+    'pb-[max(0.35rem,var(--safe-area-bottom))]',
   )
 })
 
-test('marks the mobile scan action active on the scan route', () => {
+test('marks the mobile scan tab active on the scan route', () => {
   renderShell('/app/scan')
 
   const navigation = screen.getByRole('navigation', { name: '移动端主导航' })
   const scanLink = within(navigation).getByRole('link', { name: '扫码' })
 
-  expect(scanLink).toHaveClass('mobile-scan-action', 'active')
+  expect(scanLink).toHaveClass('active')
+  expect(scanLink).not.toHaveClass('mobile-scan-action')
   expect(scanLink).toHaveAttribute('aria-current', 'page')
   expect(within(navigation).getByRole('link', { name: '首页' })).not.toHaveAttribute('aria-current')
 })

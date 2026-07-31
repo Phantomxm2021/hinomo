@@ -138,7 +138,7 @@ async function expectShellSafeArea(page: Parameters<typeof installMockBackend>[0
   }, safeAreaBottom)
   try {
     await expect(page.getByRole('navigation', { name: '移动端主导航' })).toHaveCSS('padding-bottom', `${safeAreaBottom}px`)
-    await expect(page.getByRole('main')).toHaveCSS('padding-bottom', `${128 + safeAreaBottom}px`)
+    await expect(page.getByRole('main')).toHaveCSS('padding-bottom', `${92 + safeAreaBottom}px`)
   } finally {
     await page.evaluate(() => document.documentElement.style.removeProperty('--safe-area-bottom'))
   }

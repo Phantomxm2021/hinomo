@@ -356,7 +356,7 @@ export function SpacesPage() {
       {editorOpen
         ? createPortal(
           <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-3 sm:items-center"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 p-0 backdrop-blur-[2px] lg:items-center lg:p-3"
           role="presentation"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) closeEditor()
@@ -364,7 +364,7 @@ export function SpacesPage() {
         >
             <section
               ref={editorDialogRef}
-              className="max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-shell border border-line bg-surface p-6 shadow-float"
+              className="max-h-[calc(100dvh-max(0.75rem,var(--safe-area-top)))] w-full max-w-lg overflow-y-auto rounded-t-[1.5rem] border-x-0 border-t border-b-0 border-line bg-surface p-5 pb-[max(1.25rem,var(--safe-area-bottom))] shadow-float lg:max-h-[calc(100dvh-1.5rem)] lg:rounded-shell lg:border lg:p-6"
               role="dialog"
               aria-modal="true"
               aria-busy={editorPending}

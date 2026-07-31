@@ -156,16 +156,14 @@ test('shows a structural dashboard skeleton while initial data is pending', () =
   expect(screen.queryByText('正在加载箱子…')).not.toBeInTheDocument()
 })
 
-test('guides a first-time user to create a box', async () => {
+test('shows a plain empty state when the selected venue has no spaces', async () => {
   mockListSpaces.mockResolvedValue([])
   mockListBoxes.mockResolvedValue([])
   renderDashboard()
 
-  expect(await screen.findByRole('link', { name: '创建第一个箱子' })).toHaveAttribute(
-    'href',
-    '/app/boxes?create=1',
-  )
-  expect(screen.getByText(/从第一个箱子开始/)).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: '这个场地还没有空间' })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: '创建第一个箱子' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('region', { name: '最近打开' })).not.toBeInTheDocument()
 })
 
 test('keeps finding available when dashboard data fails', async () => {
