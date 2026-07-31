@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createVenue, deleteVenue, listVenues, updateVenue } from './venues.api'
 
-const { mockDelete, mockEq, mockFrom, mockGetSession, mockInsert, mockOrder, mockSelect, mockUpdate } = vi.hoisted(() => ({
+const { mockDefaultOrder, mockDelete, mockEq, mockFrom, mockGetSession, mockInsert, mockNameOrder, mockSelect, mockUpdate } = vi.hoisted(() => ({
+  mockDefaultOrder: vi.fn(),
   mockDelete: vi.fn(),
   mockEq: vi.fn(),
   mockFrom: vi.fn(),
   mockGetSession: vi.fn(),
   mockInsert: vi.fn(),
-  mockOrder: vi.fn(),
+  mockNameOrder: vi.fn(),
   mockSelect: vi.fn(),
   mockUpdate: vi.fn(),
 }))
@@ -23,25 +24,32 @@ describe('venues api', () => {
     mockFrom.mockReturnValue({
       select: mockSelect, insert: mockInsert, update: mockUpdate, delete: mockDelete,
     })
-    mockSelect.mockReturnValue({ order: mockOrder })
+    mockSelect.mockReturnValue({ order: mockDefaultOrder })
+    mockDefaultOrder.mockReturnValue({ order: mockNameOrder })
     mockUpdate.mockReturnValue({ eq: mockEq })
     mockDelete.mockReturnValue({ eq: mockEq })
   })
 
   it('maps venue space counts', async () => {
-    mockOrder.mockResolvedValue({
-      data: [{ id: 'home', name: '家里', description: null, spaces: [{ count: 3 }] }],
+    mockNameOrder.mockResolvedValue({
+      data: [
+        { id: 'default', name: '默认', description: null, is_default: true, spaces: [{ count: 0 }] },
+        { id: 'home', name: '家里', description: null, is_default: false, spaces: [{ count: 3 }] },
+      ],
       error: null,
     })
 
     await expect(listVenues()).resolves.toEqual([
-      { id: 'home', name: '家里', description: null, space_count: 3 },
+      { id: 'default', name: '默认', description: null, is_default: true, space_count: 0 },
+      { id: 'home', name: '家里', description: null, is_default: false, space_count: 3 },
     ])
-    expect(mockSelect).toHaveBeenCalledWith('id, name, description, spaces(count)')
+    expect(mockSelect).toHaveBeenCalledWith('id, name, description, is_default, spaces(count)')
+    expect(mockDefaultOrder).toHaveBeenCalledWith('is_default', { ascending: false })
+    expect(mockNameOrder).toHaveBeenCalledWith('name')
   })
 
   it.each(['PGRST200', 'PGRST205', '42P01', '42703'])('maps %s to a deployment error', async (code) => {
-    mockOrder.mockResolvedValue({ data: null, error: { code, message: 'schema unavailable' } })
+    mockNameOrder.mockResolvedValue({ data: null, error: { code, message: 'schema unavailable' } })
     await expect(listVenues()).rejects.toMatchObject({ code: 'VENUES_SCHEMA_UNAVAILABLE' })
   })
 

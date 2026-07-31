@@ -4,6 +4,7 @@ type BoxInsert = Database['public']['Tables']['boxes']['Insert']
 type BoxUpdate = Database['public']['Tables']['boxes']['Update']
 type PublicBoxArgs = Database['public']['Functions']['get_public_box']['Args']
 type VenueInsert = Database['public']['Tables']['venues']['Insert']
+type VenueRow = Database['public']['Tables']['venues']['Row']
 type SpaceInsert = Database['public']['Tables']['spaces']['Insert']
 
 const validBoxInsert = {
@@ -32,6 +33,7 @@ const validVenueInsert = {
   name: '家里',
   owner_id: '00000000-0000-0000-0000-000000000001',
 } satisfies VenueInsert
+const validDefaultFlag: VenueRow['is_default'] = true
 const validSpaceInsert = {
   name: '卧室',
   owner_id: '00000000-0000-0000-0000-000000000001',
@@ -56,4 +58,5 @@ void updateWithPublicId
 void updateWithBoxCode
 void validPublicBoxArgs
 void validVenueInsert
+void validDefaultFlag
 void validSpaceInsert

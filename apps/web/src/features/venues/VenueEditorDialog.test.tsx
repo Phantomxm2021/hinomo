@@ -43,7 +43,7 @@ test('normalizes a venue payload before submitting it', async () => {
 
 test('prevents deletion while the venue still contains spaces', () => {
   const props = renderEditor({
-    venue: { id: 'home', name: '家里', description: null, space_count: 2 },
+    venue: { id: 'home', name: '家里', description: null, is_default: false, space_count: 2 },
   })
 
   expect(screen.getByText('该场地包含 2 个空间，移走空间后才能删除。')).toBeInTheDocument()
@@ -54,13 +54,13 @@ test('prevents deletion while the venue still contains spaces', () => {
 test('allows an empty venue to be deleted', async () => {
   const user = userEvent.setup()
   const props = renderEditor({
-    venue: { id: 'office', name: '公司', description: null, space_count: 0 },
+    venue: { id: 'office', name: '公司', description: null, is_default: false, space_count: 0 },
   })
 
   const dialog = screen.getByRole('dialog', { name: '编辑场地' })
   await user.click(within(dialog).getByRole('button', { name: '删除场地' }))
 
   expect(props.onDelete).toHaveBeenCalledWith({
-    id: 'office', name: '公司', description: null, space_count: 0,
+    id: 'office', name: '公司', description: null, is_default: false, space_count: 0,
   })
 })

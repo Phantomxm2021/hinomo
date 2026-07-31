@@ -4,6 +4,7 @@ export type VenueSummary = {
   id: string
   name: string
   description: string | null
+  is_default: boolean
   space_count: number
 }
 
@@ -40,7 +41,8 @@ async function requireOwnerId() {
 export async function listVenues(): Promise<VenueSummary[]> {
   const { data, error } = await supabase
     .from('venues')
-    .select('id, name, description, spaces(count)')
+    .select('id, name, description, is_default, spaces(count)')
+    .order('is_default', { ascending: false })
     .order('name')
 
   if (error) throw mapVenueError(error)
@@ -48,6 +50,7 @@ export async function listVenues(): Promise<VenueSummary[]> {
     id: venue.id,
     name: venue.name,
     description: venue.description,
+    is_default: venue.is_default,
     space_count: venue.spaces[0]?.count ?? 0,
   }))
 }
