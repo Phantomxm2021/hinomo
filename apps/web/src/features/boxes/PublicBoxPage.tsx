@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
+import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { env } from '../../lib/env'
 import { formatStoragePath } from '../../lib/format-storage-path'
@@ -113,10 +114,7 @@ export function PublicBoxPage() {
   return (
     <main className={frameClassName}>
       {boxQuery.isError ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
-          <p className="m-0 font-medium">箱子刷新失败，正在显示上次内容</p>
-          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" disabled={boxQuery.isFetching} aria-busy={boxQuery.isFetching} onClick={() => void boxQuery.refetch()}>{boxQuery.isFetching ? '重试中…' : '重试'}</button>
-        </div>
+        <ResponsiveOperationError message="箱子刷新失败，正在显示上次内容" busy={boxQuery.isFetching} onRetry={() => void boxQuery.refetch()} />
       ) : null}
       <section className="grid gap-6 rounded-shell border border-line bg-surface p-5 md:grid-cols-[minmax(16rem,0.8fr)_1.2fr]">
         <div className="aspect-[4/3] min-h-0 overflow-hidden rounded-card bg-placeholder sm:min-h-56">
@@ -159,7 +157,7 @@ export function PublicBoxPage() {
           ) : null}
         </div>
       </section>
-      {printError ? <p role="alert">PDF 生成失败，请重试</p> : null}
+      {printError ? <ResponsiveOperationError message="PDF 生成失败，请重试" onRetry={() => void printLabel()} /> : null}
 
       {isOwner && (showItemForm || editingItem) ? (
         <ItemForm

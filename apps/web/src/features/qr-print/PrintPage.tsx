@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
+import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { env } from '../../lib/env'
 import { listBoxes, type BoxSummary } from '../boxes/boxes.api'
@@ -218,20 +219,15 @@ export function PrintPage() {
       </header>
 
       {boxesQuery.isError && boxesQuery.data !== undefined ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
-          <p className="m-0 font-medium">箱子列表刷新失败，正在显示上次结果</p>
-          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" onClick={() => void boxesQuery.refetch()}>
-            重试
-          </button>
-        </div>
+        <ResponsiveOperationError message="箱子列表刷新失败，正在显示上次结果" busy={boxesQuery.isFetching} onRetry={() => void boxesQuery.refetch()} />
       ) : null}
       {content}
       {progress ? (
-        <p className="text-sm text-muted" role="status" aria-label={`二维码渲染进度：${progress.completed}/${progress.total}`}>
+        <p className="hidden text-sm text-muted lg:block" role="status" aria-label={`二维码渲染进度：${progress.completed}/${progress.total}`}>
           二维码渲染进度：{progress.completed}/{progress.total}
         </p>
       ) : null}
-      {error ? <p className="text-sm font-medium text-danger" role="alert">PDF 生成失败，请重试</p> : null}
+      {error ? <ResponsiveOperationError message="PDF 生成失败，请重试" onRetry={() => void generate(isDesktopViewport ? selectedBoxes : mobileBox ? [mobileBox] : [])} /> : null}
     </section>
   )
 }

@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
+import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { env } from '../../lib/env'
 import { supabase } from '../../lib/supabase'
 import { getAuthErrorMessage } from './auth-errors'
@@ -50,7 +51,7 @@ export function ForgotPasswordPage() {
             {...register('email')}
           />
           {errors.email ? <p id="forgot-email-error" role="alert">{errors.email.message}</p> : null}
-          {submitError ? <p role="alert">{submitError}</p> : null}
+          {submitError ? <ResponsiveOperationError message={submitError} /> : null}
           <button type="submit" disabled={isSubmitting}>
             {isSubmitting ? '发送中…' : '发送重置邮件'}
           </button>

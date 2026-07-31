@@ -6,7 +6,9 @@ import { useForm } from 'react-hook-form'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
+import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
+import { useMobileFeedback } from '../../components/mobile-feedback'
 import { VenueEditorDialog } from '../venues/VenueEditorDialog'
 import { VenueFilterBar } from '../venues/VenueFilterBar'
 import {
@@ -55,6 +57,7 @@ function getEditorControls(dialog: HTMLElement | null) {
 
 export function SpacesPage() {
   const queryClient = useQueryClient()
+  const feedback = useMobileFeedback()
   const editorOpenerRef = useRef<HTMLElement | null>(null)
   const headerCreateButtonRef = useRef<HTMLButtonElement | null>(null)
   const deleteReturnFocusRef = useRef<HTMLElement | null>(null)
@@ -84,6 +87,7 @@ export function SpacesPage() {
     onSuccess: async () => {
       deleteReturnFocusRef.current = headerCreateButtonRef.current
       setDeleteTarget(null)
+      feedback.notify('空间已删除')
       await queryClient.invalidateQueries({ queryKey: ['spaces'] })
     },
   })
@@ -207,6 +211,7 @@ export function SpacesPage() {
       } else {
         await createMutation.mutateAsync(input)
       }
+      feedback.notify(editTarget ? '空间已更新' : '空间已创建')
       setEditorOpen(false)
       setEditTarget(null)
       reset({ venue_id: '', name: '', description: '' })
@@ -431,10 +436,10 @@ export function SpacesPage() {
                 </p>
               ) : null}
               {createMutation.isError || updateMutation.isError ? (
-                <p role="alert">保存失败，请稍后重试</p>
+                <ResponsiveOperationError message="保存失败，请稍后重试" />
               ) : null}
               {editorPending ? (
-                <p role="status" aria-live="polite">正在保存空间…</p>
+                <p className="hidden lg:block" role="status" aria-live="polite">正在保存空间…</p>
               ) : null}
               <div className="mt-3 flex justify-end gap-2.5">
                 <button className="min-h-11 rounded-control border border-brand/40 bg-brand/10 px-4.5 py-2.5 font-bold text-ink" type="button" disabled={editorPending} onClick={closeEditor}>
@@ -467,8 +472,8 @@ export function SpacesPage() {
         )
         : null}
 
-      {blockedMessage ? <p role="alert">{blockedMessage}</p> : null}
-      {deleteMutation.isError ? <p role="alert">删除失败，请稍后重试</p> : null}
+      {blockedMessage ? <ResponsiveOperationError message={blockedMessage} /> : null}
+      {deleteMutation.isError ? <ResponsiveOperationError message="删除失败，请稍后重试" /> : null}
       {spacesQuery.isPending && spacesQuery.data === undefined ? (
         <SkeletonGroup className="grid gap-5" label="正在加载空间">
           <div className="flex items-center justify-between gap-3">
@@ -513,22 +518,15 @@ export function SpacesPage() {
             ) : null}
           </div>
           {view === 'plan' && layoutEditMode && layoutsQuery.isSuccess ? <p className="text-meta text-muted" role="status">拖动空间卡片，或聚焦后使用方向键微调；布局会自动保存。</p> : null}
-          {view === 'plan' && layoutStorageUnavailable ? <p role="alert">布局保存尚未启用，请先执行 space_layouts 数据库迁移。当前仍可浏览自动布局。</p> : null}
-          {view === 'plan' && layoutsQuery.isError && !layoutStorageUnavailable ? <p role="alert">布局加载失败；当前显示自动布局。<button className="ml-2 font-bold underline" type="button" onClick={() => void layoutsQuery.refetch()}>重试布局</button></p> : null}
+          {view === 'plan' && layoutStorageUnavailable ? <ResponsiveOperationError message="布局保存尚未启用，请先执行 space_layouts 数据库迁移。当前仍可浏览自动布局。" /> : null}
+          {view === 'plan' && layoutsQuery.isError && !layoutStorageUnavailable ? <ResponsiveOperationError message="布局加载失败；当前显示自动布局。" busy={layoutsQuery.isFetching} retryLabel="重试布局" onRetry={() => void layoutsQuery.refetch()} /> : null}
           {layoutMutation.isError ? (
-            <p role="alert">
-              布局保存失败；当前调整仍保留在页面中。
-              {layoutMutation.variables ? (
-                <button
-                  className="ml-2 font-bold underline"
-                  type="button"
-                  disabled={layoutMutation.isPending}
-                  onClick={() => layoutMutation.mutate(layoutMutation.variables!)}
-                >
-                  {layoutMutation.isPending ? '正在重试…' : '重试保存布局'}
-                </button>
-              ) : null}
-            </p>
+            <ResponsiveOperationError
+              message="布局保存失败；当前调整仍保留在页面中。"
+              busy={layoutMutation.isPending}
+              retryLabel="重试保存布局"
+              onRetry={layoutMutation.variables ? () => layoutMutation.mutate(layoutMutation.variables!) : undefined}
+            />
           ) : null}
           {view === 'cards' ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

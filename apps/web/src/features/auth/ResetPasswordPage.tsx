@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
+import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { supabase } from '../../lib/supabase'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { getAuthErrorMessage } from './auth-errors'
@@ -57,7 +58,7 @@ export function ResetPasswordPage() {
     return (
       <main>
         <h1>重置密码</h1>
-        <p role="alert">重置链接无效或已过期，请重新申请。</p>
+        <ResponsiveOperationError message="重置链接无效或已过期，请重新申请。" />
         <Link to="/forgot-password">重新申请重置邮件</Link>
       </main>
     )
@@ -91,7 +92,7 @@ export function ResetPasswordPage() {
           <p id="reset-confirm-password-error" role="alert">{errors.confirmPassword.message}</p>
         ) : null}
 
-        {submitError ? <p role="alert">{submitError}</p> : null}
+        {submitError ? <ResponsiveOperationError message={submitError} /> : null}
         <button type="submit" disabled={isSubmitting}>
           {isSubmitting ? '保存中…' : '保存新密码'}
         </button>

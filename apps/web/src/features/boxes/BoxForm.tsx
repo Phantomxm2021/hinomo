@@ -3,7 +3,9 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { PageState } from '../../components/PageState'
+import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
+import { useMobileFeedback } from '../../components/mobile-feedback'
 import { isUploadPending, uploadStageLabel } from '../media/media-ui'
 import { useMediaUpload } from '../media/useMediaUpload'
 import { listSpaces } from '../spaces/spaces.api'
@@ -19,6 +21,7 @@ export type BoxFormProps = {
 
 export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxFormProps) {
   const editing = Boolean(boxId)
+  const feedback = useMobileFeedback()
   const initializedBoxId = useRef<string | undefined>(undefined)
   const spacesQuery = useQuery({ queryKey: ['spaces'], queryFn: listSpaces })
   const boxQuery = useQuery({
@@ -30,6 +33,8 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [pendingBox, setPendingBox] = useState<CreatedBox | null>(null)
   const [mediaError, setMediaError] = useState(false)
+  const retryCoverUploadRef = useRef<() => void>(() => undefined)
+  const finishWithoutCoverRef = useRef<() => void>(() => undefined)
   const mediaUpload = useMediaUpload()
   const mediaStatus = uploadStageLabel(mediaUpload.stage)
   const createMutation = useMutation({
@@ -119,6 +124,25 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
   function finishWithoutCover() {
     if (pendingBox) onCompleted?.(pendingBox)
   }
+  retryCoverUploadRef.current = () => { void retryCoverUpload() }
+  finishWithoutCoverRef.current = finishWithoutCover
+
+  useEffect(() => {
+    if (!saved) return
+    feedback.notify('修改已保存')
+  }, [feedback, saved])
+
+  useEffect(() => {
+    if (!mediaError) return
+    feedback.showActionSheet({
+      title: '图片上传失败',
+      message: '填写内容已经保留。',
+      actions: [
+        { label: '重试上传', onSelect: () => retryCoverUploadRef.current() },
+        ...(pendingBox ? [{ label: '暂不上传', onSelect: () => finishWithoutCoverRef.current() }] : []),
+      ],
+    })
+  }, [feedback, mediaError, pendingBox])
 
   const submit = handleSubmit(async (values) => {
     if (!editing && pendingBox) return
@@ -190,16 +214,10 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
         </header>
       ) : null}
       {spacesQuery.isError ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
-          <p className="m-0 font-medium">空间刷新失败，正在显示上次结果</p>
-          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" disabled={spacesQuery.isFetching} aria-busy={spacesQuery.isFetching} onClick={() => void spacesQuery.refetch()}>{spacesQuery.isFetching ? '重试中…' : '重试'}</button>
-        </div>
+        <ResponsiveOperationError message="空间刷新失败，正在显示上次结果" busy={spacesQuery.isFetching} onRetry={() => void spacesQuery.refetch()} />
       ) : null}
       {editing && boxQuery.isError ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
-          <p className="m-0 font-medium">箱子刷新失败，正在显示上次内容</p>
-          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" disabled={boxQuery.isFetching} aria-busy={boxQuery.isFetching} onClick={() => void boxQuery.refetch()}>{boxQuery.isFetching ? '重试中…' : '重试'}</button>
-        </div>
+        <ResponsiveOperationError message="箱子刷新失败，正在显示上次内容" busy={boxQuery.isFetching} onRetry={() => void boxQuery.refetch()} />
       ) : null}
       <form className={`grid gap-3 [&_label]:font-bold [&_label]:text-ink ${presentation === 'page' ? 'rounded-shell border border-line bg-surface p-5 md:p-6' : ''}`} onSubmit={submit} noValidate>
         <label htmlFor="box-space">空间</label>
@@ -243,12 +261,12 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
         </select>
 
         {createMutation.isError || updateMutation.isError ? (
-          <p role="alert">保存失败，请稍后重试</p>
+          <ResponsiveOperationError message="保存失败，请稍后重试" />
         ) : null}
-        {saved ? <p role="status">修改已保存</p> : null}
-        {mediaStatus ? <p role="status">图片处理中：{mediaStatus}</p> : null}
+        {saved ? <p className="hidden lg:block" role="status">修改已保存</p> : null}
+        {mediaStatus ? <p className="hidden lg:block" role="status">图片处理中：{mediaStatus}</p> : null}
         {!editing && pendingBox ? (
-          <div className="grid gap-3 rounded-control border border-danger/30 bg-danger/5 p-4" role={mediaError ? 'alert' : 'status'}>
+          <div className="hidden gap-3 rounded-control border border-danger/30 bg-danger/5 p-4 lg:grid" role={mediaError ? 'alert' : 'status'}>
             <p>箱子记录已创建，但封面未完成。</p>
             <div className="flex flex-wrap gap-2">
               {coverFile ? (
@@ -260,7 +278,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
             </div>
           </div>
         ) : mediaError ? (
-          <div className="grid gap-3 rounded-control border border-danger/30 bg-danger/5 p-4" role="alert">
+          <div className="hidden gap-3 rounded-control border border-danger/30 bg-danger/5 p-4 lg:grid" role="alert">
             <p>图片上传失败，已保留填写内容。</p>
             <button className="min-h-11 w-fit rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold text-danger" type="button" onClick={() => void retryCoverUpload()}>重试上传</button>
           </div>

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
+import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { SearchInputShell } from '../../components/SearchInputShell'
 import { formatStoragePath } from '../../lib/format-storage-path'
@@ -136,16 +137,10 @@ export function SearchPage() {
       ) : null}
       {bothInitialError ? <PageState state="error" message="搜索失败，请重试" onRetry={() => void Promise.all([boxesQuery.refetch(), resultsQuery.refetch()])} /> : null}
       {!bothInitialError && boxesQuery.isError ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
-          <p className="m-0 font-medium">{boxesInitialError ? '箱子结果加载失败' : '箱子结果刷新失败，正在显示上次结果'}</p>
-          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" disabled={boxesQuery.isFetching} aria-busy={boxesQuery.isFetching} onClick={() => void boxesQuery.refetch()}>{boxesQuery.isFetching ? '重试中…' : '重试'}</button>
-        </div>
+        <ResponsiveOperationError message={boxesInitialError ? '箱子结果加载失败' : '箱子结果刷新失败，正在显示上次结果'} busy={boxesQuery.isFetching} onRetry={() => void boxesQuery.refetch()} />
       ) : null}
       {!bothInitialError && resultsQuery.isError ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
-          <p className="m-0 font-medium">{itemsInitialError ? '物品结果加载失败' : '物品结果刷新失败，正在显示上次结果'}</p>
-          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" disabled={resultsQuery.isFetching} aria-busy={resultsQuery.isFetching} onClick={() => void resultsQuery.refetch()}>{resultsQuery.isFetching ? '重试中…' : '重试'}</button>
-        </div>
+        <ResponsiveOperationError message={itemsInitialError ? '物品结果加载失败' : '物品结果刷新失败，正在显示上次结果'} busy={resultsQuery.isFetching} onRetry={() => void resultsQuery.refetch()} />
       ) : null}
 
       {!isLoading && !boxesInitialError && matchingBoxes.length > 0 ? (

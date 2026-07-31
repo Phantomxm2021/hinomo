@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
+import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { supabase } from '../../lib/supabase'
 import { getAuthErrorMessage } from './auth-errors'
 import { credentialsSchema, type Credentials } from './auth.schemas'
@@ -63,7 +64,7 @@ export function RegisterPage() {
           />
           {errors.password ? <p id="register-password-error" role="alert">{errors.password.message}</p> : null}
 
-          {submitError ? <p role="alert">{submitError}</p> : null}
+          {submitError ? <ResponsiveOperationError message={submitError} /> : null}
           <button type="submit" disabled={isSubmitting}>
             {isSubmitting ? '注册中…' : '注册'}
           </button>

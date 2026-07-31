@@ -1,8 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { AppIcon } from '../../components/AppIcon'
+import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
+import { useMobileFeedback } from '../../components/mobile-feedback'
 import { isUploadPending, uploadStageLabel } from '../media/media-ui'
 import { useMediaUpload } from '../media/useMediaUpload'
 import { itemSchema, type ItemFormValues } from './item.schema'
@@ -16,9 +18,12 @@ type ItemFormProps = {
 }
 
 export function ItemForm({ boxId, item, onSaved, onCancel }: ItemFormProps) {
+  const feedback = useMobileFeedback()
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [pendingItemId, setPendingItemId] = useState<string | null>(null)
   const [mediaError, setMediaError] = useState(false)
+  const retryImageUploadRef = useRef<() => void>(() => undefined)
+  const finishWithoutImageRef = useRef(onSaved)
   const mediaUpload = useMediaUpload()
   const mediaStatus = uploadStageLabel(mediaUpload.stage)
   const mutation = useMutation({
@@ -70,6 +75,7 @@ export function ItemForm({ boxId, item, onSaved, onCancel }: ItemFormProps) {
       recordSaved = true
       setPendingItemId(itemId)
       await uploadImage(itemId)
+      feedback.notify(item ? '物品已更新' : '物品已创建')
       onSaved()
     } catch {
       if (recordSaved) setMediaError(true)
@@ -81,11 +87,26 @@ export function ItemForm({ boxId, item, onSaved, onCancel }: ItemFormProps) {
     setMediaError(false)
     try {
       await uploadImage(pendingItemId)
+      feedback.notify('图片已上传')
       onSaved()
     } catch {
       setMediaError(true)
     }
   }
+  retryImageUploadRef.current = () => { void retryImageUpload() }
+  finishWithoutImageRef.current = onSaved
+
+  useEffect(() => {
+    if (!mediaError) return
+    feedback.showActionSheet({
+      title: '图片上传失败',
+      message: '物品已经保存，可以重试上传或稍后再处理。',
+      actions: [
+        { label: '重试上传', onSelect: () => retryImageUploadRef.current() },
+        { label: '暂不上传', onSelect: () => finishWithoutImageRef.current() },
+      ],
+    })
+  }, [feedback, mediaError])
 
   return (
     <form
@@ -154,10 +175,10 @@ export function ItemForm({ boxId, item, onSaved, onCancel }: ItemFormProps) {
         <label className="font-bold text-ink" htmlFor="item-description">描述（可选）</label>
         <textarea className="w-full rounded-control border border-line bg-canvas px-3 py-3 text-ink focus:border-brand" id="item-description" rows={3} {...register('description')} />
       </div>
-      {mutation.isError ? <p role="alert">保存失败，请稍后重试</p> : null}
-      {mediaStatus ? <p role="status">图片处理中：{mediaStatus}</p> : null}
+      {mutation.isError ? <ResponsiveOperationError message="保存失败，请稍后重试" /> : null}
+      {mediaStatus ? <p className="hidden lg:block" role="status">图片处理中：{mediaStatus}</p> : null}
       {mediaError ? (
-        <div className="grid gap-3 rounded-control border border-danger/30 bg-danger/5 p-4" role="alert">
+        <div className="hidden gap-3 rounded-control border border-danger/30 bg-danger/5 p-4 lg:grid" role="alert">
           <p>图片上传失败，已保留填写内容。</p>
           <button className="min-h-11 w-fit rounded-control border border-danger/30 bg-surface px-4 font-bold text-danger" type="button" onClick={() => void retryImageUpload()}>重试上传</button>
         </div>

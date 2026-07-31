@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { ResponsiveOperationError } from './ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from './Skeleton'
 
 type PageStateProps =
@@ -28,10 +29,5 @@ export function PageState(props: PageStateProps) {
     )
   }
 
-  return (
-    <div className="grid min-h-40 place-content-center justify-items-center gap-4 rounded-card border border-danger/25 bg-surface p-6 text-center" role="alert">
-      <h2 className="m-0 text-section-title font-bold text-danger">{props.message}</h2>
-      <button className="min-h-11 rounded-control border border-danger/30 bg-danger/5 px-4 py-2 font-bold text-danger" type="button" onClick={props.onRetry}>重试</button>
-    </div>
-  )
+  return <ResponsiveOperationError message={props.message} onRetry={props.onRetry} />
 }

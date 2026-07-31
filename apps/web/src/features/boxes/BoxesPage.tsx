@@ -4,7 +4,9 @@ import { useBlocker, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
+import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
+import { useMobileFeedback } from '../../components/mobile-feedback'
 import { BoxCatalogueCard } from './BoxCatalogueCard'
 import { BoxCatalogueToolbar } from './BoxCatalogueToolbar'
 import {
@@ -22,6 +24,7 @@ const EMPTY_BOXES: readonly BoxSummary[] = []
 
 export function BoxesPage() {
   const queryClient = useQueryClient()
+  const feedback = useMobileFeedback()
   const createButtonRef = useRef<HTMLButtonElement | null>(null)
   const deleteReturnFocusRef = useRef<HTMLElement | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -110,12 +113,13 @@ export function BoxesPage() {
     if (!createCompletionPending || creating) return
     setCreateCompletionPending(false)
     setCreateSucceeded(true)
+    feedback.notify('箱子已创建')
     clearCreateSuccessTimer()
     createSuccessTimerRef.current = window.setTimeout(() => {
       createSuccessTimerRef.current = null
       setCreateSucceeded(false)
     }, 4_000)
-  }, [clearCreateSuccessTimer, createCompletionPending, creating])
+  }, [clearCreateSuccessTimer, createCompletionPending, creating, feedback])
 
   useEffect(() => clearCreateSuccessTimer, [clearCreateSuccessTimer])
 
@@ -172,10 +176,7 @@ export function BoxesPage() {
       ) : null}
       {boxesQuery.isError && !hasCatalogueData ? <PageState state="error" message="箱子加载失败，请重试" onRetry={() => void boxesQuery.refetch()} /> : null}
       {boxesQuery.isError && hasCatalogueData ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">
-          <p className="m-0 font-medium">箱子刷新失败，正在显示上次结果</p>
-          <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" onClick={() => void boxesQuery.refetch()}>重试</button>
-        </div>
+        <ResponsiveOperationError message="箱子刷新失败，正在显示上次结果" busy={boxesQuery.isFetching} onRetry={() => void boxesQuery.refetch()} />
       ) : null}
       {hasCatalogueData && boxes.length > 0 ? (
         <>
@@ -200,7 +201,7 @@ export function BoxesPage() {
         </>
       ) : null}
 
-      {createSucceeded ? <p className="m-0 text-sm font-medium text-brand" role="status" aria-label="箱子已创建">箱子已创建</p> : null}
+      {createSucceeded ? <p className="m-0 hidden text-sm font-medium text-brand lg:block" role="status" aria-label="箱子已创建">箱子已创建</p> : null}
 
       {hasCatalogueData && boxes.length === 0 ? (
         <PageState
