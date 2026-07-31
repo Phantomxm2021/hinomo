@@ -28,7 +28,10 @@ beforeEach(() => {
   mockReaderCreate.mockReset()
   mockScannerStart.mockReset()
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 test('uses compact mobile page titles with a desktop scale-up', () => {
   mockScannerStart.mockResolvedValue({ stop: vi.fn() })
@@ -65,7 +68,7 @@ test('uses a tall full-width camera card on mobile and video aspect ratio on des
 })
 
 test.each([
-  [new DOMException('denied', 'NotAllowedError'), '相机权限被拒绝'],
+  [new DOMException('denied', 'NotAllowedError'), '相机权限被拒绝，请在浏览器站点设置中允许相机后重试'],
   [new DOMException('missing', 'NotFoundError'), '没有找到可用的相机'],
   [new Error('boom'), '相机启动失败，请重新尝试'],
 ])('shows a clear camera error and retry action for %s', async (error, message) => {
@@ -92,6 +95,54 @@ test('starts a new reader and scanner controls when retrying', async () => {
   expect(screen.queryByRole('status')).not.toBeInTheDocument()
   unmount()
   expect(retryStop).toHaveBeenCalledOnce()
+})
+
+test('stops successful scanner controls before starting a retry reader', async () => {
+  const user = userEvent.setup()
+  const firstStop = vi.fn()
+  mockScannerStart
+    .mockResolvedValueOnce({ stop: firstStop })
+    .mockResolvedValueOnce({ stop: vi.fn() })
+  render(<ScannerPage />)
+  await waitFor(() => expect(mockScannerStart).toHaveBeenCalledOnce())
+
+  await user.click(await screen.findByRole('button', { name: '重新尝试相机' }))
+
+  await waitFor(() => expect(mockReaderCreate).toHaveBeenCalledTimes(2))
+  expect(firstStop).toHaveBeenCalledOnce()
+  expect(firstStop.mock.invocationCallOrder[0]).toBeLessThan(mockReaderCreate.mock.invocationCallOrder[1])
+})
+
+test('stops scanner controls that resolve after the page unmounts', async () => {
+  const lateStop = vi.fn()
+  let resolveStart: ((controls: { stop: () => void }) => void) | undefined
+  mockScannerStart.mockImplementation(() => new Promise((resolve) => {
+    resolveStart = resolve
+  }))
+  const { unmount } = render(<ScannerPage />)
+  await waitFor(() => expect(mockScannerStart).toHaveBeenCalledOnce())
+
+  unmount()
+  resolveStart?.({ stop: lateStop })
+
+  await waitFor(() => expect(lateStop).toHaveBeenCalledOnce())
+  expect(mockNavigate).not.toHaveBeenCalled()
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
+})
+
+test('does not start a reader on a non-HTTPS remote host', async () => {
+  const insecureWindow = Object.create(window) as Window & typeof globalThis
+  Object.defineProperties(insecureWindow, {
+    isSecureContext: { value: false },
+    location: { value: { hostname: 'nomo.example' } },
+  })
+  vi.stubGlobal('window', insecureWindow)
+
+  render(<ScannerPage />)
+
+  expect(await screen.findByRole('status')).toHaveTextContent('当前页面不是 HTTPS，无法使用相机')
+  expect(mockReaderCreate).not.toHaveBeenCalled()
+  expect(mockScannerStart).not.toHaveBeenCalled()
 })
 
 test('navigates only for a valid same-origin Nomo box URL', async () => {

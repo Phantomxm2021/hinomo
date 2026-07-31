@@ -46,12 +46,15 @@ export function ScannerPage() {
         )
         attemptControls = controls
         if (cancelled) controls.stop()
-        else controlsRef.current = controls
+        else {
+          controlsRef.current = controls
+          setCameraCanRetry(true)
+        }
       } catch (error: unknown) {
         if (cancelled) return
         setCameraCanRetry(true)
         if (error instanceof DOMException && error.name === 'NotAllowedError') {
-          setCameraMessage('相机权限被拒绝')
+          setCameraMessage('相机权限被拒绝，请在浏览器站点设置中允许相机后重试')
         } else if (error instanceof DOMException && error.name === 'NotFoundError') {
           setCameraMessage('没有找到可用的相机')
         } else {
