@@ -14,7 +14,7 @@ const { mockDeleteBox, mockListBoxes, mockModalCleanupSawStatus } = vi.hoisted((
 const catalogueSpies = vi.hoisted(() => ({
   catalogueSpaces: vi.fn(),
   catalogueSummary: vi.fn(),
-  filterAndSortBoxes: vi.fn(),
+  filterBoxes: vi.fn(),
 }))
 
 vi.mock('./boxes.api', () => ({
@@ -26,7 +26,7 @@ vi.mock('./box-catalogue', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./box-catalogue')>()
   catalogueSpies.catalogueSpaces.mockImplementation(actual.catalogueSpaces)
   catalogueSpies.catalogueSummary.mockImplementation(actual.catalogueSummary)
-  catalogueSpies.filterAndSortBoxes.mockImplementation(actual.filterAndSortBoxes)
+  catalogueSpies.filterBoxes.mockImplementation(actual.filterBoxes)
   return { ...actual, ...catalogueSpies }
 })
 
@@ -153,7 +153,7 @@ beforeEach(() => {
   mockModalCleanupSawStatus.mockReset()
   catalogueSpies.catalogueSpaces.mockClear()
   catalogueSpies.catalogueSummary.mockClear()
-  catalogueSpies.filterAndSortBoxes.mockClear()
+  catalogueSpies.filterBoxes.mockClear()
 })
 
 afterEach(() => {
@@ -161,19 +161,19 @@ afterEach(() => {
   cleanup()
 })
 
-test('hydrates search, space, and sort from the URL and renders only matching cards', async () => {
+test('hydrates search and space from the URL without rendering sort controls', async () => {
   mockListBoxes.mockResolvedValue(boxes)
   renderBoxes('/app/boxes?q=衣&space=space-1&sort=items')
 
   expect(await screen.findByRole('searchbox', { name: '搜索箱子' })).toHaveValue('衣')
   expect(screen.getByRole('button', { name: '卧室 1' })).toHaveAttribute('aria-pressed', 'true')
-  expect(screen.getByRole('combobox', { name: '箱子排序' })).toHaveValue('items')
+  expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: '打开冬季衣物' })).toHaveAttribute('href', '/b/public-1')
   expect(screen.queryByRole('link', { name: '打开露营用品' })).not.toBeInTheDocument()
   expect(screen.getByText('显示 1 个')).toBeInTheDocument()
 })
 
-test('writes search and sort with replacement while preserving other URL state', async () => {
+test('writes search with replacement while preserving other URL state', async () => {
   const user = userEvent.setup()
   mockListBoxes.mockResolvedValue(boxes)
   renderBoxes('/app/boxes?space=space-1&sort=items&panel=keep')
@@ -182,26 +182,24 @@ test('writes search and sort with replacement while preserving other URL state',
   await user.type(searchbox, '衣')
 
   expect(screen.getByTestId('location')).toHaveTextContent('space=space-1')
-  expect(screen.getByTestId('location')).toHaveTextContent('sort=items')
+  expect(screen.getByTestId('location')).not.toHaveTextContent('sort=')
   expect(screen.getByTestId('location')).toHaveTextContent('panel=keep')
   expect(screen.getByTestId('location')).toHaveTextContent('q=%E8%A1%A3')
   expect(screen.getByTestId('navigation-type')).toHaveTextContent('REPLACE')
 
-  await user.selectOptions(screen.getByRole('combobox', { name: '箱子排序' }), 'recent')
-  expect(screen.getByTestId('location')).toHaveTextContent('space=space-1')
-  expect(screen.getByTestId('location')).toHaveTextContent('panel=keep')
-  expect(screen.getByTestId('location')).toHaveTextContent('q=%E8%A1%A3')
-  expect(screen.getByTestId('location')).not.toHaveTextContent('sort=')
-  expect(screen.getByTestId('navigation-type')).toHaveTextContent('REPLACE')
 })
 
-test.each(['recent', 'unsupported'])('normalizes sort=%s out of the URL and keeps it out of later filter updates', async (rawSort) => {
+test.each(['recent', 'items', 'unsupported'])('removes legacy sort=%s while preserving all other URL parameters', async (rawSort) => {
   const user = userEvent.setup()
   mockListBoxes.mockResolvedValue(boxes)
-  renderBoxes(`/app/boxes?sort=${rawSort}&panel=keep`)
+  renderBoxes(`/app/boxes?q=%E8%A1%A3&space=space-1&sort=${rawSort}&create=1&panel=keep`)
 
-  await screen.findByRole('link', { name: '打开冬季衣物' })
-  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?panel=keep'))
+  await screen.findByRole('dialog', { name: '创建箱子' })
+  await waitFor(() => expect(screen.getByTestId('location')).not.toHaveTextContent('sort='))
+  expect(screen.getByTestId('location')).toHaveTextContent('q=%E8%A1%A3')
+  expect(screen.getByTestId('location')).toHaveTextContent('space=space-1')
+  expect(screen.getByTestId('location')).toHaveTextContent('create=1')
+  expect(screen.getByTestId('location')).toHaveTextContent('panel=keep')
   expect(screen.getByTestId('location')).not.toHaveTextContent('sort=')
   expect(screen.getByTestId('navigation-type')).toHaveTextContent('REPLACE')
 
@@ -211,7 +209,7 @@ test.each(['recent', 'unsupported'])('normalizes sort=%s out of the URL and keep
   expect(screen.getByTestId('location')).not.toHaveTextContent('sort=')
 })
 
-test('space chips preserve search, sort, and unknown URL parameters', async () => {
+test('space chips preserve search and unknown URL parameters after legacy sort cleanup', async () => {
   const user = userEvent.setup()
   mockListBoxes.mockResolvedValue(boxes)
   renderBoxes('/app/boxes?q=%E7%94%A8%E5%93%81&sort=items&panel=keep')
@@ -221,14 +219,14 @@ test('space chips preserve search, sort, and unknown URL parameters', async () =
 
   expect(screen.getByTestId('location')).toHaveTextContent('q=%E7%94%A8%E5%93%81')
   expect(screen.getByTestId('location')).toHaveTextContent('space=space-2')
-  expect(screen.getByTestId('location')).toHaveTextContent('sort=items')
+  expect(screen.getByTestId('location')).not.toHaveTextContent('sort=')
   expect(screen.getByTestId('location')).toHaveTextContent('panel=keep')
   expect(screen.getByTestId('navigation-type')).toHaveTextContent('REPLACE')
 
   await user.click(screen.getByRole('button', { name: '全部空间 2' }))
   expect(screen.getByTestId('location')).not.toHaveTextContent('space=')
   expect(screen.getByTestId('location')).toHaveTextContent('q=%E7%94%A8%E5%93%81')
-  expect(screen.getByTestId('location')).toHaveTextContent('sort=items')
+  expect(screen.getByTestId('location')).not.toHaveTextContent('sort=')
   expect(screen.getByTestId('location')).toHaveTextContent('panel=keep')
 })
 
@@ -255,17 +253,12 @@ test('shows a compact result count on mobile and keeps the desktop wording', asy
   expect(resultStatus).not.toHaveClass('hidden')
 })
 
-test('sorts rendered card links by items and name', async () => {
-  const user = userEvent.setup()
+test('keeps rendered card links in API order', async () => {
   mockListBoxes.mockResolvedValue(boxes)
   renderBoxes('/app/boxes?sort=items')
 
   await screen.findByRole('link', { name: '打开冬季衣物' })
-  expect(screen.getByRole('option', { name: '物品数量从多到少' })).toHaveValue('items')
-  expect(primaryLinkNames()).toEqual(['打开露营用品', '打开冬季衣物'])
-
-  await user.selectOptions(screen.getByRole('combobox', { name: '箱子排序' }), 'name')
-  await waitFor(() => expect(primaryLinkNames()).toEqual(['打开冬季衣物', '打开露营用品']))
+  expect(primaryLinkNames()).toEqual(['打开冬季衣物', '打开露营用品'])
 })
 
 test('filters from chips and exposes cover, placeholder, and card metadata', async () => {
@@ -314,7 +307,7 @@ test('does not recompute catalogue derivations for menu and mutation rerenders',
   const callsAfterLoad = {
     spaces: catalogueSpies.catalogueSpaces.mock.calls.length,
     summary: catalogueSpies.catalogueSummary.mock.calls.length,
-    visible: catalogueSpies.filterAndSortBoxes.mock.calls.length,
+    visible: catalogueSpies.filterBoxes.mock.calls.length,
   }
 
   await user.click(screen.getByRole('button', { name: '管理冬季衣物' }))
@@ -324,7 +317,21 @@ test('does not recompute catalogue derivations for menu and mutation rerenders',
 
   expect(catalogueSpies.catalogueSpaces).toHaveBeenCalledTimes(callsAfterLoad.spaces)
   expect(catalogueSpies.catalogueSummary).toHaveBeenCalledTimes(callsAfterLoad.summary)
-  expect(catalogueSpies.filterAndSortBoxes).toHaveBeenCalledTimes(callsAfterLoad.visible)
+  expect(catalogueSpies.filterBoxes).toHaveBeenCalledTimes(callsAfterLoad.visible)
+})
+
+test('does not close an open card menu when only a legacy sort parameter changes', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  const { router } = renderBoxes()
+
+  await screen.findByRole('link', { name: '打开冬季衣物' })
+  await user.click(screen.getByRole('button', { name: '管理冬季衣物' }))
+  expect(screen.getByRole('link', { name: '编辑冬季衣物' })).toBeInTheDocument()
+
+  await act(async () => { await router.navigate('/app/boxes?sort=items') })
+  await waitFor(() => expect(screen.getByTestId('location')).not.toHaveTextContent('sort='))
+  expect(screen.getByRole('link', { name: '编辑冬季衣物' })).toBeInTheDocument()
 })
 
 test('keeps a restored card menu closed after catalogue criteria change through history', async () => {

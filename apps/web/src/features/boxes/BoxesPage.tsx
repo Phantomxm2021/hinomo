@@ -10,15 +10,13 @@ import { BoxCatalogueToolbar } from './BoxCatalogueToolbar'
 import {
   catalogueSpaces,
   catalogueSummary,
-  filterAndSortBoxes,
-  parseCatalogueSort,
-  type BoxCatalogueSort,
+  filterBoxes,
 } from './box-catalogue'
 import { deleteBox, listBoxes, type BoxSummary } from './boxes.api'
 import { CreateBoxModal } from './CreateBoxModal'
 import { SpaceFilterChips } from './SpaceFilterChips'
 
-type CatalogueParam = 'q' | 'space' | 'sort'
+type CatalogueParam = 'q' | 'space'
 
 const EMPTY_BOXES: readonly BoxSummary[] = []
 
@@ -47,29 +45,26 @@ export function BoxesPage() {
   const hasCatalogueData = boxesQuery.data !== undefined
   const query = searchParams.get('q') ?? ''
   const selectedSpace = searchParams.get('space') ?? ''
-  const rawSort = searchParams.get('sort')
-  const sort = parseCatalogueSort(rawSort)
   const creating = searchParams.get('create') === '1'
   const wasCreating = useRef(creating)
   const createBlocker = useBlocker(creating && createBusy)
   const spaces = useMemo(() => catalogueSpaces(boxes), [boxes])
   const summary = useMemo(() => catalogueSummary(boxes), [boxes])
-  const visibleBoxes = useMemo(() => filterAndSortBoxes(boxes, {
+  const visibleBoxes = useMemo(() => filterBoxes(boxes, {
     query,
     spaceId: selectedSpace,
-    sort,
-  }), [boxes, query, selectedSpace, sort])
+  }), [boxes, query, selectedSpace])
 
   useEffect(() => {
-    if (rawSort === null || rawSort === 'name' || rawSort === 'items') return
+    if (!searchParams.has('sort')) return
     const next = new URLSearchParams(searchParams)
     next.delete('sort')
     setSearchParams(next, { replace: true })
-  }, [rawSort, searchParams, setSearchParams])
+  }, [searchParams, setSearchParams])
 
   const updateCatalogueParam = (key: CatalogueParam, value: string) => {
     const next = new URLSearchParams(searchParams)
-    if (!value || (key === 'sort' && value === 'recent')) next.delete(key)
+    if (!value) next.delete(key)
     else next.set(key, value)
     setSearchParams(next, { replace: true })
   }
@@ -126,7 +121,7 @@ export function BoxesPage() {
 
   useEffect(() => {
     setOpenMenuBoxId(null)
-  }, [query, selectedSpace, sort])
+  }, [query, selectedSpace])
 
   useEffect(() => {
     const shouldRestoreFocus = wasCreating.current && !creating
@@ -161,10 +156,7 @@ export function BoxesPage() {
 
       {boxesQuery.isPending && boxesQuery.data === undefined ? (
         <SkeletonGroup className="grid gap-5" label="正在加载箱子目录">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-          </div>
+          <Skeleton className="h-12 w-full" />
           <Skeleton className="h-10 w-full" />
           <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }, (_, index) => (
@@ -190,9 +182,7 @@ export function BoxesPage() {
         <>
           <BoxCatalogueToolbar
             query={query}
-            sort={sort}
             onQueryChange={(nextQuery) => updateCatalogueParam('q', nextQuery)}
-            onSortChange={(nextSort: BoxCatalogueSort) => updateCatalogueParam('sort', nextSort)}
           />
           <div className="flex min-w-0 items-center gap-3">
             <div className="min-w-0 flex-1">
