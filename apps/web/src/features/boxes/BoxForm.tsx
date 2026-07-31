@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { PageState } from '../../components/PageState'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
@@ -19,6 +19,7 @@ export type BoxFormProps = {
 
 export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxFormProps) {
   const editing = Boolean(boxId)
+  const initializedBoxId = useRef<string | undefined>(undefined)
   const spacesQuery = useQuery({ queryKey: ['spaces'], queryFn: listSpaces })
   const boxQuery = useQuery({
     queryKey: ['box-edit', boxId],
@@ -61,7 +62,11 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
   }, [dismissalBlocked, onBusyChange])
 
   useEffect(() => {
-    if (!boxQuery.data) return
+    initializedBoxId.current = undefined
+  }, [boxId])
+
+  useEffect(() => {
+    if (!boxId || !boxQuery.data || initializedBoxId.current === boxId) return
     reset({
       space_id: boxQuery.data.space_id,
       name: boxQuery.data.name,
@@ -70,7 +75,8 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
       description: boxQuery.data.description ?? '',
       visibility: boxQuery.data.visibility,
     })
-  }, [boxQuery.data, reset])
+    initializedBoxId.current = boxId
+  }, [boxId, boxQuery.data, reset])
 
   async function uploadCover(target: CreatedBox) {
     if (!coverFile) return

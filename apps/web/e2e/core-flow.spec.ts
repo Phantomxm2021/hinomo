@@ -68,6 +68,7 @@ async function expectRouteFrame(
     return
   }
 
+  await expect(shell.getByRole('complementary')).toBeHidden()
   const banner = shell.getByRole('banner')
   await expect(banner.getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/app')
   const navigation = shell.getByRole('navigation', { name: '移动端主导航' })

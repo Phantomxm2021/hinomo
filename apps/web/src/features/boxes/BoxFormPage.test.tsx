@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { BoxFormPage } from './BoxFormPage'
 import { BoxForm } from './BoxForm'
@@ -39,9 +39,15 @@ function renderBoxForm(initialEntry = '/app/boxes/new', client = new QueryClient
           <Route path="/app/boxes/new" element={<BoxFormPage />} />
           <Route path="/app/boxes/:boxId/edit" element={<BoxFormPage />} />
         </Routes>
+        <BoxNavigationControls />
       </QueryClientProvider>
     </MemoryRouter>,
   )
+}
+
+function BoxNavigationControls() {
+  const navigate = useNavigate()
+  return <button type="button" onClick={() => navigate('/app/boxes/box-2/edit')}>切换箱子</button>
 }
 
 function renderModalBoxForm(onCompleted = vi.fn(), onBusyChange?: (busy: boolean) => void) {
@@ -255,6 +261,56 @@ test('keeps edited values visible when the cached box fails to refetch', async (
   expect(nameInput).toHaveValue('用户未保存的名称')
   await user.click(within(alert).getByRole('button', { name: '重试' }))
   expect(mockGetBox).toHaveBeenCalledTimes(2)
+})
+
+test('preserves user edits when retrying a cached box returns a new object', async () => {
+  const user = userEvent.setup()
+  const cachedBox = {
+    id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', space_id: 'space-home',
+    name: '缓存名称', category: null, location: null, description: null, visibility: 'private',
+  }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client.setQueryData(['spaces'], [
+    { id: 'space-home', name: '家', description: null, box_count: 1 },
+  ])
+  client.setQueryData(['box-edit', 'box-1'], cachedBox)
+  mockListSpaces.mockResolvedValue(client.getQueryData(['spaces']))
+  mockGetBox
+    .mockRejectedValueOnce(new Error('network'))
+    .mockResolvedValueOnce({ ...cachedBox, name: '服务端新名称' })
+  renderBoxForm('/app/boxes/box-1/edit', client)
+
+  const nameInput = await screen.findByDisplayValue('缓存名称')
+  await user.clear(nameInput)
+  await user.type(nameInput, '用户未保存的名称')
+  await user.click(within(await screen.findByRole('alert')).getByRole('button', { name: '重试' }))
+
+  await waitFor(() => expect(mockGetBox).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(screen.queryByText('箱子刷新失败，正在显示上次内容')).not.toBeInTheDocument())
+  expect(nameInput).toHaveValue('用户未保存的名称')
+})
+
+test('initializes the form again when the route switches to another box id', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([
+    { id: 'space-home', name: '家', description: null, box_count: 2 },
+  ])
+  mockGetBox.mockImplementation(async (id: string) => ({
+    id,
+    public_id: `public-${id}`,
+    box_code: id === 'box-1' ? 'BX-00001' : 'BX-00002',
+    space_id: 'space-home',
+    name: id === 'box-1' ? '第一个箱子' : '第二个箱子',
+    category: null,
+    location: null,
+    description: null,
+    visibility: 'private',
+  }))
+  renderBoxForm('/app/boxes/box-1/edit')
+
+  expect(await screen.findByDisplayValue('第一个箱子')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '切换箱子' }))
+  expect(await screen.findByDisplayValue('第二个箱子')).toBeInTheDocument()
 })
 
 test('edits mutable fields without sending database identifiers', async () => {
