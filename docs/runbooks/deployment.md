@@ -4,12 +4,28 @@
 
 ## Supabase
 
-1. 从部署环境读取 `SUPABASE_PROJECT_REF`，关联目标项目：`supabase link --project-ref "$SUPABASE_PROJECT_REF"`。
-2. 检查迁移：`supabase db diff --linked`。
-3. 由项目管理员审核 `supabase/migrations/` 后执行：`supabase db push --linked`。
-4. 在 Dashboard Vault 写入 `r2_account_id`、`r2_bucket_name`、`r2_access_key_id`、`r2_secret_access_key`。值从密码管理器粘贴，不进入 shell history。
-5. Auth Site URL 设置为生产站点；Redirect URLs 加入生产站点的 `/reset-password`。
-6. 确认 `pg_cron` 与 `pg_net` 可用，并检查媒体清理任务已注册。
+数据库变更只由项目管理员在 Supabase Dashboard 的 SQL Editor 中手动执行。本项目的应用、自动化测试和 Codex 都不会连接、创建、重置或修改真实数据库，也不使用 Supabase CLI 推送迁移。
+
+1. 审核 `supabase/migrations/` 中尚未执行的 SQL，确认目标项目与环境正确。
+2. 按文件名时间顺序复制完整 SQL 到 Dashboard SQL Editor，并逐个执行；每个文件成功后再执行下一个。
+3. 本次场地与公开访问功能依次执行：
+   - `202608010001_public_box_rpc.sql`
+   - `202608010002_venues.sql`
+4. 执行后运行下面的只读验证查询。预期：公开 RPC 存在；`venues` 有数据（已有空间的用户至少有“家里”）；没有 `venue_id` 为空的空间。
+
+```sql
+select n.nspname as schema_name, p.proname, pg_get_function_identity_arguments(p.oid) as arguments
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.proname = 'get_public_box';
+
+select count(*) as venue_count from public.venues;
+select count(*) as spaces_without_venue from public.spaces where venue_id is null;
+```
+
+5. 在 Dashboard Vault 写入所需的四项 R2 配置。值只从密码管理器粘贴，不记录到文档、代码、日志或查询结果中。
+6. Auth Site URL 设置为生产站点；Redirect URLs 加入生产站点的 `/reset-password`。
+7. 确认 `pg_cron` 与 `pg_net` 可用，并检查媒体清理任务已注册。
 
 ## Cloudflare R2
 

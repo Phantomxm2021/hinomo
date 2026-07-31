@@ -8,6 +8,8 @@
 
 **Tech Stack:** PostgreSQL / Supabase RLS 与 RPC、React 19、TypeScript 6、React Router、TanStack Query、React Hook Form、Zod、Tailwind CSS 4、Vitest、Testing Library、Playwright。
 
+**Implementation status (2026-08-01):** 功能实现完成，数据库仅交付 SQL 文件，由项目管理员手动执行。验证以 Supabase HTTP API 契约测试、Vitest 和 Playwright 为准，不调用 Supabase CLI。实际共享组件采用 `account-view.tsx` / `account-name.ts`；空间编辑器继续保留在 `SpacesPage`，避免为本次需求扩大重构范围。
+
 ---
 
 ## 文件结构
