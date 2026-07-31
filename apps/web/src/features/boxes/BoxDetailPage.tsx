@@ -28,7 +28,7 @@ export function BoxDetailPage() {
             <p className="mt-1 font-mono text-sm font-bold">{query.data.box_code}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" onClick={() => void query.refetch()}>重试</button>
+            <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" disabled={query.isFetching} aria-busy={query.isFetching} onClick={() => void query.refetch()}>{query.isFetching ? '重试中…' : '重试'}</button>
             <Link className="inline-flex min-h-11 items-center rounded-control border border-line bg-surface px-4 py-2 font-bold text-ink no-underline" to={`/b/${query.data.public_id}`}>继续打开箱子</Link>
           </div>
         </div>
