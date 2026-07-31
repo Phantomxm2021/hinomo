@@ -34,3 +34,4 @@ npm run test:e2e
 
 - [实施计划](docs/superpowers/plans/2026-07-29-qr-storage-management-implementation.md)
 - [部署 Runbook](docs/runbooks/deployment.md)
+- [Docker 部署 Runbook](docs/runbooks/docker.md)
