@@ -9,6 +9,9 @@ const { mockNavigate, mockScannerStart, mockStop } = vi.hoisted(() => ({
   mockStop: vi.fn(),
 }))
 
+type ScanResult = { getText: () => string }
+type ScanCallback = (result: ScanResult | undefined, error?: unknown, controls?: { stop: () => void }) => void
+
 vi.mock('react-router-dom', async (importOriginal) => ({
   ...await importOriginal<typeof import('react-router-dom')>(),
   useNavigate: () => mockNavigate,
@@ -27,8 +30,8 @@ beforeEach(() => {
 afterEach(cleanup)
 
 test('navigates only for a valid same-origin Nomo box URL', async () => {
-  let emitScan: ((result: { getText: () => string }, error?: unknown, controls?: { stop: () => void }) => void) | undefined
-  mockScannerStart.mockImplementation(async (_constraints, _video, callback) => {
+  let emitScan: ScanCallback | undefined
+  mockScannerStart.mockImplementation(async (_constraints: unknown, _video: HTMLVideoElement | undefined, callback: ScanCallback) => {
     emitScan = callback
     return { stop: mockStop }
   })

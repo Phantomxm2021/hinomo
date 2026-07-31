@@ -34,7 +34,7 @@ describe('auth session store', () => {
     mockGetSession.mockReset()
     mockOnAuthStateChange.mockReset()
     mockUnsubscribe.mockReset()
-    mockOnAuthStateChange.mockImplementation((callback) => {
+    mockOnAuthStateChange.mockImplementation((callback: (event: AuthChangeEvent, nextSession: Session | null) => void) => {
       emit = callback
       return { data: { subscription: { unsubscribe: mockUnsubscribe } } }
     })
