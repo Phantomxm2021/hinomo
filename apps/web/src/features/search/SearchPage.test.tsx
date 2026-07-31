@@ -63,6 +63,16 @@ beforeEach(() => {
 
 afterEach(cleanup)
 
+test('shows grouped result-row skeletons while an initial search is pending', async () => {
+  mockListBoxes.mockReturnValue(new Promise(() => undefined))
+  mockSearchItems.mockReturnValue(new Promise(() => undefined))
+  renderSearch('/app/search?q=充电器')
+
+  const loading = await screen.findByRole('status', { name: '正在搜索收纳内容' })
+  expect(within(loading).getAllByTestId('skeleton').length).toBeGreaterThan(8)
+  expect(screen.queryByText('正在搜索…')).not.toBeInTheDocument()
+})
+
 test('initializes from q and groups matching boxes and items', async () => {
   mockSearchItems.mockResolvedValue([{
     item_id: 'item-1', item_name: 'USB-C 充电器', quantity: 2,

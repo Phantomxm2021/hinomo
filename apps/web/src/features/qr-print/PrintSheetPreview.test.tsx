@@ -76,7 +76,9 @@ test('renders label metadata in order and generates its QR from the public URL',
   render(<PrintSheetPreview boxes={[box(1, { name: '冬季衣物', box_code: 'BX-00001' })]} mode="a4" />)
 
   const label = screen.getByRole('group', { name: '冬季衣物标签' })
-  expect(within(label).getByText('正在生成二维码…')).toBeInTheDocument()
+  const loading = within(label).getByRole('status', { name: '正在生成冬季衣物二维码' })
+  expect(within(loading).getByTestId('skeleton')).toHaveClass('aspect-square')
+  expect(within(label).queryByText('正在生成二维码…')).not.toBeInTheDocument()
   expect(label).toHaveTextContent('冬季衣物BX-00001空间：家位置：衣柜上层扫码查看箱内物品')
   expect(within(label).getByText('冬季衣物')).toHaveStyle({ color: PRINT_LABEL_COLORS.ink })
   expect(within(label).getByText('BX-00001')).toHaveStyle({ color: PRINT_LABEL_COLORS.brand })
@@ -168,7 +170,7 @@ test('never shows a stale QR after rapidly switching boxes', async () => {
   })
   const current = screen.getByRole('group', { name: '箱子 2标签' })
   expect(within(current).queryByRole('img')).not.toBeInTheDocument()
-  expect(within(current).getByText('正在生成二维码…')).toBeInTheDocument()
+  expect(within(current).getByRole('status', { name: '正在生成箱子 2二维码' })).toBeInTheDocument()
 
   await act(async () => {
     second.resolve('data:image/png;base64,current')
@@ -206,7 +208,7 @@ test('keeps the committed QR identity when a speculative transition is suspended
   }
 
   render(<Harness />)
-  expect(screen.getByRole('group', { name: '箱子 1标签' })).toHaveTextContent('正在生成二维码…')
+  expect(within(screen.getByRole('group', { name: '箱子 1标签' })).getByRole('status', { name: '正在生成箱子 1二维码' })).toBeInTheDocument()
 
   fireEvent.click(screen.getByRole('button', { name: '切换' }))
   await waitFor(() => expect(renderedSuspendingSibling).toHaveBeenCalled())

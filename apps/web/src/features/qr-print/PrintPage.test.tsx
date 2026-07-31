@@ -330,7 +330,9 @@ test('blocks workspaces while loading and on an initial error, then retries', as
   mockListBoxes.mockReturnValueOnce(pending.promise)
   const loadingView = renderPrint()
 
-  expect(screen.getByRole('status')).toHaveTextContent('正在加载箱子…')
+  const loading = screen.getByRole('status', { name: '正在加载打印工作台' })
+  expect(within(loading).getAllByTestId('skeleton').length).toBeGreaterThan(6)
+  expect(screen.queryByText('正在加载箱子…')).not.toBeInTheDocument()
   expect(screen.queryByRole('region', { name: '批量标签工作台' })).not.toBeInTheDocument()
   loadingView.unmount()
 

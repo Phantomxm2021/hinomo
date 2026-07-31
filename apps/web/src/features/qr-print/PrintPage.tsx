@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { env } from '../../lib/env'
 import { listBoxes, type BoxSummary } from '../boxes/boxes.api'
 import { buildLabels, renderLabelsPdf } from './pdf'
@@ -98,8 +99,20 @@ export function PrintPage() {
     }
   }
 
-  const content = boxesQuery.isPending ? (
-    <PageState state="loading" label="正在加载箱子…" />
+  const content = boxesQuery.isPending && boxesQuery.data === undefined ? (
+    <SkeletonGroup className="grid min-w-0 gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]" label="正在加载打印工作台">
+      <div className="grid content-start gap-4 rounded-card border border-line bg-surface p-4">
+        <Skeleton className="h-7 w-1/2" />
+        <Skeleton className="h-11 w-full" />
+        {Array.from({ length: 4 }, (_, index) => (
+          <div className="flex items-center gap-3" key={index}><Skeleton className="size-5" /><Skeleton className="h-12 flex-1" /></div>
+        ))}
+        <Skeleton className="h-11 w-full" />
+      </div>
+      <div className="min-w-0 rounded-card border border-line bg-surface p-5">
+        <Skeleton className="mx-auto aspect-[210/297] w-full max-w-[42rem] rounded-none" />
+      </div>
+    </SkeletonGroup>
   ) : boxesQuery.isError && boxesQuery.data === undefined ? (
     <PageState state="error" message="箱子加载失败，请重试" onRetry={() => void boxesQuery.refetch()} />
   ) : allBoxes.length === 0 ? (

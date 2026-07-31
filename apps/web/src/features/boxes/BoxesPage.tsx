@@ -4,6 +4,7 @@ import { useBlocker, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { BoxCatalogueCard } from './BoxCatalogueCard'
 import { BoxCatalogueToolbar } from './BoxCatalogueToolbar'
 import {
@@ -129,7 +130,26 @@ export function BoxesPage() {
         </button>
       </header>
 
-      {boxesQuery.isPending ? <PageState state="loading" label="正在加载箱子…" /> : null}
+      {boxesQuery.isPending && boxesQuery.data === undefined ? (
+        <SkeletonGroup className="grid gap-5" label="正在加载箱子目录">
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+          <Skeleton className="h-10 w-full" />
+          <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }, (_, index) => (
+              <div className="overflow-hidden rounded-card border border-line bg-surface" key={index}>
+                <Skeleton className="aspect-[4/3] w-full rounded-none" />
+                <div className="grid gap-3 p-4">
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </SkeletonGroup>
+      ) : null}
       {boxesQuery.isError && !hasCatalogueData ? <PageState state="error" message="箱子加载失败，请重试" onRetry={() => void boxesQuery.refetch()} /> : null}
       {boxesQuery.isError && hasCatalogueData ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger" role="alert">

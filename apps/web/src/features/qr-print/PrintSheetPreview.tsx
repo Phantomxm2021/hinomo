@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { env } from '../../lib/env'
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import type { BoxSummary } from '../boxes/boxes.api'
 import { paginatePrintBoxes } from './print-model'
 import { PRINT_LABEL_COLORS, PRINT_SHEET_MM, labelPlacementPercent } from './print-label-layout'
@@ -52,7 +53,9 @@ function PrintLabel({ box, density, qr, placement }: {
           ) : qr.status === 'error' ? (
             <span>二维码预览生成失败</span>
           ) : (
-            <span>正在生成二维码…</span>
+            <SkeletonGroup className="size-full" label={`正在生成${box.name}二维码`}>
+              <Skeleton className="aspect-square size-full rounded-none" />
+            </SkeletonGroup>
           )}
         </div>
         <div className="min-w-0 overflow-hidden">

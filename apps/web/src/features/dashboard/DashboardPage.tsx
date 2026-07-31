@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { GlobalFindBar } from '../../components/GlobalFindBar'
 import { PageState } from '../../components/PageState'
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { listBoxes } from '../boxes/boxes.api'
 import { AuthorizedImage } from '../media/AuthorizedImage'
 import { listSpaces } from '../spaces/spaces.api'
@@ -25,6 +26,10 @@ export function DashboardPage() {
   const spaces = spacesQuery.data ?? []
   const boxes = boxesQuery.data ?? []
   const itemTotal = boxes.reduce((sum, box) => sum + box.item_count, 0)
+  const initiallyLoading = (
+    (spacesQuery.isPending && spacesQuery.data === undefined)
+    || (boxesQuery.isPending && boxesQuery.data === undefined)
+  )
 
   return (
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-10" aria-labelledby="dashboard-title">
@@ -40,6 +45,36 @@ export function DashboardPage() {
         <PageState state="error" message="部分数据加载失败，请稍后重试" onRetry={() => void Promise.all([spacesQuery.refetch(), boxesQuery.refetch()])} />
       ) : null}
 
+      {initiallyLoading ? (
+        <SkeletonGroup className="grid gap-8" label="正在加载家庭总览">
+          <div className="hidden gap-4 sm:grid-cols-3 lg:grid">
+            {Array.from({ length: 3 }, (_, index) => (
+              <div className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" key={index}>
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-12 w-20" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            ))}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }, (_, index) => (
+              <div className="grid min-h-28 content-between rounded-card border border-line bg-surface p-5" key={index}>
+                <Skeleton className="size-8 rounded-full" />
+                <div className="grid gap-2"><Skeleton className="h-5 w-2/3" /><Skeleton className="h-4 w-1/2" /></div>
+              </div>
+            ))}
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 3 }, (_, index) => (
+              <div className="overflow-hidden rounded-card border border-line bg-surface" key={index}>
+                <Skeleton className="aspect-[3.5/1] w-full rounded-none" />
+                <div className="grid gap-2 p-5"><Skeleton className="h-5 w-2/3" /><Skeleton className="h-4 w-1/2" /></div>
+              </div>
+            ))}
+          </div>
+        </SkeletonGroup>
+      ) : (
+        <>
       <div className="hidden gap-4 sm:grid-cols-3 lg:grid" aria-label="收纳概览">
         <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label="空间统计">
           <span className="text-meta font-medium text-muted">空间</span>
@@ -137,6 +172,8 @@ export function DashboardPage() {
           ))}
         </div>
       </section>
+        </>
+      )}
     </section>
   )
 }

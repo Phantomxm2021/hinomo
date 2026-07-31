@@ -119,6 +119,14 @@ function renderBoxes(initialEntry = '/app/boxes') {
   }
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((onResolve) => {
+    resolve = onResolve
+  })
+  return { promise, resolve }
+}
+
 function primaryLinkNames() {
   return screen.getAllByRole('link', { name: /^打开/ }).map((link) => link.getAttribute('aria-label'))
 }
@@ -435,18 +443,37 @@ test('removes a deleted box and closes the dialog before catalogue revalidation 
   await act(async () => { resolveRefetch([boxes[1]]) })
 })
 
-test('shows the loading state until the catalogue request resolves', async () => {
+test('shows a toolbar and six-card skeleton until the catalogue request resolves', async () => {
   let resolveBoxes!: (value: typeof boxes) => void
   mockListBoxes.mockReturnValue(new Promise((resolve) => { resolveBoxes = resolve }))
   renderBoxes()
 
-  expect(screen.getByText('正在加载箱子…')).toBeInTheDocument()
+  const loading = screen.getByRole('status', { name: '正在加载箱子目录' })
+  expect(within(loading).getAllByTestId('skeleton').length).toBeGreaterThan(12)
+  expect(screen.queryByText('正在加载箱子…')).not.toBeInTheDocument()
   expect(screen.queryByRole('searchbox', { name: '搜索箱子' })).not.toBeInTheDocument()
 
   await act(async () => { resolveBoxes(boxes) })
 
   expect(await screen.findByRole('link', { name: '打开冬季衣物' })).toBeInTheDocument()
   expect(screen.queryByText('正在加载箱子…')).not.toBeInTheDocument()
+})
+
+test('keeps real catalogue content visible without skeletons during a background refetch', async () => {
+  const refresh = deferred<typeof boxes>()
+  mockListBoxes.mockResolvedValueOnce(boxes).mockReturnValueOnce(refresh.promise)
+  const { client } = renderBoxes()
+
+  expect(await screen.findByRole('link', { name: '打开冬季衣物' })).toBeInTheDocument()
+  act(() => { void client.invalidateQueries({ queryKey: ['boxes'] }) })
+
+  await waitFor(() => expect(mockListBoxes).toHaveBeenCalledTimes(2))
+  expect(screen.getByRole('searchbox', { name: '搜索箱子' })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: '打开冬季衣物' })).toBeInTheDocument()
+  expect(screen.queryByRole('status', { name: '正在加载箱子目录' })).not.toBeInTheDocument()
+  expect(screen.queryByTestId('skeleton')).not.toBeInTheDocument()
+
+  await act(async () => { refresh.resolve(boxes) })
 })
 
 test('retries a failed catalogue load', async () => {

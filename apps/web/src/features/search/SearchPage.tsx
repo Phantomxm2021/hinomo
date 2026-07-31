@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { listBoxes } from '../boxes/boxes.api'
 import { searchItems } from './search.api'
 
@@ -51,7 +52,10 @@ export function SearchPage() {
     ))
   }, [boxesQuery.data, query])
   const items = resultsQuery.data ?? []
-  const isLoading = query && (resultsQuery.isPending || boxesQuery.isPending)
+  const isLoading = Boolean(query) && (
+    (resultsQuery.isPending && resultsQuery.data === undefined)
+    || (boxesQuery.isPending && boxesQuery.data === undefined)
+  )
   const hasError = resultsQuery.isError || boxesQuery.isError
   const noResults = query && !isLoading && !hasError && matchingBoxes.length === 0 && items.length === 0
 
@@ -81,7 +85,26 @@ export function SearchPage() {
       {!query ? (
         <p className="rounded-card border border-dashed border-line bg-surface/70 p-8 text-center text-muted">输入关键词，快速找到物品所在的箱子。</p>
       ) : null}
-      {isLoading ? <PageState state="loading" label="正在搜索…" /> : null}
+      {isLoading ? (
+        <SkeletonGroup className="grid gap-7" label="正在搜索收纳内容">
+          {Array.from({ length: 2 }, (_, sectionIndex) => (
+            <section className="grid gap-3" key={sectionIndex}>
+              <div className="flex items-center justify-between gap-3">
+                <Skeleton className="h-7 w-20" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+              <div className="overflow-hidden rounded-card border border-line bg-surface">
+                {Array.from({ length: 2 }, (_, rowIndex) => (
+                  <div className="flex min-h-20 items-center gap-4 border-b border-line px-4 py-3 last:border-b-0" key={rowIndex}>
+                    <Skeleton className="size-12 shrink-0" />
+                    <div className="grid min-w-0 flex-1 gap-2"><Skeleton className="h-5 w-2/5" /><Skeleton className="h-4 w-4/5" /></div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+        </SkeletonGroup>
+      ) : null}
       {hasError ? <PageState state="error" message="搜索失败，请重试" onRetry={() => void Promise.all([boxesQuery.refetch(), resultsQuery.refetch()])} /> : null}
 
       {!isLoading && !hasError && matchingBoxes.length > 0 ? (

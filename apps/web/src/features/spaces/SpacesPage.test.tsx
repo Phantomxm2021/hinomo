@@ -80,6 +80,15 @@ afterEach(() => {
   document.body.style.overflow = ''
 })
 
+test('shows a toolbar, space cards, and layout skeleton while spaces initially load', () => {
+  mockListSpaces.mockReturnValue(new Promise(() => undefined))
+  renderSpaces()
+
+  const loading = screen.getByRole('status', { name: '正在加载空间' })
+  expect(within(loading).getAllByTestId('skeleton').length).toBeGreaterThan(5)
+  expect(screen.queryByText('正在加载空间…')).not.toBeInTheDocument()
+})
+
 test('keeps the create editor closed until the prominent action is used', async () => {
   const user = userEvent.setup()
   mockListSpaces.mockResolvedValue([])
@@ -503,7 +512,10 @@ test('does not enable layout editing before stored positions finish loading', as
   renderSpaces()
 
   fireEvent.click(await screen.findByRole('button', { name: '平面视图' }))
-  expect(screen.getByRole('button', { name: '正在加载布局…' })).toBeDisabled()
+  const loadingControl = screen.getByRole('button', { name: '布局加载中' })
+  expect(loadingControl).toBeDisabled()
+  expect(within(loadingControl).getByTestId('skeleton')).toBeInTheDocument()
+  expect(screen.queryByText('正在加载布局…')).not.toBeInTheDocument()
   layoutResult.resolve([])
   expect(await screen.findByRole('button', { name: '调整布局' })).toBeEnabled()
 })

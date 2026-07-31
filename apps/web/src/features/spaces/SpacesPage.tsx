@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { SpaceCard } from './SpaceCard'
 import { SpaceMap } from './SpaceMap'
 import { spaceSchema, type SpaceFormValues } from './space.schema'
@@ -354,7 +355,25 @@ export function SpacesPage() {
 
       {blockedMessage ? <p role="alert">{blockedMessage}</p> : null}
       {deleteMutation.isError ? <p role="alert">删除失败，请稍后重试</p> : null}
-      {spacesQuery.isPending ? <PageState state="loading" label="正在加载空间…" /> : null}
+      {spacesQuery.isPending && spacesQuery.data === undefined ? (
+        <SkeletonGroup className="grid gap-5" label="正在加载空间">
+          <div className="flex items-center justify-between gap-3">
+            <Skeleton className="h-11 w-56" />
+            <Skeleton className="h-11 w-28" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 3 }, (_, index) => (
+              <div className="grid min-h-44 content-between rounded-card border border-line bg-surface p-5" key={index}>
+                <Skeleton className="size-10 rounded-full" />
+                <div className="grid gap-2"><Skeleton className="h-6 w-2/3" /><Skeleton className="h-4 w-4/5" /></div>
+              </div>
+            ))}
+          </div>
+          <div className="rounded-shell border border-line bg-surface p-5">
+            <Skeleton className="h-64 w-full" />
+          </div>
+        </SkeletonGroup>
+      ) : null}
       {spacesQuery.isError ? <PageState state="error" message="空间加载失败，请重试" onRetry={() => void spacesQuery.refetch()} /> : null}
       {spacesQuery.data?.length === 0 ? (
         <PageState state="empty" title="还没有空间" action={<button className="inline-flex min-h-11 items-center justify-center rounded-control border border-brand bg-brand px-4 py-2.5 font-bold text-white hover:bg-brand-strong" type="button" onClick={beginCreate}>创建第一个空间</button>} />
@@ -371,8 +390,8 @@ export function SpacesPage() {
               </button>
             </div>
             {view === 'plan' ? (
-              <button className={`min-h-11 rounded-control border px-4 py-2.5 font-bold disabled:cursor-not-allowed disabled:opacity-55 ${layoutEditMode && layoutsQuery.isSuccess ? 'border-brand bg-brand/10 text-brand-strong' : 'border-line bg-surface text-ink'}`} type="button" aria-pressed={layoutEditMode && layoutsQuery.isSuccess} disabled={!layoutsQuery.isSuccess} onClick={() => setLayoutEditMode((current) => !current)}>
-                {layoutsQuery.isPending ? '正在加载布局…' : layoutEditMode && layoutsQuery.isSuccess ? '完成调整' : '调整布局'}
+              <button className={`min-h-11 rounded-control border px-4 py-2.5 font-bold disabled:cursor-not-allowed disabled:opacity-55 ${layoutEditMode && layoutsQuery.isSuccess ? 'border-brand bg-brand/10 text-brand-strong' : 'border-line bg-surface text-ink'}`} type="button" aria-label={layoutsQuery.isPending ? '布局加载中' : undefined} aria-pressed={layoutEditMode && layoutsQuery.isSuccess} disabled={!layoutsQuery.isSuccess} onClick={() => setLayoutEditMode((current) => !current)}>
+                {layoutsQuery.isPending ? <Skeleton className="h-4 w-16" /> : layoutEditMode && layoutsQuery.isSuccess ? '完成调整' : '调整布局'}
               </button>
             ) : null}
           </div>

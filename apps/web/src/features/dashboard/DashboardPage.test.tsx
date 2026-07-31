@@ -58,9 +58,9 @@ test('centers the dashboard on finding items, room totals, and recent activity',
   expect(screen.queryByText('空间分布')).not.toBeInTheDocument()
   expect(screen.queryByText('最近活动')).not.toBeInTheDocument()
 
-  expect(await within(screen.getByLabelText('空间统计')).findByText('2')).toBeInTheDocument()
-  expect(await within(screen.getByLabelText('箱子统计')).findByText('4')).toBeInTheDocument()
-  expect(await within(screen.getByLabelText('物品统计')).findByText('17')).toBeInTheDocument()
+  expect(within(await screen.findByLabelText('空间统计')).getByText('2')).toBeInTheDocument()
+  expect(within(await screen.findByLabelText('箱子统计')).getByText('4')).toBeInTheDocument()
+  expect(within(await screen.findByLabelText('物品统计')).getByText('17')).toBeInTheDocument()
   expect(within(screen.getByLabelText('空间统计')).getByText('客厅、卧室、书房...')).toBeInTheDocument()
   expect(within(screen.getByLabelText('箱子统计')).getByText('3 个最近更新')).toBeInTheDocument()
   expect(within(screen.getByLabelText('物品统计')).getByText('跨箱子快速搜索')).toBeInTheDocument()
@@ -128,14 +128,15 @@ test('centers the dashboard on finding items, room totals, and recent activity',
   )
 })
 
-test('shows loading semantics while dashboard data is pending', () => {
+test('shows a structural dashboard skeleton while initial data is pending', () => {
   mockListSpaces.mockReturnValue(new Promise(() => undefined))
   mockListBoxes.mockReturnValue(new Promise(() => undefined))
   renderDashboard()
 
-  expect(screen.getByRole('status', { name: '正在加载空间' })).toBeInTheDocument()
-  expect(screen.getByRole('status', { name: '正在加载箱子' })).toBeInTheDocument()
-  expect(within(screen.getByLabelText('物品统计')).getByText('—')).toBeInTheDocument()
+  const loading = screen.getByRole('status', { name: '正在加载家庭总览' })
+  expect(within(loading).getAllByTestId('skeleton').length).toBeGreaterThan(6)
+  expect(screen.queryByText('正在加载空间…')).not.toBeInTheDocument()
+  expect(screen.queryByText('正在加载箱子…')).not.toBeInTheDocument()
 })
 
 test('guides a first-time user to create a box', async () => {
