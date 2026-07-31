@@ -13,7 +13,7 @@ export function parseCatalogueSort(value: string | null): BoxCatalogueSort {
 }
 
 export function filterAndSortBoxes(
-  boxes: BoxSummary[],
+  boxes: readonly BoxSummary[],
   filters: BoxCatalogueFilters,
 ): BoxSummary[] {
   const query = filters.query.trim().toLowerCase()
@@ -25,15 +25,20 @@ export function filterAndSortBoxes(
       return matchesQuery && (!filters.spaceId || box.space_id === filters.spaceId)
     })
     .toSorted((left, right) => {
-      if (filters.sort === 'name') return left.name.localeCompare(right.name, 'zh-CN')
+      if (filters.sort === 'name') {
+        return left.name.localeCompare(right.name, 'zh-CN') || left.id.localeCompare(right.id)
+      }
       if (filters.sort === 'items') {
-        return right.item_count - left.item_count || left.name.localeCompare(right.name, 'zh-CN')
+        return right.item_count - left.item_count
+          || left.name.localeCompare(right.name, 'zh-CN')
+          || left.id.localeCompare(right.id)
       }
       return Date.parse(right.updated_at) - Date.parse(left.updated_at)
+        || left.id.localeCompare(right.id)
     })
 }
 
-export function catalogueSpaces(boxes: BoxSummary[]): Array<{ id: string; name: string; count: number }> {
+export function catalogueSpaces(boxes: readonly BoxSummary[]): Array<{ id: string; name: string; count: number }> {
   const spaces = new Map<string, { id: string; name: string; count: number }>()
 
   for (const box of boxes) {
@@ -45,7 +50,7 @@ export function catalogueSpaces(boxes: BoxSummary[]): Array<{ id: string; name: 
   return [...spaces.values()]
 }
 
-export function catalogueSummary(boxes: BoxSummary[]): { boxCount: number; itemCount: number } {
+export function catalogueSummary(boxes: readonly BoxSummary[]): { boxCount: number; itemCount: number } {
   return {
     boxCount: boxes.length,
     itemCount: boxes.reduce((total, box) => total + box.item_count, 0),

@@ -29,6 +29,10 @@ const boxes: BoxSummary[] = [
 ]
 
 const recentFilters = { query: '', spaceId: '', sort: 'recent' as const }
+const tiedBoxes: BoxSummary[] = [
+  { ...boxes[0], id: 'box-z', name: '同名箱', item_count: 4, updated_at: '2026-07-31T08:00:00Z' },
+  { ...boxes[1], id: 'box-a', name: '同名箱', item_count: 4, updated_at: '2026-07-31T08:00:00Z' },
+]
 
 describe('box catalogue', () => {
   it('parses only supported non-default sort values', () => {
@@ -66,9 +70,18 @@ describe('box catalogue', () => {
     expect(filterAndSortBoxes(timezoneBoxes, recentFilters).map((box) => box.id)).toEqual(['utc', 'offset'])
   })
 
+  it('breaks equal recent timestamps by id', () => {
+    expect(filterAndSortBoxes(tiedBoxes, recentFilters).map((box) => box.id)).toEqual(['box-a', 'box-z'])
+  })
+
   it('sorts Chinese and Latin names with zh-CN collation', () => {
     expect(filterAndSortBoxes(boxes, { ...recentFilters, sort: 'name' }).map((box) => box.id))
       .toEqual(['box-3', 'box-2', 'box-1'])
+  })
+
+  it('breaks equal names by id', () => {
+    expect(filterAndSortBoxes(tiedBoxes, { ...recentFilters, sort: 'name' }).map((box) => box.id))
+      .toEqual(['box-a', 'box-z'])
   })
 
   it('sorts by item count descending and breaks ties by name', () => {
@@ -76,10 +89,16 @@ describe('box catalogue', () => {
       .toEqual(['box-3', 'box-2', 'box-1'])
   })
 
+  it('breaks equal item counts and names by id', () => {
+    expect(filterAndSortBoxes(tiedBoxes, { ...recentFilters, sort: 'items' }).map((box) => box.id))
+      .toEqual(['box-a', 'box-z'])
+  })
+
   it('does not mutate the input array', () => {
-    const input = [...boxes]
+    const input = structuredClone(boxes)
+    const snapshot = structuredClone(input)
     filterAndSortBoxes(input, recentFilters)
-    expect(input).toEqual(boxes)
+    expect(input).toEqual(snapshot)
   })
 
   it('lists spaces in first-encounter order with their box counts', () => {
