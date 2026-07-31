@@ -28,6 +28,34 @@ export type SpacePosition = Omit<SpaceLayout, 'space_id'>
 
 const LAYOUT_STORAGE_UNAVAILABLE = 'LAYOUT_STORAGE_UNAVAILABLE'
 
+function isVenueRelationshipUnavailable(error: { code?: string } | null) {
+  return error?.code === 'PGRST200' || error?.code === 'PGRST205' || error?.code === '42703'
+}
+
+type SpaceListRow = {
+  id: string
+  venue_id?: string
+  name: string
+  description: string | null
+  venues?: { name: string } | null
+  boxes: Array<{ id: string; items: Array<{ count: number }> }>
+}
+
+function mapSpaceRows(rows: SpaceListRow[]): SpaceSummary[] {
+  return rows.map((space) => {
+    const boxes = space.boxes ?? []
+    return {
+      id: space.id,
+      venue_id: space.venue_id ?? '',
+      venue_name: space.venues?.name ?? '',
+      name: space.name,
+      description: space.description,
+      box_count: boxes.length,
+      item_count: boxes.reduce((count, box) => count + (box.items[0]?.count ?? 0), 0),
+    }
+  })
+}
+
 export function isLayoutStorageUnavailable(error: unknown) {
   return Boolean(
     error
@@ -38,29 +66,20 @@ export function isLayoutStorageUnavailable(error: unknown) {
 }
 
 export async function listSpaces(): Promise<SpaceSummary[]> {
-  const { data, error } = await supabase
+  const modern = await supabase
     .from('spaces')
     .select('id, venue_id, name, description, venues(name), boxes(id, items(count))')
     .order('name')
 
-  if (error) throw error
+  if (!modern.error) return mapSpaceRows(modern.data ?? [])
+  if (!isVenueRelationshipUnavailable(modern.error)) throw modern.error
 
-  return (data ?? []).map((space) => {
-    const boxes = space.boxes ?? []
-
-    return {
-      id: space.id,
-      venue_id: space.venue_id,
-      venue_name: space.venues?.name ?? '',
-      name: space.name,
-      description: space.description,
-      box_count: boxes.length,
-      item_count: boxes.reduce(
-        (count, box) => count + (box.items[0]?.count ?? 0),
-        0,
-      ),
-    }
-  })
+  const legacy = await supabase
+    .from('spaces')
+    .select('id, name, description, boxes(id, items(count))')
+    .order('name')
+  if (legacy.error) throw legacy.error
+  return mapSpaceRows(legacy.data ?? [])
 }
 
 export async function createSpace(input: SpaceInput) {

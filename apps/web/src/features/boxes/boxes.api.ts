@@ -42,6 +42,10 @@ export type PublicBox = EditableBox & {
 
 type PublicBoxRpcRow = Database['public']['Functions']['get_public_box']['Returns'][number]
 
+function isVenueRelationshipUnavailable(error: { code?: string } | null) {
+  return error?.code === 'PGRST200' || error?.code === 'PGRST205' || error?.code === '42703'
+}
+
 function mapPublicBox(row: Omit<PublicBox, 'items'> & { items: unknown }): PublicBox {
   return {
     ...row,
@@ -62,7 +66,7 @@ function mapOwnedBox(data: {
   visibility: Database['public']['Enums']['box_visibility']
   cover_object_key: string | null
   updated_at: string
-  spaces: { name: string; venues: { name: string } }
+  spaces: { name: string; venues?: { name: string } | null } | null
   items: ItemRecord[]
 }): PublicBox {
   return mapPublicBox({
@@ -78,23 +82,33 @@ function mapOwnedBox(data: {
     visibility: data.visibility,
     cover_object_key: data.cover_object_key,
     updated_at: data.updated_at,
-    venue_name: data.spaces.venues.name,
-    space_name: data.spaces.name,
+    venue_name: data.spaces?.venues?.name ?? '',
+    space_name: data.spaces?.name ?? '',
     items: data.items,
   })
 }
 
 async function getOwnedBoxByPublicId(publicId: string, ownerId: string): Promise<PublicBox | null> {
-  const { data, error } = await supabase
+  const modern = await supabase
     .from('boxes')
     .select('id, owner_id, public_id, box_code, space_id, name, category, location, description, visibility, cover_object_key, updated_at, spaces(name, venues(name)), items(id, name, category, quantity, description, image_object_key)')
     .eq('public_id', publicId)
     .eq('owner_id', ownerId)
     .single()
 
-  if (error?.code === 'PGRST116') return null
-  if (error) throw error
-  return mapOwnedBox(data)
+  if (!modern.error) return mapOwnedBox(modern.data)
+  if (modern.error.code === 'PGRST116') return null
+  if (!isVenueRelationshipUnavailable(modern.error)) throw modern.error
+
+  const legacy = await supabase
+    .from('boxes')
+    .select('id, owner_id, public_id, box_code, space_id, name, category, location, description, visibility, cover_object_key, updated_at, spaces(name), items(id, name, category, quantity, description, image_object_key)')
+    .eq('public_id', publicId)
+    .eq('owner_id', ownerId)
+    .single()
+  if (legacy.error?.code === 'PGRST116') return null
+  if (legacy.error) throw legacy.error
+  return mapOwnedBox(legacy.data)
 }
 
 export async function getBoxByPublicId(publicId: string): Promise<PublicBox | null> {
@@ -126,14 +140,40 @@ export async function listBoxes(): Promise<BoxSummary[]> {
   const ownerId = sessionData.session?.user.id
   if (!ownerId) throw new Error('authentication is required')
 
-  const { data, error } = await supabase
+  const modern = await supabase
     .from('boxes')
     .select('id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), spaces(name, venues(name))')
     .eq('owner_id', ownerId)
     .order('updated_at', { ascending: false })
 
-  if (error) throw error
-  return (data ?? []).map((box) => ({
+  if (!modern.error) return mapBoxRows(modern.data ?? [])
+  if (!isVenueRelationshipUnavailable(modern.error)) throw modern.error
+
+  const legacy = await supabase
+    .from('boxes')
+    .select('id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), spaces(name)')
+    .eq('owner_id', ownerId)
+    .order('updated_at', { ascending: false })
+  if (legacy.error) throw legacy.error
+  return mapBoxRows(legacy.data ?? [])
+}
+
+type BoxListRow = {
+  id: string
+  public_id: string
+  box_code: string
+  space_id: string
+  name: string
+  location: string | null
+  visibility: Database['public']['Enums']['box_visibility']
+  cover_object_key: string | null
+  updated_at: string
+  items: Array<{ count: number }>
+  spaces: { name: string; venues?: { name: string } | null } | null
+}
+
+function mapBoxRows(rows: BoxListRow[]): BoxSummary[] {
+  return rows.map((box) => ({
     id: box.id,
     public_id: box.public_id,
     box_code: box.box_code,

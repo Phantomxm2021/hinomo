@@ -99,6 +99,32 @@ describe('boxes api', () => {
     await expect(listBoxes()).resolves.toMatchObject([{ space_name: '' }])
   })
 
+  it('falls back to the legacy catalogue query when the venue relationship is unavailable', async () => {
+    mockSelect.mockReturnValue({ eq: mockEq, order: mockOrder })
+    mockEq.mockReturnValue({ order: mockOrder })
+    mockOrder
+      .mockResolvedValueOnce({
+        data: null,
+        error: { code: 'PGRST200', message: "Could not find a relationship between 'spaces' and 'venues'" },
+      })
+      .mockResolvedValueOnce({
+        data: [{
+          id: 'box-1', public_id: 'public-1', box_code: 'B001', space_id: 'space-1',
+          name: '原有箱子', location: null, visibility: 'private', cover_object_key: null,
+          updated_at: '2026-07-30T08:00:00Z', items: [{ count: 2 }], spaces: { name: '客厅' },
+        }],
+        error: null,
+      })
+
+    await expect(listBoxes()).resolves.toMatchObject([{
+      name: '原有箱子', venue_name: '', space_name: '客厅', item_count: 2,
+    }])
+    expect(mockSelect).toHaveBeenNthCalledWith(
+      2,
+      'id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), spaces(name)',
+    )
+  })
+
   it('rejects catalogue access when there is no authenticated user', async () => {
     mockGetSession.mockResolvedValue({ data: { session: null } })
 
@@ -158,6 +184,34 @@ describe('boxes api', () => {
     })
     expect(mockEq).toHaveBeenNthCalledWith(1, 'public_id', 'private-1')
     expect(mockEq).toHaveBeenNthCalledWith(2, 'owner_id', 'user-1')
+  })
+
+  it('falls back to the legacy owner detail query when venues are not deployed', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
+    mockSelect.mockReturnValue({ eq: mockEq })
+    mockEq
+      .mockReturnValueOnce({ eq: mockEq })
+      .mockReturnValueOnce({ single: mockSingle })
+      .mockReturnValueOnce({ eq: mockEq })
+      .mockReturnValueOnce({ single: mockSingle })
+    mockSingle
+      .mockResolvedValueOnce({
+        data: null,
+        error: { code: 'PGRST200', message: "Could not find a relationship between 'spaces' and 'venues'" },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          id: 'box-private', owner_id: 'user-1', public_id: 'private-1', box_code: 'B002',
+          space_id: 'space-1', name: '证件箱', category: null, location: null,
+          description: null, visibility: 'private', cover_object_key: null,
+          updated_at: '2026-07-30T08:00:00Z', spaces: { name: '书房' }, items: [],
+        },
+        error: null,
+      })
+
+    await expect(getBoxByPublicId('private-1')).resolves.toMatchObject({
+      id: 'box-private', venue_name: '', space_name: '书房',
+    })
   })
 
   it('does not issue an owner query when the visitor is anonymous', async () => {

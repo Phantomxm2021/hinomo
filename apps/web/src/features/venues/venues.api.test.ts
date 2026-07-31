@@ -40,7 +40,7 @@ describe('venues api', () => {
     expect(mockSelect).toHaveBeenCalledWith('id, name, description, spaces(count)')
   })
 
-  it.each(['PGRST205', '42P01', '42703'])('maps %s to a deployment error', async (code) => {
+  it.each(['PGRST200', 'PGRST205', '42P01', '42703'])('maps %s to a deployment error', async (code) => {
     mockOrder.mockResolvedValue({ data: null, error: { code, message: 'schema unavailable' } })
     await expect(listVenues()).rejects.toMatchObject({ code: 'VENUES_SCHEMA_UNAVAILABLE' })
   })

@@ -15,7 +15,7 @@ export type VenueInput = {
 export const VENUES_SCHEMA_UNAVAILABLE = 'VENUES_SCHEMA_UNAVAILABLE'
 
 function mapVenueError(error: { code?: string; message?: string }) {
-  if (error.code === 'PGRST205' || error.code === '42P01' || error.code === '42703') {
+  if (error.code === 'PGRST200' || error.code === 'PGRST205' || error.code === '42P01' || error.code === '42703') {
     return Object.assign(new Error('venues schema is not installed'), {
       code: VENUES_SCHEMA_UNAVAILABLE,
     })

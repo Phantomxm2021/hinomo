@@ -206,3 +206,5 @@ $$;
 
 revoke all on function public.get_public_box(uuid) from public;
 grant execute on function public.get_public_box(uuid) to anon, authenticated;
+
+notify pgrst, 'reload schema';

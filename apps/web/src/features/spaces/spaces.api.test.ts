@@ -65,6 +65,30 @@ describe('spaces api', () => {
     )
   })
 
+  it('falls back to the legacy spaces query when the venue relationship is unavailable', async () => {
+    mockOrder
+      .mockResolvedValueOnce({
+        data: null,
+        error: { code: 'PGRST200', message: "Could not find a relationship between 'spaces' and 'venues'" },
+      })
+      .mockResolvedValueOnce({
+        data: [{
+          id: 'space-1', name: '客厅', description: '原有数据',
+          boxes: [{ id: 'box-1', items: [{ count: 4 }] }],
+        }],
+        error: null,
+      })
+
+    await expect(listSpaces()).resolves.toEqual([{
+      id: 'space-1', venue_id: '', venue_name: '', name: '客厅', description: '原有数据',
+      box_count: 1, item_count: 4,
+    }])
+    expect(mockSelect).toHaveBeenNthCalledWith(
+      2,
+      'id, name, description, boxes(id, items(count))',
+    )
+  })
+
   it('creates a space in the selected venue', async () => {
     const mockSingle = vi.fn().mockResolvedValue({ data: { id: 'space-2' }, error: null })
     const mockInsert = vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ single: mockSingle }) })
