@@ -492,10 +492,10 @@ export function SpacesPage() {
         </SkeletonGroup>
       ) : null}
       {spacesQuery.isError ? <PageState state="error" message="空间加载失败，请重试" onRetry={() => void spacesQuery.refetch()} /> : null}
-      {spacesQuery.data?.length === 0 ? (
-        <PageState state="empty" title="还没有空间" action={venues.length ? <button className="inline-flex min-h-12 w-full items-center justify-center rounded-control border border-brand bg-brand px-4 py-2.5 font-bold text-white hover:bg-brand-strong sm:w-auto" type="button" onClick={beginCreate}>创建第一个空间</button> : <button className="inline-flex min-h-12 w-full items-center justify-center rounded-control border border-brand bg-brand px-4 py-2.5 font-bold text-white sm:w-auto" type="button" onClick={() => setVenueEditorOpen(true)}>先创建场地</button>} />
+      {spacesQuery.data && visibleSpaces.length === 0 ? (
+        <PageState state="empty" title="还没有空间" />
       ) : null}
-      {spacesQuery.data?.length ? (
+      {spacesQuery.data && visibleSpaces.length > 0 ? (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="inline-flex rounded-control border border-line bg-surface p-1" role="group" aria-label="空间视图">

@@ -46,24 +46,24 @@ export function DashboardPage() {
 
   return (
     <section className="mx-auto flex min-w-0 w-full max-w-7xl flex-col gap-6 lg:gap-10" aria-labelledby="dashboard-title">
-      <header className="flex flex-col gap-2 py-3 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(26rem,auto)] lg:items-center lg:gap-6">
-        <div>
-          <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">空间总览</p>
-          <h1 className="mb-4 max-w-3xl text-display font-extrabold" id="dashboard-title">早上好，今天找什么？</h1>
-        </div>
-        <div className="flex min-w-0 flex-col items-stretch gap-2.5 lg:items-end">
+      <header className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 py-3 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(26rem,auto)] lg:items-center lg:gap-x-6">
+        <div className="col-span-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <p className="mb-0 text-meta font-medium tracking-eyebrow text-muted">空间总览</p>
           {venuesQuery.isPending && venuesQuery.data === undefined ? (
-            <Skeleton className="h-11 w-full rounded-control lg:w-48" />
+            <Skeleton className="h-11 w-32 rounded-control lg:w-48" />
           ) : (
             <select
               aria-label="选择场地"
-              className="h-11 w-full rounded-control border border-line bg-surface px-3 text-body font-medium text-ink outline-none focus:border-brand lg:w-48"
+              className="h-11 min-w-32 max-w-44 rounded-control border border-line bg-surface px-3 text-body font-medium text-ink outline-none focus:border-brand lg:w-48 lg:max-w-none"
               value={activeVenueId ?? ''}
               onChange={(event) => setSelectedVenueId(event.target.value)}
             >
               {venues.map((venue) => <option value={venue.id} key={venue.id}>{venue.name}</option>)}
             </select>
           )}
+        </div>
+        <h1 className="col-span-2 mb-2 max-w-3xl text-display font-extrabold lg:col-span-1 lg:row-start-2 lg:mb-4" id="dashboard-title">早上好，今天找什么？</h1>
+        <div className="col-span-2 flex min-w-0 items-stretch lg:col-span-1 lg:col-start-2 lg:row-start-2 lg:justify-end">
           <GlobalFindBar />
         </div>
       </header>

@@ -178,6 +178,26 @@ test('filters by venue and defaults a new space to the selected venue', async ()
   expect(screen.getByLabelText('场地')).toHaveValue('venue-office')
 })
 
+test('shows a plain empty state when the selected venue has no spaces', async () => {
+  const user = userEvent.setup()
+  mockListVenues.mockResolvedValue([
+    { id: 'venue-home', name: '家里', description: null, is_default: true, space_count: 1 },
+    { id: 'venue-office', name: '公司', description: null, is_default: false, space_count: 0 },
+  ])
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', venue_id: 'venue-home', venue_name: '家里', name: '卧室', description: null, box_count: 0, item_count: 0 },
+  ])
+  renderSpaces()
+
+  await user.click(await screen.findByRole('button', { name: '公司，0 个空间' }))
+
+  expect(screen.getByText('还没有空间')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '创建第一个空间' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '卡片视图' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('region', { name: '空间平面总览' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '创建空间' })).toBeInTheDocument()
+})
+
 test('keeps the mobile create action compact and aligned with the space title', async () => {
   const user = userEvent.setup()
   mockListSpaces.mockResolvedValue([])
@@ -185,7 +205,6 @@ test('keeps the mobile create action compact and aligned with the space title', 
 
   await screen.findByText('还没有空间')
   const headerCreate = screen.getByRole('button', { name: '创建空间' })
-  const emptyCreate = screen.getByRole('button', { name: '创建第一个空间' })
   const title = screen.getByRole('heading', { name: '空间', level: 1 })
   expect(title.parentElement).toContainElement(headerCreate)
   expect(title.parentElement).toHaveClass('flex', 'items-center', 'justify-between')
@@ -193,7 +212,7 @@ test('keeps the mobile create action compact and aligned with the space title', 
   expect(headerCreate).not.toHaveClass('w-full')
   expect(headerCreate).toHaveTextContent('')
   expect(headerCreate).toHaveAttribute('title', '创建空间')
-  expect(emptyCreate).toHaveClass('min-h-12')
+  expect(screen.queryByRole('button', { name: '创建第一个空间' })).not.toBeInTheDocument()
 
   await user.click(headerCreate)
   const dialog = screen.getByRole('dialog', { name: '创建空间' })
@@ -315,7 +334,7 @@ test('restores pre-existing shell and body isolation values', async () => {
   expect(document.body.style.overflow).toBe('clip')
 })
 
-test('restores focus to the persistent create action when the empty-state opener unmounts', async () => {
+test('restores focus to the persistent create action after creating the first space', async () => {
   const user = userEvent.setup()
   mockListSpaces
     .mockResolvedValueOnce([])
@@ -326,7 +345,7 @@ test('restores focus to the persistent create action when the empty-state opener
   renderSpaces()
 
   await screen.findByText('还没有空间')
-  await user.click(screen.getByRole('button', { name: '创建第一个空间' }))
+  await user.click(screen.getByRole('button', { name: '创建空间' }))
   await user.type(screen.getByLabelText('空间名称'), '家')
   await user.click(
     within(screen.getByRole('dialog', { name: '创建空间' })).getByRole('button', {
@@ -381,12 +400,12 @@ test('cancel and close dismiss the editor and reset entered values', async () =>
   renderSpaces()
 
   await screen.findByText('还没有空间')
-  const emptyCreateButton = screen.getByRole('button', { name: '创建第一个空间' })
-  await user.click(emptyCreateButton)
+  const headerCreateButton = screen.getByRole('button', { name: '创建空间' })
+  await user.click(headerCreateButton)
   await user.type(screen.getByLabelText('空间名称'), '未保存')
   await user.click(screen.getByRole('button', { name: '取消' }))
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  expect(emptyCreateButton).toHaveFocus()
+  expect(headerCreateButton).toHaveFocus()
 
   await user.click(screen.getByRole('button', { name: '创建空间' }))
   expect(screen.getByLabelText('空间名称')).toHaveValue('')

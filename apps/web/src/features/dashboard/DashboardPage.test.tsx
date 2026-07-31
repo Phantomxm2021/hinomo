@@ -60,6 +60,13 @@ test('centers the dashboard on finding items, room totals, and recent activity',
     'text-muted',
   )
   expect(screen.getByText('空间总览')).not.toHaveClass('text-brand', 'uppercase')
+  const venueSelect = await screen.findByRole('combobox', { name: '选择场地' })
+  expect(screen.getByText('空间总览').parentElement).toContainElement(
+    venueSelect,
+  )
+  expect(screen.getByText('空间总览').parentElement).toHaveClass(
+    'col-span-2', 'grid', 'grid-cols-[minmax(0,1fr)_auto]',
+  )
   expect(screen.getByRole('searchbox', { name: '搜索物品或箱子' })).toBeInTheDocument()
   expect(screen.queryByText('空间分布')).not.toBeInTheDocument()
   expect(screen.queryByText('最近活动')).not.toBeInTheDocument()
