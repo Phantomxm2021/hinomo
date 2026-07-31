@@ -28,7 +28,7 @@ export function ResponsiveOperationError({ message, onRetry, busy = false, retry
 
   return (
     <div className="hidden flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger lg:flex" role="alert">
-      <p className="m-0 font-medium">{message}</p>
+      <h2 className="m-0 text-sm font-semibold tracking-normal text-danger">{message}</h2>
       {onRetry ? (
         <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" disabled={busy} aria-busy={busy} onClick={onRetry}>
           {busy ? '重试中…' : retryLabel}

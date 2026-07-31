@@ -16,7 +16,7 @@ export function MobileFeedbackProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     if (!notice) return
-    const timer = window.setTimeout(() => setNotice(null), 2400)
+    const timer = window.setTimeout(() => setNotice(null), 5000)
     return () => window.clearTimeout(timer)
   }, [notice])
 
@@ -31,7 +31,7 @@ export function MobileFeedbackProvider({ children }: PropsWithChildren) {
     <MobileFeedbackContext.Provider value={api}>
       {children}
       {notice ? createPortal(
-        <div className="fixed inset-x-4 top-[max(0.75rem,var(--safe-area-top))] z-[105] flex min-h-11 items-center justify-center rounded-full bg-ink/92 px-4 py-2 text-center text-sm font-semibold text-white shadow-float backdrop-blur-xl lg:hidden" role="status" aria-live="polite">
+        <div className="fixed inset-x-4 top-[max(0.75rem,var(--safe-area-top))] z-[105] flex min-h-11 items-center justify-center rounded-full bg-ink/92 px-4 py-2 text-center text-sm font-semibold text-white shadow-float backdrop-blur-xl lg:hidden" role="status" aria-label={notice} aria-live="polite">
           {notice}
         </div>,
         document.body,

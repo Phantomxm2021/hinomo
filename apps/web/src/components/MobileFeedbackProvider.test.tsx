@@ -26,8 +26,9 @@ test('shows and automatically dismisses an Apple-style notice capsule', () => {
   fireEvent.click(screen.getByRole('button', { name: '通知' }))
 
   expect(screen.getByRole('status')).toHaveTextContent('已创建箱子')
+  expect(screen.getByRole('status')).toHaveAccessibleName('已创建箱子')
   expect(screen.getByRole('status')).toHaveClass('rounded-full', 'lg:hidden')
-  act(() => vi.advanceTimersByTime(2400))
+  act(() => vi.advanceTimersByTime(5000))
   expect(screen.queryByText('已创建箱子')).not.toBeInTheDocument()
 })
 
