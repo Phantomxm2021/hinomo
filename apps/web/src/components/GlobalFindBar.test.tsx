@@ -20,8 +20,9 @@ test('renders accessible search controls and the scan link', () => {
 
   expect(screen.getByRole('search')).toHaveClass('flex', 'items-stretch')
   expect(screen.getByRole('searchbox', { name: '搜索物品或箱子' })).toHaveClass(
-    'focus-visible:outline-none',
+    'h-11', 'text-body', 'focus-visible:outline-none',
   )
+  expect(screen.getByTestId('search-input-shell')).toHaveClass('min-h-12', 'rounded-control')
   expect(screen.getByRole('button', { name: '搜索' })).toHaveClass('lg:hidden', 'size-12')
   expect(screen.getByRole('searchbox', { name: '搜索物品或箱子' })).toHaveAttribute('name', 'q')
   expect(screen.getByRole('searchbox', { name: '搜索物品或箱子' })).toHaveAttribute('enterkeyhint', 'search')

@@ -192,6 +192,11 @@ test('uses a semantic search form and submits immediately', async () => {
   const form = screen.getByRole('search', { name: '查找收纳' })
   const input = within(form).getByRole('searchbox')
   expect(input).toHaveAttribute('enterkeyhint', 'search')
+  expect(input).toHaveClass('h-11', 'text-body', 'focus-visible:outline-none')
+  expect(input).not.toHaveClass('min-h-14', 'text-lg')
+  expect(within(form).getByTestId('search-input-shell')).toHaveClass(
+    'min-h-12', 'rounded-control', 'focus-within:border-brand',
+  )
   await user.type(input, '  露营灯  ')
   await user.keyboard('{Enter}')
 

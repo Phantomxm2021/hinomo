@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
+import { SearchInputShell } from '../../components/SearchInputShell'
 import { formatStoragePath } from '../../lib/format-storage-path'
 import { listBoxes } from '../boxes/boxes.api'
 import { searchItems } from './search.api'
@@ -87,15 +88,12 @@ export function SearchPage() {
         <h1 className="mb-0 text-page-title font-extrabold" id="search-title">查找收纳</h1>
       </header>
 
-      <form className="relative block" role="search" aria-label="查找收纳" onSubmit={submitSearch}>
-        <label htmlFor="global-search">
+      <form className="flex w-full max-w-3xl items-stretch gap-2.5" role="search" aria-label="查找收纳" onSubmit={submitSearch}>
+        <label className="flex min-w-0 flex-1" htmlFor="global-search">
           <span className="sr-only">关键词</span>
-          <AppIcon className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-muted" name="search" />
-          <input
-            className="min-h-14 w-full rounded-control border border-line bg-surface py-3 pr-16 pl-12 text-lg text-ink outline-none placeholder:text-muted/70 focus:border-brand focus:ring-3 focus:ring-brand/15"
+          <SearchInputShell
             id="global-search"
             name="q"
-            type="search"
             enterKeyHint="search"
             autoComplete="off"
             placeholder="搜索物品、箱子或编号"
@@ -108,7 +106,7 @@ export function SearchPage() {
             }}
           />
         </label>
-        <button className="absolute top-1/2 right-1.5 grid size-11 -translate-y-1/2 place-items-center rounded-control text-brand hover:bg-brand/10 focus-visible:outline-3 focus-visible:outline-brand/35" type="submit" aria-label="提交搜索">
+        <button className="grid size-12 shrink-0 place-items-center rounded-control bg-brand text-white shadow-soft transition hover:bg-brand-strong focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-brand/45" type="submit" aria-label="提交搜索">
           <AppIcon name="search" />
         </button>
       </form>
