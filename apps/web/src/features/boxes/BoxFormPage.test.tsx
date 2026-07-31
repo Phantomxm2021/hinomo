@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
@@ -139,6 +139,9 @@ test('keeps a created box and selected cover available when upload fails, then r
 
   expect(await screen.findByRole('alert')).toHaveTextContent('箱子记录已创建，但封面未完成')
   expect(onCompleted).not.toHaveBeenCalled()
+  expect(screen.queryByRole('button', { name: '创建箱子' })).not.toBeInTheDocument()
+  fireEvent.submit(screen.getByRole('button', { name: '重试上传' }).closest('form')!)
+  expect(mockCreateBox).toHaveBeenCalledTimes(1)
   await user.click(screen.getByRole('button', { name: '重试上传' }))
 
   await waitFor(() => expect(onCompleted).toHaveBeenCalledWith(box))

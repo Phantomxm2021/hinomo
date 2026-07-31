@@ -100,6 +100,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
   }
 
   const submit = handleSubmit(async (values) => {
+    if (!editing && pendingBox) return
     let recordSaved = false
     const input = {
       space_id: values.space_id,
@@ -217,17 +218,19 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
             <button className="min-h-11 w-fit rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold text-danger" type="button" onClick={() => void retryCoverUpload()}>重试上传</button>
           </div>
         ) : null}
-        <button
-          className="mt-2 min-h-11 rounded-control border border-brand bg-brand px-5 py-2 font-bold text-white hover:bg-brand-strong"
-          type="submit"
-          disabled={busy}
-        >
-          {createMutation.isPending || updateMutation.isPending
-            ? '保存中…'
-            : editing
-              ? '保存修改'
-              : '创建箱子'}
-        </button>
+        {!editing && pendingBox && mediaError ? null : (
+          <button
+            className="mt-2 min-h-11 rounded-control border border-brand bg-brand px-5 py-2 font-bold text-white hover:bg-brand-strong"
+            type="submit"
+            disabled={busy}
+          >
+            {createMutation.isPending || updateMutation.isPending
+              ? '保存中…'
+              : editing
+                ? '保存修改'
+                : '创建箱子'}
+          </button>
+        )}
       </form>
     </section>
   )
