@@ -4,10 +4,8 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { PageState } from '../../components/PageState'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
-import { env } from '../../lib/env'
 import { isUploadPending, uploadStageLabel } from '../media/media-ui'
 import { useMediaUpload } from '../media/useMediaUpload'
-import { boxQrPng, boxQrUrl } from '../qr-print/qr'
 import { listSpaces } from '../spaces/spaces.api'
 import { boxSchema, type BoxFormValues } from './box.schema'
 import { createBox, getBox, type CreatedBox, updateBox } from './boxes.api'
@@ -16,11 +14,10 @@ export type BoxFormProps = {
   boxId?: string
   presentation: 'page' | 'modal'
   onBusyChange?: (busy: boolean) => void
-  onCreated?: (box: CreatedBox) => void
-  onDone?: () => void
+  onCompleted?: (box: CreatedBox) => void
 }
 
-export function BoxForm({ boxId, presentation, onBusyChange, onCreated, onDone }: BoxFormProps) {
+export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxFormProps) {
   const editing = Boolean(boxId)
   const spacesQuery = useQuery({ queryKey: ['spaces'], queryFn: listSpaces })
   const boxQuery = useQuery({
@@ -28,10 +25,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCreated, onDone }
     queryFn: () => getBox(boxId!),
     enabled: editing,
   })
-  const [createdBox, setCreatedBox] = useState<CreatedBox | null>(null)
   const [saved, setSaved] = useState(false)
-  const [qrPng, setQrPng] = useState<string | null>(null)
-  const [qrError, setQrError] = useState(false)
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [pendingBox, setPendingBox] = useState<CreatedBox | null>(null)
   const [mediaError, setMediaError] = useState(false)
@@ -77,17 +71,6 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCreated, onDone }
     })
   }, [boxQuery.data, reset])
 
-  async function generateQr(box: CreatedBox) {
-    setQrError(false)
-    try {
-      setQrPng(
-        await boxQrPng(boxQrUrl(env.VITE_PUBLIC_APP_ORIGIN, box.public_id)),
-      )
-    } catch {
-      setQrError(true)
-    }
-  }
-
   async function uploadCover(target: CreatedBox) {
     if (!coverFile) return
     await mediaUpload.upload({
@@ -109,8 +92,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCreated, onDone }
       }
       if (pendingBox) {
         await uploadCover(pendingBox)
-        setCreatedBox(pendingBox)
-        await generateQr(pendingBox)
+        onCompleted?.(pendingBox)
       }
     } catch {
       setMediaError(true)
@@ -142,10 +124,8 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCreated, onDone }
       const box = await createMutation.mutateAsync(input)
       recordSaved = true
       setPendingBox(box)
-      onCreated?.(box)
       await uploadCover(box)
-      setCreatedBox(box)
-      await generateQr(box)
+      onCompleted?.(box)
     } catch {
       if (recordSaved) setMediaError(true)
     }
@@ -172,35 +152,6 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCreated, onDone }
 
   if (spacesQuery.isError) {
     return <PageState state="error" message="空间加载失败，请重试" onRetry={() => void spacesQuery.refetch()} />
-  }
-
-  if (createdBox) {
-    const publicUrl = boxQrUrl(env.VITE_PUBLIC_APP_ORIGIN, createdBox.public_id)
-    return (
-      <section className="mx-auto grid w-full max-w-4xl gap-6" data-presentation={presentation} aria-labelledby="created-box-title">
-        <p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">箱子已创建</p>
-        <h1 className="m-0 text-page-title font-extrabold text-ink" id="created-box-title">{createdBox.name}</h1>
-        <div className="grid justify-items-center gap-4 rounded-shell border border-line bg-surface p-5 text-center md:p-6">
-          <strong className="font-mono text-xl text-brand">{createdBox.box_code}</strong>
-          <a className="max-w-full break-all" href={publicUrl}>{publicUrl}</a>
-          {qrPng ? <img className="h-auto w-full max-w-90" src={qrPng} alt={`${createdBox.name}二维码`} /> : null}
-          {qrError ? <p role="alert">二维码生成失败，请重试</p> : null}
-          <div className="flex flex-wrap justify-center gap-2">
-            <button className="min-h-11 rounded-control border border-brand/40 bg-brand/10 px-4 py-2 font-bold text-ink" type="button" onClick={() => void generateQr(createdBox)}>
-              重新生成
-            </button>
-            {qrPng ? (
-              <a className="inline-flex min-h-11 items-center rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white no-underline" download={`${createdBox.box_code}.png`} href={qrPng}>
-                下载 PNG
-              </a>
-            ) : null}
-            {onDone ? (
-              <button className="min-h-11 rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white" type="button" onClick={onDone}>完成</button>
-            ) : null}
-          </div>
-        </div>
-      </section>
-    )
   }
 
   if (editing && (boxQuery.isError || !boxQuery.data)) {
@@ -262,7 +213,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCreated, onDone }
         {mediaStatus ? <p role="status">图片处理中：{mediaStatus}</p> : null}
         {mediaError ? (
           <div className="grid gap-3 rounded-control border border-danger/30 bg-danger/5 p-4" role="alert">
-            <p>图片上传失败，已保留填写内容。</p>
+            <p>{!editing && pendingBox ? '箱子记录已创建，但封面未完成。' : '图片上传失败，已保留填写内容。'}</p>
             <button className="min-h-11 w-fit rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold text-danger" type="button" onClick={() => void retryCoverUpload()}>重试上传</button>
           </div>
         ) : null}

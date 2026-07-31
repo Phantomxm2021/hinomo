@@ -217,11 +217,8 @@ export async function createBox(page: Page, name: string, visibility: 'public' |
   await dialog.getByLabel('具体位置').fill('衣柜上层')
   await dialog.getByLabel('查看权限').selectOption(visibility)
   await dialog.getByRole('button', { name: '创建箱子', exact: true }).click()
-  await dialog.getByText(/BX-\d{5}/).waitFor()
-  await expect(dialog.getByRole('img', { name: `${name}二维码` })).toBeVisible()
-  const publicUrl = await dialog.getByRole('link', { name: /\/b\// }).getAttribute('href') as string
-  await dialog.getByRole('button', { name: '完成' }).click()
   await dialog.waitFor({ state: 'hidden' })
-  await page.getByRole('article', { name }).waitFor()
-  return publicUrl
+  const boxLink = page.getByRole('link', { name: `打开${name}` })
+  await boxLink.waitFor()
+  return await boxLink.getAttribute('href') as string
 }

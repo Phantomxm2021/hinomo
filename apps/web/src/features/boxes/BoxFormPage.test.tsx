@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
@@ -45,12 +45,12 @@ function renderBoxForm(initialEntry = '/app/boxes/new') {
   )
 }
 
-function renderModalBoxForm() {
+function renderModalBoxForm(onCompleted = vi.fn()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <MemoryRouter>
       <QueryClientProvider client={client}>
-        <BoxForm presentation="modal" />
+        <BoxForm presentation="modal" onCompleted={onCompleted} />
       </QueryClientProvider>
     </MemoryRouter>,
   )
@@ -91,8 +91,9 @@ beforeEach(() => {
   mockUpload.mockReset()
 })
 
-test('uploads a selected cover after creating the box', async () => {
+test('uploads a selected cover before completing box creation', async () => {
   const user = userEvent.setup()
+  const onCompleted = vi.fn()
   mockListSpaces.mockResolvedValue([
     { id: 'space-home', name: '家', description: null, box_count: 0 },
   ])
@@ -101,7 +102,7 @@ test('uploads a selected cover after creating the box', async () => {
   })
   mockUpload.mockResolvedValue('boxes/box-1/cover.webp')
   mockBoxQrPng.mockResolvedValue('data:image/png;base64,qr')
-  renderBoxForm()
+  renderModalBoxForm(onCompleted)
 
   await screen.findByRole('option', { name: '家' })
   await user.selectOptions(screen.getByLabelText('空间'), 'space-home')
@@ -113,7 +114,37 @@ test('uploads a selected cover after creating the box', async () => {
   expect(mockUpload).toHaveBeenCalledWith({
     file, boxId: 'box-1', itemId: null, kind: 'cover',
   })
-  expect(await screen.findByText('BX-00001')).toBeInTheDocument()
+  await waitFor(() => expect(onCompleted).toHaveBeenCalledWith({
+    id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', name: '冬季衣物',
+  }))
+  expect(mockBoxQrPng).not.toHaveBeenCalled()
+})
+
+test('keeps a created box and selected cover available when upload fails, then retries without creating twice', async () => {
+  const user = userEvent.setup()
+  const onCompleted = vi.fn()
+  mockListSpaces.mockResolvedValue([
+    { id: 'space-home', name: '家', description: null, box_count: 0 },
+  ])
+  const box = { id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', name: '冬季衣物' }
+  mockCreateBox.mockResolvedValue(box)
+  mockUpload.mockRejectedValueOnce(new Error('upload failed')).mockResolvedValueOnce('boxes/box-1/cover.webp')
+  renderModalBoxForm(onCompleted)
+
+  await user.selectOptions(await screen.findByLabelText('空间'), 'space-home')
+  await user.type(screen.getByLabelText('箱子名称'), '冬季衣物')
+  const file = new File(['cover'], 'cover.png', { type: 'image/png' })
+  await user.upload(screen.getByLabelText('箱子封面（可选）'), file)
+  await user.click(screen.getByRole('button', { name: '创建箱子' }))
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('箱子记录已创建，但封面未完成')
+  expect(onCompleted).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: '重试上传' }))
+
+  await waitFor(() => expect(onCompleted).toHaveBeenCalledWith(box))
+  expect(mockCreateBox).toHaveBeenCalledTimes(1)
+  expect(mockUpload).toHaveBeenCalledTimes(2)
+  expect(mockUpload).toHaveBeenLastCalledWith({ file, boxId: 'box-1', itemId: null, kind: 'cover' })
 })
 
 test('offers a retry when spaces cannot be loaded', async () => {
@@ -163,8 +194,9 @@ test('edits mutable fields without sending database identifiers', async () => {
 
 afterEach(cleanup)
 
-test('creates a private box inside the chosen space by default', async () => {
+test('completes a coverless private box without generating or presenting QR output', async () => {
   const user = userEvent.setup()
+  const onCompleted = vi.fn()
   mockListSpaces.mockResolvedValue([
     { id: 'space-home', name: '家', description: null, box_count: 0 },
   ])
@@ -174,8 +206,7 @@ test('creates a private box inside the chosen space by default', async () => {
     box_code: 'BX-00001',
     name: '冬季衣物',
   })
-  mockBoxQrPng.mockResolvedValue('data:image/png;base64,qr')
-  renderBoxForm()
+  renderModalBoxForm(onCompleted)
 
   await screen.findByRole('option', { name: '家' })
   await user.selectOptions(screen.getByLabelText('空间'), 'space-home')
@@ -191,8 +222,14 @@ test('creates a private box inside the chosen space by default', async () => {
     description: null,
     visibility: 'private',
   })
-  expect(await screen.findByText('BX-00001')).toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: '重新生成' }))
-  expect(mockBoxQrPng).toHaveBeenCalledTimes(2)
+  await waitFor(() => expect(onCompleted).toHaveBeenCalledTimes(1))
+  expect(onCompleted).toHaveBeenCalledWith({
+    id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', name: '冬季衣物',
+  })
+  expect(mockBoxQrPng).not.toHaveBeenCalled()
+  expect(screen.queryByRole('img', { name: /二维码/ })).not.toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: /\/b\// })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '重新生成' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: '下载 PNG' })).not.toBeInTheDocument()
   expect(mockUpdateBox).not.toHaveBeenCalled()
 })

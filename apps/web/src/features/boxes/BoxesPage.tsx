@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useBlocker, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -30,6 +30,7 @@ export function BoxesPage() {
   const [deleteTarget, setDeleteTarget] = useState<BoxSummary | null>(null)
   const [openMenuBoxId, setOpenMenuBoxId] = useState<string | null>(null)
   const [createBusy, setCreateBusy] = useState(false)
+  const [createSucceeded, setCreateSucceeded] = useState(false)
   const boxesQuery = useQuery({ queryKey: ['boxes'], queryFn: listBoxes })
   const deleteMutation = useMutation({
     mutationFn: (boxId: string) => deleteBox(boxId),
@@ -80,20 +81,25 @@ export function BoxesPage() {
   }
 
   const openCreate = () => {
+    setCreateSucceeded(false)
     const next = new URLSearchParams(searchParams)
     next.set('create', '1')
     setSearchParams(next)
   }
 
-  const closeCreate = () => {
+  const closeCreate = useCallback(() => {
     const next = new URLSearchParams(searchParams)
     next.delete('create')
     setSearchParams(next, { replace: true })
-  }
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
     if (createBlocker.state === 'blocked' && !createBusy) createBlocker.reset()
   }, [createBlocker, createBusy])
+
+  useEffect(() => {
+    if (createSucceeded && creating && !createBusy) closeCreate()
+  }, [closeCreate, createBusy, createSucceeded, creating])
 
   useEffect(() => {
     setOpenMenuBoxId(null)
@@ -182,6 +188,8 @@ export function BoxesPage() {
         </>
       ) : null}
 
+      {createSucceeded ? <p className="m-0 text-sm font-medium text-brand" role="status" aria-label="箱子已创建">箱子已创建</p> : null}
+
       {hasCatalogueData && boxes.length === 0 ? (
         <PageState
           state="empty"
@@ -244,10 +252,10 @@ export function BoxesPage() {
       <CreateBoxModal
         open={creating}
         onClose={closeCreate}
-        onCreated={() => { void queryClient.invalidateQueries({ queryKey: ['boxes'] }) }}
-        onDone={() => {
+        onCompleted={() => {
+          setCreateSucceeded(true)
+          setCreateBusy(false)
           void queryClient.invalidateQueries({ queryKey: ['boxes'] })
-          closeCreate()
         }}
         onBusyChange={setCreateBusy}
       />

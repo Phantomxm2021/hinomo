@@ -14,14 +14,12 @@ function controls(dialog: HTMLElement | null) {
 export function CreateBoxModal({
   open,
   onClose,
-  onCreated,
-  onDone,
+  onCompleted,
   onBusyChange,
 }: {
   open: boolean
   onClose: () => void
-  onCreated: (box: CreatedBox) => void
-  onDone: () => void
+  onCompleted: (box: CreatedBox) => void
   onBusyChange?: (busy: boolean) => void
 }) {
   const [busy, setBusy] = useState(false)
@@ -102,7 +100,7 @@ export function CreateBoxModal({
             <AppIcon name="close" />
           </button>
         </div>
-        <BoxForm presentation="modal" onBusyChange={changeBusy} onCreated={onCreated} onDone={onDone} />
+        <BoxForm presentation="modal" onBusyChange={changeBusy} onCompleted={onCompleted} />
         <span className="pointer-events-none fixed size-px overflow-hidden opacity-0" tabIndex={0} onFocus={() => controls(dialogRef.current)[0]?.focus()} />
       </section>
     </div>,

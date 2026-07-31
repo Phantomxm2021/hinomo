@@ -42,6 +42,8 @@ test('owner creates, finds, labels, and maintains a public box', async ({ browse
   await expect(page.getByRole('dialog', { name: '创建箱子' })).toBeVisible()
   await page.getByRole('button', { name: '关闭创建箱子' }).click()
   const publicUrl = await createBox(page, '冬季衣物', 'public')
+  await expect(page.getByRole('status', { name: '箱子已创建' })).toBeVisible()
+  await expect(page.locator('header').getByRole('button', { name: '创建箱子', exact: true })).toBeFocused()
   await createBox(page, '露营用品', 'private')
 
   await page.goto(publicUrl)

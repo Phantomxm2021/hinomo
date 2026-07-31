@@ -36,19 +36,17 @@ vi.mock('../media/AuthorizedImage', () => ({
 }))
 
 vi.mock('./CreateBoxModal', () => ({
-  CreateBoxModal: ({ open, onClose, onCreated, onDone, onBusyChange }: {
+  CreateBoxModal: ({ open, onClose, onCompleted, onBusyChange }: {
     open: boolean
     onClose: () => void
-    onCreated: (box: unknown) => void
-    onDone: () => void
+    onCompleted: (box: unknown) => void
     onBusyChange?: (busy: boolean) => void
   }) => open ? (
     <div role="dialog" aria-label="创建箱子">
       <button type="button" onClick={onClose}>关闭测试模态</button>
-      <button type="button" onClick={() => onCreated({ id: 'box-new' })}>模拟创建</button>
+      <button type="button" onClick={() => onCompleted({ id: 'box-new' })}>完成测试创建</button>
       <button type="button" onClick={() => onBusyChange?.(true)}>开始忙碌</button>
       <button type="button" onClick={() => onBusyChange?.(false)}>结束忙碌</button>
-      <button type="button" onClick={onDone}>完成测试创建</button>
     </div>
   ) : null,
 }))
@@ -362,9 +360,14 @@ test('opens creation from the URL and closes it without losing catalogue state',
   expect(screen.getByTestId('navigation-type')).toHaveTextContent('REPLACE')
 })
 
-test('opens from the primary action and refreshes the list after creation', async () => {
+test('closes, refreshes, announces success, renders the new card, and restores focus after creation completes', async () => {
   const user = userEvent.setup()
-  mockListBoxes.mockResolvedValue(boxes)
+  const newBox = {
+    id: 'box-new', public_id: 'public-new', box_code: 'BX-00003', name: '书籍',
+    space_id: 'space-1', space_name: '卧室', location: null, visibility: 'private',
+    cover_object_key: null, item_count: 0, updated_at: '2026-07-30T10:00:00Z',
+  }
+  mockListBoxes.mockResolvedValueOnce(boxes).mockResolvedValueOnce([newBox, ...boxes])
   renderBoxes()
 
   await screen.findByRole('link', { name: '打开冬季衣物' })
@@ -375,11 +378,14 @@ test('opens from the primary action and refreshes the list after creation', asyn
   await user.click(createButton)
   expect(screen.getByTestId('location')).toHaveTextContent('?create=1')
   expect(screen.getByTestId('navigation-type')).toHaveTextContent('PUSH')
-  await user.click(screen.getByRole('button', { name: '模拟创建' }))
+  await user.click(screen.getByRole('button', { name: '开始忙碌' }))
   await user.click(screen.getByRole('button', { name: '完成测试创建' }))
 
-  await waitFor(() => expect(mockListBoxes).toHaveBeenCalledTimes(3))
   expect(screen.queryByRole('dialog', { name: '创建箱子' })).not.toBeInTheDocument()
+  expect(await screen.findByRole('article', { name: '书籍' })).toBeInTheDocument()
+  expect(screen.getByRole('status', { name: '箱子已创建' })).toBeInTheDocument()
+  await waitFor(() => expect(createButton).toHaveFocus())
+  expect(mockListBoxes).toHaveBeenCalledTimes(2)
 })
 
 test('lets browser back close a modal opened from the list and restores focus', async () => {
