@@ -132,6 +132,7 @@ export type Database = {
           image_size_bytes: number | null
           name: string
           quantity: number
+          stored_quantity: number
           updated_at: string
         }
         Insert: {
@@ -145,10 +146,13 @@ export type Database = {
           image_size_bytes?: number | null
           name: string
           quantity?: number
+          // Initialized from quantity by a trigger; movement RPCs own later changes.
+          stored_quantity?: never
           updated_at?: string
         }
         Update: {
-          box_id?: string
+          // Item moves must use move_item so the history remains complete.
+          box_id?: never
           category?: string | null
           created_at?: string
           description?: string | null
@@ -158,12 +162,84 @@ export type Database = {
           image_size_bytes?: number | null
           name?: string
           quantity?: number
+          // Derived from movement RPCs and total-quantity edits.
+          stored_quantity?: never
           updated_at?: string
         }
         Relationships: [
           {
             foreignKeyName: 'items_box_id_fkey'
             columns: ['box_id']
+            isOneToOne: false
+            referencedRelation: 'boxes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      item_movements: {
+        Row: {
+          action: Database['public']['Enums']['item_movement_action']
+          actor_id: string | null
+          created_at: string
+          from_box_id: string | null
+          handler_label: string | null
+          id: string
+          item_id: string
+          note: string | null
+          quantity: number
+          to_box_id: string | null
+        }
+        Insert: {
+          // Append-only history is written exclusively by movement RPCs.
+          action?: never
+          actor_id?: never
+          created_at?: never
+          from_box_id?: never
+          handler_label?: never
+          id?: never
+          item_id?: never
+          note?: never
+          quantity?: never
+          to_box_id?: never
+        }
+        Update: {
+          // Movement history is immutable to browser clients.
+          action?: never
+          actor_id?: never
+          created_at?: never
+          from_box_id?: never
+          handler_label?: never
+          id?: never
+          item_id?: never
+          note?: never
+          quantity?: never
+          to_box_id?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'item_movements_actor_id_fkey'
+            columns: ['actor_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'item_movements_from_box_id_fkey'
+            columns: ['from_box_id']
+            isOneToOne: false
+            referencedRelation: 'boxes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'item_movements_item_id_fkey'
+            columns: ['item_id']
+            isOneToOne: false
+            referencedRelation: 'items'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'item_movements_to_box_id_fkey'
+            columns: ['to_box_id']
             isOneToOne: false
             referencedRelation: 'boxes'
             referencedColumns: ['id']
@@ -484,6 +560,15 @@ export type Database = {
           visibility: Database['public']['Enums']['box_visibility']
         }[]
       }
+      move_item: {
+        Args: { p_item_id: string; p_note?: string | null; p_target_box_id: string }
+        Returns: {
+          box_id: string
+          item_id: string
+          quantity: number
+          stored_quantity: number
+        }[]
+      }
       prevent_box_identifier_update: {
         Args: Record<PropertyKey, never>
         Returns: unknown
@@ -491,6 +576,15 @@ export type Database = {
       process_media_cleanup_jobs: {
         Args: { p_batch_size?: number }
         Returns: number
+      }
+      return_item: {
+        Args: { p_item_id: string; p_note?: string | null; p_quantity: number }
+        Returns: {
+          box_id: string
+          item_id: string
+          quantity: number
+          stored_quantity: number
+        }[]
       }
       search_my_items: {
         Args: { p_query: string }
@@ -510,6 +604,20 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: unknown
       }
+      take_out_item: {
+        Args: {
+          p_handler_label?: string | null
+          p_item_id: string
+          p_note?: string | null
+          p_quantity: number
+        }
+        Returns: {
+          box_id: string
+          item_id: string
+          quantity: number
+          stored_quantity: number
+        }[]
+      }
       write_activity_log: {
         Args: Record<PropertyKey, never>
         Returns: unknown
@@ -520,6 +628,7 @@ export type Database = {
       audit_entity: 'space' | 'box' | 'item'
       box_visibility: 'public' | 'private'
       cleanup_status: 'pending' | 'processing' | 'completed' | 'failed'
+      item_movement_action: 'take_out' | 'return' | 'move'
       media_kind: 'cover' | 'item'
       media_upload_status: 'pending' | 'confirmed' | 'expired'
     }

@@ -46,7 +46,8 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete }: ItemFormP
         ...(item && existingImageRemoved ? { image_object_key: null } : {}),
       }
       if (item) {
-        await updateItem(item.id, input)
+        const { box_id: _boxId, ...changes } = input
+        await updateItem(item.id, changes)
         return item.id
       }
       const created = await createItem(input)
