@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
@@ -12,10 +12,11 @@ import { deriveItemAvailability, formatItemAvailability } from '../item-movement
 import { searchItems } from './search.api'
 
 export function SearchPage() {
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const urlQuery = searchParams.get('q') ?? ''
   const [input, setInput] = useState(urlQuery)
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(urlQuery.trim())
   const [isComposing, setIsComposing] = useState(false)
   const inputRef = useRef(urlQuery)
 
@@ -23,7 +24,7 @@ export function SearchPage() {
     if (urlQuery === inputRef.current) return
     inputRef.current = urlQuery
     setInput(urlQuery)
-    setQuery('')
+    setQuery(urlQuery.trim())
   }, [urlQuery])
 
   useEffect(() => {
@@ -85,14 +86,23 @@ export function SearchPage() {
 
   return (
     <section className="mx-auto flex min-w-0 w-full max-w-5xl flex-col gap-5 lg:gap-8" aria-labelledby="search-title">
-      <header className="flex flex-col gap-2 py-3">
+      <nav className="sticky top-0 z-20 -mx-4 -mt-[max(1rem,var(--safe-area-top))] grid min-h-14 grid-cols-[6rem_minmax(0,1fr)_6rem] items-end border-b border-line/70 bg-canvas/90 px-4 pt-[max(0.5rem,var(--safe-area-top))] pb-2 backdrop-blur-xl min-[360px]:-mx-5 min-[360px]:px-5 lg:hidden" aria-label="搜索导航">
+        <div className="flex justify-start">
+          <button className="inline-flex size-11 items-center justify-center rounded-full text-ink active:bg-placeholder/70 active:opacity-70" type="button" aria-label="返回" onClick={() => navigate(-1)}>
+            <AppIcon className="rotate-180" name="chevron-right" size={22} />
+          </button>
+        </div>
+        <span className="truncate pb-2 text-center text-[1.0625rem] leading-none font-bold text-ink">查找收纳</span>
+        <div aria-hidden="true" />
+      </nav>
+      <header className="hidden flex-col gap-2 py-3 lg:flex">
         <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">按名称、编号、空间或位置查找</p>
         <h1 className="mb-0 text-page-title font-extrabold" id="search-title">查找收纳</h1>
       </header>
 
       <form className="flex w-full max-w-3xl items-stretch gap-2.5" role="search" aria-label="查找收纳" onSubmit={submitSearch}>
-        <label className="flex min-w-0 flex-1" htmlFor="global-search">
-          <span className="sr-only">关键词</span>
+        <div className="flex min-w-0 flex-1">
+          <label className="sr-only" htmlFor="global-search">关键词</label>
           <SearchInputShell
             id="global-search"
             name="q"
@@ -106,8 +116,14 @@ export function SearchPage() {
               inputRef.current = event.target.value
               setInput(event.target.value)
             }}
+            onClear={() => {
+              inputRef.current = ''
+              setInput('')
+              setQuery('')
+              if (urlQuery) setSearchParams({}, { replace: true })
+            }}
           />
-        </label>
+        </div>
         <button className="grid size-12 shrink-0 place-items-center rounded-control bg-brand text-white shadow-soft transition hover:bg-brand-strong focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-brand/45" type="submit" aria-label="提交搜索">
           <AppIcon name="search" />
         </button>

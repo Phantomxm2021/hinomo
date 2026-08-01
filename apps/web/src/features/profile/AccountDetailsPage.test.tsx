@@ -1,6 +1,6 @@
 import type { Session } from '@supabase/supabase-js'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
@@ -48,6 +48,9 @@ function renderPage() {
 test('keeps avatar editing and read-only identity on the account details page', async () => {
   renderPage()
 
+  const navigation = screen.getByRole('navigation', { name: '账户信息导航' })
+  expect(navigation).toHaveClass('sticky', 'grid', 'grid-cols-[6rem_minmax(0,1fr)_6rem]', 'lg:hidden')
+  expect(within(navigation).getByRole('button', { name: '返回' })).toBeInTheDocument()
   expect(await screen.findByLabelText('更换头像')).toBeInTheDocument()
   expect(screen.getByLabelText('昵称')).toHaveValue('林家')
   expect(screen.getByLabelText('昵称')).toHaveAttribute('readonly')

@@ -70,6 +70,7 @@ test('shows grouped result-row skeletons while an initial search is pending', as
   const loading = await screen.findByRole('status', { name: '正在搜索收纳内容' })
   expect(within(loading).getAllByTestId('skeleton').length).toBeGreaterThan(8)
   expect(screen.queryByText('正在搜索…')).not.toBeInTheDocument()
+  expect(screen.queryByText('输入关键词，快速找到物品所在的箱子。')).not.toBeInTheDocument()
 })
 
 test('blocks on an initial search error and offers retry', async () => {
@@ -154,7 +155,6 @@ test('initializes from q and groups matching boxes and items', async () => {
   renderSearch('/app/search?q=充电器')
 
   expect(screen.getByRole('searchbox')).toHaveValue('充电器')
-  expect(mockSearchItems).not.toHaveBeenCalled()
   const boxesGroup = await screen.findByRole('region', { name: '箱子' })
   const itemsGroup = await screen.findByRole('region', { name: '物品' })
   expect(within(boxesGroup).getByText('充电器收纳箱')).toBeInTheDocument()
@@ -162,6 +162,16 @@ test('initializes from q and groups matching boxes and items', async () => {
   expect(within(itemsGroup).getByText('USB-C 充电器 × 2')).toBeInTheDocument()
   expect(within(itemsGroup).getByText('部分取出 · 1/2 在箱中')).toBeInTheDocument()
   expect(mockSearchItems).toHaveBeenCalledWith('充电器')
+})
+
+test('provides a standard mobile back navigation', () => {
+  mockSearchItems.mockResolvedValue([])
+  renderSearch('/app/search?q=充电器')
+
+  expect(screen.getByRole('navigation', { name: '搜索导航' })).toHaveClass(
+    'sticky', 'grid', 'grid-cols-[6rem_minmax(0,1fr)_6rem]', 'lg:hidden',
+  )
+  expect(within(screen.getByRole('navigation', { name: '搜索导航' })).getByRole('button', { name: '返回' })).toBeInTheDocument()
 })
 
 test('matches boxes case-insensitively by code, space, and location', async () => {
@@ -183,6 +193,22 @@ test('replaces the URL query when the search input changes', async () => {
 
   expect(await screen.findByText('没有找到相关内容')).toBeInTheDocument()
   expect(screen.getByTestId('location')).toHaveTextContent('?q=%E6%96%B0%E5%85%B3%E9%94%AE%E8%AF%8D')
+})
+
+test('clears the search from the aligned clear button without losing focus', async () => {
+  const user = userEvent.setup()
+  mockSearchItems.mockResolvedValue([])
+  renderSearch('/app/search?q=充电器')
+
+  const input = screen.getByRole('searchbox')
+  const clearButton = screen.getByRole('button', { name: '清除搜索' })
+  expect(clearButton).toHaveClass('size-9', 'self-center', 'shrink-0')
+  await user.click(clearButton)
+
+  expect(input).toHaveValue('')
+  expect(input).toHaveFocus()
+  expect(screen.getByTestId('location')).toHaveTextContent('')
+  expect(screen.getByText('输入关键词，快速找到物品所在的箱子。')).toBeInTheDocument()
 })
 
 test('uses a semantic search form and submits immediately', async () => {

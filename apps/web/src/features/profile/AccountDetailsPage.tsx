@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { useMobileFeedback } from '../../components/mobile-feedback'
@@ -9,6 +10,7 @@ import { AvatarUploadControl, ReadOnlyAccountField } from './account-view'
 import { getAvatarDownload, getProfile, uploadAvatar } from './profile.api'
 
 export function AccountDetailsPage() {
+  const navigate = useNavigate()
   const { session } = useAuth()
   const feedback = useMobileFeedback()
   const queryClient = useQueryClient()
@@ -41,10 +43,16 @@ export function AccountDetailsPage() {
 
   return (
     <section className="mx-auto grid w-full max-w-2xl gap-5" aria-labelledby="account-details-title">
-      <header className="flex items-center gap-3 py-3">
-        <Link className="grid size-10 place-items-center rounded-full text-ink hover:bg-surface focus:outline-none focus:ring-2 focus:ring-brand" to="/app/me" aria-label="返回我的">
-          <span aria-hidden="true">‹</span>
-        </Link>
+      <nav className="sticky top-0 z-20 -mx-4 -mt-[max(1rem,var(--safe-area-top))] grid min-h-14 grid-cols-[6rem_minmax(0,1fr)_6rem] items-end border-b border-line/70 bg-canvas/90 px-4 pt-[max(0.5rem,var(--safe-area-top))] pb-2 backdrop-blur-xl min-[360px]:-mx-5 min-[360px]:px-5 lg:hidden" aria-label="账户信息导航">
+        <div className="flex justify-start">
+          <button className="inline-flex size-11 items-center justify-center rounded-full text-ink active:bg-placeholder/70 active:opacity-70" type="button" aria-label="返回" onClick={() => navigate(-1)}>
+            <AppIcon className="rotate-180" name="chevron-right" size={22} />
+          </button>
+        </div>
+        <span className="truncate pb-2 text-center text-[1.0625rem] leading-none font-bold text-ink">账户信息</span>
+        <div aria-hidden="true" />
+      </nav>
+      <header className="hidden items-center gap-3 py-3 lg:flex">
         <h1 className="m-0 text-section-title font-bold" id="account-details-title">账户信息</h1>
       </header>
 

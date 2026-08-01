@@ -24,6 +24,7 @@ export function GlobalFindBar() {
         placeholder="搜索物品或箱子"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
+        onClear={() => setQuery('')}
       />
       <button className="grid size-12 shrink-0 place-items-center rounded-control bg-brand text-white shadow-soft transition hover:bg-brand-strong focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-brand/45 lg:hidden" type="submit" aria-label="搜索">
         <AppIcon name="search" size={20} />

@@ -70,6 +70,22 @@ test('navigates from the visible mobile search button', async () => {
   )
 })
 
+test('uses an aligned custom clear button and restores input focus', async () => {
+  const user = userEvent.setup()
+  renderFindBar()
+
+  const input = screen.getByRole('searchbox', { name: '搜索物品或箱子' })
+  await user.type(input, '相机')
+  const clearButton = screen.getByRole('button', { name: '清除搜索' })
+  expect(clearButton).toHaveClass('size-9', 'self-center', 'shrink-0')
+  expect(input).toHaveClass('appearance-none', '[&::-webkit-search-cancel-button]:hidden')
+  await user.click(clearButton)
+
+  expect(input).toHaveValue('')
+  expect(input).toHaveFocus()
+  expect(screen.queryByRole('button', { name: '清除搜索' })).not.toBeInTheDocument()
+})
+
 test('navigates to the encoded search query on submit', async () => {
   const user = userEvent.setup()
   const router = renderFindBar()
