@@ -98,14 +98,14 @@ test('moves a focused room by two percent with arrow keys in edit mode', () => {
     </MemoryRouter>,
   )
 
-  fireEvent.keyDown(screen.getByRole('link', { name: /客厅/ }), { key: 'ArrowRight' })
+  fireEvent.keyDown(screen.getByRole('button', { name: '调整客厅位置' }), { key: 'ArrowRight' })
 
   expect(onLayoutChange).toHaveBeenCalledWith('s1', {
     x: 6, y: 4, width: 44, height: 42,
   })
 })
 
-test('snaps pointer dragging and commits the resulting percentage position', () => {
+test('drags an entire edit-mode card to commit its resulting position', () => {
   const onLayoutChange = vi.fn()
   render(
     <MemoryRouter>
@@ -116,7 +116,7 @@ test('snaps pointer dragging and commits the resulting percentage position', () 
   vi.spyOn(map, 'getBoundingClientRect').mockReturnValue({
     bottom: 500, height: 500, left: 0, right: 1000, top: 0, width: 1000, x: 0, y: 0, toJSON: () => ({}),
   })
-  const room = screen.getByRole('link', { name: /客厅/ })
+  const room = screen.getByRole('button', { name: '调整客厅位置' })
 
   fireEvent.pointerDown(room, { clientX: 0, clientY: 0, pointerId: 1 })
   expect(room).toHaveClass('touch-none')
@@ -133,75 +133,18 @@ test('clears an interrupted pointer drag without saving', () => {
       <SpaceMap spaces={[spaces[0]]} layouts={[]} editMode onLayoutChange={onLayoutChange} />
     </MemoryRouter>,
   )
-  const room = screen.getByRole('link', { name: /客厅/ })
-  const roomFrame = room.parentElement
-  const originalStyle = roomFrame?.getAttribute('style')
+  const room = screen.getByRole('button', { name: '调整客厅位置' })
+  const originalStyle = room.getAttribute('style')
   fireEvent.pointerDown(room, { clientX: 0, clientY: 0, pointerId: 1 })
   fireEvent.pointerMove(room, { clientX: 100, clientY: 50, pointerId: 1 })
   fireEvent.pointerCancel(room, { pointerId: 1 })
   fireEvent.pointerUp(room, { pointerId: 1 })
 
   expect(onLayoutChange).not.toHaveBeenCalled()
-  expect(roomFrame).toHaveAttribute('style', originalStyle)
+  expect(room).toHaveAttribute('style', originalStyle)
 })
 
-test('resizes a room from its bottom-right handle and commits once', () => {
-  const onLayoutChange = vi.fn()
-  render(
-    <MemoryRouter>
-      <SpaceMap
-        spaces={[spaces[0]]}
-        layouts={[{ space_id: 's1', x: 10, y: 10, width: 40, height: 30 }]}
-        editMode
-        onLayoutChange={onLayoutChange}
-      />
-    </MemoryRouter>,
-  )
-  const map = screen.getByRole('region', { name: '空间平面总览' })
-  vi.spyOn(map, 'getBoundingClientRect').mockReturnValue({
-    bottom: 500, height: 500, left: 0, right: 1000, top: 0, width: 1000, x: 0, y: 0, toJSON: () => ({}),
-  })
-  const handle = screen.getByRole('button', { name: '调整客厅大小' })
-
-  fireEvent.pointerDown(handle, { clientX: 400, clientY: 150, pointerId: 2 })
-  fireEvent.pointerMove(handle, { clientX: 520, clientY: 200, pointerId: 2 })
-  fireEvent.pointerUp(handle, { pointerId: 2 })
-
-  expect(onLayoutChange).toHaveBeenCalledTimes(1)
-  expect(onLayoutChange).toHaveBeenCalledWith('s1', {
-    x: 10, y: 10, width: 52, height: 40,
-  })
-})
-
-test('supports keyboard resizing and cancels an interrupted pointer resize', () => {
-  const onLayoutChange = vi.fn()
-  render(
-    <MemoryRouter>
-      <SpaceMap
-        spaces={[spaces[0]]}
-        layouts={[{ space_id: 's1', x: 10, y: 10, width: 40, height: 30 }]}
-        editMode
-        onLayoutChange={onLayoutChange}
-      />
-    </MemoryRouter>,
-  )
-  const handle = screen.getByRole('button', { name: '调整客厅大小' })
-
-  fireEvent.keyDown(handle, { key: 'ArrowRight' })
-  expect(onLayoutChange).toHaveBeenLastCalledWith('s1', {
-    x: 10, y: 10, width: 41, height: 30,
-  })
-
-  onLayoutChange.mockClear()
-  fireEvent.pointerDown(handle, { clientX: 0, clientY: 0, pointerId: 3 })
-  fireEvent.pointerMove(handle, { clientX: 100, clientY: 100, pointerId: 3 })
-  fireEvent.pointerCancel(handle, { pointerId: 3 })
-  fireEvent.pointerUp(handle, { pointerId: 3 })
-
-  expect(onLayoutChange).not.toHaveBeenCalled()
-})
-
-test('adjusts width and length independently with edge handles', () => {
+test('uses selected-card sliders for free sizing without floating resize handles', () => {
   const onLayoutChange = vi.fn()
   render(
     <MemoryRouter>
@@ -214,18 +157,9 @@ test('adjusts width and length independently with edge handles', () => {
     </MemoryRouter>,
   )
 
-  const widthHandle = screen.getByRole('button', { name: '调整客厅宽度' })
-  const lengthHandle = screen.getByRole('button', { name: '调整客厅长度' })
-  expect(widthHandle).toHaveClass('cursor-ew-resize')
-  expect(lengthHandle).toHaveClass('cursor-ns-resize')
-
-  fireEvent.keyDown(widthHandle, { key: 'ArrowRight' })
-  expect(onLayoutChange).toHaveBeenLastCalledWith('s1', {
-    x: 10, y: 10, width: 41, height: 30,
-  })
-
-  fireEvent.keyDown(lengthHandle, { key: 'ArrowDown' })
-  expect(onLayoutChange).toHaveBeenLastCalledWith('s1', {
-    x: 10, y: 10, width: 41, height: 31,
-  })
+  expect(screen.queryByRole('button', { name: '调整客厅宽度' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '调整客厅长度' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '调整客厅大小' })).not.toBeInTheDocument()
+  expect(screen.getByRole('slider', { name: '客厅宽度' })).toHaveAttribute('step', '1')
+  expect(screen.getByRole('slider', { name: '客厅长度' })).toHaveAttribute('step', '1')
 })

@@ -13,10 +13,8 @@ import { autoSpaceLayout, constrainResize } from './space-layout'
 import { spaceEmoji, spaceTone } from './space-visuals'
 
 type Positions = Record<string, SpacePosition>
-type ResizeAxis = 'width' | 'height' | 'both'
 type InteractionState = {
-  kind: 'move' | 'resize'
-  axis: ResizeAxis | null
+  kind: 'move'
   id: string
   startX: number
   startY: number
@@ -91,32 +89,19 @@ export function SpaceMap({
     })
   }
 
-  function resizeWithKeyboard(id: string, key: string, axis: ResizeAxis = 'both') {
-    const position = positions[id]
-    if (!position) return
-    const deltas: Record<string, [number, number]> = {
-      ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
-    }
-    const delta = deltas[key]
-    if (!delta) return
-    commit(id, constrainResize(
-      position,
-      axis === 'height' ? 0 : delta[0],
-      axis === 'width' ? 0 : delta[1],
-    ))
-  }
-
-  function beginDrag(event: ReactPointerEvent<HTMLAnchorElement>, id: string) {
+  function beginDrag(event: ReactPointerEvent<HTMLDivElement>, id: string) {
     if (!editMode) return
     const position = positions[id]
-    const canvas = event.currentTarget.parentElement?.parentElement
+    const canvas = event.currentTarget.parentElement
     if (!position || !canvas) return
     const rect = canvas.getBoundingClientRect()
+    event.preventDefault()
     event.currentTarget.setPointerCapture?.(event.pointerId)
-    setInteraction({ kind: 'move', axis: null, id, startX: event.clientX, startY: event.clientY, position, canvasWidth: rect.width, canvasHeight: rect.height })
+    setSelectedSpaceId(id)
+    setInteraction({ kind: 'move', id, startX: event.clientX, startY: event.clientY, position, canvasWidth: rect.width, canvasHeight: rect.height })
   }
 
-  function continueDrag(event: ReactPointerEvent<HTMLAnchorElement>, id: string) {
+  function continueDrag(event: ReactPointerEvent<HTMLDivElement>, id: string) {
     if (!interaction || interaction.kind !== 'move' || interaction.id !== id || interaction.canvasWidth <= 0 || interaction.canvasHeight <= 0) return
     const next = {
       ...interaction.position,
@@ -139,27 +124,6 @@ export function SpaceMap({
     setInteraction(null)
   }
 
-  function beginResize(event: ReactPointerEvent<HTMLButtonElement>, id: string, axis: ResizeAxis) {
-    const position = positions[id]
-    const canvas = event.currentTarget.parentElement?.parentElement
-    if (!position || !canvas) return
-    const rect = canvas.getBoundingClientRect()
-    event.preventDefault()
-    event.stopPropagation()
-    event.currentTarget.setPointerCapture?.(event.pointerId)
-    setInteraction({ kind: 'resize', axis, id, startX: event.clientX, startY: event.clientY, position, canvasWidth: rect.width, canvasHeight: rect.height })
-  }
-
-  function continueResize(event: ReactPointerEvent<HTMLButtonElement>, id: string) {
-    if (!interaction || interaction.kind !== 'resize' || interaction.id !== id || interaction.canvasWidth <= 0 || interaction.canvasHeight <= 0) return
-    const next = constrainResize(
-      interaction.position,
-      interaction.axis === 'height' ? 0 : ((event.clientX - interaction.startX) / interaction.canvasWidth) * 100,
-      interaction.axis === 'width' ? 0 : ((event.clientY - interaction.startY) / interaction.canvasHeight) * 100,
-    )
-    updateLocalPosition(id, next)
-  }
-
   const minimumHeight = Math.max(544, Math.ceil(spaces.length / 2) * 144 + 64)
   const selectedSpace = spaces.find((space) => space.id === selectedSpaceId) ?? spaces[0]
   const selectedPosition = selectedSpace ? positions[selectedSpace.id] : undefined
@@ -173,28 +137,32 @@ export function SpaceMap({
         return (
           <div
             key={space.id}
-            className={`absolute rounded-card border border-line text-ink shadow-soft ${spaceTone(index)} ${editMode ? 'ring-2 ring-brand/20' : 'hover:-translate-y-0.5'}`}
+            className={`absolute rounded-card border border-line text-ink shadow-soft ${spaceTone(index)} ${editMode ? 'touch-none cursor-move ring-2 ring-brand/20' : 'hover:-translate-y-0.5'}`}
             style={{ left: `${position.x}%`, top: `${position.y}%`, width: `${position.width}%`, height: `${position.height}%` }}
+            role={editMode ? 'button' : undefined}
+            aria-label={editMode ? `调整${space.name}位置` : undefined}
+            tabIndex={editMode ? 0 : undefined}
+            onClick={() => { if (editMode) setSelectedSpaceId(space.id) }}
+            onKeyDown={(event: ReactKeyboardEvent<HTMLDivElement>) => {
+              if (editMode && event.key.startsWith('Arrow')) {
+                event.preventDefault()
+                moveWithKeyboard(space.id, event.key)
+              }
+            }}
+            onPointerDown={(event) => beginDrag(event, space.id)}
+            onPointerMove={(event) => continueDrag(event, space.id)}
+            onPointerUp={() => finishInteraction(space.id)}
+            onPointerCancel={() => cancelInteraction(space.id)}
           >
             <Link
               draggable={false}
-              className={`flex size-full flex-col justify-between overflow-hidden rounded-[inherit] p-3 text-inherit no-underline focus:outline-none focus:ring-2 focus:ring-brand sm:p-4 ${editMode ? 'touch-none cursor-move' : 'touch-pan-y'}`}
+              tabIndex={editMode ? -1 : undefined}
+              className={`flex size-full flex-col justify-between overflow-hidden rounded-[inherit] p-3 text-inherit no-underline focus:outline-none focus:ring-2 focus:ring-brand sm:p-4 ${editMode ? 'pointer-events-none' : 'touch-pan-y'}`}
               to={`/app/boxes?space=${encodeURIComponent(space.id)}`}
               onClick={(event: ReactMouseEvent<HTMLAnchorElement>) => {
                 if (!editMode) return
                 event.preventDefault()
-                setSelectedSpaceId(space.id)
               }}
-              onKeyDown={(event: ReactKeyboardEvent<HTMLAnchorElement>) => {
-                if (editMode && event.key.startsWith('Arrow')) {
-                  event.preventDefault()
-                  moveWithKeyboard(space.id, event.key)
-                }
-              }}
-              onPointerDown={(event: ReactPointerEvent<HTMLAnchorElement>) => beginDrag(event, space.id)}
-              onPointerMove={(event: ReactPointerEvent<HTMLAnchorElement>) => continueDrag(event, space.id)}
-              onPointerUp={() => finishInteraction(space.id)}
-              onPointerCancel={() => cancelInteraction(space.id)}
               onDragStart={(event: ReactDragEvent<HTMLAnchorElement>) => event.preventDefault()}
             >
               <span className="flex items-start justify-between gap-2">
@@ -206,60 +174,6 @@ export function SpaceMap({
                 <small className="text-meta text-muted">{space.item_count} 件物品</small>
               </span>
             </Link>
-            {editMode ? (
-              <>
-                <button
-                  className="absolute top-1/2 right-0 z-10 h-14 w-11 -translate-y-1/2 touch-none cursor-ew-resize rounded-l-control border border-r-0 border-brand/40 bg-surface/90 text-brand shadow-soft"
-                  type="button"
-                  aria-label={`调整${space.name}宽度`}
-                  title="左右拖动或使用方向键调整宽度"
-                  onKeyDown={(event) => {
-                    if (event.key.startsWith('Arrow')) {
-                      event.preventDefault()
-                      resizeWithKeyboard(space.id, event.key, 'width')
-                    }
-                  }}
-                  onPointerDown={(event) => beginResize(event, space.id, 'width')}
-                  onPointerMove={(event) => continueResize(event, space.id)}
-                  onPointerUp={() => finishInteraction(space.id)}
-                  onPointerCancel={() => cancelInteraction(space.id)}
-                ><span aria-hidden="true">↔</span></button>
-                <button
-                  className="absolute bottom-0 left-1/2 z-10 h-11 w-14 -translate-x-1/2 touch-none cursor-ns-resize rounded-t-control border border-b-0 border-brand/40 bg-surface/90 text-brand shadow-soft"
-                  type="button"
-                  aria-label={`调整${space.name}长度`}
-                  title="上下拖动或使用方向键调整长度"
-                  onKeyDown={(event) => {
-                    if (event.key.startsWith('Arrow')) {
-                      event.preventDefault()
-                      resizeWithKeyboard(space.id, event.key, 'height')
-                    }
-                  }}
-                  onPointerDown={(event) => beginResize(event, space.id, 'height')}
-                  onPointerMove={(event) => continueResize(event, space.id)}
-                  onPointerUp={() => finishInteraction(space.id)}
-                  onPointerCancel={() => cancelInteraction(space.id)}
-                ><span aria-hidden="true">↕</span></button>
-                <button
-                  className="absolute bottom-1.5 right-1.5 z-20 grid size-11 touch-none cursor-nwse-resize place-items-center rounded-control border border-brand/40 bg-surface/95 text-brand shadow-soft"
-                  type="button"
-                  aria-label={`调整${space.name}大小`}
-                  title="拖动或使用方向键调整大小"
-                  onKeyDown={(event) => {
-                    if (event.key.startsWith('Arrow')) {
-                      event.preventDefault()
-                      resizeWithKeyboard(space.id, event.key)
-                    }
-                  }}
-                  onPointerDown={(event) => beginResize(event, space.id, 'both')}
-                  onPointerMove={(event) => continueResize(event, space.id)}
-                  onPointerUp={() => finishInteraction(space.id)}
-                  onPointerCancel={() => cancelInteraction(space.id)}
-                >
-                  <span aria-hidden="true" className="text-lg leading-none">↘</span>
-                </button>
-              </>
-            ) : null}
           </div>
         )
       })}
