@@ -95,7 +95,7 @@ export function SpaceMap({
     const position = positions[id]
     if (!position) return
     const deltas: Record<string, [number, number]> = {
-      ArrowLeft: [-2, 0], ArrowRight: [2, 0], ArrowUp: [0, -2], ArrowDown: [0, 2],
+      ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
     }
     const delta = deltas[key]
     if (!delta) return
@@ -271,9 +271,9 @@ export function SpaceMap({
           <input
             className="h-11 w-full accent-brand"
             type="range"
-            min="12"
+            min="8"
             max={100 - selectedPosition.x}
-            step="2"
+            step="1"
             value={selectedPosition.width}
             aria-label={`${selectedSpace.name}宽度`}
             onChange={(event) => commit(selectedSpace.id, constrainResize(selectedPosition, Number(event.target.value) - selectedPosition.width, 0))}
@@ -284,9 +284,9 @@ export function SpaceMap({
           <input
             className="h-11 w-full accent-brand"
             type="range"
-            min="12"
+            min="8"
             max={100 - selectedPosition.y}
-            step="2"
+            step="1"
             value={selectedPosition.height}
             aria-label={`${selectedSpace.name}长度`}
             onChange={(event) => commit(selectedSpace.id, constrainResize(selectedPosition, 0, Number(event.target.value) - selectedPosition.height))}

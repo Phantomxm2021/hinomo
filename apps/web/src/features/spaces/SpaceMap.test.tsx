@@ -30,12 +30,15 @@ test('automatically lays out one to twelve rooms inside the canvas', () => {
   expect(autoSpaceLayout(0, 12).width).toBeGreaterThanOrEqual(40)
 })
 
-test('snaps resizing and constrains it to size and canvas boundaries', () => {
+test('resizes freely while constraining size to canvas boundaries', () => {
+  expect(constrainResize({ x: 10, y: 10, width: 20, height: 20 }, 17, 19)).toEqual({
+    x: 10, y: 10, width: 37, height: 39,
+  })
   expect(constrainResize({ x: 70, y: 70, width: 20, height: 10 }, 17, 19)).toEqual({
-    x: 70, y: 70, width: 30, height: 30,
+    x: 70, y: 70, width: 30, height: 29,
   })
   expect(constrainResize({ x: 10, y: 10, width: 40, height: 30 }, -99, -99)).toEqual({
-    x: 10, y: 10, width: 12, height: 12,
+    x: 10, y: 10, width: 8, height: 8,
   })
   expect(constrainResize({ x: 0, y: 0, width: 40, height: 30 }, 99, 99)).toEqual({
     x: 0, y: 0, width: 100, height: 100,
@@ -186,7 +189,7 @@ test('supports keyboard resizing and cancels an interrupted pointer resize', () 
 
   fireEvent.keyDown(handle, { key: 'ArrowRight' })
   expect(onLayoutChange).toHaveBeenLastCalledWith('s1', {
-    x: 10, y: 10, width: 42, height: 30,
+    x: 10, y: 10, width: 41, height: 30,
   })
 
   onLayoutChange.mockClear()
@@ -218,11 +221,11 @@ test('adjusts width and length independently with edge handles', () => {
 
   fireEvent.keyDown(widthHandle, { key: 'ArrowRight' })
   expect(onLayoutChange).toHaveBeenLastCalledWith('s1', {
-    x: 10, y: 10, width: 42, height: 30,
+    x: 10, y: 10, width: 41, height: 30,
   })
 
   fireEvent.keyDown(lengthHandle, { key: 'ArrowDown' })
   expect(onLayoutChange).toHaveBeenLastCalledWith('s1', {
-    x: 10, y: 10, width: 42, height: 32,
+    x: 10, y: 10, width: 41, height: 31,
   })
 })

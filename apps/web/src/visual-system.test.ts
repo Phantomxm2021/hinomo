@@ -164,6 +164,11 @@ test('does not hide horizontal overflow globally', () => {
   expect(hasHiddenGlobalOverflow(css)).toBe(false)
 })
 
+test('hides scrollbars only within app scroll containers', () => {
+  expect(css).toMatch(/\.scrollbar-none\s*\{[^}]*scrollbar-width:\s*none;/s)
+  expect(css).toMatch(/\.scrollbar-none::-webkit-scrollbar\s*\{[^}]*display:\s*none;/s)
+})
+
 test('allows hidden overflow on a local component', () => {
   expect(hasHiddenGlobalOverflow('.crop { overflow-x: hidden; }')).toBe(false)
 })

@@ -67,8 +67,13 @@ export async function createVenue(input: VenueInput) {
 }
 
 export async function updateVenue(venueId: string, input: VenueInput) {
-  const { error } = await supabase.from('venues').update(input).eq('id', venueId)
+  const { data, error } = await supabase
+    .from('venues')
+    .update(input)
+    .eq('id', venueId)
+    .select('id')
   if (error) throw mapVenueError(error)
+  if (!data?.length) throw new Error('venue update was not applied')
 }
 
 export async function deleteVenue(venueId: string) {

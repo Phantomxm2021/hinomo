@@ -10,7 +10,7 @@ export function VenueFilterBar({ venues, selectedId, onSelect, onCreate, onEdit 
 }) {
   return (
     <div className="flex min-w-0 items-center gap-2" aria-label="场地筛选">
-      <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1" role="group" aria-label="选择场地">
+      <div className="scrollbar-none flex min-w-0 flex-1 gap-2 overflow-x-auto overscroll-x-contain pb-1" role="group" aria-label="选择场地">
         <button className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold ${selectedId === null ? 'bg-ink text-white' : 'bg-surface text-muted shadow-[inset_0_0_0_1px_var(--color-line)]'}`} type="button" aria-pressed={selectedId === null} onClick={() => onSelect(null)}>
           全部
         </button>

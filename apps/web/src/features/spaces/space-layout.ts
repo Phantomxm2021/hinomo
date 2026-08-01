@@ -1,8 +1,7 @@
 import type { SpacePosition } from './spaces.api'
 
-const snap = (value: number) => Math.round(value / 2) * 2
 const clamp = (value: number, minimum: number, maximum: number) =>
-  Math.max(minimum, Math.min(maximum, snap(value)))
+  Math.max(minimum, Math.min(maximum, Math.round(value)))
 
 export function constrainResize(
   position: SpacePosition,
@@ -11,8 +10,8 @@ export function constrainResize(
 ): SpacePosition {
   return {
     ...position,
-    width: clamp(position.width + widthDelta, 12, 100 - position.x),
-    height: clamp(position.height + heightDelta, 12, 100 - position.y),
+    width: clamp(position.width + widthDelta, 8, 100 - position.x),
+    height: clamp(position.height + heightDelta, 8, 100 - position.y),
   }
 }
 

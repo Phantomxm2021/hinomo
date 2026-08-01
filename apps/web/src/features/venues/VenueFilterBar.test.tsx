@@ -28,3 +28,21 @@ test('keeps the built-in default venue selectable and editable', async () => {
   await user.click(screen.getByRole('button', { name: '重命名场地公司' }))
   expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'office' }))
 })
+
+test('keeps venue chips horizontally scrollable without an exposed scrollbar', () => {
+  render(<VenueFilterBar
+    venues={[
+      { id: 'default', name: '默认', description: null, is_default: true, space_count: 0 },
+    ]}
+    selectedId="default"
+    onSelect={vi.fn()}
+    onCreate={vi.fn()}
+    onEdit={vi.fn()}
+  />)
+
+  expect(screen.getByRole('group', { name: '选择场地' })).toHaveClass(
+    'overflow-x-auto',
+    'overscroll-x-contain',
+    'scrollbar-none',
+  )
+})

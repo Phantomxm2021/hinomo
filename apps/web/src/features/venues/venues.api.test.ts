@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createVenue, deleteVenue, listVenues, updateVenue } from './venues.api'
 
-const { mockDefaultOrder, mockDelete, mockEq, mockFrom, mockGetSession, mockInsert, mockNameOrder, mockSelect, mockUpdate } = vi.hoisted(() => ({
+const { mockDefaultOrder, mockDelete, mockEq, mockFrom, mockGetSession, mockInsert, mockNameOrder, mockSelect, mockUpdate, mockUpdateSelect } = vi.hoisted(() => ({
   mockDefaultOrder: vi.fn(),
   mockDelete: vi.fn(),
   mockEq: vi.fn(),
@@ -11,6 +11,7 @@ const { mockDefaultOrder, mockDelete, mockEq, mockFrom, mockGetSession, mockInse
   mockNameOrder: vi.fn(),
   mockSelect: vi.fn(),
   mockUpdate: vi.fn(),
+  mockUpdateSelect: vi.fn(),
 }))
 
 vi.mock('../../lib/supabase', () => ({
@@ -62,7 +63,8 @@ describe('venues api', () => {
   })
 
   it('updates and deletes by id', async () => {
-    mockEq.mockResolvedValue({ error: null })
+    mockEq.mockReturnValue({ select: mockUpdateSelect })
+    mockUpdateSelect.mockResolvedValue({ data: [{ id: 'office' }], error: null })
     await updateVenue('office', { name: '工作室', description: '二楼' })
     expect(mockUpdate).toHaveBeenCalledWith({ name: '工作室', description: '二楼' })
     expect(mockEq).toHaveBeenCalledWith('id', 'office')
@@ -70,5 +72,13 @@ describe('venues api', () => {
     await deleteVenue('office')
     expect(mockDelete).toHaveBeenCalled()
     expect(mockEq).toHaveBeenLastCalledWith('id', 'office')
+  })
+
+  it('fails instead of reporting success when venue update affects no rows', async () => {
+    mockEq.mockReturnValue({ select: mockUpdateSelect })
+    mockUpdateSelect.mockResolvedValue({ data: [], error: null })
+
+    await expect(updateVenue('default', { name: '我的家', description: null }))
+      .rejects.toThrow('venue update was not applied')
   })
 })
