@@ -70,6 +70,20 @@ test('shows read-only identity and updates locale through the profile API', asyn
   expect(await screen.findByRole('status', { name: '' })).toHaveTextContent('设置已保存')
 })
 
+test('uses native-style grouped rows for the mobile account and preferences page', async () => {
+  renderPage()
+
+  const profileGroup = await screen.findByRole('group', { name: '个人资料' })
+  const preferencesGroup = screen.getByRole('group', { name: '偏好设置' })
+  const accountActionGroup = screen.getByRole('group', { name: '账户操作' })
+
+  expect(profileGroup).toHaveClass('rounded-card', 'bg-surface', 'overflow-hidden')
+  expect(preferencesGroup).toHaveClass('rounded-card', 'bg-surface', 'overflow-hidden')
+  expect(accountActionGroup).toHaveClass('rounded-card', 'bg-surface', 'overflow-hidden')
+  expect(screen.getByLabelText('昵称')).toHaveClass('border-0', 'bg-transparent', 'text-right')
+  expect(screen.getByLabelText('邮箱')).toHaveClass('border-0', 'bg-transparent', 'text-right')
+})
+
 test('uploads an avatar from the avatar cover control', async () => {
   const user = userEvent.setup()
   renderPage()

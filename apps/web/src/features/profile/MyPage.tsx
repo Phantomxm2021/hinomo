@@ -73,21 +73,24 @@ export function MyPage() {
       ) : (
         <>
           {profileQuery.isError ? <PageState state="error" message="资料加载失败，当前显示登录信息" onRetry={() => void profileQuery.refetch()} /> : null}
-          <section className="grid gap-5 rounded-shell border border-line bg-surface p-5 shadow-soft sm:p-6" aria-label="账户信息">
-            <div className="grid justify-items-center gap-2">
-              <AvatarUploadControl src={avatar} name={name} pending={avatarMutation.isPending} onChange={(file) => avatarMutation.mutate(file)} />
-              <p className="m-0 text-sm text-muted">点击头像更换</p>
+          <section className="overflow-hidden rounded-card border-0 bg-surface p-0 shadow-soft lg:grid lg:gap-5 lg:rounded-shell lg:border lg:border-line lg:p-6" role="group" aria-label="个人资料">
+            <div className="flex min-h-24 items-center gap-4 p-4 lg:grid lg:justify-items-center lg:gap-2 lg:p-0">
+              <AvatarUploadControl className="mx-0 lg:mx-auto" src={avatar} name={name} pending={avatarMutation.isPending} onChange={(file) => avatarMutation.mutate(file)} />
+              <div className="min-w-0 lg:contents">
+                <p className="m-0 truncate text-card-title font-bold text-ink lg:hidden">{name}</p>
+                <p className="m-0 text-sm text-muted">点击头像更换</p>
+              </div>
               {avatarMutation.isError ? <ResponsiveOperationError message="头像上传失败，请重试" /> : null}
             </div>
-            <ReadOnlyAccountField label="昵称" value={name} />
-            <ReadOnlyAccountField label="邮箱" value={user.email ?? '未设置'} />
+            <ReadOnlyAccountField listRow label="昵称" value={name} />
+            <ReadOnlyAccountField listRow label="邮箱" value={user.email ?? '未设置'} />
           </section>
 
-          <section className="grid gap-4 rounded-shell border border-line bg-surface p-5 shadow-soft sm:p-6" aria-labelledby="preferences-title">
-            <h2 className="m-0 text-section-title font-bold" id="preferences-title">设置</h2>
-            <label className="grid gap-2 font-bold text-ink" htmlFor="my-locale">语言
+          <section className="overflow-hidden rounded-card border-0 bg-surface p-0 shadow-soft lg:grid lg:gap-4 lg:rounded-shell lg:border lg:border-line lg:p-6" role="group" aria-label="偏好设置">
+            <h2 className="m-0 px-4 pt-4 text-meta font-medium text-muted lg:px-0 lg:pt-0 lg:text-section-title lg:font-bold lg:text-ink" id="preferences-title">设置</h2>
+            <label className="flex min-h-12 items-center justify-between gap-4 px-4 text-ink lg:grid lg:gap-2 lg:px-0 lg:font-bold" htmlFor="my-locale">语言
               <select
-                className="min-h-12 rounded-control border border-line bg-canvas px-3 font-normal"
+                className="min-h-11 max-w-[60%] border-0 bg-transparent p-0 text-right text-muted outline-none lg:min-h-12 lg:max-w-none lg:rounded-control lg:border lg:border-line lg:bg-canvas lg:px-3 lg:text-left lg:font-normal"
                 id="my-locale"
                 value={(localeMutation.isPending || localeMutation.isSuccess)
                   ? localeMutation.variables
@@ -103,9 +106,11 @@ export function MyPage() {
             {localeMutation.isError ? <ResponsiveOperationError message="设置保存失败，请重试" /> : null}
           </section>
 
-          <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-control border border-danger/30 bg-surface px-4 font-bold text-danger" type="button" onClick={() => setConfirmingSignOut(true)}>
-            <AppIcon name="logout" />退出登录
-          </button>
+          <section className="overflow-hidden rounded-card border border-danger/15 bg-surface shadow-soft" role="group" aria-label="账户操作">
+            <button className="inline-flex min-h-12 w-full items-center justify-center gap-2 bg-transparent px-4 font-semibold text-danger" type="button" onClick={() => setConfirmingSignOut(true)}>
+              <AppIcon name="logout" />退出登录
+            </button>
+          </section>
         </>
       )}
 
