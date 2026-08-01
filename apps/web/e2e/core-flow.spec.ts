@@ -109,12 +109,14 @@ async function expectOwnerCtaClearance(page: Parameters<typeof installMockBacken
 async function expectItemFormActionClearance(page: Parameters<typeof installMockBackend>[0], safeAreaBottom: number) {
   await page.getByRole('button', { name: /^(新增物品|移动端新增物品)$/ }).click()
   await expect(page.getByRole('heading', { name: '新增物品' })).toBeVisible()
+  const dialog = page.getByRole('dialog', { name: '新增物品' })
+  const scrollContainer = dialog.locator('> div')
   const actionBar = page.getByRole('button', { name: '保存' }).locator('..')
   await page.evaluate((inset) => {
     document.documentElement.style.setProperty('--safe-area-bottom', `${inset}px`)
-    window.scrollTo(0, document.documentElement.scrollHeight)
   }, safeAreaBottom)
   try {
+    await scrollContainer.evaluate((element) => element.scrollTo({ top: element.scrollHeight }))
     await expect.poll(async () => {
       const geometry = await actionBar.evaluate((element) => ({
         bottom: element.getBoundingClientRect().bottom,
@@ -179,7 +181,9 @@ test('owner creates, finds, labels, and maintains a public box', async ({ browse
   await expect(page.getByRole('spinbutton', { name: '数量' })).toHaveValue('2')
   await page.getByRole('button', { name: '保存' }).click()
   await expect(page.getByRole('heading', { name: '羽绒服' })).toBeVisible()
-  await expect(page.getByText('2 件', { exact: true })).toBeVisible()
+  await expect.poll(() => page.getByText('2 件', { exact: true }).evaluateAll((elements) =>
+    elements.some((element) => element.getClientRects().length > 0),
+  )).toBe(true)
 
   await page.goto('/app/boxes')
   await expect(page.getByRole('heading', { name: '全部箱子', exact: true })).toBeVisible()

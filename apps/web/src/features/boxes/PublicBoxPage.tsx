@@ -138,7 +138,7 @@ export function PublicBoxPage() {
         <ResponsiveOperationError message="箱子刷新失败，正在显示上次内容" busy={boxQuery.isFetching} onRetry={() => void boxQuery.refetch()} />
       ) : null}
       <section data-testid="box-summary" className="grid gap-4 border-0 bg-transparent p-0 lg:grid-cols-[minmax(16rem,0.8fr)_1.2fr] lg:gap-6 lg:rounded-shell lg:border lg:border-line lg:bg-surface lg:p-5">
-        <div className="aspect-[4/3] min-h-0 overflow-hidden rounded-[1.5rem] bg-placeholder lg:min-h-56 lg:rounded-card">
+        <div data-testid="box-cover" className="hidden aspect-[4/3] min-h-0 overflow-hidden rounded-[1.5rem] bg-placeholder lg:block lg:min-h-56 lg:rounded-card">
           {box.cover_object_key ? (
             <AuthorizedImage objectKey={box.cover_object_key} alt={`${box.name}封面`} className="h-full w-full object-cover" />
           ) : (
@@ -183,13 +183,26 @@ export function PublicBoxPage() {
       {printError ? <ResponsiveOperationError message="PDF 生成失败，请重试" onRetry={() => void printLabel()} /> : null}
 
       {isOwner && (showItemForm || editingItem) ? (
-        <ItemForm
-          key={editingItem ? `edit-${editingItem.id}` : 'new'}
-          boxId={box.id}
-          item={editingItem}
-          onSaved={() => void refreshItems()}
-          onCancel={() => { setShowItemForm(false); setEditingItem(null) }}
-        />
+        <div className="fixed inset-0 z-40 flex items-end bg-ink/30 lg:static lg:block lg:bg-transparent" role="dialog" aria-modal="true" aria-labelledby="item-form-title">
+          <div className="max-h-[calc(100dvh-var(--safe-area-top))] w-full overflow-y-auto rounded-t-[1.5rem] bg-canvas pb-[max(1rem,var(--safe-area-bottom))] shadow-float lg:max-h-none lg:overflow-visible lg:rounded-none lg:bg-transparent lg:p-0 lg:shadow-none">
+            <div className="mx-auto w-full max-w-6xl lg:px-0">
+              <div className="mx-auto mt-3 h-1.5 w-10 rounded-full bg-line lg:hidden" aria-hidden="true" />
+              <ItemForm
+                key={editingItem ? `edit-${editingItem.id}` : 'new'}
+                boxId={box.id}
+                item={editingItem}
+                onSaved={() => void refreshItems()}
+                onCancel={() => { setShowItemForm(false); setEditingItem(null) }}
+                onDelete={editingItem ? () => {
+                  deleteReturnFocusRef.current = mobileAddItemButtonRef.current
+                  setShowItemForm(false)
+                  setEditingItem(null)
+                  setDeleteTarget(editingItem)
+                } : undefined}
+              />
+            </div>
+          </div>
+        </div>
       ) : null}
 
       <section className="grid gap-3" aria-labelledby="box-items-heading">
@@ -203,7 +216,34 @@ export function PublicBoxPage() {
         {box.items.length > 0 ? (
           <div data-testid="box-item-list" className="overflow-hidden rounded-[1.25rem] bg-surface shadow-[inset_0_0_0_1px_rgba(79,64,48,0.06)] lg:contents lg:rounded-none lg:bg-transparent lg:shadow-none">
             {box.items.map((item) => (
-              <article className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-3 border-b border-line/60 p-3 last:border-b-0 lg:grid-cols-[7rem_minmax(0,1fr)_auto] lg:items-center lg:gap-4 lg:rounded-card lg:border lg:border-line lg:bg-surface lg:p-4" key={item.id}>
+              <article className="border-b border-line/60 last:border-b-0 lg:grid lg:grid-cols-[7rem_minmax(0,1fr)_auto] lg:items-center lg:gap-4 lg:rounded-card lg:border lg:border-line lg:bg-surface lg:p-4" key={item.id}>
+                {isOwner ? (
+                  <button className="grid w-full grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 p-3 text-left active:bg-placeholder/50 lg:hidden" type="button" aria-label={`编辑物品${item.name}`} onClick={() => openEditItem(item)}>
+                    <div className="grid size-14 place-content-center overflow-hidden rounded-[0.9rem] bg-placeholder text-muted">
+                      {item.image_object_key ? <AuthorizedImage objectKey={item.image_object_key} alt="" className="h-full w-full object-cover" /> : <AppIcon name="box" />}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="m-0 truncate text-[1rem] font-bold text-ink">{item.name}</h3>
+                      <p className="mt-0.5 truncate text-sm text-muted">{item.description || item.category || '未添加说明'}</p>
+                    </div>
+                    <div className="flex items-center gap-1 text-muted">
+                      <span className="text-sm font-semibold">{item.quantity} 件</span>
+                      <AppIcon name="chevron-right" size={18} />
+                    </div>
+                  </button>
+                ) : (
+                  <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 p-3 lg:hidden">
+                    <div className="grid size-14 place-content-center overflow-hidden rounded-[0.9rem] bg-placeholder text-muted">
+                      {item.image_object_key ? <AuthorizedImage objectKey={item.image_object_key} alt={`${item.name}图片`} className="h-full w-full object-cover" /> : <AppIcon name="box" />}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="m-0 truncate text-[1rem] font-bold text-ink">{item.name}</h3>
+                      <p className="mt-0.5 truncate text-sm text-muted">{item.description || item.category || '未添加说明'}</p>
+                    </div>
+                    <span className="text-sm font-semibold text-muted">{item.quantity} 件</span>
+                  </div>
+                )}
+                <div className="hidden lg:contents">
                 <div className="aspect-[4/3] overflow-hidden rounded-[0.85rem] bg-placeholder lg:rounded-control">
                   {item.image_object_key ? (
                     <AuthorizedImage objectKey={item.image_object_key} alt={`${item.name}图片`} className="h-full w-full object-cover" />
@@ -232,6 +272,7 @@ export function PublicBoxPage() {
                     </button>
                   </div>
                 ) : null}
+                </div>
               </article>
             ))}
           </div>

@@ -15,9 +15,10 @@ type ItemFormProps = {
   item?: ItemRecord | null
   onSaved: () => void
   onCancel?: () => void
+  onDelete?: () => void
 }
 
-export function ItemForm({ boxId, item, onSaved, onCancel }: ItemFormProps) {
+export function ItemForm({ boxId, item, onSaved, onCancel, onDelete }: ItemFormProps) {
   const feedback = useMobileFeedback()
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [pendingItemId, setPendingItemId] = useState<string | null>(null)
@@ -110,11 +111,11 @@ export function ItemForm({ boxId, item, onSaved, onCancel }: ItemFormProps) {
 
   return (
     <form
-      className="grid gap-5 rounded-shell border border-line bg-surface p-5 pb-24 md:p-6 lg:pb-6"
+      className="grid gap-5 border-0 bg-transparent p-5 pb-24 lg:rounded-shell lg:border lg:border-line lg:bg-surface lg:p-6 lg:pb-6"
       onSubmit={handleSubmit(submit)}
       noValidate
     >
-      <h2 className="m-0 text-section-title font-bold text-ink">
+      <h2 className="m-0 text-section-title font-bold text-ink" id="item-form-title">
         {item ? '编辑物品' : '新增物品'}
       </h2>
       <div className="grid gap-2">
@@ -184,6 +185,7 @@ export function ItemForm({ boxId, item, onSaved, onCancel }: ItemFormProps) {
         </div>
       ) : null}
       <div className="fixed inset-x-4 bottom-[max(1rem,var(--safe-area-bottom))] z-20 flex flex-wrap justify-end gap-2 rounded-control border border-line bg-surface/95 p-2 shadow-float backdrop-blur min-[360px]:inset-x-5 lg:static lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
+        {item && onDelete ? <button className="mr-auto min-h-11 rounded-control border border-danger/30 bg-danger/5 px-4 font-bold text-danger" type="button" onClick={onDelete}>删除物品</button> : null}
         {onCancel ? <button className="min-h-11 rounded-control border border-line bg-canvas px-4 font-bold text-ink" type="button" onClick={onCancel}>取消</button> : null}
         <button className="min-h-12 rounded-control border border-brand bg-brand px-5 font-bold text-white" type="submit" disabled={mutation.isPending || isUploadPending(mediaUpload.stage)}>保存</button>
       </div>

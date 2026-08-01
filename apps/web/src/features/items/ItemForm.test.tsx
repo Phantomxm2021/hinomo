@@ -4,16 +4,18 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { ItemForm } from './ItemForm'
 
-const { mockCreateItem, mockUpload } = vi.hoisted(() => ({
+const { mockCreateItem, mockUpdateItem, mockUpload } = vi.hoisted(() => ({
   mockCreateItem: vi.fn(),
+  mockUpdateItem: vi.fn(),
   mockUpload: vi.fn(),
 }))
-vi.mock('./items.api', () => ({ createItem: mockCreateItem, updateItem: vi.fn() }))
+vi.mock('./items.api', () => ({ createItem: mockCreateItem, updateItem: mockUpdateItem }))
 vi.mock('../media/useMediaUpload', () => ({
   useMediaUpload: () => ({ stage: 'idle', upload: mockUpload, reset: vi.fn() }),
 }))
 beforeEach(() => {
   mockCreateItem.mockReset()
+  mockUpdateItem.mockReset()
   mockUpload.mockReset()
 })
 afterEach(cleanup)
@@ -101,6 +103,25 @@ test('keeps mobile actions above the public-page safe area', () => {
   )
   expect(save).toHaveClass('min-h-12')
   expect(cancel).toHaveClass('min-h-11')
+})
+
+test('offers deletion from the edit form', async () => {
+  const user = userEvent.setup()
+  const onDelete = vi.fn()
+  const client = new QueryClient()
+  render(
+    <QueryClientProvider client={client}>
+      <ItemForm
+        boxId="box-1"
+        item={{ id: 'item-1', name: '锤子', category: null, quantity: 1, description: null }}
+        onSaved={vi.fn()}
+        onDelete={onDelete}
+      />
+    </QueryClientProvider>,
+  )
+
+  await user.click(screen.getByRole('button', { name: '删除物品' }))
+  expect(onDelete).toHaveBeenCalledOnce()
 })
 
 test('submits a directly entered quantity as a number', async () => {

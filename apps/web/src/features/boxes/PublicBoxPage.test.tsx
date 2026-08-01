@@ -145,8 +145,8 @@ test('renders a public box for an anonymous visitor without edit controls', asyn
   expect(screen.getByText(/最近更新/)).toBeInTheDocument()
   expect(screen.getByText('家里 · 家 · 卧室')).toBeInTheDocument()
   expect(screen.getByText('衣物')).toBeInTheDocument()
-  expect(screen.getByText('黑色长款')).toBeInTheDocument()
-  expect(screen.getAllByText('2 件')).toHaveLength(2)
+  expect(screen.getAllByText('黑色长款')).toHaveLength(2)
+  expect(screen.getAllByText('2 件')).toHaveLength(4)
   expect(screen.getByText('暂无封面')).toBeInTheDocument()
   expect(screen.getAllByText('暂无图片').length).toBeGreaterThan(0)
   expect(screen.getByText('共 7 件 · 3 种物品')).toBeInTheDocument()
@@ -162,6 +162,7 @@ test('renders a public box for an anonymous visitor without edit controls', asyn
     'lg:contents',
   )
   expect(screen.getByTestId('box-detail-facts')).toHaveClass('hidden', 'lg:contents')
+  expect(screen.getByTestId('box-cover')).toHaveClass('hidden', 'lg:block')
 })
 
 test('shows item controls only to the box owner', async () => {
@@ -284,7 +285,29 @@ test('hides the mobile add action while the item form is open', async () => {
   )
   await user.click(await screen.findByRole('button', { name: '移动端新增物品' }))
   expect(screen.getByRole('heading', { name: '新增物品' })).toBeInTheDocument()
+  expect(screen.getByRole('dialog', { name: '新增物品' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '移动端新增物品' })).not.toBeInTheDocument()
+})
+
+test('opens an item in the mobile list editor instead of showing inline controls', async () => {
+  const user = userEvent.setup()
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    space_id: 'space-1', name: '工具', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z',
+    items: [{ id: 'i1', name: '锤子', category: '工具', quantity: 2, description: '金属手柄' }],
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session)
+
+  const row = await screen.findByRole('button', { name: '编辑物品锤子' })
+  expect(row).toHaveClass('lg:hidden')
+  expect(row).toHaveTextContent('金属手柄')
+  expect(row).toHaveTextContent('2')
+  await user.click(row)
+
+  expect(screen.getByRole('dialog', { name: '编辑物品' })).toBeInTheDocument()
+  expect(screen.getByLabelText('物品名称')).toHaveValue('锤子')
 })
 
 test('shows a neutral gate for a private or missing box', async () => {
@@ -311,7 +334,7 @@ test('renders authorized cover and item images when object keys exist', async ()
   renderPublicBox()
 
   expect(await screen.findByRole('img', { name: '工具封面' })).toBeInTheDocument()
-  expect(screen.getByRole('img', { name: '锤子图片' })).toBeInTheDocument()
+  expect(screen.getAllByRole('img', { name: '锤子图片' })).toHaveLength(2)
 })
 
 test('clears the edited item when switching from edit to new', async () => {
