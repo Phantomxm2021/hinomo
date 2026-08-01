@@ -1,6 +1,7 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { ScannerPage } from './ScannerPage'
 
 const { mockNavigate, mockReaderCreate, mockScannerStart } = vi.hoisted(() => ({
@@ -36,9 +37,13 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+function renderScanner() {
+  return render(<MobileFeedbackProvider><ScannerPage /></MobileFeedbackProvider>)
+}
+
 test('uses compact mobile page titles with a desktop scale-up', () => {
   mockScannerStart.mockResolvedValue({ stop: vi.fn() })
-  render(<ScannerPage />)
+  renderScanner()
 
   expect(screen.getByRole('heading', { name: '扫码查看' })).toHaveClass(
     'text-page-title',
@@ -48,7 +53,7 @@ test('uses compact mobile page titles with a desktop scale-up', () => {
 
 test('shows only the camera scanner without manual URL controls', () => {
   mockScannerStart.mockResolvedValue({ stop: vi.fn() })
-  render(<ScannerPage />)
+  renderScanner()
 
   expect(screen.queryByLabelText('手动输入二维码地址')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '打开箱子' })).not.toBeInTheDocument()
@@ -56,7 +61,7 @@ test('shows only the camera scanner without manual URL controls', () => {
 
 test('uses a tall full-width camera card on mobile and video aspect ratio on desktop', () => {
   mockScannerStart.mockResolvedValue({ stop: vi.fn() })
-  render(<ScannerPage />)
+  renderScanner()
 
   expect(screen.getByLabelText('二维码扫描画面')).toHaveClass(
     'aspect-[4/5]',
@@ -74,17 +79,13 @@ test.each([
   [new DOMException('denied', 'NotAllowedError'), '相机权限被拒绝，请在浏览器站点设置中允许相机后重试'],
   [new DOMException('missing', 'NotFoundError'), '没有找到可用的相机'],
   [new Error('boom'), '相机启动失败，请重新尝试'],
-])('shows a clear camera error and retry action for %s', async (error, message) => {
+])('shows camera failures in an app alert with a retry action for %s', async (error, message) => {
   mockScannerStart.mockRejectedValue(error)
-  render(<ScannerPage />)
+  renderScanner()
 
-  expect(await screen.findByRole('status')).toHaveTextContent(message)
-  expect(screen.getByRole('button', { name: '重新尝试相机' })).toHaveClass(
-    'min-h-12',
-    'w-full',
-    'sm:min-h-11',
-    'sm:w-auto',
-  )
+  const alert = await screen.findByRole('alertdialog', { name: message })
+  expect(alert).toHaveTextContent(message)
+  expect(within(alert).getByRole('button', { name: '重新尝试相机' })).toBeInTheDocument()
   expect(screen.queryByText(/手动输入/)).not.toBeInTheDocument()
 })
 
@@ -94,9 +95,10 @@ test('starts a new reader and scanner controls when retrying', async () => {
   mockScannerStart
     .mockRejectedValueOnce(new DOMException('denied', 'NotAllowedError'))
     .mockResolvedValueOnce({ stop: retryStop })
-  const { unmount } = render(<ScannerPage />)
+  const { unmount } = renderScanner()
 
-  await user.click(await screen.findByRole('button', { name: '重新尝试相机' }))
+  const alert = await screen.findByRole('alertdialog')
+  await user.click(within(alert).getByRole('button', { name: '重新尝试相机' }))
 
   await waitFor(() => expect(mockScannerStart).toHaveBeenCalledTimes(2))
   expect(mockReaderCreate).toHaveBeenCalledTimes(2)
@@ -111,7 +113,7 @@ test('stops successful scanner controls before starting a retry reader', async (
   mockScannerStart
     .mockResolvedValueOnce({ stop: firstStop })
     .mockResolvedValueOnce({ stop: vi.fn() })
-  render(<ScannerPage />)
+  renderScanner()
   await waitFor(() => expect(mockScannerStart).toHaveBeenCalledOnce())
 
   await user.click(await screen.findByRole('button', { name: '重新尝试相机' }))
@@ -127,7 +129,7 @@ test('stops scanner controls that resolve after the page unmounts', async () => 
   mockScannerStart.mockImplementation(() => new Promise((resolve) => {
     resolveStart = resolve
   }))
-  const { unmount } = render(<ScannerPage />)
+  const { unmount } = renderScanner()
   await waitFor(() => expect(mockScannerStart).toHaveBeenCalledOnce())
 
   unmount()
@@ -146,9 +148,9 @@ test('does not start a reader on a non-HTTPS remote host', async () => {
   })
   vi.stubGlobal('window', insecureWindow)
 
-  render(<ScannerPage />)
+  renderScanner()
 
-  expect(await screen.findByRole('status')).toHaveTextContent('当前页面不是 HTTPS，无法使用相机')
+  expect(await screen.findByRole('alertdialog', { name: '当前页面不是 HTTPS，无法使用相机' })).toBeInTheDocument()
   expect(mockReaderCreate).not.toHaveBeenCalled()
   expect(mockScannerStart).not.toHaveBeenCalled()
 })
@@ -160,11 +162,11 @@ test('navigates only for a valid same-origin Nomo box URL', async () => {
     emitScan = callback
     return { stop }
   })
-  render(<ScannerPage />)
+  renderScanner()
   await waitFor(() => expect(mockScannerStart).toHaveBeenCalledOnce())
 
   emitScan?.({ getText: () => 'https://evil.example/b/123e4567-e89b-12d3-a456-426614174000' })
-  expect(await screen.findByRole('status')).toHaveTextContent('识别到的二维码不是有效的 Nomo 箱子地址')
+  expect(await screen.findByRole('alertdialog', { name: '识别到的二维码不是有效的 Nomo 箱子地址' })).toBeInTheDocument()
   expect(mockNavigate).not.toHaveBeenCalled()
   emitScan?.(
     { getText: () => 'http://localhost:5173/b/123e4567-e89b-12d3-a456-426614174000' },
@@ -179,7 +181,7 @@ test('navigates only for a valid same-origin Nomo box URL', async () => {
 test('stops active scanner controls when unmounted', async () => {
   const stop = vi.fn()
   mockScannerStart.mockResolvedValue({ stop })
-  const { unmount } = render(<ScannerPage />)
+  const { unmount } = renderScanner()
   await waitFor(() => expect(mockScannerStart).toHaveBeenCalledOnce())
 
   unmount()

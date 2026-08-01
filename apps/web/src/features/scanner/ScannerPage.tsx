@@ -1,6 +1,7 @@
 import type { IScannerControls } from '@zxing/browser'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { parseNomoBoxPath } from './scanner-url'
 
 export function ScannerPage() {
@@ -89,8 +90,8 @@ export function ScannerPage() {
         <h1 className="m-0 text-page-title font-extrabold text-ink" id="scanner-title">扫码查看</h1>
       </header>
       <video className="block aspect-[4/5] max-h-[65dvh] w-full overflow-hidden rounded-shell bg-ink object-cover shadow-float md:aspect-video" ref={videoRef} muted playsInline aria-label="二维码扫描画面" />
-      {cameraMessage ? <p role="status">{cameraMessage}</p> : null}
-      {cameraCanRetry ? (
+      {cameraMessage ? <ResponsiveOperationError message={cameraMessage} onRetry={cameraCanRetry ? retryCamera : undefined} retryLabel="重新尝试相机" /> : null}
+      {!cameraMessage && cameraCanRetry ? (
         <button className="min-h-12 w-full rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white hover:bg-brand-strong sm:min-h-11 sm:w-auto" type="button" onClick={retryCamera}>
           重新尝试相机
         </button>
