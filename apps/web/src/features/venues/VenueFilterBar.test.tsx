@@ -29,7 +29,7 @@ test('keeps the built-in default venue selectable and editable', async () => {
   expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'office' }))
 })
 
-test('keeps venue chips horizontally scrollable without an exposed scrollbar', () => {
+test('keeps venue chips horizontally scrollable without reserving space for a scrollbar', () => {
   render(<VenueFilterBar
     venues={[
       { id: 'default', name: '默认', description: null, is_default: true, space_count: 0 },
@@ -43,6 +43,7 @@ test('keeps venue chips horizontally scrollable without an exposed scrollbar', (
   expect(screen.getByRole('group', { name: '选择场地' })).toHaveClass(
     'overflow-x-auto',
     'overscroll-x-contain',
-    'scrollbar-none',
+    'venue-filter-scroll',
   )
+  expect(screen.getByRole('group', { name: '选择场地' })).not.toHaveClass('pb-1')
 })
