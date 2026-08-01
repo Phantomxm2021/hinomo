@@ -32,11 +32,12 @@ function renderPublicBox(
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
 ) {
   return render(
-    <MemoryRouter initialEntries={['/b/public-1']}>
+    <MemoryRouter initialEntries={['/previous', '/b/public-1']}>
       <QueryClientProvider client={client}>
         <AuthProvider session={session}>
           <Routes>
             <Route path="/b/:publicId" element={<PublicBoxPage />} />
+            <Route path="/previous" element={<h1>上一页</h1>} />
           </Routes>
         </AuthProvider>
       </QueryClientProvider>
@@ -130,6 +131,11 @@ test('renders a public box for an anonymous visitor without edit controls', asyn
   renderPublicBox()
 
   expect(await screen.findByRole('heading', { name: '冬季衣物' })).toBeInTheDocument()
+  const navigation = screen.getByRole('navigation', { name: '箱子详情导航' })
+  expect(within(navigation).getByRole('button', { name: '返回' })).toBeInTheDocument()
+  expect(within(navigation).getByText('箱子详情')).toBeInTheDocument()
+  expect(within(navigation).queryByRole('link', { name: '编辑箱子' })).not.toBeInTheDocument()
+  expect(within(navigation).queryByRole('button', { name: '打印标签' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '新增物品' })).not.toBeInTheDocument()
   expect(screen.queryByRole('link', { name: '编辑箱子' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '编辑羽绒服' })).not.toBeInTheDocument()
@@ -168,8 +174,15 @@ test('shows item controls only to the box owner', async () => {
   renderPublicBox({ user: { id: 'owner-1' } } as Session)
 
   expect(await screen.findByRole('button', { name: '新增物品' })).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: '编辑箱子' })).toHaveAttribute('href', '/app/boxes/box-1/edit')
-  expect(screen.getByRole('button', { name: '打印标签' })).toBeInTheDocument()
+  const navigation = screen.getByRole('navigation', { name: '箱子详情导航' })
+  expect(within(navigation).getByRole('button', { name: '返回' })).toBeInTheDocument()
+  expect(within(navigation).getByRole('link', { name: '编辑箱子' })).toHaveAttribute('href', '/app/boxes/box-1/edit')
+  expect(within(navigation).getByRole('link', { name: '编辑箱子' })).toHaveTextContent('')
+  expect(within(navigation).getByRole('button', { name: '打印标签' })).toHaveTextContent('')
+  const desktopActions = screen.getByTestId('desktop-box-actions')
+  expect(desktopActions).toHaveClass('hidden', 'lg:flex')
+  expect(within(desktopActions).getByRole('link', { name: '编辑箱子' })).toHaveAttribute('href', '/app/boxes/box-1/edit')
+  expect(within(desktopActions).getByRole('button', { name: '打印标签' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '编辑锤子' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '删除锤子' })).toBeInTheDocument()
   expect(screen.getByText('BX-00001')).toBeInTheDocument()
@@ -188,6 +201,22 @@ test('shows item controls only to the box owner', async () => {
     'pb-[calc(6rem+var(--safe-area-bottom))]',
     'lg:pb-10',
   )
+})
+
+test('returns to the previous route from the mobile detail navigation', async () => {
+  const user = userEvent.setup()
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    space_id: 'space-1', name: '工具', category: null, description: null,
+    location: null, visibility: 'public', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z', items: [],
+  })
+  renderPublicBox()
+
+  const navigation = await screen.findByRole('navigation', { name: '箱子详情导航' })
+  await user.click(within(navigation).getByRole('button', { name: '返回' }))
+
+  expect(await screen.findByRole('heading', { name: '上一页' })).toBeInTheDocument()
 })
 
 test('restores focus to a programmatically activated delete trigger on Escape', async () => {

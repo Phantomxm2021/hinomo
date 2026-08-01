@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
@@ -17,6 +17,7 @@ import { getBoxByPublicId } from './boxes.api'
 
 export function PublicBoxPage() {
   const { publicId = '' } = useParams<{ publicId: string }>()
+  const navigate = useNavigate()
   const { session } = useAuth()
   const queryClient = useQueryClient()
   const desktopAddItemButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -113,6 +114,26 @@ export function PublicBoxPage() {
 
   return (
     <main className={frameClassName}>
+      <nav className="sticky top-0 z-20 -mx-4 -mt-3 grid min-h-14 grid-cols-[6rem_minmax(0,1fr)_6rem] items-end border-b border-line/70 bg-canvas/90 px-4 pt-[max(0.5rem,var(--safe-area-top))] pb-2 backdrop-blur-xl min-[360px]:-mx-5 min-[360px]:px-5 lg:hidden" aria-label="箱子详情导航">
+        <div className="flex justify-start">
+          <button className="inline-flex size-11 items-center justify-center rounded-full text-ink active:bg-placeholder/70 active:opacity-70" type="button" aria-label="返回" onClick={() => navigate(-1)}>
+            <AppIcon className="rotate-180" name="chevron-right" size={22} />
+          </button>
+        </div>
+        <span className="pb-2 text-center text-[1.0625rem] leading-none font-bold text-ink">箱子详情</span>
+        <div className="flex justify-end gap-1" aria-label={isOwner ? '箱子工具' : undefined} aria-hidden={isOwner ? undefined : true}>
+          {isOwner ? (
+            <>
+              <Link className="inline-flex size-11 items-center justify-center rounded-full text-ink no-underline active:bg-placeholder/70 active:opacity-70" to={`/app/boxes/${box.id}/edit`} aria-label="编辑箱子">
+                <AppIcon name="edit" />
+              </Link>
+              <button className="inline-flex size-11 items-center justify-center rounded-full text-ink active:bg-placeholder/70 active:opacity-70 disabled:opacity-40" type="button" aria-label="打印标签" disabled={printing} onClick={() => void printLabel()}>
+                <AppIcon name="print" />
+              </button>
+            </>
+          ) : null}
+        </div>
+      </nav>
       {boxQuery.isError ? (
         <ResponsiveOperationError message="箱子刷新失败，正在显示上次内容" busy={boxQuery.isFetching} onRetry={() => void boxQuery.refetch()} />
       ) : null}
@@ -145,7 +166,7 @@ export function PublicBoxPage() {
             </div>
           </div>
           {isOwner ? (
-            <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-wrap">
+            <div data-testid="desktop-box-actions" className="hidden lg:flex lg:flex-wrap lg:gap-2">
               <Link className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[0.9rem] border-0 bg-surface px-4 font-bold text-ink no-underline shadow-[inset_0_0_0_1px_rgba(79,64,48,0.08)] active:opacity-70 lg:min-h-11 lg:justify-start lg:rounded-control lg:border lg:border-line lg:bg-canvas lg:shadow-none" to={`/app/boxes/${box.id}/edit`}>
                 <AppIcon name="edit" />编辑箱子
               </Link>
