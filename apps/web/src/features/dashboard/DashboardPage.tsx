@@ -52,14 +52,17 @@ export function DashboardPage() {
           {venuesQuery.isPending && venuesQuery.data === undefined ? (
             <Skeleton className="h-11 w-32 rounded-control lg:w-48" />
           ) : (
-            <select
-              aria-label="选择场地"
-              className="h-11 min-w-24 max-w-44 border-0 bg-transparent px-0 text-right text-meta font-medium tracking-eyebrow text-muted outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/35 lg:w-48 lg:max-w-none"
-              value={activeVenueId ?? ''}
-              onChange={(event) => setSelectedVenueId(event.target.value)}
-            >
-              {venues.map((venue) => <option value={venue.id} key={venue.id}>{venue.name}</option>)}
-            </select>
+            <span className="relative justify-self-end">
+              <select
+                aria-label="选择场地"
+                className="h-11 min-w-24 max-w-44 appearance-none border-0 bg-transparent py-0 pr-5 pl-0 text-right text-meta font-medium tracking-eyebrow text-muted outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/35 lg:w-48 lg:max-w-none"
+                value={activeVenueId ?? ''}
+                onChange={(event) => setSelectedVenueId(event.target.value)}
+              >
+                {venues.map((venue) => <option value={venue.id} key={venue.id}>{venue.name}</option>)}
+              </select>
+              <span className="pointer-events-none absolute top-1/2 right-0 -translate-y-1/2 text-muted" aria-hidden="true">⌄</span>
+            </span>
           )}
         </div>
         <h1 className="col-span-2 mb-2 max-w-3xl text-display font-extrabold lg:col-span-1 lg:row-start-2 lg:mb-4" id="dashboard-title">早上好，今天找什么？</h1>
