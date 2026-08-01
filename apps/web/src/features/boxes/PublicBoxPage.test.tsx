@@ -7,19 +7,28 @@ import type { Session } from '@supabase/supabase-js'
 import { AuthProvider } from '../auth/AuthProvider'
 import { PublicBoxPage } from './PublicBoxPage'
 
-const { mockGetBoxByPublicId, mockCreateItem, mockDeleteItem, mockMatchMedia, mockUpdateItem } = vi.hoisted(() => ({
+const { mockGetBoxByPublicId, mockCreateItem, mockDeleteItem, mockListBoxes, mockMatchMedia, mockMoveItem, mockReturnItem, mockTakeOutItem, mockUpdateItem } = vi.hoisted(() => ({
   mockGetBoxByPublicId: vi.fn(),
   mockCreateItem: vi.fn(),
   mockDeleteItem: vi.fn(),
+  mockListBoxes: vi.fn(),
   mockMatchMedia: vi.fn(),
+  mockMoveItem: vi.fn(),
+  mockReturnItem: vi.fn(),
+  mockTakeOutItem: vi.fn(),
   mockUpdateItem: vi.fn(),
 }))
 
-vi.mock('./boxes.api', () => ({ getBoxByPublicId: mockGetBoxByPublicId }))
+vi.mock('./boxes.api', () => ({ getBoxByPublicId: mockGetBoxByPublicId, listBoxes: mockListBoxes }))
 vi.mock('../items/items.api', () => ({
   createItem: mockCreateItem,
   updateItem: mockUpdateItem,
   deleteItem: mockDeleteItem,
+}))
+vi.mock('../item-movements/item-movements.api', () => ({
+  moveItem: mockMoveItem,
+  returnItem: mockReturnItem,
+  takeOutItem: mockTakeOutItem,
 }))
 vi.mock('../media/AuthorizedImage', () => ({
   AuthorizedImage: ({ objectKey, alt }: { objectKey: string; alt: string }) => (
@@ -49,9 +58,14 @@ beforeEach(() => {
   mockGetBoxByPublicId.mockReset()
   mockCreateItem.mockReset()
   mockDeleteItem.mockReset()
+  mockListBoxes.mockReset()
+  mockListBoxes.mockResolvedValue([])
   mockMatchMedia.mockReset()
   mockMatchMedia.mockReturnValue({ matches: true } as MediaQueryList)
   mockUpdateItem.mockReset()
+  mockMoveItem.mockReset()
+  mockReturnItem.mockReset()
+  mockTakeOutItem.mockReset()
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
     value: mockMatchMedia,
@@ -317,6 +331,28 @@ test('opens an item in the mobile list editor instead of showing inline controls
 
   expect(screen.getByRole('dialog', { name: '编辑物品' })).toBeInTheDocument()
   expect(screen.getByLabelText('物品名称')).toHaveValue('锤子')
+})
+
+test('takes out an item from the owner movement sheet', async () => {
+  const user = userEvent.setup()
+  mockTakeOutItem.mockResolvedValue({ item_id: 'i1', box_id: 'box-1', quantity: 2, stored_quantity: 1 })
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    space_id: 'space-1', name: '工具', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z',
+    items: [{ id: 'i1', name: '锤子', category: '工具', quantity: 2, stored_quantity: 2, description: null }],
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session)
+
+  await user.click((await screen.findAllByRole('button', { name: '管理锤子' }))[0])
+  expect(screen.getByRole('dialog', { name: '锤子' })).toHaveTextContent('在位 · 2/2')
+  await user.click(screen.getByRole('button', { name: /^取出/ }))
+  await user.click(screen.getByRole('button', { name: '确认取出' }))
+
+  await waitFor(() => expect(mockTakeOutItem).toHaveBeenCalledWith({
+    itemId: 'i1', quantity: 1, handlerLabel: null, note: null,
+  }))
 })
 
 test('shows a neutral gate for a private or missing box', async () => {

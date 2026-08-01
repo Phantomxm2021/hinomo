@@ -7,19 +7,24 @@ import { MobileActionSheet } from '../../components/MobileActionSheet'
 import { PageState } from '../../components/PageState'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
+import { useMobileFeedback } from '../../components/mobile-feedback'
 import { env } from '../../lib/env'
 import { formatStoragePath } from '../../lib/format-storage-path'
 import { useAuth } from '../auth/auth-context'
+import { ItemMovementSheet, type ItemMovementCommand } from '../item-movements/ItemMovementSheet'
+import { deriveItemAvailability, formatItemAvailability } from '../item-movements/item-movement-status'
+import { moveItem, returnItem, takeOutItem } from '../item-movements/item-movements.api'
 import { ItemForm } from '../items/ItemForm'
 import { deleteItem, type ItemRecord } from '../items/items.api'
 import { AuthorizedImage } from '../media/AuthorizedImage'
 import { buildLabels, renderLabelsPdf } from '../qr-print/pdf'
-import { getBoxByPublicId } from './boxes.api'
+import { getBoxByPublicId, listBoxes } from './boxes.api'
 
 export function PublicBoxPage() {
   const { publicId = '' } = useParams<{ publicId: string }>()
   const navigate = useNavigate()
   const { session } = useAuth()
+  const feedback = useMobileFeedback()
   const queryClient = useQueryClient()
   const desktopAddItemButtonRef = useRef<HTMLButtonElement | null>(null)
   const mobileActionsButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -28,12 +33,45 @@ export function PublicBoxPage() {
   const [showMobileActions, setShowMobileActions] = useState(false)
   const [editingItem, setEditingItem] = useState<ItemRecord | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ItemRecord | null>(null)
+  const [movementItem, setMovementItem] = useState<ItemRecord | null>(null)
   const [printError, setPrintError] = useState(false)
   const [printing, setPrinting] = useState(false)
   const boxQuery = useQuery({
     queryKey: ['box', publicId],
     queryFn: () => getBoxByPublicId(publicId),
     retry: false,
+  })
+  const targetBoxesQuery = useQuery({
+    queryKey: ['boxes'],
+    queryFn: listBoxes,
+    enabled: Boolean(movementItem),
+  })
+  const movementMutation = useMutation({
+    mutationFn: (command: ItemMovementCommand) => {
+      if (!movementItem) throw new Error('item is required')
+      if (command.action === 'take_out') {
+        return takeOutItem({
+          itemId: movementItem.id,
+          quantity: command.quantity,
+          handlerLabel: command.handlerLabel,
+          note: command.note,
+        })
+      }
+      if (command.action === 'return') {
+        return returnItem({ itemId: movementItem.id, quantity: command.quantity, note: command.note })
+      }
+      return moveItem({ itemId: movementItem.id, targetBoxId: command.targetBoxId, note: command.note })
+    },
+    onSuccess: async (_, command) => {
+      setMovementItem(null)
+      feedback.notify(command.action === 'take_out' ? '物品已取出' : command.action === 'return' ? '物品已放回' : '物品已移动')
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['box'] }),
+        queryClient.invalidateQueries({ queryKey: ['boxes'] }),
+        queryClient.invalidateQueries({ queryKey: ['items'] }),
+        queryClient.invalidateQueries({ queryKey: ['search-items'] }),
+      ])
+    },
   })
   const deleteMutation = useMutation({
     mutationFn: (itemId: string) => deleteItem(itemId),
@@ -178,6 +216,8 @@ export function PublicBoxPage() {
         </div>
       </section>
       {printError ? <ResponsiveOperationError message="PDF 生成失败，请重试" onRetry={() => void printLabel()} /> : null}
+      {movementMutation.isError ? <ResponsiveOperationError message="物品操作失败，请稍后重试" /> : null}
+      {targetBoxesQuery.isError ? <ResponsiveOperationError message="目标箱子加载失败，请重试" busy={targetBoxesQuery.isFetching} onRetry={() => void targetBoxesQuery.refetch()} /> : null}
 
       <MobileActionSheet
         open={isOwner && showMobileActions}
@@ -188,6 +228,17 @@ export function PublicBoxPage() {
           { label: '编辑箱子', onSelect: () => navigate(`/app/boxes/${box.id}/edit`) },
           { label: printing ? '正在生成标签…' : '打印标签', disabled: printing, onSelect: () => void printLabel() },
         ]}
+      />
+
+      <ItemMovementSheet
+        open={isOwner && Boolean(movementItem)}
+        item={movementItem}
+        currentBoxId={box.id}
+        boxes={targetBoxesQuery.data ?? []}
+        pending={movementMutation.isPending}
+        onClose={() => { if (!movementMutation.isPending) { setMovementItem(null); movementMutation.reset() } }}
+        onEdit={(item) => { setMovementItem(null); openEditItem(item) }}
+        onSubmit={async (command) => { await movementMutation.mutateAsync(command) }}
       />
 
       {isOwner && (showItemForm || editingItem) ? (
@@ -226,19 +277,19 @@ export function PublicBoxPage() {
             {box.items.map((item) => (
               <article className="border-b border-line/60 last:border-b-0 lg:grid lg:grid-cols-[7rem_minmax(0,1fr)_auto] lg:items-center lg:gap-4 lg:rounded-card lg:border lg:border-line lg:bg-surface lg:p-4" key={item.id}>
                 {isOwner ? (
-                  <button className="grid w-full grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 p-3 text-left active:bg-placeholder/50 lg:hidden" type="button" aria-label={`编辑物品${item.name}`} onClick={() => openEditItem(item)}>
-                    <div className="grid size-14 place-content-center overflow-hidden rounded-[0.9rem] bg-placeholder text-muted">
-                      {item.image_object_key ? <AuthorizedImage objectKey={item.image_object_key} alt="" className="h-full w-full object-cover" /> : <AppIcon name="box" />}
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="m-0 truncate text-[1rem] font-bold text-ink">{item.name}</h3>
-                      <p className="mt-0.5 truncate text-sm text-muted">{item.description || item.category || '未添加说明'}</p>
-                    </div>
-                    <div className="flex items-center gap-1 text-muted">
-                      <span className="text-sm font-semibold">{item.quantity} 件</span>
-                      <AppIcon name="chevron-right" size={18} />
-                    </div>
-                  </button>
+                  <div className="grid grid-cols-[minmax(0,1fr)_3rem] items-stretch lg:hidden">
+                    <button className="grid min-w-0 grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3 p-3 text-left active:bg-placeholder/50 lg:hidden" type="button" aria-label={`编辑物品${item.name}`} onClick={() => openEditItem(item)}>
+                      <div className="grid size-14 place-content-center overflow-hidden rounded-[0.9rem] bg-placeholder text-muted">
+                        {item.image_object_key ? <AuthorizedImage objectKey={item.image_object_key} alt="" className="h-full w-full object-cover" /> : <AppIcon name="box" />}
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="m-0 truncate text-[1rem] font-bold text-ink">{item.name}</h3>
+                        <p className="mt-0.5 truncate text-sm text-muted">{item.description || item.category || '未添加说明'}</p>
+                        <p className="mt-1 flex min-w-0 items-center gap-2 text-xs font-bold"><span className="shrink-0 text-muted">{item.quantity} 件</span><span className="truncate text-brand">{formatItemAvailability(deriveItemAvailability(item.quantity, item.stored_quantity))}</span></p>
+                      </div>
+                    </button>
+                    <button className="grid min-h-20 place-items-center text-muted active:bg-placeholder/50" type="button" aria-label={`管理${item.name}`} onClick={() => { movementMutation.reset(); setMovementItem(item) }}><AppIcon name="more" /></button>
+                  </div>
                 ) : (
                   <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 p-3 lg:hidden">
                     <div className="grid size-14 place-content-center overflow-hidden rounded-[0.9rem] bg-placeholder text-muted">
@@ -247,6 +298,7 @@ export function PublicBoxPage() {
                     <div className="min-w-0">
                       <h3 className="m-0 truncate text-[1rem] font-bold text-ink">{item.name}</h3>
                       <p className="mt-0.5 truncate text-sm text-muted">{item.description || item.category || '未添加说明'}</p>
+                      <p className="mt-1 truncate text-xs font-bold text-brand">{formatItemAvailability(deriveItemAvailability(item.quantity, item.stored_quantity))}</p>
                     </div>
                     <span className="text-sm font-semibold text-muted">{item.quantity} 件</span>
                   </div>
@@ -268,10 +320,13 @@ export function PublicBoxPage() {
                     <span className="shrink-0 rounded-full bg-placeholder/70 px-2 py-0.5 text-[0.6875rem] font-bold text-ink lg:px-2.5 lg:py-1 lg:text-xs">{item.category || '未分类'}</span>
                   </div>
                   <p className="truncate text-sm leading-5 text-muted lg:leading-6">{item.description || '暂无描述'}</p>
-                  <p className="mt-1 text-sm font-extrabold text-ink lg:mt-2 lg:text-base">{item.quantity} 件</p>
+                  <p className="mt-1 text-sm font-extrabold text-ink lg:mt-2 lg:text-base">{item.quantity} 件 <span className="ml-2 text-sm text-brand">{formatItemAvailability(deriveItemAvailability(item.quantity, item.stored_quantity))}</span></p>
                 </div>
                 {isOwner ? (
                   <div className="col-start-2 flex justify-end gap-1.5 lg:col-auto lg:self-center">
+                    <button className="inline-flex size-10 items-center justify-center rounded-full border-0 bg-brand/8 text-brand active:opacity-70 lg:size-11 lg:rounded-control lg:border lg:border-brand/20 lg:bg-canvas" type="button" aria-label={`管理${item.name}`} onClick={() => { movementMutation.reset(); setMovementItem(item) }}>
+                      <AppIcon name="more" />
+                    </button>
                     <button className="inline-flex size-10 items-center justify-center rounded-full border-0 bg-placeholder/60 text-ink active:opacity-70 lg:size-11 lg:rounded-control lg:border lg:border-line lg:bg-canvas" type="button" aria-label={`编辑${item.name}`} onClick={() => openEditItem(item)}>
                       <AppIcon name="edit" />
                     </button>

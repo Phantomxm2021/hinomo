@@ -1,0 +1,70 @@
+import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, expect, test, vi } from 'vitest'
+import { ItemMovementSheet } from './ItemMovementSheet'
+
+afterEach(cleanup)
+
+const item = {
+  id: 'item-1',
+  name: '露营灯',
+  category: null,
+  quantity: 3,
+  stored_quantity: 2,
+  description: null,
+}
+
+const targetBox = {
+  id: 'box-2',
+  public_id: 'public-2',
+  box_code: 'BX-2',
+  name: '露营箱',
+  space_id: 'space-2',
+  location: null,
+  visibility: 'private' as const,
+  space_name: '储物间',
+  venue_name: '家里',
+  cover_object_key: null,
+  item_count: 0,
+  updated_at: '2026-08-02T00:00:00Z',
+}
+
+test('takes out a quantity with optional handler context', async () => {
+  const user = userEvent.setup()
+  const onSubmit = vi.fn().mockResolvedValue(undefined)
+  render(<ItemMovementSheet open item={item} currentBoxId="box-1" boxes={[targetBox]} pending={false} onClose={vi.fn()} onEdit={vi.fn()} onSubmit={onSubmit} />)
+
+  expect(screen.getByText('部分取出 · 2/3 在箱中')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: /^取出/ }))
+  await user.type(screen.getByLabelText('经手人或用途（可选）'), '小林')
+  await user.click(screen.getByRole('button', { name: '确认取出' }))
+
+  expect(onSubmit).toHaveBeenCalledWith({ action: 'take_out', quantity: 1, handlerLabel: '小林', note: null })
+})
+
+test('only allows moving a fully stored item and identifies the destination path', async () => {
+  const user = userEvent.setup()
+  const onSubmit = vi.fn().mockResolvedValue(undefined)
+  const { rerender } = render(<ItemMovementSheet open item={item} currentBoxId="box-1" boxes={[targetBox]} pending={false} onClose={vi.fn()} onEdit={vi.fn()} onSubmit={onSubmit} />)
+
+  expect(screen.getByRole('button', { name: '移动到其他箱子' })).toBeDisabled()
+  rerender(<ItemMovementSheet open item={{ ...item, stored_quantity: 3 }} currentBoxId="box-1" boxes={[targetBox]} pending={false} onClose={vi.fn()} onEdit={vi.fn()} onSubmit={onSubmit} />)
+  await user.click(screen.getByRole('button', { name: '移动到其他箱子' }))
+  await user.selectOptions(screen.getByLabelText('目标箱子'), 'box-2')
+  await user.click(screen.getByRole('button', { name: '确认移动' }))
+
+  expect(screen.getByRole('option', { name: '家里 · 储物间 · 露营箱' })).toBeInTheDocument()
+  expect(onSubmit).toHaveBeenCalledWith({ action: 'move', targetBoxId: 'box-2', note: null })
+})
+
+test('offers return only for the quantity currently out', async () => {
+  const user = userEvent.setup()
+  const onSubmit = vi.fn().mockResolvedValue(undefined)
+  render(<ItemMovementSheet open item={item} currentBoxId="box-1" boxes={[]} pending={false} onClose={vi.fn()} onEdit={vi.fn()} onSubmit={onSubmit} />)
+
+  expect(screen.getByRole('button', { name: /^放回/ })).toHaveTextContent('待归还 1 件')
+  await user.click(screen.getByRole('button', { name: /^放回/ }))
+  expect(screen.getByLabelText('数量')).toHaveAttribute('max', '1')
+  await user.click(screen.getByRole('button', { name: '确认放回' }))
+  expect(onSubmit).toHaveBeenCalledWith({ action: 'return', quantity: 1, note: null })
+})
