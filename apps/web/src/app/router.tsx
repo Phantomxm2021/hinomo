@@ -13,6 +13,7 @@ import { ScannerPage } from '../features/scanner/ScannerPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { SpacesPage } from '../features/spaces/SpacesPage'
 import { MyPage } from '../features/profile/MyPage'
+import { AccountDetailsPage } from '../features/profile/AccountDetailsPage'
 import { AppShell } from './AppShell'
 import { RequireAuth } from './RequireAuth'
 import { RootEntry } from './RootEntry'
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
           { path: 'print', element: <PrintPage /> },
           { path: 'spaces', element: <SpacesPage /> },
           { path: 'me', element: <MyPage /> },
+          { path: 'me/account', element: <AccountDetailsPage /> },
           { path: '*', element: <Navigate replace to="/app" /> },
         ],
       },

@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { AuthContext } from '../auth/auth-context'
@@ -36,15 +37,17 @@ afterEach(cleanup)
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
-    <QueryClientProvider client={client}>
-      <AuthContext.Provider value={{
-        session: { user: { id: 'user-1', email: 'lin@example.com', user_metadata: { display_name: '林家' } } } as unknown as Session,
-        loading: false,
-        isPasswordRecovery: false,
-      }}>
-        <MyPage />
-      </AuthContext.Provider>
-    </QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={client}>
+        <AuthContext.Provider value={{
+          session: { user: { id: 'user-1', email: 'lin@example.com', user_metadata: { display_name: '林家' } } } as unknown as Session,
+          loading: false,
+          isPasswordRecovery: false,
+        }}>
+          <MyPage />
+        </AuthContext.Provider>
+      </QueryClientProvider>
+    </MemoryRouter>,
   )
 }
 
@@ -56,44 +59,37 @@ test('uses skeletons until the profile is ready', () => {
   expect(screen.getAllByTestId('skeleton').length).toBeGreaterThanOrEqual(4)
 })
 
-test('shows read-only identity and updates locale through the profile API', async () => {
+test('shows an email summary that opens the account details page', async () => {
+  renderPage()
+
+  const accountLink = await screen.findByRole('link', { name: /林家.*lin@example.com/ })
+  expect(accountLink).toHaveAttribute('href', '/app/me/account')
+  expect(screen.queryByLabelText('更换头像')).not.toBeInTheDocument()
+  expect(screen.queryByLabelText('昵称')).not.toBeInTheDocument()
+  expect(screen.queryByLabelText('邮箱')).not.toBeInTheDocument()
+})
+
+test('updates locale through the profile API', async () => {
   const user = userEvent.setup()
   renderPage()
 
-  expect(await screen.findByLabelText('昵称')).toHaveValue('林家')
-  expect(screen.getByLabelText('昵称')).toHaveAttribute('readonly')
-  expect(screen.getByLabelText('邮箱')).toHaveValue('lin@example.com')
-  expect(screen.getByLabelText('邮箱')).toHaveAttribute('readonly')
+  await screen.findByRole('link', { name: /林家.*lin@example.com/ })
 
   await user.selectOptions(screen.getByLabelText('语言'), 'en-US')
   await waitFor(() => expect(mockUpdateLocale.mock.calls[0]?.[0]).toBe('en-US'))
   expect(await screen.findByRole('status', { name: '' })).toHaveTextContent('设置已保存')
 })
 
-test('uses native-style grouped rows for the mobile account and preferences page', async () => {
+test('uses native-style grouped rows for the mobile preferences page', async () => {
   renderPage()
 
-  const profileGroup = await screen.findByRole('group', { name: '个人资料' })
+  await screen.findByRole('link', { name: /林家.*lin@example.com/ })
   const preferencesGroup = screen.getByRole('group', { name: '偏好设置' })
   const accountActionGroup = screen.getByRole('group', { name: '账户操作' })
 
-  expect(profileGroup).toHaveClass('rounded-card', 'bg-surface', 'overflow-hidden')
   expect(preferencesGroup).toHaveClass('rounded-card', 'bg-surface', 'overflow-hidden')
   expect(accountActionGroup).toHaveClass('rounded-card', 'bg-surface', 'overflow-hidden')
-  expect(screen.getByLabelText('更换头像')).toHaveClass('mx-0')
-  expect(screen.getByLabelText('更换头像')).not.toHaveClass('mx-auto')
-  expect(screen.getByLabelText('昵称')).toHaveClass('border-0', 'bg-transparent', 'text-right')
-  expect(screen.getByLabelText('邮箱')).toHaveClass('border-0', 'bg-transparent', 'text-right')
-})
-
-test('uploads an avatar from the avatar cover control', async () => {
-  const user = userEvent.setup()
-  renderPage()
-  const file = new File(['avatar'], 'avatar.png', { type: 'image/png' })
-
-  await user.upload(await screen.findByLabelText('更换头像'), file)
-
-  await waitFor(() => expect(mockUploadAvatar.mock.calls[0]?.[0]).toBe(file))
+  expect(screen.getByRole('link', { name: /林家.*lin@example.com/ })).toHaveClass('rounded-card', 'bg-surface')
 })
 
 test('requires confirmation before signing out', async () => {

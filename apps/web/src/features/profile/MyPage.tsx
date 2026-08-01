@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
@@ -9,8 +10,8 @@ import { useMobileFeedback } from '../../components/mobile-feedback'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/auth-context'
 import { userDisplayName } from './account-name'
-import { AvatarUploadControl, ReadOnlyAccountField } from './account-view'
-import { getAvatarDownload, getProfile, updateLocale, uploadAvatar } from './profile.api'
+import { AccountAvatar } from './account-view'
+import { getAvatarDownload, getProfile, updateLocale } from './profile.api'
 
 export function MyPage() {
   const { session } = useAuth()
@@ -27,14 +28,6 @@ export function MyPage() {
     queryKey: ['profile-avatar', user?.id, profileQuery.data?.avatar_object_key],
     queryFn: getAvatarDownload,
     enabled: Boolean(profileQuery.data?.avatar_object_key),
-  })
-  const avatarMutation = useMutation({
-    mutationFn: uploadAvatar,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
-      await queryClient.invalidateQueries({ queryKey: ['profile-avatar', user?.id] })
-      feedback.notify('头像已更新')
-    },
   })
   const localeMutation = useMutation({
     mutationFn: updateLocale,
@@ -73,18 +66,14 @@ export function MyPage() {
       ) : (
         <>
           {profileQuery.isError ? <PageState state="error" message="资料加载失败，当前显示登录信息" onRetry={() => void profileQuery.refetch()} /> : null}
-          <section className="overflow-hidden rounded-card border-0 bg-surface p-0 shadow-soft lg:grid lg:gap-5 lg:rounded-shell lg:border lg:border-line lg:p-6" role="group" aria-label="个人资料">
-            <div className="flex min-h-24 items-center gap-4 p-4 lg:grid lg:justify-items-center lg:gap-2 lg:p-0">
-              <AvatarUploadControl className="mx-0 lg:mx-auto" src={avatar} name={name} pending={avatarMutation.isPending} onChange={(file) => avatarMutation.mutate(file)} />
-              <div className="min-w-0 lg:contents">
-                <p className="m-0 truncate text-card-title font-bold text-ink lg:hidden">{name}</p>
-                <p className="m-0 text-sm text-muted">点击头像更换</p>
-              </div>
-              {avatarMutation.isError ? <ResponsiveOperationError message="头像上传失败，请重试" /> : null}
-            </div>
-            <ReadOnlyAccountField listRow label="昵称" value={name} />
-            <ReadOnlyAccountField listRow label="邮箱" value={user.email ?? '未设置'} />
-          </section>
+          <Link className="flex min-h-24 items-center gap-4 rounded-card border-0 bg-surface p-4 text-inherit no-underline shadow-soft transition-colors hover:bg-canvas focus:outline-none focus:ring-2 focus:ring-brand lg:rounded-shell lg:border lg:border-line lg:p-6" to="/app/me/account">
+            <AccountAvatar src={avatar} name={name} size="lg" />
+            <span className="min-w-0 flex-1">
+              <strong className="block truncate text-card-title text-ink">{name}</strong>
+              <span className="mt-1 block truncate text-meta text-muted">{user.email ?? '未设置邮箱'}</span>
+            </span>
+            <AppIcon name="chevron-right" className="shrink-0 text-muted" />
+          </Link>
 
           <section className="overflow-hidden rounded-card border-0 bg-surface p-0 shadow-soft lg:grid lg:gap-4 lg:rounded-shell lg:border lg:border-line lg:p-6" role="group" aria-label="偏好设置">
             <h2 className="m-0 px-4 pt-4 text-meta font-medium text-muted lg:px-0 lg:pt-0 lg:text-section-title lg:font-bold lg:text-ink" id="preferences-title">设置</h2>
