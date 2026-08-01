@@ -23,6 +23,8 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete }: ItemFormP
   const feedback = useMobileFeedback()
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
+  const [existingImageRemoved, setExistingImageRemoved] = useState(false)
+  const imageInputRef = useRef<HTMLInputElement | null>(null)
   const [pendingItemId, setPendingItemId] = useState<string | null>(null)
   const [mediaError, setMediaError] = useState(false)
   const retryImageUploadRef = useRef<() => void>(() => undefined)
@@ -41,6 +43,7 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete }: ItemFormP
         category: values.category || null,
         quantity: values.quantity,
         description: values.description || null,
+        ...(item && existingImageRemoved ? { image_object_key: null } : {}),
       }
       if (item) {
         await updateItem(item.id, input)
@@ -68,6 +71,27 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete }: ItemFormP
   const quantity = watch('quantity')
   const setQuantity = (next: number) =>
     setValue('quantity', Math.max(1, next), { shouldDirty: true, shouldValidate: true })
+
+  const selectImage = (file: File | null) => {
+    setImageFile(file)
+    setImagePreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current)
+      return file ? URL.createObjectURL(file) : null
+    })
+    setMediaError(false)
+    mediaUpload.reset()
+    if (file) setExistingImageRemoved(false)
+  }
+
+  const clearSelectedImage = () => {
+    selectImage(null)
+    if (imageInputRef.current) imageInputRef.current.value = ''
+  }
+
+  const removeExistingImage = () => {
+    setExistingImageRemoved(true)
+    clearSelectedImage()
+  }
 
   async function uploadImage(itemId: string) {
     if (!imageFile) return
@@ -124,26 +148,33 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete }: ItemFormP
       <h2 className="m-0 text-section-title font-bold text-ink" id="item-form-title">
         {item ? '编辑物品' : '新增物品'}
       </h2>
-      <div className="grid gap-2">
-        <label className="font-bold text-ink" htmlFor="item-image">物品图片（可选）</label>
-        {imagePreviewUrl ? <img className="aspect-[4/3] w-full rounded-control object-cover" src={imagePreviewUrl} alt="待上传物品图片预览" /> : null}
-        {!imagePreviewUrl && item?.image_object_key ? <AuthorizedImage objectKey={item.image_object_key} alt={`${item.name}图片预览`} className="aspect-[4/3] w-full rounded-control object-cover" /> : null}
+      <div className="relative overflow-hidden rounded-control bg-placeholder">
+        <button className="group relative block aspect-[4/3] w-full overflow-hidden text-left" type="button" aria-label={imagePreviewUrl || (item?.image_object_key && !existingImageRemoved) ? '更换物品图片' : '添加物品图片'} onClick={() => imageInputRef.current?.click()}>
+          {imagePreviewUrl ? <img className="h-full w-full object-cover" src={imagePreviewUrl} alt="待上传物品图片预览" /> : null}
+          {!imagePreviewUrl && item?.image_object_key && !existingImageRemoved ? <AuthorizedImage objectKey={item.image_object_key} alt={`${item.name}图片预览`} className="h-full w-full object-cover" /> : null}
+          {!imagePreviewUrl && (!item?.image_object_key || existingImageRemoved) ? (
+            <span className="grid h-full place-content-center justify-items-center gap-2 text-muted">
+              <AppIcon name="plus" size={28} />
+              <span className="text-sm font-bold">添加图片</span>
+            </span>
+          ) : null}
+          <span className="absolute inset-0 grid place-content-center bg-ink/45 text-sm font-bold text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+            更换图片
+          </span>
+        </button>
         <input
-          className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 py-2 text-ink file:mr-3 file:rounded-lg file:border-0 file:bg-placeholder file:px-3 file:py-2 file:font-bold file:text-ink"
+          ref={imageInputRef}
+          className="sr-only"
           id="item-image"
+          aria-label="选择物品图片"
           type="file"
           accept="image/jpeg,image/png,image/webp"
           onChange={(event) => {
-            const nextImage = event.target.files?.[0] ?? null
-            setImageFile(nextImage)
-            setImagePreviewUrl((current) => {
-              if (current) URL.revokeObjectURL(current)
-              return nextImage ? URL.createObjectURL(nextImage) : null
-            })
-            setMediaError(false)
-            mediaUpload.reset()
+            selectImage(event.target.files?.[0] ?? null)
           }}
         />
+        {imagePreviewUrl ? <button className="absolute top-2 right-2 inline-flex size-9 items-center justify-center rounded-full bg-ink/65 text-white shadow-sm active:opacity-75" type="button" aria-label="删除待上传图片" onClick={clearSelectedImage}><AppIcon name="trash" size={18} /></button> : null}
+        {!imagePreviewUrl && item?.image_object_key && !existingImageRemoved ? <button className="absolute top-2 right-2 inline-flex size-9 items-center justify-center rounded-full bg-ink/65 text-white shadow-sm active:opacity-75" type="button" aria-label="删除物品图片" onClick={removeExistingImage}><AppIcon name="trash" size={18} /></button> : null}
       </div>
       <div className="grid gap-2">
         <label className="font-bold text-ink" htmlFor="item-name">物品名称</label>

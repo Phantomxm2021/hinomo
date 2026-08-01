@@ -78,9 +78,8 @@ test('shows media before item details in the visual field order', () => {
     </QueryClientProvider>,
   )
 
-  const labels = screen.getAllByText(/物品图片|物品名称|分类|数量|描述/)
+  const labels = screen.getAllByText(/物品名称|分类|数量|描述/)
   expect(labels.map((label) => label.textContent)).toEqual([
-    '物品图片（可选）',
     '物品名称',
     '分类（可选）',
     '数量',
@@ -88,7 +87,7 @@ test('shows media before item details in the visual field order', () => {
   ])
 })
 
-test('shows the existing item image above the add-image control', () => {
+test('shows the existing item image in the cover control', () => {
   const client = new QueryClient()
   render(
     <QueryClientProvider client={client}>
@@ -97,6 +96,35 @@ test('shows the existing item image above the add-image control', () => {
   )
 
   expect(screen.getByRole('img', { name: '锤子图片预览' })).toBeInTheDocument()
+})
+
+test('removes an existing image from the cover when the form is saved', async () => {
+  const user = userEvent.setup()
+  const client = new QueryClient()
+  mockUpdateItem.mockResolvedValue(undefined)
+  render(
+    <QueryClientProvider client={client}>
+      <ItemForm boxId="box-1" item={{ id: 'item-1', name: '锤子', category: null, quantity: 1, description: null, image_object_key: 'items/item-1.webp' }} onSaved={vi.fn()} />
+    </QueryClientProvider>,
+  )
+
+  await user.click(screen.getByRole('button', { name: '删除物品图片' }))
+  expect(screen.getByRole('button', { name: '添加物品图片' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '保存' }))
+
+  expect(mockUpdateItem).toHaveBeenCalledWith('item-1', expect.objectContaining({ image_object_key: null }))
+})
+
+test('keeps the native image picker hidden behind the cover control', () => {
+  const client = new QueryClient()
+  render(
+    <QueryClientProvider client={client}>
+      <ItemForm boxId="box-1" onSaved={vi.fn()} />
+    </QueryClientProvider>,
+  )
+
+  expect(screen.getByRole('button', { name: '添加物品图片' })).toBeInTheDocument()
+  expect(screen.getByLabelText('选择物品图片')).toHaveClass('sr-only')
 })
 
 test('shows a local preview after choosing an item image', async () => {
@@ -108,8 +136,9 @@ test('shows a local preview after choosing an item image', async () => {
     </QueryClientProvider>,
   )
 
-  await user.upload(screen.getByLabelText('物品图片（可选）'), new File(['image'], 'hammer.webp', { type: 'image/webp' }))
+  await user.upload(screen.getByLabelText('选择物品图片'), new File(['image'], 'hammer.webp', { type: 'image/webp' }))
   expect(screen.getByRole('img', { name: '待上传物品图片预览' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '删除待上传图片' })).toBeInTheDocument()
 })
 
 test('keeps mobile actions above the public-page safe area', () => {
@@ -184,7 +213,7 @@ test('uploads a selected image after creating the item', async () => {
 
   await user.type(screen.getByLabelText('物品名称'), '围巾')
   const file = new File(['image'], 'scarf.jpeg', { type: 'image/jpeg' })
-  await user.upload(screen.getByLabelText('物品图片（可选）'), file)
+  await user.upload(screen.getByLabelText('选择物品图片'), file)
   await user.click(screen.getByRole('button', { name: '保存' }))
 
   expect(mockUpload).toHaveBeenCalledWith({
@@ -207,7 +236,7 @@ test('preserves fields and retries only the failed image upload', async () => {
 
   await user.type(screen.getByLabelText('物品名称'), '不会丢失的围巾')
   await user.upload(
-    screen.getByLabelText('物品图片（可选）'),
+    screen.getByLabelText('选择物品图片'),
     new File(['image'], 'scarf.webp', { type: 'image/webp' }),
   )
   await user.click(screen.getByRole('button', { name: '保存' }))

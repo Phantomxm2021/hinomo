@@ -15,6 +15,7 @@ export type ItemInput = {
   category: string | null
   quantity: number
   description: string | null
+  image_object_key?: string | null
 }
 
 export async function createItem(input: ItemInput) {
