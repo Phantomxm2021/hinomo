@@ -9,13 +9,15 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       includeAssets: ['pwa-192x192.png', 'pwa-512x512.png', 'maskable-512x512.png'],
       manifest: {
         name: 'Nomo 智能收纳',
         short_name: 'Nomo',
         description: '收起来，也找得回来。Nomo 帮你记住家中每件物品的位置。',
         lang: 'zh-CN',
+        start_url: '/',
+        scope: '/',
         display: 'standalone',
         theme_color: '#df6538',
         background_color: '#f8f2e8',
@@ -27,6 +29,9 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
+        clientsClaim: true,
+        skipWaiting: true,
+        cleanupOutdatedCaches: true,
         runtimeCaching: [],
       },
     }),
