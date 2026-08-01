@@ -65,6 +65,12 @@ test('shows a structured skeleton while the public box is loading', () => {
   expect(screen.getByRole('status', { name: '正在加载箱子' })).toBeInTheDocument()
   expect(screen.getAllByTestId('skeleton').length).toBeGreaterThan(2)
   expect(screen.queryByText('正在加载箱子…')).not.toBeInTheDocument()
+  expect(screen.getByTestId('box-summary-skeleton')).toHaveClass(
+    'border-0',
+    'bg-transparent',
+    'lg:border',
+    'lg:bg-surface',
+  )
 })
 
 test('keeps the initial public-box error inside the responsive main gutter', async () => {
@@ -138,6 +144,17 @@ test('renders a public box for an anonymous visitor without edit controls', asyn
   expect(screen.getByText('暂无封面')).toBeInTheDocument()
   expect(screen.getAllByText('暂无图片').length).toBeGreaterThan(0)
   expect(screen.getByText('共 7 件 · 3 种物品')).toBeInTheDocument()
+  expect(screen.getByTestId('box-summary')).toHaveClass(
+    'border-0',
+    'bg-transparent',
+    'lg:border',
+    'lg:bg-surface',
+  )
+  expect(screen.getByTestId('box-item-list')).toHaveClass(
+    'overflow-hidden',
+    'bg-surface',
+    'lg:contents',
+  )
 })
 
 test('shows item controls only to the box owner', async () => {
@@ -230,6 +247,11 @@ test('hides the mobile add action while the item form is open', async () => {
   })
   renderPublicBox({ user: { id: 'owner-1' } } as Session)
 
+  expect(await screen.findByText('箱子里还没有物品')).toHaveClass(
+    'border-0',
+    'lg:border',
+    'lg:border-dashed',
+  )
   await user.click(await screen.findByRole('button', { name: '移动端新增物品' }))
   expect(screen.getByRole('heading', { name: '新增物品' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '移动端新增物品' })).not.toBeInTheDocument()
