@@ -161,6 +161,7 @@ test('renders a public box for an anonymous visitor without edit controls', asyn
     'bg-surface',
     'lg:contents',
   )
+  expect(screen.getByTestId('box-detail-facts')).toHaveClass('hidden', 'lg:contents')
 })
 
 test('shows item controls only to the box owner', async () => {

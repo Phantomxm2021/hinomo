@@ -159,7 +159,7 @@ export function PublicBoxPage() {
               </span>
               <span className="rounded-full border-0 bg-transparent px-0 py-1 text-muted lg:border lg:border-line lg:px-3 lg:py-1.5">最近更新 {updatedAt}</span>
             </div>
-            <div className="mt-1 grid gap-2 rounded-[1.25rem] bg-surface px-4 py-3 shadow-[inset_0_0_0_1px_rgba(79,64,48,0.06)] lg:mt-0 lg:contents lg:rounded-none lg:bg-transparent lg:p-0 lg:shadow-none">
+            <div data-testid="box-detail-facts" className="hidden lg:contents">
               <p className="text-sm leading-6 text-muted lg:text-base">{formatStoragePath([box.venue_name, box.space_name, box.location || '未填写位置'])}</p>
               <p className="text-sm leading-6 text-muted lg:text-base lg:leading-7">{box.description || '暂无备注'}</p>
               <p className="font-extrabold text-ink">共 {totalQuantity} 件 · {box.items.length} 种物品</p>
