@@ -80,6 +80,8 @@ test('uses native-style grouped rows for the mobile account and preferences page
   expect(profileGroup).toHaveClass('rounded-card', 'bg-surface', 'overflow-hidden')
   expect(preferencesGroup).toHaveClass('rounded-card', 'bg-surface', 'overflow-hidden')
   expect(accountActionGroup).toHaveClass('rounded-card', 'bg-surface', 'overflow-hidden')
+  expect(screen.getByLabelText('更换头像')).toHaveClass('mx-0')
+  expect(screen.getByLabelText('更换头像')).not.toHaveClass('mx-auto')
   expect(screen.getByLabelText('昵称')).toHaveClass('border-0', 'bg-transparent', 'text-right')
   expect(screen.getByLabelText('邮箱')).toHaveClass('border-0', 'bg-transparent', 'text-right')
 })

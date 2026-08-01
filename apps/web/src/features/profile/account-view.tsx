@@ -16,7 +16,7 @@ export function AvatarUploadControl({ src, name, pending, onChange, className = 
   className?: string
 }) {
   return (
-    <label className={`group relative mx-auto block size-20 cursor-pointer overflow-hidden rounded-full ${className}`} aria-label="更换头像">
+    <label className={`group relative block size-20 cursor-pointer overflow-hidden rounded-full ${className || 'mx-auto'}`} aria-label="更换头像">
       <AccountAvatar src={src} name={name} size="lg" />
       <span className="pointer-events-none absolute inset-0 grid place-items-center bg-ink/65 px-2 text-center text-xs font-bold text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         {pending ? '上传中…' : '更换头像'}
