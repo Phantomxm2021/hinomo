@@ -15,6 +15,7 @@ describe('search api', () => {
       item_id: 'item-1',
       item_name: '充电器',
       quantity: 2,
+      stored_quantity: 1,
       box_id: 'box-1',
       box_public_id: 'public-1',
       box_name: '电子设备箱',

@@ -5,6 +5,7 @@ export type ItemRecord = {
   name: string
   category: string | null
   quantity: number
+  stored_quantity?: number
   description: string | null
   image_object_key?: string | null
 }

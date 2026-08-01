@@ -596,6 +596,7 @@ export type Database = {
           item_name: string
           location: string | null
           quantity: number
+          stored_quantity: number
           space_name: string
           venue_name: string
         }[]

@@ -92,7 +92,7 @@ function mapOwnedBox(data: {
 async function getOwnedBoxByPublicId(publicId: string, ownerId: string): Promise<PublicBox | null> {
   const modern = await supabase
     .from('boxes')
-    .select('id, owner_id, public_id, box_code, space_id, name, category, location, description, visibility, cover_object_key, updated_at, spaces(name, venues(name)), items(id, name, category, quantity, description, image_object_key)')
+    .select('id, owner_id, public_id, box_code, space_id, name, category, location, description, visibility, cover_object_key, updated_at, spaces(name, venues(name)), items(id, name, category, quantity, stored_quantity, description, image_object_key)')
     .eq('public_id', publicId)
     .eq('owner_id', ownerId)
     .single()
