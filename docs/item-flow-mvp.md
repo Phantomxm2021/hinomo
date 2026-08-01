@@ -303,6 +303,8 @@ listItemMovements(itemId)
 
 ## 10. 分阶段实施顺序
 
+当前实现状态：Phase 1–4 已完成；Phase 5 的前端回归与发布文档已完成。数据库 pgTAP 用例已经写入仓库，仍需在具备本地 Supabase/Postgres 运行时的 CI 或独立测试环境执行。具体发布、验收与安全回滚步骤见 [`runbooks/deployment.md`](runbooks/deployment.md)。
+
 ### Phase 1：数据基础
 
 - 新增迁移、枚举、`stored_quantity` 和 `item_movements`。
