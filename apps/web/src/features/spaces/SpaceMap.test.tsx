@@ -59,6 +59,11 @@ test('offers touch-friendly width and length controls for the selected space', (
   )
 
   expect(screen.getByRole('region', { name: '调整客厅尺寸' })).toBeInTheDocument()
+  expect(screen.getByRole('region', { name: '调整客厅尺寸' })).toHaveClass(
+    'fixed',
+    'bottom-[calc(4.75rem+var(--safe-area-bottom))]',
+    'lg:static',
+  )
   const width = screen.getByRole('slider', { name: '客厅宽度' })
   const length = screen.getByRole('slider', { name: '客厅长度' })
   fireEvent.change(width, { target: { value: '70' } })

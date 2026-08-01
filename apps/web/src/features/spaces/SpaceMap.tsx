@@ -179,7 +179,7 @@ export function SpaceMap({
       })}
     </section>
     {editMode && selectedSpace && selectedPosition ? (
-      <section className="mt-3 grid gap-4 rounded-card bg-surface p-4 shadow-soft lg:grid-cols-2" role="region" aria-label={`调整${selectedSpace.name}尺寸`}>
+      <section className="fixed inset-x-4 bottom-[calc(4.75rem+var(--safe-area-bottom))] z-40 grid gap-3 rounded-card border border-line bg-surface/95 p-4 shadow-float backdrop-blur lg:static lg:mt-3 lg:grid-cols-2 lg:gap-4 lg:border-0 lg:bg-surface lg:shadow-soft lg:backdrop-blur-none" role="region" aria-label={`调整${selectedSpace.name}尺寸`}>
         <label className="grid gap-2 text-sm font-semibold text-ink">
           <span className="flex items-center justify-between"><span>宽度</span><output>{selectedPosition.width}%</output></span>
           <input
