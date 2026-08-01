@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
+import { AppIcon, type AppIconName } from './AppIcon'
 import { ResponsiveOperationError } from './ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from './Skeleton'
 
 type PageStateProps =
   | { state: 'loading'; label: string }
-  | { state: 'empty'; title: string; action?: ReactNode }
+  | { state: 'empty'; title: string; description?: string; icon?: AppIconName; action?: ReactNode }
   | { state: 'error'; message: string; onRetry: () => void }
 
 export function PageState(props: PageStateProps) {
@@ -22,9 +23,19 @@ export function PageState(props: PageStateProps) {
 
   if (props.state === 'empty') {
     return (
-      <div className="grid min-h-40 place-content-center justify-items-center gap-4 rounded-card border border-dashed border-line bg-surface/70 p-6 text-center">
-        <h2 className="m-0 text-section-title font-bold text-ink">{props.title}</h2>
-        {props.action}
+      <div className="grid min-h-44 place-content-center justify-items-center gap-3 px-6 py-10 text-center" data-page-state="empty">
+        <span className="grid size-12 place-items-center rounded-[1rem] bg-placeholder/45 text-muted/65" aria-hidden="true">
+          <AppIcon name={props.icon ?? 'box'} size={22} />
+        </span>
+        <div className="grid max-w-sm gap-1">
+          <h2 className="m-0 text-card-title font-semibold tracking-[-0.02em] text-ink">{props.title}</h2>
+          {props.description ? <p className="m-0 text-meta leading-relaxed text-muted">{props.description}</p> : null}
+        </div>
+        {props.action ? (
+          <div className="mt-1 [&_a]:inline-flex [&_a]:min-h-10 [&_a]:items-center [&_a]:rounded-full [&_a]:border [&_a]:border-line [&_a]:bg-surface [&_a]:px-4 [&_a]:py-2 [&_a]:text-sm [&_a]:font-semibold [&_a]:text-ink [&_a]:no-underline [&_a]:shadow-soft [&_button]:inline-flex [&_button]:min-h-10 [&_button]:items-center [&_button]:rounded-full [&_button]:border [&_button]:border-line [&_button]:bg-surface [&_button]:px-4 [&_button]:py-2 [&_button]:text-sm [&_button]:font-semibold [&_button]:text-ink [&_button]:shadow-soft">
+            {props.action}
+          </div>
+        ) : null}
       </div>
     )
   }

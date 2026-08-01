@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getBoxByPublicId, listBoxes } from './boxes.api'
+import { getBoxByPublicId, listBoxes, listBoxesForVenue } from './boxes.api'
 
 const { mockEq, mockFrom, mockGetSession, mockOrder, mockRpc, mockSelect, mockSingle } = vi.hoisted(() => ({
   mockEq: vi.fn(),
@@ -71,9 +71,23 @@ describe('boxes api', () => {
       },
     ])
     expect(mockSelect).toHaveBeenCalledWith(
-      'id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), spaces(name, venues(name))',
+      'id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), spaces(venue_id, name, venues(name))',
     )
     expect(mockEq).toHaveBeenCalledWith('owner_id', 'user-1')
+  })
+
+  it('limits the catalogue query to the selected venue', async () => {
+    mockSelect.mockReturnValue({ eq: mockEq })
+    mockEq.mockReturnValue({ eq: mockEq, order: mockOrder })
+    mockOrder.mockResolvedValue({ data: [], error: null })
+
+    await expect(listBoxesForVenue('venue-office')).resolves.toEqual([])
+
+    expect(mockSelect).toHaveBeenCalledWith(
+      'id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), spaces!inner(venue_id, name, venues(name))',
+    )
+    expect(mockEq).toHaveBeenCalledWith('owner_id', 'user-1')
+    expect(mockEq).toHaveBeenCalledWith('spaces.venue_id', 'venue-office')
   })
 
   it('keeps the catalogue available when an embedded space is inaccessible', async () => {

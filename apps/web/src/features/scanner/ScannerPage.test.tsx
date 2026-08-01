@@ -73,6 +73,8 @@ test('uses a tall full-width camera card on mobile and video aspect ratio on des
     'object-cover',
     'md:aspect-video',
   )
+  expect(screen.getByTestId('scanner-feedback')).toBeInTheDocument()
+  expect(screen.getByTestId('scanner-feedback').querySelector('.scanner-beam')).toBeInTheDocument()
 })
 
 test.each([

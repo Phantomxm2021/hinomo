@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { GlobalFindBar } from '../../components/GlobalFindBar'
@@ -8,6 +8,9 @@ import { listBoxes } from '../boxes/boxes.api'
 import { AuthorizedImage } from '../media/AuthorizedImage'
 import { listSpaces } from '../spaces/spaces.api'
 import { listVenues } from '../venues/venues.api'
+import { VenueSwitcher } from '../venues/VenueSwitcher'
+import { useSelectedVenue } from '../venues/selected-venue'
+import { greetingForHour } from './dashboard-greeting'
 
 const boxPlaceholderTones = ['bg-[#a98b6e]', 'bg-[#788790]', 'bg-[#b7925c]'] as const
 
@@ -23,14 +26,12 @@ function spaceEmoji(name: string) {
 }
 
 export function DashboardPage() {
-  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null)
+  const [greeting, setGreeting] = useState(() => greetingForHour(new Date().getHours()))
   const venuesQuery = useQuery({ queryKey: ['venues'], queryFn: listVenues })
   const spacesQuery = useQuery({ queryKey: ['spaces'], queryFn: listSpaces })
   const boxesQuery = useQuery({ queryKey: ['boxes'], queryFn: listBoxes })
   const venues = venuesQuery.data ?? []
-  const activeVenueId = venues.some((venue) => venue.id === selectedVenueId)
-    ? selectedVenueId
-    : (venues[0]?.id ?? null)
+  const [activeVenueId, setActiveVenueId] = useSelectedVenue(venues)
   const spaces = activeVenueId
     ? (spacesQuery.data ?? []).filter((space) => space.venue_id === activeVenueId)
     : []
@@ -44,6 +45,20 @@ export function DashboardPage() {
     || (boxesQuery.isPending && boxesQuery.data === undefined)
   )
 
+  useEffect(() => {
+    const updateGreeting = () => setGreeting(greetingForHour(new Date().getHours()))
+    const timer = window.setInterval(updateGreeting, 60_000)
+    window.addEventListener('focus', updateGreeting)
+    document.addEventListener('visibilitychange', updateGreeting)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', updateGreeting)
+      document.removeEventListener('visibilitychange', updateGreeting)
+    }
+  }, [])
+
+  const dashboardTitle = `${greeting}，今天找什么？`
+
   return (
     <section className="mx-auto flex min-w-0 w-full max-w-7xl flex-col gap-6 lg:gap-10" aria-labelledby="dashboard-title">
       <header className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 py-3 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(26rem,auto)] lg:items-center lg:gap-x-6">
@@ -51,21 +66,9 @@ export function DashboardPage() {
           <p className="mb-0 text-meta font-medium tracking-eyebrow text-muted">空间总览</p>
           {venuesQuery.isPending && venuesQuery.data === undefined ? (
             <Skeleton className="h-11 w-32 rounded-control lg:w-48" />
-          ) : (
-            <span className="relative justify-self-end">
-              <select
-                aria-label="选择场地"
-                className="h-11 min-w-24 max-w-44 appearance-none border-0 bg-transparent py-0 pr-5 pl-0 text-right text-meta font-medium tracking-eyebrow text-muted outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/35 lg:w-48 lg:max-w-none"
-                value={activeVenueId ?? ''}
-                onChange={(event) => setSelectedVenueId(event.target.value)}
-              >
-                {venues.map((venue) => <option value={venue.id} key={venue.id}>{venue.name}</option>)}
-              </select>
-              <span className="pointer-events-none absolute top-1/2 right-0 -translate-y-1/2 text-muted" aria-hidden="true">⌄</span>
-            </span>
-          )}
+          ) : <VenueSwitcher venues={venues} selectedId={activeVenueId} onSelect={setActiveVenueId} />}
         </div>
-        <h1 className="col-span-2 mb-2 max-w-3xl text-display font-extrabold lg:col-span-1 lg:row-start-2 lg:mb-4" id="dashboard-title">早上好，今天找什么？</h1>
+        <h1 className="col-span-2 mb-2 max-w-3xl text-display font-extrabold lg:col-span-1 lg:row-start-2 lg:mb-4" id="dashboard-title">{dashboardTitle}</h1>
         <div className="col-span-2 flex min-w-0 items-stretch lg:col-span-1 lg:col-start-2 lg:row-start-2 lg:justify-end">
           <GlobalFindBar />
         </div>
@@ -131,7 +134,7 @@ export function DashboardPage() {
           </Link>
         </div>
         {spacesQuery.isSuccess && spaces.length === 0 ? (
-          <PageState state="empty" title="这个场地还没有空间" />
+          <PageState state="empty" icon="space" title="这个场地还没有空间" />
         ) : null}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {spaces.map((space) => (
@@ -162,11 +165,13 @@ export function DashboardPage() {
           ) : null}
         </div>
         {boxesQuery.isSuccess && boxes.length === 0 ? (
-          <div className="grid min-h-56 place-content-center justify-items-center gap-4 rounded-card border border-dashed border-line bg-surface/70 p-7 text-center">
-            <h3>给每件物品一个好找的家</h3>
-            <p>从第一个箱子开始，记录它放在哪里、里面有什么。</p>
-            <Link className="inline-flex min-h-12 w-full items-center justify-center rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white no-underline sm:w-auto" to="/app/boxes?create=1">创建第一个箱子</Link>
-          </div>
+          <PageState
+            state="empty"
+            icon="box"
+            title="给每件物品一个好找的家"
+            description="从第一个箱子开始，记录它放在哪里、里面有什么。"
+            action={<Link to="/app/boxes?create=1">创建第一个箱子</Link>}
+          />
         ) : null}
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {boxes.slice(0, 3).map((box, index) => (

@@ -14,9 +14,12 @@ test('announces loading with the supplied label', () => {
 })
 
 test('renders an empty title and optional action', () => {
-  render(<PageState state="empty" title="还没有箱子" action={<a href="/new">创建箱子</a>} />)
+  render(<PageState state="empty" icon="box" title="还没有箱子" action={<a href="/new">创建箱子</a>} />)
   expect(screen.getByRole('heading', { name: '还没有箱子' })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: '创建箱子' })).toHaveAttribute('href', '/new')
+  const empty = screen.getByText('还没有箱子').closest('[data-page-state="empty"]')
+  expect(empty).not.toHaveClass('border', 'border-dashed', 'bg-surface/70')
+  expect(screen.getByRole('link', { name: '创建箱子' }).parentElement).toHaveClass('mt-1')
 })
 
 test('retries an error state', async () => {

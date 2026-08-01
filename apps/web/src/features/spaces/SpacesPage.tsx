@@ -9,17 +9,11 @@ import { PageState } from '../../components/PageState'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { useMobileFeedback } from '../../components/mobile-feedback'
-import { VenueEditorDialog } from '../venues/VenueEditorDialog'
-import { VenueFilterBar } from '../venues/VenueFilterBar'
 import {
-  createVenue,
-  deleteVenue,
   isVenuesSchemaUnavailable,
   listVenues,
-  type VenueInput,
-  type VenueSummary,
-  updateVenue,
 } from '../venues/venues.api'
+import { useSelectedVenue } from '../venues/selected-venue'
 import { SpaceCard } from './SpaceCard'
 import { SpaceMap } from './SpaceMap'
 import { spaceSchema, type SpaceFormValues } from './space.schema'
@@ -71,13 +65,12 @@ export function SpacesPage() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<SpaceSummary | null>(null)
   const [layoutEditMode, setLayoutEditMode] = useState(false)
-  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null)
-  const [venueEditorOpen, setVenueEditorOpen] = useState(false)
-  const [venueEditTarget, setVenueEditTarget] = useState<VenueSummary | null>(null)
   const [view, setView] = useState<SpaceView>(getInitialView)
   const venuesQuery = useQuery({ queryKey: ['venues'], queryFn: listVenues })
   const spacesQuery = useQuery({ queryKey: ['spaces'], queryFn: listSpaces })
   const layoutsQuery = useQuery({ queryKey: ['space-layouts'], queryFn: listSpaceLayouts })
+  const venues = venuesQuery.data ?? []
+  const [selectedVenueId] = useSelectedVenue(venues)
   const createMutation = useMutation({
     mutationFn: (input: Parameters<typeof createSpace>[0]) => createSpace(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['spaces'] }),
@@ -95,21 +88,6 @@ export function SpacesPage() {
     mutationFn: ({ id, input }: { id: string; input: Parameters<typeof updateSpace>[1] }) =>
       updateSpace(id, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['spaces'] }),
-  })
-  const createVenueMutation = useMutation({
-    mutationFn: (input: VenueInput) => createVenue(input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['venues'] }),
-  })
-  const updateVenueMutation = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: VenueInput }) => updateVenue(id, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['venues'] }),
-  })
-  const deleteVenueMutation = useMutation({
-    mutationFn: (venueId: string) => deleteVenue(venueId),
-    onSuccess: async (_, venueId) => {
-      if (selectedVenueId === venueId) setSelectedVenueId(null)
-      await queryClient.invalidateQueries({ queryKey: ['venues'] })
-    },
   })
   const layoutMutation = useMutation({
     mutationFn: ({ spaceId, position }: { spaceId: string; position: SpacePosition }) => {
@@ -272,37 +250,23 @@ export function SpacesPage() {
     }
   }
 
-  const venues = venuesQuery.data ?? []
   const spaces = spacesQuery.data ?? []
+  const selectedVenue = venues.find((venue) => venue.id === selectedVenueId) ?? null
   const visibleSpaces = selectedVenueId
-    ? spaces.filter((space) => space.venue_id === selectedVenueId)
-    : spaces
-  const venuePending = createVenueMutation.isPending || updateVenueMutation.isPending || deleteVenueMutation.isPending
-
-  async function saveVenue(input: VenueInput) {
-    if (venueEditTarget) {
-      await updateVenueMutation.mutateAsync({ id: venueEditTarget.id, input })
-    } else {
-      const created = await createVenueMutation.mutateAsync(input)
-      setSelectedVenueId(created.id)
-    }
-    setVenueEditorOpen(false)
-    setVenueEditTarget(null)
-  }
-
-  async function removeVenue(venue: VenueSummary) {
-    if (venue.space_count > 0) return
-    await deleteVenueMutation.mutateAsync(venue.id)
-    setVenueEditorOpen(false)
-    setVenueEditTarget(null)
-  }
+    ? spaces.filter((space) => !space.venue_id || space.venue_id === selectedVenueId)
+    : []
 
   return (
     <section className="mx-auto grid min-w-0 w-full max-w-7xl gap-5 lg:gap-6" aria-labelledby="spaces-title">
       <header className="py-3">
         <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">整理你的收纳范围</p>
         <div className="flex items-center justify-between gap-4">
-          <h1 className="mb-0 text-page-title font-extrabold" id="spaces-title">空间</h1>
+          <div className="min-w-0">
+            <h1 className="mb-0 text-page-title font-extrabold" id="spaces-title">空间</h1>
+            {venuesQuery.isPending && venuesQuery.data === undefined ? <Skeleton className="mt-2 h-4 w-20" /> : null}
+            {selectedVenue ? <p className="mt-1 mb-0 truncate text-meta font-medium tracking-eyebrow text-muted">{selectedVenue.name}</p> : null}
+            {venuesQuery.isSuccess && !selectedVenue ? <p className="mt-1 mb-0 text-sm font-semibold text-muted">暂无场地</p> : null}
+          </div>
           <button
             ref={headerCreateButtonRef}
             className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-brand bg-brand text-white transition hover:bg-brand-strong"
@@ -317,22 +281,6 @@ export function SpacesPage() {
         </div>
       </header>
 
-      {venuesQuery.isPending && venuesQuery.data === undefined ? (
-        <SkeletonGroup className="flex gap-2" label="正在加载场地">
-          <Skeleton className="h-11 w-20 rounded-full" />
-          <Skeleton className="h-11 w-28 rounded-full" />
-          <Skeleton className="h-11 w-28 rounded-full" />
-        </SkeletonGroup>
-      ) : null}
-      {venuesQuery.data ? (
-        <VenueFilterBar
-          venues={venues}
-          selectedId={selectedVenueId}
-          onSelect={setSelectedVenueId}
-          onCreate={() => { setVenueEditTarget(null); setVenueEditorOpen(true) }}
-          onEdit={(venue) => { setVenueEditTarget(venue); setVenueEditorOpen(true) }}
-        />
-      ) : null}
       {venuesQuery.isError ? (
         <PageState
           state="error"
@@ -342,16 +290,6 @@ export function SpacesPage() {
           onRetry={() => void venuesQuery.refetch()}
         />
       ) : null}
-
-      <VenueEditorDialog
-        open={venueEditorOpen}
-        venue={venueEditTarget}
-        pending={venuePending}
-        error={createVenueMutation.isError || updateVenueMutation.isError || deleteVenueMutation.isError}
-        onClose={() => { if (!venuePending) { setVenueEditorOpen(false); setVenueEditTarget(null) } }}
-        onSubmit={saveVenue}
-        onDelete={removeVenue}
-      />
 
       {editorOpen
         ? createPortal(
@@ -497,10 +435,10 @@ export function SpacesPage() {
         </SkeletonGroup>
       ) : null}
       {spacesQuery.isError ? <PageState state="error" message="空间加载失败，请重试" onRetry={() => void spacesQuery.refetch()} /> : null}
-      {spacesQuery.data && visibleSpaces.length === 0 ? (
-        <PageState state="empty" title="还没有空间" />
+      {spacesQuery.data && venuesQuery.isSuccess && visibleSpaces.length === 0 ? (
+        <PageState state="empty" icon="space" title="还没有空间" />
       ) : null}
-      {spacesQuery.data && visibleSpaces.length > 0 ? (
+      {spacesQuery.data && venuesQuery.isSuccess && visibleSpaces.length > 0 ? (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="inline-flex rounded-control border border-line bg-surface p-1" role="group" aria-label="空间视图">

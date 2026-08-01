@@ -1,19 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { Skeleton } from '../../components/Skeleton'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/auth-context'
 import { userDisplayName } from './account-name'
 import { AccountAvatar, AvatarUploadControl, ReadOnlyAccountField } from './account-view'
-import { getAvatarDownload, getProfile, updateLocale, uploadAvatar } from './profile.api'
+import { getAvatarDownload, getProfile, uploadAvatar } from './profile.api'
 
 export function UserAccountMenu() {
   const { session } = useAuth()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
-  const [dialog, setDialog] = useState<'profile' | 'settings' | null>(null)
+  const [dialog, setDialog] = useState<'profile' | null>(null)
   const user = session?.user
   const profileQuery = useQuery({
     queryKey: ['profile', user?.id],
@@ -31,10 +32,6 @@ export function UserAccountMenu() {
       await queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
       await queryClient.invalidateQueries({ queryKey: ['profile-avatar', user?.id] })
     },
-  })
-  const localeMutation = useMutation({
-    mutationFn: updateLocale,
-    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['profile', user?.id] }) },
   })
 
   if (!user) return null
@@ -83,9 +80,9 @@ export function UserAccountMenu() {
           <button className="flex min-h-11 items-center gap-3 rounded-control px-3 text-left text-body font-medium text-ink hover:bg-canvas" type="button" role="menuitem" onClick={() => { setDialog('profile'); setOpen(false) }}>
             <AppIcon name="user" size={18} />账户信息
           </button>
-          <button className="flex min-h-11 items-center gap-3 rounded-control px-3 text-left text-body font-medium text-ink hover:bg-canvas" type="button" role="menuitem" onClick={() => { setDialog('settings'); setOpen(false) }}>
+          <Link className="flex min-h-11 items-center gap-3 rounded-control px-3 text-left text-body font-medium text-ink no-underline hover:bg-canvas" to="/app/me/settings" role="menuitem" onClick={() => setOpen(false)}>
             <AppIcon name="settings" size={18} />设置
-          </button>
+          </Link>
           <button className="flex min-h-11 items-center gap-3 rounded-control px-3 text-left text-body font-medium text-danger hover:bg-danger/5" type="button" role="menuitem" onClick={() => void signOut()}>
             <AppIcon name="logout" size={18} />退出登录
           </button>
@@ -100,18 +97,6 @@ export function UserAccountMenu() {
             <ReadOnlyAccountField label="昵称" value={name} />
             <ReadOnlyAccountField label="邮箱" value={user.email ?? '未设置'} />
           </div>
-        </Dialog>
-      ) : null}
-      {dialog === 'settings' ? (
-        <Dialog title="设置" onClose={() => setDialog(null)}>
-          <label className="grid gap-2 font-bold text-ink" htmlFor="locale-setting">语言
-            <select className="min-h-12 rounded-control border border-line bg-canvas px-3 font-normal" id="locale-setting" value={profileQuery.data?.locale ?? 'zh-CN'} onChange={(event) => localeMutation.mutate(event.target.value as 'zh-CN' | 'en-US')}>
-              <option value="zh-CN">简体中文</option>
-              <option value="en-US">English</option>
-            </select>
-          </label>
-          {localeMutation.isSuccess ? <p role="status">设置已保存</p> : null}
-          {localeMutation.isError ? <p role="alert">设置保存失败，请重试</p> : null}
         </Dialog>
       ) : null}
     </div>

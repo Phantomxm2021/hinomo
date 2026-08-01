@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useMobileFeedback } from './mobile-feedback'
 
 type ResponsiveOperationErrorProps = {
@@ -12,6 +13,8 @@ export function ResponsiveOperationError({ message, onRetry, busy = false, retry
   const feedback = useMobileFeedback()
   const retryRef = useRef(onRetry)
   const hasRetry = Boolean(onRetry)
+  const [dismissedMessage, setDismissedMessage] = useState<string | null>(null)
+  const titleId = useId()
 
   useEffect(() => {
     retryRef.current = onRetry
@@ -26,14 +29,41 @@ export function ResponsiveOperationError({ message, onRetry, busy = false, retry
     })
   }, [feedback, hasRetry, message, retryLabel])
 
-  return (
-    <div className="hidden flex-wrap items-center justify-between gap-3 rounded-control border border-danger/25 bg-danger/5 px-4 py-3 text-sm text-danger lg:flex" role="alert">
-      <h2 className="m-0 text-sm font-semibold tracking-normal text-danger">{message}</h2>
-      {onRetry ? (
-        <button className="min-h-11 rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold" type="button" disabled={busy} aria-busy={busy} onClick={onRetry}>
-          {busy ? '重试中…' : retryLabel}
-        </button>
-      ) : null}
-    </div>
+  if (dismissedMessage === message) return null
+
+  const dismiss = () => {
+    setDismissedMessage(message)
+    feedback.dismiss()
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[120] hidden place-items-center bg-ink/28 p-5 backdrop-blur-[3px] lg:grid" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget && !busy) dismiss()
+    }}>
+      <section className="w-full max-w-sm overflow-hidden rounded-[1.6rem] border border-line/80 bg-surface shadow-[0_28px_80px_rgb(48_39_30_/_24%)]" role="alert" aria-labelledby={titleId} aria-live="assertive">
+        <div className="px-7 pt-7 pb-6 text-center">
+          <span className="mx-auto mb-5 grid size-12 place-items-center rounded-full bg-danger/8 text-xl font-black text-danger" aria-hidden="true">!</span>
+          <h2 className="m-0 text-lg leading-relaxed font-bold tracking-[-0.02em] text-ink" id={titleId}>{message}</h2>
+        </div>
+        <div className={`grid border-t border-line/80 ${hasRetry ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          {hasRetry ? (
+            <button className="min-h-13 border-0 border-r border-line/80 bg-transparent px-4 font-bold text-muted hover:bg-canvas" type="button" disabled={busy} onClick={dismiss}>取消</button>
+          ) : null}
+          <button
+            className="min-h-13 border-0 bg-transparent px-4 font-bold text-brand-strong hover:bg-brand/5"
+            type="button"
+            disabled={busy}
+            aria-busy={busy}
+            onClick={() => {
+              if (hasRetry) retryRef.current?.()
+              else dismiss()
+            }}
+          >
+            {hasRetry ? (busy ? '重试中…' : retryLabel) : '好'}
+          </button>
+        </div>
+      </section>
+    </div>,
+    document.body,
   )
 }

@@ -113,7 +113,7 @@ export function SearchPage() {
       </form>
 
       {!query ? (
-        <p className="rounded-card border border-dashed border-line bg-surface/70 p-8 text-center text-muted">输入关键词，快速找到物品所在的箱子。</p>
+        <PageState state="empty" icon="search" title="输入关键词，快速找到物品所在的箱子。" />
       ) : null}
       {isLoading ? (
         <SkeletonGroup className="grid gap-7" label="正在搜索收纳内容">
@@ -186,11 +186,13 @@ export function SearchPage() {
       ) : null}
 
       {noResults ? (
-        <div className="grid min-h-52 place-content-center justify-items-center gap-4 rounded-card border border-dashed border-line bg-surface/70 p-8 text-center">
-          <span className="grid size-14 place-items-center rounded-full bg-brand/10 text-brand"><AppIcon name="scan" size={26} /></span>
-          <div><h2 className="mb-1">没有找到相关内容</h2><p>也可以扫描箱子标签，直接打开清单。</p></div>
-          <Link className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-brand px-4 py-2 font-bold text-white no-underline hover:bg-brand-strong sm:min-h-11 sm:w-auto" to="/app/scan"><AppIcon name="scan" />扫码查看箱子</Link>
-        </div>
+        <PageState
+          state="empty"
+          icon="search"
+          title="没有找到相关内容"
+          description="也可以扫描箱子标签，直接打开清单。"
+          action={<Link to="/app/scan"><AppIcon name="scan" />扫码查看箱子</Link>}
+        />
       ) : null}
     </section>
   )

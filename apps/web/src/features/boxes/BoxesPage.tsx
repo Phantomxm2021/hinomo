@@ -7,6 +7,8 @@ import { PageState } from '../../components/PageState'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { useMobileFeedback } from '../../components/mobile-feedback'
+import { useSelectedVenue } from '../venues/selected-venue'
+import { listVenues } from '../venues/venues.api'
 import { BoxCatalogueCard } from './BoxCatalogueCard'
 import { BoxCatalogueToolbar } from './BoxCatalogueToolbar'
 import {
@@ -14,7 +16,7 @@ import {
   catalogueSummary,
   filterBoxes,
 } from './box-catalogue'
-import { deleteBox, listBoxes, type BoxSummary } from './boxes.api'
+import { deleteBox, listBoxesForVenue, type BoxSummary } from './boxes.api'
 import { CreateBoxModal } from './CreateBoxModal'
 import { SpaceFilterChips } from './SpaceFilterChips'
 
@@ -34,18 +36,32 @@ export function BoxesPage() {
   const [createCompletionPending, setCreateCompletionPending] = useState(false)
   const [createSucceeded, setCreateSucceeded] = useState(false)
   const createSuccessTimerRef = useRef<number | null>(null)
-  const boxesQuery = useQuery({ queryKey: ['boxes'], queryFn: listBoxes })
+  const venuesQuery = useQuery({ queryKey: ['venues'], queryFn: listVenues })
+  const venues = venuesQuery.data ?? []
+  const [selectedVenueId] = useSelectedVenue(venues)
+  const boxesQuery = useQuery({
+    queryKey: ['boxes', selectedVenueId],
+    queryFn: () => listBoxesForVenue(selectedVenueId!),
+    enabled: Boolean(selectedVenueId),
+  })
   const deleteMutation = useMutation({
     mutationFn: (boxId: string) => deleteBox(boxId),
     onSuccess: (_data, boxId) => {
-      queryClient.setQueryData<BoxSummary[]>(['boxes'], (current) => current?.filter((box) => box.id !== boxId))
+      queryClient.setQueriesData<BoxSummary[]>({ queryKey: ['boxes'] }, (current) => current?.filter((box) => box.id !== boxId))
       deleteReturnFocusRef.current = createButtonRef.current
       setDeleteTarget(null)
       void queryClient.invalidateQueries({ queryKey: ['boxes'] })
     },
   })
-  const boxes = boxesQuery.data ?? EMPTY_BOXES
-  const hasCatalogueData = boxesQuery.data !== undefined
+  const allBoxes = boxesQuery.data ?? EMPTY_BOXES
+  const selectedVenue = venues.find((venue) => venue.id === selectedVenueId) ?? null
+  const boxes = useMemo(() => selectedVenueId
+    ? allBoxes.filter((box) => !box.venue_id || box.venue_id === selectedVenueId)
+    : EMPTY_BOXES, [allBoxes, selectedVenueId])
+  const hasCatalogueData = venuesQuery.isSuccess && (!selectedVenueId || boxesQuery.data !== undefined)
+  const cataloguePending = (Boolean(selectedVenueId) && boxesQuery.isPending && boxesQuery.data === undefined)
+    || (venuesQuery.isPending && venuesQuery.data === undefined)
+  const catalogueError = boxesQuery.isError || venuesQuery.isError
   const query = searchParams.get('q') ?? ''
   const selectedSpace = searchParams.get('space') ?? ''
   const creating = searchParams.get('create') === '1'
@@ -140,7 +156,20 @@ export function BoxesPage() {
       <header className="py-3">
         <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">收纳目录</p>
         <div className="flex items-center justify-between gap-4">
-          <h1 className="mb-0 text-page-title font-extrabold" id="boxes-title">全部箱子</h1>
+          <div className="min-w-0">
+            <h1 className="mb-0 text-page-title font-extrabold" id="boxes-title">全部箱子</h1>
+            {selectedVenue ? (
+              <p className="mt-1 mb-0 flex min-w-0 items-center gap-1.5 truncate text-sm text-muted">
+                <span className="truncate font-medium">{selectedVenue.name}</span>
+                {hasCatalogueData ? (
+                  <>
+                    <span className="shrink-0" aria-hidden="true">·</span>
+                    <span className="shrink-0">{summary.boxCount} 个箱子 · {summary.itemCount} 件物品</span>
+                  </>
+                ) : null}
+              </p>
+            ) : null}
+          </div>
           <button
             ref={createButtonRef}
             className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-brand bg-brand text-white transition hover:bg-brand-strong"
@@ -152,12 +181,9 @@ export function BoxesPage() {
             <AppIcon name="plus" />
           </button>
         </div>
-        {hasCatalogueData ? (
-          <p className="mt-2 text-sm text-muted">{summary.boxCount} 个箱子 · {summary.itemCount} 件物品</p>
-        ) : null}
       </header>
 
-      {boxesQuery.isPending && boxesQuery.data === undefined ? (
+      {cataloguePending ? (
         <SkeletonGroup className="grid gap-5" label="正在加载箱子目录">
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-10 w-full" />
@@ -174,9 +200,9 @@ export function BoxesPage() {
           </div>
         </SkeletonGroup>
       ) : null}
-      {boxesQuery.isError && !hasCatalogueData ? <PageState state="error" message="箱子加载失败，请重试" onRetry={() => void boxesQuery.refetch()} /> : null}
-      {boxesQuery.isError && hasCatalogueData ? (
-        <ResponsiveOperationError message="箱子刷新失败，正在显示上次结果" busy={boxesQuery.isFetching} onRetry={() => void boxesQuery.refetch()} />
+      {catalogueError && !hasCatalogueData ? <PageState state="error" message="箱子加载失败，请重试" onRetry={() => { void boxesQuery.refetch(); void venuesQuery.refetch() }} /> : null}
+      {catalogueError && hasCatalogueData ? (
+        <ResponsiveOperationError message="箱子刷新失败，正在显示上次结果" busy={boxesQuery.isFetching || venuesQuery.isFetching} onRetry={() => { void boxesQuery.refetch(); void venuesQuery.refetch() }} />
       ) : null}
       {hasCatalogueData && boxes.length > 0 ? (
         <>
@@ -206,6 +232,7 @@ export function BoxesPage() {
       {hasCatalogueData && boxes.length === 0 ? (
         <PageState
           state="empty"
+          icon="box"
           title="还没有箱子"
           action={(
             <button className="inline-flex min-h-11 items-center rounded-control bg-brand px-4 py-2 font-bold text-white" type="button" onClick={openCreate}>
@@ -218,6 +245,7 @@ export function BoxesPage() {
       {hasCatalogueData && boxes.length > 0 && visibleBoxes.length === 0 ? (
         <PageState
           state="empty"
+          icon="search"
           title="没有匹配的箱子"
           action={(
             <button className="inline-flex min-h-11 items-center rounded-control border border-line bg-surface px-4 py-2 font-bold text-ink" type="button" onClick={clearCatalogueFilters}>

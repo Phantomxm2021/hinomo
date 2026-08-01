@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { DashboardPage } from './DashboardPage'
+import { greetingForHour } from './dashboard-greeting'
 
 const { mockListBoxes, mockListSpaces, mockListVenues } = vi.hoisted(() => ({
   mockListBoxes: vi.fn(),
@@ -19,7 +21,18 @@ vi.mock('../media/AuthorizedImage', () => ({
   ),
 }))
 
+let venueStorage: Map<string, string>
+
 beforeEach(() => {
+  venueStorage = new Map()
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: vi.fn((key: string) => venueStorage.get(key) ?? null),
+      setItem: vi.fn((key: string, value: string) => { venueStorage.set(key, value) }),
+      clear: vi.fn(() => venueStorage.clear()),
+    },
+  })
   mockListBoxes.mockReset()
   mockListSpaces.mockReset()
   mockListVenues.mockReset()
@@ -37,6 +50,19 @@ function renderDashboard() {
     </MemoryRouter>,
   )
 }
+
+test.each([
+  [5, '早上好'],
+  [10, '早上好'],
+  [11, '中午好'],
+  [13, '中午好'],
+  [14, '下午好'],
+  [17, '下午好'],
+  [18, '晚上好'],
+  [0, '晚上好'],
+])('uses the local hour %i for the dashboard greeting', (hour, expected) => {
+  expect(greetingForHour(hour)).toBe(expected)
+})
 
 test('centers the dashboard on finding items, room totals, and recent activity', async () => {
   mockListSpaces.mockResolvedValue([
@@ -60,9 +86,8 @@ test('centers the dashboard on finding items, room totals, and recent activity',
     'text-muted',
   )
   expect(screen.getByText('空间总览')).not.toHaveClass('text-brand', 'uppercase')
-  const venueSelect = await screen.findByRole('combobox', { name: '选择场地' })
-  expect(venueSelect).toHaveClass('appearance-none', 'border-0', 'bg-transparent', 'text-meta', 'font-medium', 'tracking-eyebrow', 'text-muted')
-  expect(venueSelect).not.toHaveClass('border-line', 'bg-surface', 'text-body', 'text-ink')
+  const venueSelect = await screen.findByRole('button', { name: '选择场地，默认' })
+  expect(venueSelect).toHaveClass('h-11', 'pr-0', 'bg-transparent', 'text-meta', 'font-semibold', 'tracking-eyebrow', 'text-muted')
   expect(screen.getByText('空间总览').parentElement).toContainElement(
     venueSelect,
   )
@@ -117,7 +142,7 @@ test('centers the dashboard on finding items, room totals, and recent activity',
   expect(screen.getByRole('link', { name: '扫码查看' })).toHaveClass('scan-icon-button')
   expect(screen.queryByText('生成新的收纳二维码')).not.toBeInTheDocument()
 
-  expect(screen.getByRole('region', { name: '早上好，今天找什么？' })).toHaveClass(
+  expect(screen.getByRole('region', { name: /今天找什么？/ })).toHaveClass(
     'mx-auto',
     'min-w-0',
     'w-full',
@@ -125,7 +150,7 @@ test('centers the dashboard on finding items, room totals, and recent activity',
     'gap-6',
     'lg:gap-10',
   )
-  expect(screen.getByRole('region', { name: '早上好，今天找什么？' }).querySelector('header')).toHaveClass(
+  expect(screen.getByRole('region', { name: /今天找什么？/ }).querySelector('header')).toHaveClass(
     'lg:grid',
     'lg:grid-cols-[minmax(0,1fr)_minmax(26rem,auto)]',
   )
@@ -180,6 +205,7 @@ test('keeps finding available when dashboard data fails', async () => {
 })
 
 test('defaults to the first venue and filters every dashboard section when venue changes', async () => {
+  const user = userEvent.setup()
   mockListVenues.mockResolvedValue([
     { id: 'venue-default', name: '默认', description: null, is_default: true, space_count: 1 },
     { id: 'venue-office', name: '公司', description: null, is_default: false, space_count: 1 },
@@ -194,13 +220,14 @@ test('defaults to the first venue and filters every dashboard section when venue
   ])
   renderDashboard()
 
-  const venueSelect = await screen.findByRole('combobox', { name: '选择场地' })
-  expect(venueSelect).toHaveValue('venue-default')
+  const venueSelect = await screen.findByRole('button', { name: '选择场地，默认' })
   expect(screen.getByText('家庭用品')).toBeInTheDocument()
   expect(screen.queryByText('公司档案')).not.toBeInTheDocument()
   expect(within(screen.getByLabelText('物品统计')).getByText('2')).toBeInTheDocument()
 
-  fireEvent.change(venueSelect, { target: { value: 'venue-office' } })
+  await user.click(venueSelect)
+  await user.click(screen.getByRole('menuitemradio', { name: '公司，1 个空间' }))
+  expect(window.localStorage.getItem('nomo-selected-venue-id')).toBe('venue-office')
 
   expect(screen.getByText('公司档案')).toBeInTheDocument()
   expect(screen.queryByText('家庭用品')).not.toBeInTheDocument()

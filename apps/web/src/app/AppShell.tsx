@@ -96,13 +96,7 @@ export function AppShell() {
         <nav className="grid gap-2" aria-label="主导航"><Navigation items={desktopNavigation} /></nav>
         <UserAccountMenu />
       </aside>
-      <header className="flex min-h-14 items-center px-4 pt-[max(1rem,var(--safe-area-top))] min-[360px]:px-5 lg:hidden" role="banner">
-        <Link className="flex items-center gap-2 text-xl font-black tracking-[-0.05em] text-ink no-underline" to="/app">
-          <span className="grid size-9 place-items-center rounded-control bg-brand text-xl font-black tracking-normal text-white" aria-hidden="true">N</span>
-          Nomo
-        </Link>
-      </header>
-      <main className="mobile-app-content min-w-0 px-4 pt-4 pb-[calc(8rem+var(--safe-area-bottom))] min-[360px]:px-5 lg:ml-60 lg:px-[clamp(1.75rem,4vw,4rem)] lg:pt-10 lg:pb-16"><Outlet /></main>
+      <main className="mobile-app-content min-w-0 px-4 pt-[max(1rem,var(--safe-area-top))] pb-[calc(8rem+var(--safe-area-bottom))] min-[360px]:px-5 lg:ml-60 lg:px-[clamp(1.75rem,4vw,4rem)] lg:pt-10 lg:pb-16"><Outlet /></main>
       <nav className="fixed inset-x-0 bottom-0 z-30 grid min-h-[3.75rem] grid-cols-5 border-t border-line/80 bg-surface/90 px-1 pt-1 pb-[max(0.35rem,var(--safe-area-bottom))] shadow-[0_-1px_14px_rgb(86_58_36_/_7%)] backdrop-blur-xl lg:hidden" aria-label="移动端主导航"><Navigation items={mobileNavigation} mobile /></nav>
     </div>
   )

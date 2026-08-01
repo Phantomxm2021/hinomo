@@ -5,9 +5,10 @@ import { createMemoryRouter, RouterProvider, useLocation, useNavigate, useNaviga
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { BoxesPage } from './BoxesPage'
 
-const { mockDeleteBox, mockListBoxes, mockModalCleanupSawStatus } = vi.hoisted(() => ({
+const { mockDeleteBox, mockListBoxes, mockListVenues, mockModalCleanupSawStatus } = vi.hoisted(() => ({
   mockDeleteBox: vi.fn(),
   mockListBoxes: vi.fn(),
+  mockListVenues: vi.fn(),
   mockModalCleanupSawStatus: vi.fn(),
 }))
 
@@ -19,8 +20,10 @@ const catalogueSpies = vi.hoisted(() => ({
 
 vi.mock('./boxes.api', () => ({
   deleteBox: mockDeleteBox,
-  listBoxes: mockListBoxes,
+  listBoxesForVenue: mockListBoxes,
 }))
+
+vi.mock('../venues/venues.api', () => ({ listVenues: mockListVenues }))
 
 vi.mock('./box-catalogue', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./box-catalogue')>()
@@ -147,9 +150,23 @@ function primaryLinkNames() {
   return screen.getAllByRole('link', { name: /^打开/ }).map((link) => link.getAttribute('aria-label'))
 }
 
+let venueStorage: Map<string, string>
+
 beforeEach(() => {
+  venueStorage = new Map()
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: vi.fn((key: string) => venueStorage.get(key) ?? null),
+      setItem: vi.fn((key: string, value: string) => { venueStorage.set(key, value) }),
+    },
+  })
   mockDeleteBox.mockReset()
   mockListBoxes.mockReset()
+  mockListVenues.mockReset()
+  mockListVenues.mockResolvedValue([
+    { id: 'venue-home', name: '家里', description: null, is_default: true, space_count: 2 },
+  ])
   mockModalCleanupSawStatus.mockReset()
   catalogueSpies.catalogueSpaces.mockClear()
   catalogueSpies.catalogueSummary.mockClear()
@@ -237,7 +254,30 @@ test('shows the global catalogue summary after loading', async () => {
   expect(await screen.findByText('2 个箱子 · 20 件物品')).toBeInTheDocument()
   expect(screen.getByText('显示 1 个')).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: '全部箱子', level: 1 })).toBeInTheDocument()
+  const title = screen.getByRole('heading', { name: '全部箱子', level: 1 })
+  expect(within(title.parentElement!).getByText('家里')).toBeInTheDocument()
   expect(screen.getByText('收纳目录')).toBeInTheDocument()
+})
+
+test('shows only boxes from the venue restored from the dashboard selection', async () => {
+  venueStorage.set('nomo-selected-venue-id', 'venue-office')
+  mockListVenues.mockResolvedValue([
+    { id: 'venue-home', name: '家里', description: null, is_default: true, space_count: 1 },
+    { id: 'venue-office', name: '公司', description: null, is_default: false, space_count: 1 },
+  ])
+  mockListBoxes.mockResolvedValue([
+    { ...boxes[0], venue_id: 'venue-home', venue_name: '家里' },
+    { ...boxes[1], venue_id: 'venue-office', venue_name: '公司' },
+  ])
+
+  renderBoxes()
+
+  expect(await screen.findByRole('link', { name: '打开露营用品' })).toBeInTheDocument()
+  expect(mockListBoxes).toHaveBeenCalledWith('venue-office')
+  expect(screen.queryByRole('link', { name: '打开冬季衣物' })).not.toBeInTheDocument()
+  expect(screen.getByText('1 个箱子 · 12 件物品')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '全部空间 1' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '卧室 1' })).not.toBeInTheDocument()
 })
 
 test('shows a compact result count on mobile and keeps the desktop wording', async () => {
@@ -402,8 +442,9 @@ test('closes, refreshes, announces success, renders the new card, and restores f
   await screen.findByRole('link', { name: '打开冬季衣物' })
   const createButton = screen.getByRole('button', { name: '创建箱子' })
   const title = screen.getByRole('heading', { name: '全部箱子', level: 1 })
-  expect(title.parentElement).toContainElement(createButton)
-  expect(title.parentElement).toHaveClass('flex', 'items-center', 'justify-between')
+  expect(title.parentElement).toHaveTextContent('家里')
+  expect(title.parentElement?.parentElement).toContainElement(createButton)
+  expect(title.parentElement?.parentElement).toHaveClass('flex', 'items-center', 'justify-between')
   expect(createButton).toHaveClass('size-11', 'shrink-0', 'bg-brand')
   expect(createButton).not.toHaveClass('w-full')
   expect(createButton).toHaveTextContent('')
@@ -524,7 +565,7 @@ test('removes a deleted box and closes the dialog before catalogue revalidation 
   await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
   expect(screen.queryByRole('link', { name: '打开冬季衣物' })).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: '打开露营用品' })).toBeInTheDocument()
-  expect(client.getQueryData(['boxes'])).toEqual([boxes[1]])
+  expect(client.getQueryData(['boxes', 'venue-home'])).toEqual([boxes[1]])
   await waitFor(() => expect(stableCreateAction).toHaveFocus())
   expect(mockListBoxes).toHaveBeenCalledTimes(2)
 

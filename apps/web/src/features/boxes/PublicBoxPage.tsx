@@ -286,10 +286,7 @@ export function PublicBoxPage() {
           </div>
         ) : null}
         {box.items.length === 0 ? (
-          <p className="grid min-h-32 place-content-center justify-items-center gap-2 rounded-[1.25rem] border-0 bg-surface/60 p-8 text-center text-muted lg:rounded-card lg:border lg:border-dashed lg:border-line lg:bg-surface">
-            <AppIcon name="box" size={28} />
-            箱子里还没有物品
-          </p>
+          <PageState state="empty" icon="box" title="箱子里还没有物品" />
         ) : null}
       </section>
 

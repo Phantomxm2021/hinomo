@@ -154,13 +154,12 @@ test('uses the avatar itself as the upload control with a hover cover', async ()
   expect(cover).toHaveClass('absolute', 'opacity-0', 'group-hover:opacity-100')
 })
 
-test('links the mobile brand home without a competing spaces action', () => {
+test('does not render a global brand header on mobile', () => {
   renderShell()
 
-  const mobileHeader = screen.getByRole('banner')
-  expect(mobileHeader).toHaveClass('lg:hidden')
-  expect(within(mobileHeader).getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/app')
-  expect(within(mobileHeader).queryByRole('link', { name: '我的收纳空间' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('banner')).not.toBeInTheDocument()
+  expect(screen.getAllByRole('link', { name: 'Nomo' })).toHaveLength(1)
+  expect(within(screen.getByRole('complementary')).getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/app')
 })
 
 test('keeps mobile content narrow-safe with responsive gutters and nav clearance', () => {
@@ -170,6 +169,7 @@ test('keeps mobile content narrow-safe with responsive gutters and nav clearance
     'min-w-0',
     'px-4',
     'min-[360px]:px-5',
+    'pt-[max(1rem,var(--safe-area-top))]',
     'pb-[calc(8rem+var(--safe-area-bottom))]',
     'lg:px-[clamp(1.75rem,4vw,4rem)]',
   )

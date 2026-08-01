@@ -99,8 +99,8 @@ test('contains only the final Tailwind visual system primitives', () => {
   expect(css).toContain('@media (prefers-reduced-motion: reduce)')
   expect(css).toContain('@media print')
   expect(css).not.toContain('@layer components')
-  expect(css).not.toContain('radial-gradient')
-  for (const selector of ['.panel', '.card-grid', '.form-stack', '.auth-shell', '.quick-actions']) {
+  expect(css).toContain('.scanner-vignette')
+  for (const selector of ['.panel', '.card-grid', '.form-stack', '.quick-actions']) {
     expect(css).not.toContain(selector)
   }
   for (const variable of ['--text:', '--bg:', '--accent:']) {

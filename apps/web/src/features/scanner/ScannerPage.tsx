@@ -89,7 +89,22 @@ export function ScannerPage() {
         <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">对准箱子上的二维码</p>
         <h1 className="m-0 text-page-title font-extrabold text-ink" id="scanner-title">扫码查看</h1>
       </header>
-      <video className="block aspect-[4/5] max-h-[65dvh] w-full overflow-hidden rounded-shell bg-ink object-cover shadow-float md:aspect-video" ref={videoRef} muted playsInline aria-label="二维码扫描画面" />
+      <div className="scanner-camera relative overflow-hidden rounded-shell bg-ink shadow-float">
+        <video className="block aspect-[4/5] max-h-[65dvh] w-full overflow-hidden rounded-shell bg-ink object-cover md:aspect-video" ref={videoRef} muted playsInline aria-label="二维码扫描画面" />
+        {!cameraMessage ? (
+          <div className="scanner-feedback pointer-events-none absolute inset-0" data-testid="scanner-feedback" aria-hidden="true">
+            <span className="scanner-vignette absolute inset-0" />
+            <span className="scanner-target absolute top-1/2 left-1/2 aspect-square w-[min(68%,19rem)] -translate-x-1/2 -translate-y-1/2">
+              <span className="scanner-corner scanner-corner-top-left absolute top-0 left-0" />
+              <span className="scanner-corner scanner-corner-top-right absolute top-0 right-0" />
+              <span className="scanner-corner scanner-corner-bottom-left absolute bottom-0 left-0" />
+              <span className="scanner-corner scanner-corner-bottom-right absolute right-0 bottom-0" />
+              <span className="scanner-beam absolute right-[4%] left-[4%] h-px" />
+              <span className="scanner-focus-dot absolute top-1/2 left-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full" />
+            </span>
+          </div>
+        ) : null}
+      </div>
       {cameraMessage ? <ResponsiveOperationError message={cameraMessage} onRetry={cameraCanRetry ? retryCamera : undefined} retryLabel="重新尝试相机" /> : null}
       {!cameraMessage && cameraCanRetry ? (
         <button className="min-h-12 w-full rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white hover:bg-brand-strong sm:min-h-11 sm:w-auto" type="button" onClick={retryCamera}>

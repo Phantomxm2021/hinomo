@@ -119,6 +119,7 @@ export function PrintPage() {
   ) : allBoxes.length === 0 ? (
     <PageState
       state="empty"
+      icon="print"
       title="请先创建箱子"
       action={(
         <Link className="min-h-11 rounded-control bg-brand px-4 py-2 font-bold text-white hover:bg-brand-strong" to="/app/boxes">
@@ -182,9 +183,7 @@ export function PrintPage() {
         {!isDesktopViewport && mobileBox ? (
           <PrintSheetPreview boxes={[mobileBox]} mode="single" />
         ) : !mobileBox ? (
-          <p className="rounded-card border border-dashed border-line bg-surface/70 p-6 text-center text-sm text-muted">
-            选择一个箱子查看标签预览
-          </p>
+          <PageState state="empty" icon="print" title="选择一个箱子查看标签预览" />
         ) : null}
         <button
           className="inline-flex min-h-12 items-center justify-center gap-2 rounded-control bg-brand px-4 py-2 font-bold text-white hover:bg-brand-strong disabled:cursor-not-allowed disabled:bg-muted focus-visible:ring-2 focus-visible:ring-brand/30"

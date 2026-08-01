@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 import { AuthContext } from '../auth/auth-context'
 import { UserAccountMenu } from './UserAccountMenu'
 
@@ -28,15 +29,17 @@ beforeEach(() => {
 function renderMenu() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <QueryClientProvider client={client}>
-      <AuthContext.Provider value={{
-        session: { user: { id: 'user-1', email: 'user@example.com' } } as Session,
-        loading: false,
-        isPasswordRecovery: false,
-      }}>
-        <UserAccountMenu />
-      </AuthContext.Provider>
-    </QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={client}>
+        <AuthContext.Provider value={{
+          session: { user: { id: 'user-1', email: 'user@example.com' } } as Session,
+          loading: false,
+          isPasswordRecovery: false,
+        }}>
+          <UserAccountMenu />
+        </AuthContext.Provider>
+      </QueryClientProvider>
+    </MemoryRouter>,
   )
 }
 

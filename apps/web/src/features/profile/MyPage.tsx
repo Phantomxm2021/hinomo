@@ -1,22 +1,18 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
-import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
-import { useMobileFeedback } from '../../components/mobile-feedback'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/auth-context'
 import { userDisplayName } from './account-name'
 import { AccountAvatar } from './account-view'
-import { getAvatarDownload, getProfile, updateLocale } from './profile.api'
+import { getAvatarDownload, getProfile } from './profile.api'
 
 export function MyPage() {
   const { session } = useAuth()
-  const feedback = useMobileFeedback()
-  const queryClient = useQueryClient()
   const [confirmingSignOut, setConfirmingSignOut] = useState(false)
   const user = session?.user
   const profileQuery = useQuery({
@@ -28,13 +24,6 @@ export function MyPage() {
     queryKey: ['profile-avatar', user?.id, profileQuery.data?.avatar_object_key],
     queryFn: getAvatarDownload,
     enabled: Boolean(profileQuery.data?.avatar_object_key),
-  })
-  const localeMutation = useMutation({
-    mutationFn: updateLocale,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
-      feedback.notify('设置已保存')
-    },
   })
   const signOutMutation = useMutation({
     mutationFn: async () => {
@@ -75,24 +64,17 @@ export function MyPage() {
             <AppIcon name="chevron-right" className="shrink-0 text-muted" />
           </Link>
 
-          <section className="overflow-hidden rounded-card border-0 bg-surface p-0 shadow-soft lg:grid lg:gap-4 lg:rounded-shell lg:border lg:border-line lg:p-6" role="group" aria-label="偏好设置">
-            <h2 className="m-0 px-4 pt-4 text-meta font-medium text-muted lg:px-0 lg:pt-0 lg:text-section-title lg:font-bold lg:text-ink" id="preferences-title">设置</h2>
-            <label className="flex min-h-12 items-center justify-between gap-4 px-4 text-ink lg:grid lg:gap-2 lg:px-0 lg:font-bold" htmlFor="my-locale">语言
-              <select
-                className="min-h-11 max-w-[60%] border-0 bg-transparent p-0 text-right text-muted outline-none lg:min-h-12 lg:max-w-none lg:rounded-control lg:border lg:border-line lg:bg-canvas lg:px-3 lg:text-left lg:font-normal"
-                id="my-locale"
-                value={(localeMutation.isPending || localeMutation.isSuccess)
-                  ? localeMutation.variables
-                  : profileQuery.data?.locale ?? 'zh-CN'}
-                disabled={localeMutation.isPending}
-                onChange={(event) => localeMutation.mutate(event.target.value as 'zh-CN' | 'en-US')}
-              >
-                <option value="zh-CN">简体中文</option>
-                <option value="en-US">English</option>
-              </select>
-            </label>
-            {localeMutation.isSuccess ? <p className="m-0 hidden text-sm text-muted lg:block" role="status">设置已保存</p> : null}
-            {localeMutation.isError ? <ResponsiveOperationError message="设置保存失败，请重试" /> : null}
+          <section className="overflow-hidden rounded-card border-0 bg-surface shadow-soft lg:rounded-shell lg:border lg:border-line" role="group" aria-label="设置">
+            <Link className="group flex min-h-16 items-center gap-3 px-4 text-inherit no-underline transition-colors hover:bg-canvas lg:px-5" to="/app/me/settings">
+              <span className="grid size-8 shrink-0 place-items-center rounded-[0.6rem] bg-brand text-white shadow-sm">
+                <AppIcon name="settings" size={18} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <strong className="block text-body font-semibold text-ink">设置</strong>
+                <span className="mt-0.5 block truncate text-meta text-muted">通用、语言与地区</span>
+              </span>
+              <AppIcon name="chevron-right" className="shrink-0 text-muted/70 transition-transform group-hover:translate-x-0.5" size={18} />
+            </Link>
           </section>
 
           <section className="overflow-hidden rounded-card border border-danger/15 bg-surface shadow-soft" role="group" aria-label="账户操作">

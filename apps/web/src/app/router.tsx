@@ -12,8 +12,11 @@ import { SearchPage } from '../features/search/SearchPage'
 import { ScannerPage } from '../features/scanner/ScannerPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { SpacesPage } from '../features/spaces/SpacesPage'
+import { VenuesPage } from '../features/venues/VenuesPage'
 import { MyPage } from '../features/profile/MyPage'
 import { AccountDetailsPage } from '../features/profile/AccountDetailsPage'
+import { GeneralSettingsPage } from '../features/profile/GeneralSettingsPage'
+import { SettingsPage } from '../features/profile/SettingsPage'
 import { AppShell } from './AppShell'
 import { RequireAuth } from './RequireAuth'
 import { RootEntry } from './RootEntry'
@@ -47,8 +50,11 @@ export const router = createBrowserRouter([
           { path: 'scan', element: <ScannerPage /> },
           { path: 'print', element: <PrintPage /> },
           { path: 'spaces', element: <SpacesPage /> },
+          { path: 'venues', element: <VenuesPage /> },
           { path: 'me', element: <MyPage /> },
           { path: 'me/account', element: <AccountDetailsPage /> },
+          { path: 'me/settings', element: <SettingsPage /> },
+          { path: 'me/settings/general', element: <GeneralSettingsPage /> },
           { path: '*', element: <Navigate replace to="/app" /> },
         ],
       },

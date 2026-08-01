@@ -69,22 +69,19 @@ test('shows an email summary that opens the account details page', async () => {
   expect(screen.queryByLabelText('邮箱')).not.toBeInTheDocument()
 })
 
-test('updates locale through the profile API', async () => {
-  const user = userEvent.setup()
+test('moves preferences into the settings hierarchy', async () => {
   renderPage()
 
   await screen.findByRole('link', { name: /林家.*lin@example.com/ })
-
-  await user.selectOptions(screen.getByLabelText('语言'), 'en-US')
-  await waitFor(() => expect(mockUpdateLocale.mock.calls[0]?.[0]).toBe('en-US'))
-  expect(await screen.findByRole('status', { name: '' })).toHaveTextContent('设置已保存')
+  expect(screen.getByRole('link', { name: /设置.*通用、语言与地区/ })).toHaveAttribute('href', '/app/me/settings')
+  expect(screen.queryByLabelText('语言')).not.toBeInTheDocument()
 })
 
 test('uses native-style grouped rows for the mobile preferences page', async () => {
   renderPage()
 
   await screen.findByRole('link', { name: /林家.*lin@example.com/ })
-  const preferencesGroup = screen.getByRole('group', { name: '偏好设置' })
+  const preferencesGroup = screen.getByRole('group', { name: '设置' })
   const accountActionGroup = screen.getByRole('group', { name: '账户操作' })
 
   expect(preferencesGroup).toHaveClass('rounded-card', 'bg-surface', 'overflow-hidden')

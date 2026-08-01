@@ -14,7 +14,7 @@ export default defineConfig({
       manifest: {
         name: 'Nomo 智能收纳',
         short_name: 'Nomo',
-        description: '用二维码管理收纳箱和物品清单',
+        description: '收起来，也找得回来。Nomo 帮你记住家中每件物品的位置。',
         lang: 'zh-CN',
         display: 'standalone',
         theme_color: '#df6538',

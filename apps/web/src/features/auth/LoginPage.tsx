@@ -40,34 +40,41 @@ export function LoginPage() {
   })
 
   return (
-    <main>
+    <main className="auth-login">
       <h1>登录</h1>
-      <form onSubmit={submit} noValidate>
-        <label htmlFor="login-email">邮箱</label>
-        <input
-          id="login-email"
-          type="email"
-          autoComplete="email"
-          aria-invalid={Boolean(errors.email)}
-          aria-describedby={errors.email ? 'login-email-error' : undefined}
-          {...register('email')}
-        />
-        {errors.email ? <p id="login-email-error" role="alert">{errors.email.message}</p> : null}
+      <form className="auth-login-form" onSubmit={submit} noValidate>
+        <div className="auth-field">
+          <label htmlFor="login-email">邮箱</label>
+          <input
+            id="login-email"
+            type="email"
+            autoComplete="email"
+            placeholder="name@example.com"
+            aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? 'login-email-error' : undefined}
+            {...register('email')}
+          />
+          {errors.email ? <p id="login-email-error" role="alert">{errors.email.message}</p> : null}
+        </div>
 
-        <label htmlFor="login-password">密码</label>
-        <input
-          id="login-password"
-          type="password"
-          autoComplete="current-password"
-          aria-invalid={Boolean(errors.password)}
-          aria-describedby={errors.password ? 'login-password-error' : undefined}
-          {...register('password')}
-        />
-        {errors.password ? <p id="login-password-error" role="alert">{errors.password.message}</p> : null}
+        <div className="auth-field">
+          <label htmlFor="login-password">密码</label>
+          <input
+            id="login-password"
+            type="password"
+            autoComplete="current-password"
+            placeholder="输入密码"
+            aria-invalid={Boolean(errors.password)}
+            aria-describedby={errors.password ? 'login-password-error' : undefined}
+            {...register('password')}
+          />
+          {errors.password ? <p id="login-password-error" role="alert">{errors.password.message}</p> : null}
+        </div>
 
         {submitError ? <ResponsiveOperationError message={submitError} /> : null}
         <button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? '登录中…' : '登录'}
+          <span>{isSubmitting ? '登录中…' : '登录'}</span>
+          <span aria-hidden="true">→</span>
         </button>
       </form>
       <nav aria-label="认证选项">

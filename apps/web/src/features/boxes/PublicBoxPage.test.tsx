@@ -74,14 +74,13 @@ test('shows a structured skeleton while the public box is loading', () => {
   )
 })
 
-test('keeps the initial public-box error inside the responsive main gutter', async () => {
+test('shows the initial public-box error in the global responsive alert layer', async () => {
   mockGetBoxByPublicId.mockRejectedValue(new Error('network'))
   renderPublicBox()
 
   const alert = await screen.findByRole('alert')
-  const main = alert.closest('main')
-  expect(main).not.toBeNull()
-  expect(main).toHaveClass('px-4', 'min-[360px]:px-5', 'lg:px-8')
+  expect(alert.closest('main')).toBeNull()
+  expect(alert.parentElement).toHaveClass('fixed', 'inset-0')
   expect(alert).toHaveTextContent('无权限或内容不存在')
 })
 
@@ -289,11 +288,9 @@ test('opens the item form from the mobile action menu', async () => {
   })
   renderPublicBox({ user: { id: 'owner-1' } } as Session)
 
-  expect(await screen.findByText('箱子里还没有物品')).toHaveClass(
-    'border-0',
-    'lg:border',
-    'lg:border-dashed',
-  )
+  const emptyTitle = await screen.findByRole('heading', { name: '箱子里还没有物品' })
+  const emptyState = emptyTitle.closest('[data-page-state="empty"]')
+  expect(emptyState).not.toHaveClass('border', 'border-dashed', 'bg-surface/70')
   await user.click(await screen.findByRole('button', { name: '打开箱子操作菜单' }))
   await user.click(within(screen.getByRole('dialog', { name: '箱子操作' })).getByRole('button', { name: '新增物品' }))
   expect(screen.getByRole('heading', { name: '新增物品' })).toBeInTheDocument()

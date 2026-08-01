@@ -20,6 +20,7 @@ export type CreatedBox = {
 
 export type BoxSummary = CreatedBox & {
   space_id: string
+  venue_id?: string
   location: string | null
   visibility: Database['public']['Enums']['box_visibility']
   space_name: string
@@ -136,14 +137,27 @@ export async function getBox(boxId: string): Promise<EditableBox> {
 }
 
 export async function listBoxes(): Promise<BoxSummary[]> {
+  return listBoxesByVenue()
+}
+
+export async function listBoxesForVenue(venueId: string): Promise<BoxSummary[]> {
+  return listBoxesByVenue(venueId)
+}
+
+async function listBoxesByVenue(venueId?: string): Promise<BoxSummary[]> {
   const { data: sessionData } = await supabase.auth.getSession()
   const ownerId = sessionData.session?.user.id
   if (!ownerId) throw new Error('authentication is required')
 
-  const modern = await supabase
+  const venueRelation = venueId
+    ? 'spaces!inner(venue_id, name, venues(name))'
+    : 'spaces(venue_id, name, venues(name))'
+  let modernQuery = supabase
     .from('boxes')
-    .select('id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), spaces(name, venues(name))')
+    .select(`id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), ${venueRelation}`)
     .eq('owner_id', ownerId)
+  if (venueId) modernQuery = modernQuery.eq('spaces.venue_id', venueId)
+  const modern = await modernQuery
     .order('updated_at', { ascending: false })
 
   if (!modern.error) return mapBoxRows(modern.data ?? [])
@@ -169,7 +183,7 @@ type BoxListRow = {
   cover_object_key: string | null
   updated_at: string
   items: Array<{ count: number }>
-  spaces: { name: string; venues?: { name: string } | null } | null
+  spaces: { venue_id?: string; name: string; venues?: { name: string } | null } | null
 }
 
 function mapBoxRows(rows: BoxListRow[]): BoxSummary[] {
@@ -181,6 +195,7 @@ function mapBoxRows(rows: BoxListRow[]): BoxSummary[] {
     name: box.name,
     location: box.location,
     visibility: box.visibility,
+    ...(box.spaces?.venue_id ? { venue_id: box.spaces.venue_id } : {}),
     space_name: box.spaces?.name ?? '',
     venue_name: box.spaces?.venues?.name ?? '',
     cover_object_key: box.cover_object_key,

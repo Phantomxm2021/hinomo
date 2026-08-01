@@ -161,6 +161,7 @@ test('keeps the create editor closed until the prominent action is used', async 
 
 test('filters by venue and defaults a new space to the selected venue', async () => {
   const user = userEvent.setup()
+  mockStorageGetItem.mockImplementation((key: string) => key === 'nomo-selected-venue-id' ? 'venue-office' : null)
   mockListVenues.mockResolvedValue([
     { id: 'venue-home', name: '家里', description: null, space_count: 1 },
     { id: 'venue-office', name: '公司', description: null, space_count: 1 },
@@ -171,7 +172,10 @@ test('filters by venue and defaults a new space to the selected venue', async ()
   ])
   renderSpaces()
 
-  await user.click(await screen.findByRole('button', { name: '公司，1 个空间' }))
+  const title = screen.getByRole('heading', { name: '空间', level: 1 })
+  expect(await within(title.parentElement!).findByText('公司')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '全部' })).not.toBeInTheDocument()
+  expect(screen.queryByLabelText('场地筛选')).not.toBeInTheDocument()
   expect(screen.getByRole('heading', { name: '会议室' })).toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: '卧室' })).not.toBeInTheDocument()
 
@@ -180,7 +184,7 @@ test('filters by venue and defaults a new space to the selected venue', async ()
 })
 
 test('shows a plain empty state when the selected venue has no spaces', async () => {
-  const user = userEvent.setup()
+  mockStorageGetItem.mockImplementation((key: string) => key === 'nomo-selected-venue-id' ? 'venue-office' : null)
   mockListVenues.mockResolvedValue([
     { id: 'venue-home', name: '家里', description: null, is_default: true, space_count: 1 },
     { id: 'venue-office', name: '公司', description: null, is_default: false, space_count: 0 },
@@ -190,8 +194,8 @@ test('shows a plain empty state when the selected venue has no spaces', async ()
   ])
   renderSpaces()
 
-  await user.click(await screen.findByRole('button', { name: '公司，0 个空间' }))
-
+  const title = screen.getByRole('heading', { name: '空间', level: 1 })
+  expect(await within(title.parentElement!).findByText('公司')).toBeInTheDocument()
   expect(screen.getByText('还没有空间')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '创建第一个空间' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '卡片视图' })).not.toBeInTheDocument()
@@ -207,8 +211,9 @@ test('keeps the mobile create action compact and aligned with the space title', 
   await screen.findByText('还没有空间')
   const headerCreate = screen.getByRole('button', { name: '创建空间' })
   const title = screen.getByRole('heading', { name: '空间', level: 1 })
-  expect(title.parentElement).toContainElement(headerCreate)
-  expect(title.parentElement).toHaveClass('flex', 'items-center', 'justify-between')
+  expect(title.parentElement).toHaveTextContent('家里')
+  expect(title.parentElement?.parentElement).toContainElement(headerCreate)
+  expect(title.parentElement?.parentElement).toHaveClass('flex', 'items-center', 'justify-between')
   expect(headerCreate).toHaveClass('size-11', 'shrink-0')
   expect(headerCreate).not.toHaveClass('w-full')
   expect(headerCreate).toHaveTextContent('')
