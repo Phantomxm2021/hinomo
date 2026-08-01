@@ -517,7 +517,7 @@ export function SpacesPage() {
               </button>
             ) : null}
           </div>
-          {view === 'plan' && layoutEditMode ? <p className="text-meta text-muted" role="status">拖动空间卡片或使用尺寸滑杆调整。{layoutsQuery.isSuccess ? '布局会自动保存。' : '当前调整仅保留在页面中。'}</p> : null}
+          {view === 'plan' && layoutEditMode ? <p className="text-meta text-muted" role="status">拖动卡片移动位置；拖动右下角调整尺寸。{layoutsQuery.isSuccess ? '布局会自动保存。' : '当前调整仅保留在页面中。'}</p> : null}
           {view === 'plan' && layoutStorageUnavailable ? <ResponsiveOperationError message="布局保存尚未启用，请先执行 space_layouts 数据库迁移。当前仍可浏览自动布局。" /> : null}
           {view === 'plan' && layoutsQuery.isError && !layoutStorageUnavailable ? <ResponsiveOperationError message="布局加载失败；当前显示自动布局。" busy={layoutsQuery.isFetching} retryLabel="重试布局" onRetry={() => void layoutsQuery.refetch()} /> : null}
           {layoutMutation.isError ? (

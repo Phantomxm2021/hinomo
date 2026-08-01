@@ -45,7 +45,7 @@ test('resizes freely while constraining size to canvas boundaries', () => {
   })
 })
 
-test('offers touch-friendly width and length controls for the selected space', () => {
+test('resizes from the card lower-right corner without showing controls', () => {
   const onLayoutChange = vi.fn()
   render(
     <MemoryRouter>
@@ -58,19 +58,23 @@ test('offers touch-friendly width and length controls for the selected space', (
     </MemoryRouter>,
   )
 
-  expect(screen.getByRole('region', { name: '调整客厅尺寸' })).toBeInTheDocument()
-  expect(screen.getByRole('region', { name: '调整客厅尺寸' })).toHaveClass(
-    'fixed',
-    'bottom-[calc(4.75rem+var(--safe-area-bottom))]',
-    'lg:static',
-  )
-  const width = screen.getByRole('slider', { name: '客厅宽度' })
-  const length = screen.getByRole('slider', { name: '客厅长度' })
-  fireEvent.change(width, { target: { value: '70' } })
-  fireEvent.change(length, { target: { value: '64' } })
+  expect(screen.queryByRole('region', { name: '调整客厅尺寸' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('slider', { name: '客厅宽度' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('slider', { name: '客厅长度' })).not.toBeInTheDocument()
 
-  expect(onLayoutChange).toHaveBeenNthCalledWith(1, 's1', { x: 10, y: 10, width: 70, height: 30 })
-  expect(onLayoutChange).toHaveBeenNthCalledWith(2, 's1', { x: 10, y: 10, width: 70, height: 64 })
+  const map = screen.getByRole('region', { name: '空间平面总览' })
+  vi.spyOn(map, 'getBoundingClientRect').mockReturnValue({
+    bottom: 500, height: 500, left: 0, right: 1000, top: 0, width: 1000, x: 0, y: 0, toJSON: () => ({}),
+  })
+  const room = screen.getByRole('button', { name: '调整客厅位置和尺寸' })
+  vi.spyOn(room, 'getBoundingClientRect').mockReturnValue({
+    bottom: 250, height: 150, left: 100, right: 500, top: 100, width: 400, x: 100, y: 100, toJSON: () => ({}),
+  })
+  fireEvent.pointerDown(room, { clientX: 495, clientY: 245, pointerId: 1 })
+  fireEvent.pointerMove(room, { clientX: 695, clientY: 345, pointerId: 1 })
+  fireEvent.pointerUp(room, { pointerId: 1 })
+
+  expect(onLayoutChange).toHaveBeenCalledWith('s1', { x: 10, y: 10, width: 60, height: 50 })
 })
 
 test('renders room graphics and links to filtered boxes', () => {
@@ -103,7 +107,7 @@ test('moves a focused room by two percent with arrow keys in edit mode', () => {
     </MemoryRouter>,
   )
 
-  fireEvent.keyDown(screen.getByRole('button', { name: '调整客厅位置' }), { key: 'ArrowRight' })
+  fireEvent.keyDown(screen.getByRole('button', { name: '调整客厅位置和尺寸' }), { key: 'ArrowRight' })
 
   expect(onLayoutChange).toHaveBeenCalledWith('s1', {
     x: 6, y: 4, width: 44, height: 42,
@@ -121,7 +125,7 @@ test('drags an entire edit-mode card to commit its resulting position', () => {
   vi.spyOn(map, 'getBoundingClientRect').mockReturnValue({
     bottom: 500, height: 500, left: 0, right: 1000, top: 0, width: 1000, x: 0, y: 0, toJSON: () => ({}),
   })
-  const room = screen.getByRole('button', { name: '调整客厅位置' })
+  const room = screen.getByRole('button', { name: '调整客厅位置和尺寸' })
 
   fireEvent.pointerDown(room, { clientX: 0, clientY: 0, pointerId: 1 })
   expect(room).toHaveClass('touch-none')
@@ -138,7 +142,7 @@ test('clears an interrupted pointer drag without saving', () => {
       <SpaceMap spaces={[spaces[0]]} layouts={[]} editMode onLayoutChange={onLayoutChange} />
     </MemoryRouter>,
   )
-  const room = screen.getByRole('button', { name: '调整客厅位置' })
+  const room = screen.getByRole('button', { name: '调整客厅位置和尺寸' })
   const originalStyle = room.getAttribute('style')
   fireEvent.pointerDown(room, { clientX: 0, clientY: 0, pointerId: 1 })
   fireEvent.pointerMove(room, { clientX: 100, clientY: 50, pointerId: 1 })
@@ -149,7 +153,7 @@ test('clears an interrupted pointer drag without saving', () => {
   expect(room).toHaveAttribute('style', originalStyle)
 })
 
-test('uses selected-card sliders for free sizing without floating resize handles', () => {
+test('keeps direct manipulation free of resize controls', () => {
   const onLayoutChange = vi.fn()
   render(
     <MemoryRouter>
@@ -165,6 +169,4 @@ test('uses selected-card sliders for free sizing without floating resize handles
   expect(screen.queryByRole('button', { name: '调整客厅宽度' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '调整客厅长度' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '调整客厅大小' })).not.toBeInTheDocument()
-  expect(screen.getByRole('slider', { name: '客厅宽度' })).toHaveAttribute('step', '1')
-  expect(screen.getByRole('slider', { name: '客厅长度' })).toHaveAttribute('step', '1')
 })
