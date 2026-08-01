@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { AppIcon } from '../../components/AppIcon'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { useMobileFeedback } from '../../components/mobile-feedback'
+import { AuthorizedImage } from '../media/AuthorizedImage'
 import { isUploadPending, uploadStageLabel } from '../media/media-ui'
 import { useMediaUpload } from '../media/useMediaUpload'
 import { itemSchema, type ItemFormValues } from './item.schema'
@@ -21,12 +22,17 @@ type ItemFormProps = {
 export function ItemForm({ boxId, item, onSaved, onCancel, onDelete }: ItemFormProps) {
   const feedback = useMobileFeedback()
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
   const [pendingItemId, setPendingItemId] = useState<string | null>(null)
   const [mediaError, setMediaError] = useState(false)
   const retryImageUploadRef = useRef<() => void>(() => undefined)
   const finishWithoutImageRef = useRef(onSaved)
   const mediaUpload = useMediaUpload()
   const mediaStatus = uploadStageLabel(mediaUpload.stage)
+
+  useEffect(() => () => {
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
+  }, [imagePreviewUrl])
   const mutation = useMutation({
     mutationFn: async (values: ItemFormValues) => {
       const input = {
@@ -120,13 +126,20 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete }: ItemFormP
       </h2>
       <div className="grid gap-2">
         <label className="font-bold text-ink" htmlFor="item-image">物品图片（可选）</label>
+        {imagePreviewUrl ? <img className="aspect-[4/3] w-full rounded-control object-cover" src={imagePreviewUrl} alt="待上传物品图片预览" /> : null}
+        {!imagePreviewUrl && item?.image_object_key ? <AuthorizedImage objectKey={item.image_object_key} alt={`${item.name}图片预览`} className="aspect-[4/3] w-full rounded-control object-cover" /> : null}
         <input
           className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 py-2 text-ink file:mr-3 file:rounded-lg file:border-0 file:bg-placeholder file:px-3 file:py-2 file:font-bold file:text-ink"
           id="item-image"
           type="file"
           accept="image/jpeg,image/png,image/webp"
           onChange={(event) => {
-            setImageFile(event.target.files?.[0] ?? null)
+            const nextImage = event.target.files?.[0] ?? null
+            setImageFile(nextImage)
+            setImagePreviewUrl((current) => {
+              if (current) URL.revokeObjectURL(current)
+              return nextImage ? URL.createObjectURL(nextImage) : null
+            })
             setMediaError(false)
             mediaUpload.reset()
           }}

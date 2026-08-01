@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { MobileActionSheet } from '../../components/MobileActionSheet'
 import { PageState } from '../../components/PageState'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
@@ -21,9 +22,10 @@ export function PublicBoxPage() {
   const { session } = useAuth()
   const queryClient = useQueryClient()
   const desktopAddItemButtonRef = useRef<HTMLButtonElement | null>(null)
-  const mobileAddItemButtonRef = useRef<HTMLButtonElement | null>(null)
+  const mobileActionsButtonRef = useRef<HTMLButtonElement | null>(null)
   const deleteReturnFocusRef = useRef<HTMLElement | null>(null)
   const [showItemForm, setShowItemForm] = useState(false)
+  const [showMobileActions, setShowMobileActions] = useState(false)
   const [editingItem, setEditingItem] = useState<ItemRecord | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ItemRecord | null>(null)
   const [printError, setPrintError] = useState(false)
@@ -38,7 +40,7 @@ export function PublicBoxPage() {
     onSuccess: async () => {
       deleteReturnFocusRef.current = window.matchMedia('(min-width: 48rem)').matches
         ? desktopAddItemButtonRef.current
-        : mobileAddItemButtonRef.current
+        : mobileActionsButtonRef.current
       setDeleteTarget(null)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['box', publicId] }),
@@ -120,24 +122,19 @@ export function PublicBoxPage() {
             <AppIcon className="rotate-180" name="chevron-right" size={22} />
           </button>
         </div>
-        <span className="pb-2 text-center text-[1.0625rem] leading-none font-bold text-ink">箱子详情</span>
+        <span className="truncate pb-2 text-center text-[1.0625rem] leading-none font-bold text-ink">{box.name} · 箱子详情</span>
         <div className="flex justify-end gap-1" aria-label={isOwner ? '箱子工具' : undefined} aria-hidden={isOwner ? undefined : true}>
           {isOwner ? (
-            <>
-              <Link className="inline-flex size-11 items-center justify-center rounded-full text-ink no-underline active:bg-placeholder/70 active:opacity-70" to={`/app/boxes/${box.id}/edit`} aria-label="编辑箱子">
-                <AppIcon name="edit" />
-              </Link>
-              <button className="inline-flex size-11 items-center justify-center rounded-full text-ink active:bg-placeholder/70 active:opacity-70 disabled:opacity-40" type="button" aria-label="打印标签" disabled={printing} onClick={() => void printLabel()}>
-                <AppIcon name="print" />
-              </button>
-            </>
+            <button ref={mobileActionsButtonRef} className="inline-flex size-11 items-center justify-center rounded-full text-ink active:bg-placeholder/70 active:opacity-70" type="button" aria-label="打开箱子操作菜单" onClick={() => setShowMobileActions(true)}>
+              <AppIcon name="plus" size={24} />
+            </button>
           ) : null}
         </div>
       </nav>
       {boxQuery.isError ? (
         <ResponsiveOperationError message="箱子刷新失败，正在显示上次内容" busy={boxQuery.isFetching} onRetry={() => void boxQuery.refetch()} />
       ) : null}
-      <section data-testid="box-summary" className="grid gap-4 border-0 bg-transparent p-0 lg:grid-cols-[minmax(16rem,0.8fr)_1.2fr] lg:gap-6 lg:rounded-shell lg:border lg:border-line lg:bg-surface lg:p-5">
+      <section data-testid="box-summary" className="hidden gap-4 border-0 bg-transparent p-0 lg:grid lg:grid-cols-[minmax(16rem,0.8fr)_1.2fr] lg:gap-6 lg:rounded-shell lg:border lg:border-line lg:bg-surface lg:p-5">
         <div data-testid="box-cover" className="hidden aspect-[4/3] min-h-0 overflow-hidden rounded-[1.5rem] bg-placeholder lg:block lg:min-h-56 lg:rounded-card">
           {box.cover_object_key ? (
             <AuthorizedImage objectKey={box.cover_object_key} alt={`${box.name}封面`} className="h-full w-full object-cover" />
@@ -182,6 +179,17 @@ export function PublicBoxPage() {
       </section>
       {printError ? <ResponsiveOperationError message="PDF 生成失败，请重试" onRetry={() => void printLabel()} /> : null}
 
+      <MobileActionSheet
+        open={isOwner && showMobileActions}
+        title="箱子操作"
+        onClose={() => setShowMobileActions(false)}
+        actions={[
+          { label: '新增物品', onSelect: openNewItem },
+          { label: '编辑箱子', onSelect: () => navigate(`/app/boxes/${box.id}/edit`) },
+          { label: printing ? '正在生成标签…' : '打印标签', disabled: printing, onSelect: () => void printLabel() },
+        ]}
+      />
+
       {isOwner && (showItemForm || editingItem) ? (
         <div className="fixed inset-0 z-40 flex items-end bg-ink/30 lg:static lg:block lg:bg-transparent" role="dialog" aria-modal="true" aria-labelledby="item-form-title">
           <div className="max-h-[calc(100dvh-var(--safe-area-top))] w-full overflow-y-auto rounded-t-[1.5rem] bg-canvas pb-[max(1rem,var(--safe-area-bottom))] shadow-float lg:max-h-none lg:overflow-visible lg:rounded-none lg:bg-transparent lg:p-0 lg:shadow-none">
@@ -194,7 +202,7 @@ export function PublicBoxPage() {
                 onSaved={() => void refreshItems()}
                 onCancel={() => { setShowItemForm(false); setEditingItem(null) }}
                 onDelete={editingItem ? () => {
-                  deleteReturnFocusRef.current = mobileAddItemButtonRef.current
+                  deleteReturnFocusRef.current = mobileActionsButtonRef.current
                   setShowItemForm(false)
                   setEditingItem(null)
                   setDeleteTarget(editingItem)
@@ -284,18 +292,6 @@ export function PublicBoxPage() {
           </p>
         ) : null}
       </section>
-
-      {isOwner && !showItemForm && !editingItem ? (
-        <button
-          ref={mobileAddItemButtonRef}
-          className="fixed inset-x-4 bottom-[max(1rem,var(--safe-area-bottom))] z-20 inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] border border-brand bg-brand px-5 font-extrabold text-white shadow-float active:opacity-80 min-[360px]:inset-x-5 lg:hidden"
-          type="button"
-          aria-label="移动端新增物品"
-          onClick={openNewItem}
-        >
-          <AppIcon name="plus" />新增物品
-        </button>
-      ) : null}
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}

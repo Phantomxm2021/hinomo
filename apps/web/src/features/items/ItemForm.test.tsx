@@ -13,10 +13,14 @@ vi.mock('./items.api', () => ({ createItem: mockCreateItem, updateItem: mockUpda
 vi.mock('../media/useMediaUpload', () => ({
   useMediaUpload: () => ({ stage: 'idle', upload: mockUpload, reset: vi.fn() }),
 }))
+vi.mock('../media/AuthorizedImage', () => ({
+  AuthorizedImage: ({ alt }: { alt: string }) => <img alt={alt} src="signed:image" />,
+}))
 beforeEach(() => {
   mockCreateItem.mockReset()
   mockUpdateItem.mockReset()
   mockUpload.mockReset()
+  vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:item-preview'), revokeObjectURL: vi.fn() })
 })
 afterEach(cleanup)
 
@@ -82,6 +86,30 @@ test('shows media before item details in the visual field order', () => {
     '数量',
     '描述（可选）',
   ])
+})
+
+test('shows the existing item image above the add-image control', () => {
+  const client = new QueryClient()
+  render(
+    <QueryClientProvider client={client}>
+      <ItemForm boxId="box-1" item={{ id: 'item-1', name: '锤子', category: null, quantity: 1, description: null, image_object_key: 'items/item-1.webp' }} onSaved={vi.fn()} />
+    </QueryClientProvider>,
+  )
+
+  expect(screen.getByRole('img', { name: '锤子图片预览' })).toBeInTheDocument()
+})
+
+test('shows a local preview after choosing an item image', async () => {
+  const user = userEvent.setup()
+  const client = new QueryClient()
+  render(
+    <QueryClientProvider client={client}>
+      <ItemForm boxId="box-1" onSaved={vi.fn()} />
+    </QueryClientProvider>,
+  )
+
+  await user.upload(screen.getByLabelText('物品图片（可选）'), new File(['image'], 'hammer.webp', { type: 'image/webp' }))
+  expect(screen.getByRole('img', { name: '待上传物品图片预览' })).toBeInTheDocument()
 })
 
 test('keeps mobile actions above the public-page safe area', () => {

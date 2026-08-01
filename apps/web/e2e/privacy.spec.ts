@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { createBox, createMockState, createSpace, installMockBackend, register } from './mock-backend'
 
-test('private details and the owner catalogue stay scoped to the current account', async ({ browser, page }) => {
+test('private details and the owner catalogue stay scoped to the current account', async ({ browser, page }, testInfo) => {
   const state = createMockState()
   await installMockBackend(page, state)
   await register(page, 'owner@example.com')
@@ -16,8 +16,12 @@ test('private details and the owner catalogue stay scoped to the current account
   await anonymous.goto(privateUrl)
   await expect(anonymous.getByRole('heading', { name: '无权限或内容不存在' })).toBeVisible()
   await anonymous.goto(publicUrl)
-  await expect(anonymous.getByRole('heading', { name: '公开纪念品' })).toBeVisible()
-  await expect(anonymous.getByText('公开箱子')).toBeVisible()
+  if (testInfo.project.name === 'desktop-chromium') {
+    await expect(anonymous.getByRole('heading', { name: '公开纪念品' })).toBeVisible()
+    await expect(anonymous.getByText('公开箱子')).toBeVisible()
+  } else {
+    await expect(anonymous.getByRole('navigation', { name: '箱子详情导航' }).getByText('公开纪念品 · 箱子详情', { exact: true })).toBeVisible()
+  }
 
   const otherContext = await browser.newContext()
   const other = await otherContext.newPage()

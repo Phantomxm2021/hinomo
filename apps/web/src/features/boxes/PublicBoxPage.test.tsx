@@ -133,7 +133,7 @@ test('renders a public box for an anonymous visitor without edit controls', asyn
   expect(await screen.findByRole('heading', { name: '冬季衣物' })).toBeInTheDocument()
   const navigation = screen.getByRole('navigation', { name: '箱子详情导航' })
   expect(within(navigation).getByRole('button', { name: '返回' })).toBeInTheDocument()
-  expect(within(navigation).getByText('箱子详情')).toBeInTheDocument()
+  expect(within(navigation).getByText('冬季衣物 · 箱子详情')).toBeInTheDocument()
   expect(within(navigation).queryByRole('link', { name: '编辑箱子' })).not.toBeInTheDocument()
   expect(within(navigation).queryByRole('button', { name: '打印标签' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '新增物品' })).not.toBeInTheDocument()
@@ -163,6 +163,7 @@ test('renders a public box for an anonymous visitor without edit controls', asyn
   )
   expect(screen.getByTestId('box-detail-facts')).toHaveClass('hidden', 'lg:contents')
   expect(screen.getByTestId('box-cover')).toHaveClass('hidden', 'lg:block')
+  expect(screen.getByTestId('box-summary')).toHaveClass('hidden', 'lg:grid')
 })
 
 test('shows item controls only to the box owner', async () => {
@@ -178,9 +179,8 @@ test('shows item controls only to the box owner', async () => {
   expect(await screen.findByRole('button', { name: '新增物品' })).toBeInTheDocument()
   const navigation = screen.getByRole('navigation', { name: '箱子详情导航' })
   expect(within(navigation).getByRole('button', { name: '返回' })).toBeInTheDocument()
-  expect(within(navigation).getByRole('link', { name: '编辑箱子' })).toHaveAttribute('href', '/app/boxes/box-1/edit')
-  expect(within(navigation).getByRole('link', { name: '编辑箱子' })).toHaveTextContent('')
-  expect(within(navigation).getByRole('button', { name: '打印标签' })).toHaveTextContent('')
+  expect(within(navigation).getByText('工具 · 箱子详情')).toBeInTheDocument()
+  expect(within(navigation).getByRole('button', { name: '打开箱子操作菜单' })).toBeInTheDocument()
   const desktopActions = screen.getByTestId('desktop-box-actions')
   expect(desktopActions).toHaveClass('hidden', 'lg:flex')
   expect(within(desktopActions).getByRole('link', { name: '编辑箱子' })).toHaveAttribute('href', '/app/boxes/box-1/edit')
@@ -192,17 +192,28 @@ test('shows item controls only to the box owner', async () => {
   expect(screen.getByText(/最近更新/)).toBeInTheDocument()
   expect(screen.getByText('车库 · 未填写位置')).toBeInTheDocument()
   expect(screen.getByText('暂无封面')).toBeInTheDocument()
-  const mobileAdd = screen.getByRole('button', { name: '移动端新增物品' })
-  expect(mobileAdd).toHaveClass(
-    'fixed',
-    'inset-x-4',
-    'min-[360px]:inset-x-5',
-    'bottom-[max(1rem,var(--safe-area-bottom))]',
-  )
+  expect(screen.queryByRole('button', { name: '移动端新增物品' })).not.toBeInTheDocument()
   expect(screen.getByRole('main')).toHaveClass(
     'pb-[calc(6rem+var(--safe-area-bottom))]',
     'lg:pb-10',
   )
+})
+
+test('opens the mobile plus menu with the owner box actions', async () => {
+  const user = userEvent.setup()
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    space_id: 'space-1', name: '工具', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z', items: [],
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session)
+
+  await user.click(await screen.findByRole('button', { name: '打开箱子操作菜单' }))
+  const menu = screen.getByRole('dialog', { name: '箱子操作' })
+  expect(within(menu).getByRole('button', { name: '新增物品' })).toBeInTheDocument()
+  expect(within(menu).getByRole('button', { name: '编辑箱子' })).toBeInTheDocument()
+  expect(within(menu).getByRole('button', { name: '打印标签' })).toBeInTheDocument()
 })
 
 test('returns to the previous route from the mobile detail navigation', async () => {
@@ -240,7 +251,7 @@ test('restores focus to a programmatically activated delete trigger on Escape', 
 
 test.each([
   { matches: true, targetName: '新增物品', viewport: 'desktop' },
-  { matches: false, targetName: '移动端新增物品', viewport: 'mobile' },
+  { matches: false, targetName: '打开箱子操作菜单', viewport: 'mobile' },
 ])('focuses the persistent $viewport add-item action after deleting an item', async ({ matches, targetName }) => {
   const user = userEvent.setup()
   const box = {
@@ -268,7 +279,7 @@ test.each([
   expect(screen.getByRole('button', { name: targetName })).toHaveFocus()
 })
 
-test('hides the mobile add action while the item form is open', async () => {
+test('opens the item form from the mobile action menu', async () => {
   const user = userEvent.setup()
   mockGetBoxByPublicId.mockResolvedValue({
     id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
@@ -283,10 +294,11 @@ test('hides the mobile add action while the item form is open', async () => {
     'lg:border',
     'lg:border-dashed',
   )
-  await user.click(await screen.findByRole('button', { name: '移动端新增物品' }))
+  await user.click(await screen.findByRole('button', { name: '打开箱子操作菜单' }))
+  await user.click(within(screen.getByRole('dialog', { name: '箱子操作' })).getByRole('button', { name: '新增物品' }))
   expect(screen.getByRole('heading', { name: '新增物品' })).toBeInTheDocument()
   expect(screen.getByRole('dialog', { name: '新增物品' })).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: '移动端新增物品' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '打开箱子操作菜单' })).toBeInTheDocument()
 })
 
 test('opens an item in the mobile list editor instead of showing inline controls', async () => {

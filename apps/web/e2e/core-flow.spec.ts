@@ -41,6 +41,15 @@ async function expectMobileNavigation(page: Parameters<typeof installMockBackend
   await expect(page.getByRole('link', { name: '扫码查看' })).toBeHidden()
 }
 
+async function expectBoxDetailTitle(page: Parameters<typeof installMockBackend>[0], name: string, mobile: boolean) {
+  const mobileNavigation = page.getByRole('navigation', { name: '箱子详情导航' })
+  if (mobile) {
+    await expect(mobileNavigation.getByText(`${name} · 箱子详情`, { exact: true })).toBeVisible()
+    return
+  }
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+}
+
 async function expectRouteFrame(
   page: Parameters<typeof installMockBackend>[0],
   expectShell: boolean,
@@ -80,34 +89,18 @@ async function expectRouteFrame(
   }).toBe(true)
 }
 
-async function expectOwnerCtaClearance(page: Parameters<typeof installMockBackend>[0], safeAreaBottom: number) {
-  const cta = page.getByRole('button', { name: '移动端新增物品' })
-  await expect(cta).toBeVisible()
-  await page.evaluate((inset) => {
-    document.documentElement.style.setProperty('--safe-area-bottom', `${inset}px`)
-    window.scrollTo(0, document.documentElement.scrollHeight)
-  }, safeAreaBottom)
-  try {
-    await expect.poll(async () => {
-      const geometry = await cta.evaluate((element) => ({
-        bottom: element.getBoundingClientRect().bottom,
-        viewportHeight: window.innerHeight,
-      }))
-      return Math.abs(geometry.viewportHeight - geometry.bottom - Math.max(16, safeAreaBottom)) <= 1
-    }).toBe(true)
-    await expect.poll(async () => {
-      const ctaTop = await cta.evaluate((element) => element.getBoundingClientRect().top)
-      const lastSectionBottom = await page.locator('main > section').last().evaluate((element) => element.getBoundingClientRect().bottom)
-      return lastSectionBottom <= ctaTop
-    }).toBe(true)
-    await expect(page.getByRole('main')).toHaveCSS('padding-bottom', `${96 + safeAreaBottom}px`)
-  } finally {
-    await page.evaluate(() => document.documentElement.style.removeProperty('--safe-area-bottom'))
+async function openNewItem(page: Parameters<typeof installMockBackend>[0]) {
+  const desktopAction = page.getByRole('button', { name: '新增物品', exact: true })
+  if (await desktopAction.isVisible()) {
+    await desktopAction.click()
+    return
   }
+  await page.getByRole('button', { name: '打开箱子操作菜单' }).click()
+  await page.getByRole('dialog', { name: '箱子操作' }).getByRole('button', { name: '新增物品' }).click()
 }
 
 async function expectItemFormActionClearance(page: Parameters<typeof installMockBackend>[0], safeAreaBottom: number) {
-  await page.getByRole('button', { name: /^(新增物品|移动端新增物品)$/ }).click()
+  await openNewItem(page)
   await expect(page.getByRole('heading', { name: '新增物品' })).toBeVisible()
   const dialog = page.getByRole('dialog', { name: '新增物品' })
   const scrollContainer = dialog.locator('> div')
@@ -175,7 +168,7 @@ test('owner creates, finds, labels, and maintains a public box', async ({ browse
   await createBox(page, '露营用品', 'private')
 
   await page.goto(publicUrl)
-  await page.getByRole('button', { name: /^(新增物品|移动端新增物品)$/ }).click()
+  await openNewItem(page)
   await page.getByLabel('物品名称').fill('羽绒服')
   await page.getByRole('button', { name: '增加数量' }).click()
   await expect(page.getByRole('spinbutton', { name: '数量' })).toHaveValue('2')
@@ -240,7 +233,7 @@ test('owner creates, finds, labels, and maintains a public box', async ({ browse
 
   await page.getByRole('link', { name: '打开冬季衣物' }).click()
   await expect(page).toHaveURL(publicUrl)
-  await expect(page.getByRole('heading', { name: '冬季衣物' })).toBeVisible()
+  await expectBoxDetailTitle(page, '冬季衣物', testInfo.project.name !== 'desktop-chromium')
 
   await page.goto('/app/search?q=%E7%BE%BD%E7%BB%92%E6%9C%8D')
   await expect(page).toHaveURL(/\/app\/search\?q=%E7%BE%BD%E7%BB%92%E6%9C%8D$/)
@@ -271,7 +264,7 @@ test('owner creates, finds, labels, and maintains a public box', async ({ browse
   const anonymous = await anonymousContext.newPage()
   await installMockBackend(anonymous, state)
   await anonymous.goto(publicUrl)
-  await expect(anonymous.getByRole('heading', { name: '冬季衣物' })).toBeVisible()
+  await expectBoxDetailTitle(anonymous, '冬季衣物', testInfo.project.name !== 'desktop-chromium')
   await expect(anonymous.getByRole('button', { name: '新增物品' })).toHaveCount(0)
   await anonymousContext.close()
 })
@@ -413,11 +406,14 @@ test('route alignment across required viewport breakpoints', async ({ page }, te
     for (const route of routes) {
       await page.goto(route.path)
       const heading = desktop && 'desktopHeading' in route ? route.desktopHeading : route.heading
-      await expect(page.getByRole('heading', { level: 1, name: heading, exact: true })).toBeVisible()
+      if (!route.expectShell && !desktop) {
+        await expect(page.getByRole('navigation', { name: '箱子详情导航' }).getByText(`${route.heading} · 箱子详情`, { exact: true })).toBeVisible()
+      } else {
+        await expect(page.getByRole('heading', { level: 1, name: heading, exact: true })).toBeVisible()
+      }
       await expectRouteFrame(page, route.expectShell, desktop)
       if (route.path === '/app' && !desktop) await expectShellSafeArea(page, 24)
       if (!route.expectShell && width < 768) {
-        await expectOwnerCtaClearance(page, 24)
         await expectItemFormActionClearance(page, 24)
       }
     }
