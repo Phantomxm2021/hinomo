@@ -134,6 +134,10 @@ export function PublicBoxPage() {
     setEditingItem(item)
     setShowItemForm(true)
   }
+  const openMovementItem = (item: ItemRecord) => {
+    movementMutation.reset()
+    setMovementItem(item)
+  }
   const requestDelete = (item: ItemRecord, trigger: HTMLButtonElement) => {
     deleteReturnFocusRef.current = trigger
     setDeleteTarget(item)
@@ -286,8 +290,8 @@ export function PublicBoxPage() {
             {box.items.map((item) => (
               <article className="border-b border-line/60 last:border-b-0 lg:grid lg:grid-cols-[7rem_minmax(0,1fr)_auto] lg:items-center lg:gap-4 lg:rounded-card lg:border lg:border-line lg:bg-surface lg:p-4" key={item.id}>
                 {isOwner ? (
-                  <div className="grid grid-cols-[minmax(0,1fr)_3rem] items-stretch lg:hidden">
-                    <button className="grid min-w-0 grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3 p-3 text-left active:bg-placeholder/50 lg:hidden" type="button" aria-label={`编辑物品${item.name}`} onClick={() => openEditItem(item)}>
+                  <div className="lg:hidden">
+                    <button className="grid w-full min-w-0 grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 p-3 text-left active:bg-placeholder/50" type="button" aria-label={`打开${item.name}操作`} onClick={() => openMovementItem(item)}>
                       <div className="grid size-14 place-content-center overflow-hidden rounded-[0.9rem] bg-placeholder text-muted">
                         {item.image_object_key ? <AuthorizedImage objectKey={item.image_object_key} alt="" className="h-full w-full object-cover" /> : <AppIcon name="box" />}
                       </div>
@@ -296,8 +300,8 @@ export function PublicBoxPage() {
                         <p className="mt-0.5 truncate text-sm text-muted">{item.description || item.category || '未添加说明'}</p>
                         <p className="mt-1 flex min-w-0 items-center gap-2 text-xs font-bold"><span className="shrink-0 text-muted">{item.quantity} 件</span><span className="truncate text-brand">{formatItemAvailability(deriveItemAvailability(item.quantity, item.stored_quantity))}</span></p>
                       </div>
+                      <AppIcon className="text-muted" name="chevron-right" />
                     </button>
-                    <button className="grid min-h-20 place-items-center text-muted active:bg-placeholder/50" type="button" aria-label={`管理${item.name}`} onClick={() => { movementMutation.reset(); setMovementItem(item) }}><AppIcon name="more" /></button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 p-3 lg:hidden">
@@ -333,7 +337,7 @@ export function PublicBoxPage() {
                 </div>
                 {isOwner ? (
                   <div className="col-start-2 flex justify-end gap-1.5 lg:col-auto lg:self-center">
-                    <button className="inline-flex size-10 items-center justify-center rounded-full border-0 bg-brand/8 text-brand active:opacity-70 lg:size-11 lg:rounded-control lg:border lg:border-brand/20 lg:bg-canvas" type="button" aria-label={`管理${item.name}`} onClick={() => { movementMutation.reset(); setMovementItem(item) }}>
+                    <button className="inline-flex size-10 items-center justify-center rounded-full border-0 bg-brand/8 text-brand active:opacity-70 lg:size-11 lg:rounded-control lg:border lg:border-brand/20 lg:bg-canvas" type="button" aria-label={`管理${item.name}`} onClick={() => openMovementItem(item)}>
                       <AppIcon name="more" />
                     </button>
                     <button className="inline-flex size-10 items-center justify-center rounded-full border-0 bg-placeholder/60 text-ink active:opacity-70 lg:size-11 lg:rounded-control lg:border lg:border-line lg:bg-canvas" type="button" aria-label={`编辑${item.name}`} onClick={() => openEditItem(item)}>

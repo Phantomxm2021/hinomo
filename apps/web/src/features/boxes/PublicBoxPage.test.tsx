@@ -316,7 +316,7 @@ test('opens the item form from the mobile action menu', async () => {
   expect(screen.getByRole('button', { name: '打开箱子操作菜单' })).toBeInTheDocument()
 })
 
-test('opens an item in the mobile list editor instead of showing inline controls', async () => {
+test('opens item operations from the mobile list row and keeps editing secondary', async () => {
   const user = userEvent.setup()
   mockGetBoxByPublicId.mockResolvedValue({
     id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
@@ -327,14 +327,15 @@ test('opens an item in the mobile list editor instead of showing inline controls
   })
   renderPublicBox({ user: { id: 'owner-1' } } as Session)
 
-  const row = await screen.findByRole('button', { name: '编辑物品锤子' })
-  expect(row).toHaveClass('lg:hidden')
+  const row = await screen.findByRole('button', { name: '打开锤子操作' })
+  expect(row.parentElement).toHaveClass('lg:hidden')
   expect(row).toHaveTextContent('金属手柄')
   expect(row).toHaveTextContent('2')
   await user.click(row)
 
-  expect(screen.getByRole('dialog', { name: '编辑物品' })).toBeInTheDocument()
-  expect(screen.getByLabelText('物品名称')).toHaveValue('锤子')
+  expect(screen.getByRole('dialog', { name: '锤子' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '编辑物品信息' })).toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: '编辑物品' })).not.toBeInTheDocument()
 })
 
 test('takes out an item from the owner movement sheet', async () => {
@@ -349,7 +350,7 @@ test('takes out an item from the owner movement sheet', async () => {
   })
   renderPublicBox({ user: { id: 'owner-1' } } as Session)
 
-  await user.click((await screen.findAllByRole('button', { name: '管理锤子' }))[0])
+  await user.click(await screen.findByRole('button', { name: '打开锤子操作' }))
   expect(screen.getByRole('dialog', { name: '锤子' })).toHaveTextContent('在位 · 2/2')
   await user.click(screen.getByRole('button', { name: /^取出/ }))
   await user.click(screen.getByRole('button', { name: '确认取出' }))
