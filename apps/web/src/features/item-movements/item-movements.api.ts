@@ -2,6 +2,10 @@ import type { Database } from '../../lib/database.types'
 import { supabase } from '../../lib/supabase'
 
 export type ItemMovement = Database['public']['Tables']['item_movements']['Row']
+export type ItemMovementHistory = ItemMovement & {
+  from_box: { name: string } | null
+  to_box: { name: string } | null
+}
 export type ItemMovementResult = Database['public']['Functions']['take_out_item']['Returns'][number]
 
 function requireMovementResult(data: ItemMovementResult[] | null) {
@@ -54,12 +58,12 @@ export async function moveItem(input: {
   return requireMovementResult(data)
 }
 
-export async function listItemMovements(itemId: string): Promise<ItemMovement[]> {
+export async function listItemMovements(itemId: string): Promise<ItemMovementHistory[]> {
   const { data, error } = await supabase
     .from('item_movements')
-    .select('*')
+    .select('*, from_box:boxes!item_movements_from_box_id_fkey(name), to_box:boxes!item_movements_to_box_id_fkey(name)')
     .eq('item_id', itemId)
     .order('created_at', { ascending: false })
   if (error) throw error
-  return data ?? []
+  return (data ?? []) as ItemMovementHistory[]
 }

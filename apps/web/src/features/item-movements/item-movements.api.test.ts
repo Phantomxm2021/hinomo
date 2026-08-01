@@ -59,6 +59,7 @@ describe('item movement api', () => {
     mockOrder.mockResolvedValue({ data: rows, error: null })
     await expect(listItemMovements('item-1')).resolves.toEqual(rows)
     expect(mockFrom).toHaveBeenCalledWith('item_movements')
+    expect(mockSelect).toHaveBeenCalledWith('*, from_box:boxes!item_movements_from_box_id_fkey(name), to_box:boxes!item_movements_to_box_id_fkey(name)')
     expect(mockEq).toHaveBeenCalledWith('item_id', 'item-1')
     expect(mockOrder).toHaveBeenCalledWith('created_at', { ascending: false })
   })

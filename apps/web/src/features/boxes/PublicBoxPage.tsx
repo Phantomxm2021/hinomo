@@ -13,7 +13,7 @@ import { formatStoragePath } from '../../lib/format-storage-path'
 import { useAuth } from '../auth/auth-context'
 import { ItemMovementSheet, type ItemMovementCommand } from '../item-movements/ItemMovementSheet'
 import { deriveItemAvailability, formatItemAvailability } from '../item-movements/item-movement-status'
-import { moveItem, returnItem, takeOutItem } from '../item-movements/item-movements.api'
+import { listItemMovements, moveItem, returnItem, takeOutItem } from '../item-movements/item-movements.api'
 import { ItemForm } from '../items/ItemForm'
 import { deleteItem, type ItemRecord } from '../items/items.api'
 import { AuthorizedImage } from '../media/AuthorizedImage'
@@ -46,6 +46,11 @@ export function PublicBoxPage() {
     queryFn: listBoxes,
     enabled: Boolean(movementItem),
   })
+  const movementHistoryQuery = useQuery({
+    queryKey: ['item-movements', movementItem?.id],
+    queryFn: () => listItemMovements(movementItem?.id ?? ''),
+    enabled: Boolean(movementItem),
+  })
   const movementMutation = useMutation({
     mutationFn: (command: ItemMovementCommand) => {
       if (!movementItem) throw new Error('item is required')
@@ -70,6 +75,7 @@ export function PublicBoxPage() {
         queryClient.invalidateQueries({ queryKey: ['boxes'] }),
         queryClient.invalidateQueries({ queryKey: ['items'] }),
         queryClient.invalidateQueries({ queryKey: ['search-items'] }),
+        queryClient.invalidateQueries({ queryKey: ['item-movements'] }),
       ])
     },
   })
@@ -218,6 +224,7 @@ export function PublicBoxPage() {
       {printError ? <ResponsiveOperationError message="PDF 生成失败，请重试" onRetry={() => void printLabel()} /> : null}
       {movementMutation.isError ? <ResponsiveOperationError message="物品操作失败，请稍后重试" /> : null}
       {targetBoxesQuery.isError ? <ResponsiveOperationError message="目标箱子加载失败，请重试" busy={targetBoxesQuery.isFetching} onRetry={() => void targetBoxesQuery.refetch()} /> : null}
+      {movementHistoryQuery.isError ? <ResponsiveOperationError message="流转记录加载失败，请重试" busy={movementHistoryQuery.isFetching} onRetry={() => void movementHistoryQuery.refetch()} /> : null}
 
       <MobileActionSheet
         open={isOwner && showMobileActions}
@@ -235,6 +242,8 @@ export function PublicBoxPage() {
         item={movementItem}
         currentBoxId={box.id}
         boxes={targetBoxesQuery.data ?? []}
+        movements={movementHistoryQuery.data ?? []}
+        historyLoading={movementHistoryQuery.isPending}
         pending={movementMutation.isPending}
         onClose={() => { if (!movementMutation.isPending) { setMovementItem(null); movementMutation.reset() } }}
         onEdit={(item) => { setMovementItem(null); openEditItem(item) }}

@@ -68,3 +68,28 @@ test('offers return only for the quantity currently out', async () => {
   await user.click(screen.getByRole('button', { name: '确认放回' }))
   expect(onSubmit).toHaveBeenCalledWith({ action: 'return', quantity: 1, note: null })
 })
+
+test('opens the private movement history without exposing it in the item row', async () => {
+  const user = userEvent.setup()
+  render(
+    <ItemMovementSheet
+      open
+      item={item}
+      currentBoxId="box-1"
+      boxes={[]}
+      movements={[{
+        id: 'movement-1', item_id: 'item-1', actor_id: 'user-1', action: 'take_out', quantity: 1,
+        from_box_id: 'box-1', to_box_id: null, from_box: { name: '工具箱' }, to_box: null,
+        handler_label: '露营', note: null, created_at: '2026-08-02T08:30:00Z',
+      }]}
+      pending={false}
+      onClose={vi.fn()}
+      onEdit={vi.fn()}
+      onSubmit={vi.fn()}
+    />,
+  )
+
+  await user.click(screen.getByRole('button', { name: '查看流转记录' }))
+  expect(screen.getByRole('dialog', { name: '流转记录' })).toHaveTextContent('从 工具箱 取出')
+  expect(screen.getByText('取出 1 件')).toBeInTheDocument()
+})

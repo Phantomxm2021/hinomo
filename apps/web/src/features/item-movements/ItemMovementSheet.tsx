@@ -3,20 +3,24 @@ import { createPortal } from 'react-dom'
 import { AppIcon } from '../../components/AppIcon'
 import type { BoxSummary } from '../boxes/boxes.api'
 import type { ItemRecord } from '../items/items.api'
+import { ItemMovementHistory } from './ItemMovementHistory'
 import { deriveItemAvailability, formatItemAvailability } from './item-movement-status'
+import type { ItemMovementHistory as ItemMovementHistoryRecord } from './item-movements.api'
 
 export type ItemMovementCommand =
   | { action: 'take_out'; quantity: number; handlerLabel: string | null; note: string | null }
   | { action: 'return'; quantity: number; note: string | null }
   | { action: 'move'; targetBoxId: string; note: string | null }
 
-type MovementAction = ItemMovementCommand['action']
+type MovementAction = ItemMovementCommand['action'] | 'history'
 
-export function ItemMovementSheet({ open, item, currentBoxId, boxes, pending, onClose, onEdit, onSubmit }: {
+export function ItemMovementSheet({ open, item, currentBoxId, boxes, movements = [], historyLoading = false, pending, onClose, onEdit, onSubmit }: {
   open: boolean
   item: ItemRecord | null
   currentBoxId: string
   boxes: BoxSummary[]
+  movements?: ItemMovementHistoryRecord[]
+  historyLoading?: boolean
   pending: boolean
   onClose: () => void
   onEdit: (item: ItemRecord) => void
@@ -85,7 +89,7 @@ export function ItemMovementSheet({ open, item, currentBoxId, boxes, pending, on
     }
   }
 
-  const title = action === 'take_out' ? '取出物品' : action === 'return' ? '放回物品' : action === 'move' ? '移动物品' : item.name
+  const title = action === 'take_out' ? '取出物品' : action === 'return' ? '放回物品' : action === 'move' ? '移动物品' : action === 'history' ? '流转记录' : item.name
 
   return createPortal(
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-ink/30 backdrop-blur-[2px] lg:items-center lg:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !pending) onClose() }}>
@@ -104,7 +108,13 @@ export function ItemMovementSheet({ open, item, currentBoxId, boxes, pending, on
             <button ref={status.storedQuantity > 0 ? firstActionRef : undefined} className="flex min-h-14 items-center justify-between rounded-control bg-canvas px-4 text-left font-bold disabled:opacity-40" type="button" disabled={status.storedQuantity === 0} onClick={() => setAction('take_out')}><span>取出</span><span className="text-sm text-muted">最多 {status.storedQuantity} 件</span></button>
             <button ref={status.storedQuantity === 0 ? firstActionRef : undefined} className="flex min-h-14 items-center justify-between rounded-control bg-canvas px-4 text-left font-bold disabled:opacity-40" type="button" disabled={status.outQuantity === 0} onClick={() => setAction('return')}><span>放回</span><span className="text-sm text-muted">待归还 {status.outQuantity} 件</span></button>
             <button className="flex min-h-14 items-center justify-between rounded-control bg-canvas px-4 text-left font-bold disabled:opacity-40" type="button" disabled={status.outQuantity > 0 || targetBoxes.length === 0} onClick={() => setAction('move')}><span>移动到其他箱子</span><AppIcon className="text-muted" name="chevron-right" /></button>
+            <button className="flex min-h-14 items-center justify-between rounded-control bg-canvas px-4 text-left font-bold" type="button" onClick={() => setAction('history')}><span>查看流转记录</span><AppIcon className="text-muted" name="chevron-right" /></button>
             <button className="mt-2 min-h-12 rounded-control border border-line bg-surface px-4 font-bold" type="button" onClick={() => onEdit(item)}>编辑物品信息</button>
+          </div>
+        ) : action === 'history' ? (
+          <div className="grid gap-3">
+            <ItemMovementHistory movements={movements} loading={historyLoading} />
+            <button className="min-h-12 rounded-control border border-line font-bold" type="button" onClick={() => setAction(null)}>返回</button>
           </div>
         ) : (
           <form className="grid gap-3" onSubmit={(event) => void submit(event)}>

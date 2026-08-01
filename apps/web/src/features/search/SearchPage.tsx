@@ -8,6 +8,7 @@ import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { SearchInputShell } from '../../components/SearchInputShell'
 import { formatStoragePath } from '../../lib/format-storage-path'
 import { listBoxes } from '../boxes/boxes.api'
+import { deriveItemAvailability, formatItemAvailability } from '../item-movements/item-movement-status'
 import { searchItems } from './search.api'
 
 export function SearchPage() {
@@ -176,6 +177,7 @@ export function SearchPage() {
                 <span className="grid size-12 shrink-0 place-items-center rounded-control bg-brand/10 text-brand"><AppIcon name="search" /></span>
                 <span className="min-w-0 flex-1">
                   <strong className="block truncate">{result.item_name} × {result.quantity}</strong>
+                  <span className="mt-0.5 block truncate text-xs font-bold text-brand">{formatItemAvailability(deriveItemAvailability(result.quantity, result.stored_quantity))}</span>
                   <span className="block truncate text-sm text-muted">{formatStoragePath([result.venue_name, result.space_name, result.box_name, result.location || '未填写位置'])}</span>
                 </span>
                 <AppIcon className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5" name="chevron-right" />

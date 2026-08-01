@@ -7,11 +7,12 @@ import type { Session } from '@supabase/supabase-js'
 import { AuthProvider } from '../auth/AuthProvider'
 import { PublicBoxPage } from './PublicBoxPage'
 
-const { mockGetBoxByPublicId, mockCreateItem, mockDeleteItem, mockListBoxes, mockMatchMedia, mockMoveItem, mockReturnItem, mockTakeOutItem, mockUpdateItem } = vi.hoisted(() => ({
+const { mockGetBoxByPublicId, mockCreateItem, mockDeleteItem, mockListBoxes, mockListItemMovements, mockMatchMedia, mockMoveItem, mockReturnItem, mockTakeOutItem, mockUpdateItem } = vi.hoisted(() => ({
   mockGetBoxByPublicId: vi.fn(),
   mockCreateItem: vi.fn(),
   mockDeleteItem: vi.fn(),
   mockListBoxes: vi.fn(),
+  mockListItemMovements: vi.fn(),
   mockMatchMedia: vi.fn(),
   mockMoveItem: vi.fn(),
   mockReturnItem: vi.fn(),
@@ -26,6 +27,7 @@ vi.mock('../items/items.api', () => ({
   deleteItem: mockDeleteItem,
 }))
 vi.mock('../item-movements/item-movements.api', () => ({
+  listItemMovements: mockListItemMovements,
   moveItem: mockMoveItem,
   returnItem: mockReturnItem,
   takeOutItem: mockTakeOutItem,
@@ -60,6 +62,8 @@ beforeEach(() => {
   mockDeleteItem.mockReset()
   mockListBoxes.mockReset()
   mockListBoxes.mockResolvedValue([])
+  mockListItemMovements.mockReset()
+  mockListItemMovements.mockResolvedValue([])
   mockMatchMedia.mockReset()
   mockMatchMedia.mockReturnValue({ matches: true } as MediaQueryList)
   mockUpdateItem.mockReset()

@@ -90,7 +90,7 @@ test('blocks on an initial search error and offers retry', async () => {
 test('shows item results with a local retry when boxes initially fail', async () => {
   mockListBoxes.mockRejectedValue(new Error('boxes network'))
   mockSearchItems.mockResolvedValue([{
-    item_id: 'item-1', item_name: 'USB-C 充电器', quantity: 2,
+    item_id: 'item-1', item_name: 'USB-C 充电器', quantity: 2, stored_quantity: 1,
     box_id: 'box-1', box_public_id: 'public-1', box_name: '电子设备箱',
     venue_name: '公司', space_name: '办公室', location: '书房柜子',
   }])
@@ -147,7 +147,7 @@ test('keeps cached box and item results visible when their refetches fail', asyn
 
 test('initializes from q and groups matching boxes and items', async () => {
   mockSearchItems.mockResolvedValue([{
-    item_id: 'item-1', item_name: 'USB-C 充电器', quantity: 2,
+    item_id: 'item-1', item_name: 'USB-C 充电器', quantity: 2, stored_quantity: 1,
     box_id: 'box-1', box_public_id: 'public-1', box_name: '电子设备箱',
     space_name: '办公室', location: '书房柜子',
   }])
@@ -160,6 +160,7 @@ test('initializes from q and groups matching boxes and items', async () => {
   expect(within(boxesGroup).getByText('充电器收纳箱')).toBeInTheDocument()
   expect(within(boxesGroup).getByText('BX-00001 · 公司 · 办公室 · 书房柜子')).toBeInTheDocument()
   expect(within(itemsGroup).getByText('USB-C 充电器 × 2')).toBeInTheDocument()
+  expect(within(itemsGroup).getByText('部分取出 · 1/2 在箱中')).toBeInTheDocument()
   expect(mockSearchItems).toHaveBeenCalledWith('充电器')
 })
 
