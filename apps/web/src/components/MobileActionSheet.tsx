@@ -38,7 +38,7 @@ export function MobileActionSheet({ open, title, message, actions, cancelLabel =
   if (!open) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-[110] flex items-end bg-ink/25 px-2 pb-[max(0.5rem,var(--safe-area-bottom))] backdrop-blur-[2px] lg:hidden" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+    <div className="fixed inset-0 z-[200] flex items-end bg-ink/25 px-2 pb-[max(0.5rem,var(--safe-area-bottom))] backdrop-blur-[2px] lg:hidden" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
       <section className="w-full" role="dialog" aria-modal="true" aria-labelledby="mobile-sheet-title" aria-describedby={message ? 'mobile-sheet-message' : undefined}>
         <div className="overflow-hidden rounded-[0.875rem] bg-surface/95 text-center shadow-float backdrop-blur-xl">
           <div className="px-5 pt-4 pb-3">

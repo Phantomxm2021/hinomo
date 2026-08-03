@@ -34,7 +34,7 @@ export function MobileAlert({ open, title, message, primaryLabel = '好', onPrim
   if (!open) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-[110] grid place-items-center bg-ink/30 px-8 backdrop-blur-[2px] lg:hidden" role="presentation">
+    <div className="fixed inset-0 z-[200] grid place-items-center bg-ink/30 px-8 backdrop-blur-[2px] lg:hidden" role="presentation">
       <section className="w-full max-w-[17rem] overflow-hidden rounded-[1.25rem] bg-surface/95 text-center shadow-float backdrop-blur-xl" role="alertdialog" aria-modal="true" aria-labelledby="mobile-alert-title" aria-describedby={message ? 'mobile-alert-message' : undefined}>
         <div className="px-5 pt-5 pb-4">
           <h2 className="m-0 text-[1.0625rem] font-semibold tracking-[-0.01em] text-ink" id="mobile-alert-title">{title}</h2>

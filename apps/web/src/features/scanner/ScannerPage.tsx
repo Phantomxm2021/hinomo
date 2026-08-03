@@ -2,23 +2,22 @@ import type { IScannerControls } from '@zxing/browser'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
+import { useMobileFeedback } from '../../components/mobile-feedback'
 import { parseNomoBoxPath } from './scanner-url'
 
 export function ScannerPage() {
   const navigate = useNavigate()
+  const feedback = useMobileFeedback()
   const videoRef = useRef<HTMLVideoElement>(null)
   const controlsRef = useRef<IScannerControls | null>(null)
   const handledRef = useRef(false)
   const [cameraMessage, setCameraMessage] = useState<string | null>(null)
-  const [cameraCanRetry, setCameraCanRetry] = useState(false)
-  const [scannerAttempt, setScannerAttempt] = useState(0)
 
   useEffect(() => {
     const hostname = window.location.hostname
     const local = hostname === 'localhost' || hostname === '127.0.0.1'
     if (window.isSecureContext === false && !local) {
       setCameraMessage('当前页面不是 HTTPS，无法使用相机')
-      setCameraCanRetry(false)
       return
     }
 
@@ -36,8 +35,7 @@ export function ScannerPage() {
             if (cancelled || !result || handledRef.current) return
             const path = parseNomoBoxPath(result.getText())
             if (!path) {
-              setCameraMessage('识别到的二维码不是有效的 Nomo 箱子地址')
-              setCameraCanRetry(false)
+              feedback.notify('未识别到有效的 Nomo 箱子二维码，请继续扫描')
               return
             }
             handledRef.current = true
@@ -49,17 +47,15 @@ export function ScannerPage() {
         if (cancelled) controls.stop()
         else {
           controlsRef.current = controls
-          setCameraCanRetry(true)
         }
       } catch (error: unknown) {
         if (cancelled) return
-        setCameraCanRetry(true)
         if (error instanceof DOMException && error.name === 'NotAllowedError') {
-          setCameraMessage('相机权限被拒绝，请在浏览器站点设置中允许相机后重试')
+          setCameraMessage('相机权限被拒绝，请在浏览器站点设置中允许相机')
         } else if (error instanceof DOMException && error.name === 'NotFoundError') {
           setCameraMessage('没有找到可用的相机')
         } else {
-          setCameraMessage('相机启动失败，请重新尝试')
+          setCameraMessage('相机启动失败，请检查浏览器设置后重新进入扫码页')
         }
       }
     }
@@ -72,16 +68,7 @@ export function ScannerPage() {
         controlsRef.current = null
       }
     }
-  }, [navigate, scannerAttempt])
-
-  function retryCamera() {
-    handledRef.current = false
-    setCameraMessage(null)
-    setCameraCanRetry(false)
-    controlsRef.current?.stop()
-    controlsRef.current = null
-    setScannerAttempt((attempt) => attempt + 1)
-  }
+  }, [feedback, navigate])
 
   return (
     <section className="mx-auto grid min-w-0 w-full max-w-4xl gap-5 lg:gap-6" aria-labelledby="scanner-title">
@@ -105,12 +92,7 @@ export function ScannerPage() {
           </div>
         ) : null}
       </div>
-      {cameraMessage ? <ResponsiveOperationError message={cameraMessage} onRetry={cameraCanRetry ? retryCamera : undefined} retryLabel="重新尝试相机" /> : null}
-      {!cameraMessage && cameraCanRetry ? (
-        <button className="min-h-12 w-full rounded-control border border-brand bg-brand px-4 py-2 font-bold text-white hover:bg-brand-strong sm:min-h-11 sm:w-auto" type="button" onClick={retryCamera}>
-          重新尝试相机
-        </button>
-      ) : null}
+      {cameraMessage ? <ResponsiveOperationError message={cameraMessage} /> : null}
     </section>
   )
 }

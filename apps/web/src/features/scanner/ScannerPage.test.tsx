@@ -1,5 +1,4 @@
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { ScannerPage } from './ScannerPage'
@@ -57,6 +56,7 @@ test('shows only the camera scanner without manual URL controls', () => {
 
   expect(screen.queryByLabelText('手动输入二维码地址')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '打开箱子' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '重新尝试相机' })).not.toBeInTheDocument()
 })
 
 test('uses a tall full-width camera card on mobile and video aspect ratio on desktop', () => {
@@ -78,51 +78,18 @@ test('uses a tall full-width camera card on mobile and video aspect ratio on des
 })
 
 test.each([
-  [new DOMException('denied', 'NotAllowedError'), '相机权限被拒绝，请在浏览器站点设置中允许相机后重试'],
+  [new DOMException('denied', 'NotAllowedError'), '相机权限被拒绝，请在浏览器站点设置中允许相机'],
   [new DOMException('missing', 'NotFoundError'), '没有找到可用的相机'],
-  [new Error('boom'), '相机启动失败，请重新尝试'],
-])('shows camera failures in an app alert with a retry action for %s', async (error, message) => {
+  [new Error('boom'), '相机启动失败，请检查浏览器设置后重新进入扫码页'],
+])('shows camera failures without a retry-camera action for %s', async (error, message) => {
   mockScannerStart.mockRejectedValue(error)
   renderScanner()
 
   const alert = await screen.findByRole('alertdialog', { name: message })
   expect(alert).toHaveTextContent(message)
-  expect(within(alert).getByRole('button', { name: '重新尝试相机' })).toBeInTheDocument()
+  expect(within(alert).getByRole('button', { name: '好' })).toBeInTheDocument()
+  expect(within(alert).queryByRole('button', { name: '重新尝试相机' })).not.toBeInTheDocument()
   expect(screen.queryByText(/手动输入/)).not.toBeInTheDocument()
-})
-
-test('starts a new reader and scanner controls when retrying', async () => {
-  const user = userEvent.setup()
-  const retryStop = vi.fn()
-  mockScannerStart
-    .mockRejectedValueOnce(new DOMException('denied', 'NotAllowedError'))
-    .mockResolvedValueOnce({ stop: retryStop })
-  const { unmount } = renderScanner()
-
-  const alert = await screen.findByRole('alertdialog')
-  await user.click(within(alert).getByRole('button', { name: '重新尝试相机' }))
-
-  await waitFor(() => expect(mockScannerStart).toHaveBeenCalledTimes(2))
-  expect(mockReaderCreate).toHaveBeenCalledTimes(2)
-  expect(screen.queryByRole('status')).not.toBeInTheDocument()
-  unmount()
-  expect(retryStop).toHaveBeenCalledOnce()
-})
-
-test('stops successful scanner controls before starting a retry reader', async () => {
-  const user = userEvent.setup()
-  const firstStop = vi.fn()
-  mockScannerStart
-    .mockResolvedValueOnce({ stop: firstStop })
-    .mockResolvedValueOnce({ stop: vi.fn() })
-  renderScanner()
-  await waitFor(() => expect(mockScannerStart).toHaveBeenCalledOnce())
-
-  await user.click(await screen.findByRole('button', { name: '重新尝试相机' }))
-
-  await waitFor(() => expect(mockReaderCreate).toHaveBeenCalledTimes(2))
-  expect(firstStop).toHaveBeenCalledOnce()
-  expect(firstStop.mock.invocationCallOrder[0]).toBeLessThan(mockReaderCreate.mock.invocationCallOrder[1])
 })
 
 test('stops scanner controls that resolve after the page unmounts', async () => {
@@ -157,7 +124,7 @@ test('does not start a reader on a non-HTTPS remote host', async () => {
   expect(mockScannerStart).not.toHaveBeenCalled()
 })
 
-test('navigates only for a valid same-origin Nomo box URL', async () => {
+test('keeps scanning after an invalid code and navigates for the next valid Nomo URL', async () => {
   const stop = vi.fn()
   let emitScan: ScanCallback | undefined
   mockScannerStart.mockImplementation(async (_constraints: unknown, _video: HTMLVideoElement | undefined, callback: ScanCallback) => {
@@ -168,7 +135,11 @@ test('navigates only for a valid same-origin Nomo box URL', async () => {
   await waitFor(() => expect(mockScannerStart).toHaveBeenCalledOnce())
 
   emitScan?.({ getText: () => 'https://evil.example/b/123e4567-e89b-12d3-a456-426614174000' })
-  expect(await screen.findByRole('alertdialog', { name: '识别到的二维码不是有效的 Nomo 箱子地址' })).toBeInTheDocument()
+  expect(await screen.findByRole('status', { name: '未识别到有效的 Nomo 箱子二维码，请继续扫描' })).toBeInTheDocument()
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  expect(screen.getByTestId('scanner-feedback')).toBeInTheDocument()
+  expect(mockScannerStart).toHaveBeenCalledOnce()
+  expect(stop).not.toHaveBeenCalled()
   expect(mockNavigate).not.toHaveBeenCalled()
   emitScan?.(
     { getText: () => 'http://localhost:5173/b/123e4567-e89b-12d3-a456-426614174000' },
