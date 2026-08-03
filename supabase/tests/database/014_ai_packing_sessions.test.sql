@@ -1,5 +1,5 @@
 begin;
-select plan(29);
+select plan(30);
 
 create extension if not exists "basejump-supabase_test_helpers" with schema tests;
 
@@ -115,6 +115,16 @@ select is(
   'owner confirms the uploaded photo'
 );
 
+-- A failed earlier capture may leave an unfinished reservation. It must not
+-- block completion or change the confirmed photo set represented by the Atlas.
+do $test$
+begin
+  perform * from public.create_packing_photo_upload(
+    (select session_id from packing_test_state), 1, 'image/webp', 1024
+  );
+end
+$test$;
+
 with upload as (
   select * from public.create_packing_atlas_upload(
     (select session_id from packing_test_state), 1, 3, 3, 512, 552, 2048, repeat('a', 64)
@@ -127,6 +137,12 @@ select is(
   (public.complete_packing_session((select session_id from packing_test_state))).status::text,
   'queued',
   'completed session enters the worker queue'
+);
+select is(
+  (select upload_status::text from public.packing_photos
+   where session_id = (select session_id from packing_test_state) and sequence_no = 1),
+  'expired',
+  'completion expires an unfinished photo reservation'
 );
 select is(
   (select count(*)::integer from public.packing_analysis_jobs

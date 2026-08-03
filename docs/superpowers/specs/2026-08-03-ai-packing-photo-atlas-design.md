@@ -623,8 +623,8 @@ capturing / uploading ──→ canceled
 
 关键规则：
 
-- `complete_packing_session` 使用行锁，冻结照片数和顺序，只能成功一次。
-- 只有所有已声明照片都为 confirmed 才能进入 `queued`。
+- `complete_packing_session` 使用行锁冻结已确认照片数和顺序，只能成功一次；失败上传遗留的 `pending/expired` 占位不阻塞完成，并在完成时统一过期，防止迟到的确认改变 Atlas 输入。
+- 至少一张照片为 `confirmed`，且所有已确认照片都被已确认 Atlas 完整覆盖，才能进入 `queued`。
 - Edge Function 使用有期限的 lease 认领任务，崩溃后任务可自动回收。
 - 每个处理产物由输入指纹和版本决定，相同输入重复执行只能覆盖同一逻辑产物。
 - 实例追踪、清单汇总、定位裁剪全部完成后，再在一个数据库事务中发布新 revision 的检测项。
