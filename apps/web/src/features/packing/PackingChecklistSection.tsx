@@ -151,7 +151,13 @@ export function PackingChecklistSection({ boxId }: { boxId: string }) {
   const launcherRef = useRef<HTMLButtonElement | null>(null)
   const [open, setOpen] = useState(false)
   const sessionsQuery = useQuery({ queryKey: ['packing-sessions', boxId], queryFn: () => listPackingSessions(boxId), refetchInterval: (query) => query.state.data?.some((session) => ['queued', 'processing'].includes(session.status)) ? 3000 : false })
-  const itemsQuery = useQuery({ queryKey: ['packing-detected-items', boxId], queryFn: () => listDetectedPackingItems(boxId), refetchInterval: 5000 })
+  const resultSession = sessionsQuery.data?.find((session) => !['capturing', 'uploading', 'canceled'].includes(session.status))
+  const itemsQuery = useQuery({
+    queryKey: ['packing-detected-items', boxId, resultSession?.id, resultSession?.current_revision],
+    queryFn: () => listDetectedPackingItems(boxId, resultSession?.id ?? '', resultSession?.current_revision ?? 0),
+    enabled: Boolean(resultSession && resultSession.current_revision > 0),
+    refetchInterval: 5000,
+  })
   const activeSession = sessionsQuery.data?.find((session) => ['queued', 'processing', 'partial_failed', 'failed'].includes(session.status))
   const items = itemsQuery.data ?? []
   const reanalysisMutation = useMutation({ mutationFn: () => requestPackingReanalysis(activeSession?.id ?? ''), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['packing-sessions', boxId] }) } })

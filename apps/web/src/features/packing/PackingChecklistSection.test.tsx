@@ -36,7 +36,7 @@ function renderSection() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.listSessions.mockResolvedValue([])
+  mocks.listSessions.mockResolvedValue([{ id: 'session-1', status: 'ready', current_revision: 1 }])
   mocks.listItems.mockResolvedValue([item])
   mocks.updateItem.mockResolvedValue(undefined)
   mocks.promote.mockResolvedValue({ id: 'promotion-1', status: 'pending' })
@@ -48,6 +48,7 @@ test('keeps secondary review actions behind a compact menu', async () => {
   const user = userEvent.setup()
   renderSection()
   expect(await screen.findByRole('button', { name: /AI 智能清单/ })).toBeInTheDocument()
+  expect(mocks.listItems).toHaveBeenCalledWith('box-1', 'session-1', 1)
   expect(screen.queryByText('白色充电器')).not.toBeInTheDocument()
 
   await user.click(screen.getByRole('button', { name: /AI 智能清单/ }))

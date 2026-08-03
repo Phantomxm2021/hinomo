@@ -113,11 +113,13 @@ export async function listPackingSessions(boxId: string): Promise<PackingSession
   return data
 }
 
-export async function listDetectedPackingItems(boxId: string): Promise<PackingDetectedItem[]> {
+export async function listDetectedPackingItems(boxId: string, sessionId: string, revision: number): Promise<PackingDetectedItem[]> {
   const { data, error } = await supabase
     .from('packing_detected_items')
     .select('*')
     .eq('box_id', boxId)
+    .eq('session_id', sessionId)
+    .eq('analysis_revision', revision)
     .not('published_at', 'is', null)
     .not('review_status', 'in', '(dismissed,promoted)')
     .order('created_at')
