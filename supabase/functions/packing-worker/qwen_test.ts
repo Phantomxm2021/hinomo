@@ -24,6 +24,11 @@ Deno.test('accepts an opaque container without inventing contents', () => {
   if (parsed.observations[0]?.visibility !== 'opaque_container') throw new Error('opaque container was not preserved')
 })
 
+Deno.test('normalizes a numeric model schema version', () => {
+  const parsed = atlasObservationSchema.parse({ schema_version: 1, atlas_id: 'atlas-1', observations: [] })
+  if (parsed.schema_version !== '1') throw new Error('numeric schema version was not normalized')
+})
+
 Deno.test('rejects malformed localization tuples', () => {
   let rejected = false
   try {

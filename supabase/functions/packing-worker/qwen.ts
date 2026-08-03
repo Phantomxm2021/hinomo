@@ -12,8 +12,13 @@ const quantitySchema = z.object({
   }
 })
 
+const schemaVersionSchema = z.union([
+  z.literal(PACKING_MODEL_SCHEMA_VERSION),
+  z.literal(Number(PACKING_MODEL_SCHEMA_VERSION)),
+]).transform(() => PACKING_MODEL_SCHEMA_VERSION)
+
 export const atlasObservationSchema = z.object({
-  schema_version: z.literal(PACKING_MODEL_SCHEMA_VERSION),
+  schema_version: schemaVersionSchema,
   atlas_id: z.string().min(1),
   observations: z.array(z.object({
     observation_id: z.string().min(1),
@@ -33,7 +38,7 @@ export const atlasObservationSchema = z.object({
 })
 
 export const consolidationSchema = z.object({
-  schema_version: z.literal(PACKING_MODEL_SCHEMA_VERSION),
+  schema_version: schemaVersionSchema,
   items: z.array(z.object({
     client_id: z.string().min(1),
     name: z.string().min(1).max(120),
@@ -55,7 +60,7 @@ export const consolidationSchema = z.object({
 })
 
 export const localizationSchema = z.object({
-  schema_version: z.literal(PACKING_MODEL_SCHEMA_VERSION),
+  schema_version: schemaVersionSchema,
   photo_id: z.string().regex(/^P\d{3}$/),
   instance_id: z.string().min(1),
   bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]),
@@ -65,13 +70,13 @@ export const localizationSchema = z.object({
 })
 
 const cropValidationSchema = z.object({
-  schema_version: z.literal(PACKING_MODEL_SCHEMA_VERSION),
+  schema_version: schemaVersionSchema,
   valid: z.boolean(),
   reason: z.string().max(240).nullable(),
 })
 
 export const originalReviewSchema = z.object({
-  schema_version: z.literal(PACKING_MODEL_SCHEMA_VERSION),
+  schema_version: schemaVersionSchema,
   photo_id: z.string().regex(/^P\d{3}$/),
   evidence_confirmed: z.boolean(),
   label: z.string().min(1).max(120),
@@ -120,13 +125,13 @@ export function buildQwenChatRequest(input: {
   }
 }
 
-async function callQwen<T>(input: {
+async function callQwen<S extends z.ZodTypeAny>(input: {
   services: PackingServices
   system: string
   text: string
   image?: Uint8Array
-  schema: z.ZodType<T>
-}): Promise<QwenResult<T>> {
+  schema: S
+}): Promise<QwenResult<z.output<S>>> {
   const content: OpenAI.Chat.Completions.ChatCompletionContentPart[] = []
   if (input.image) content.push({
     type: 'image_url', image_url: { url: `data:image/webp;base64,${imageBase64(input.image)}` },
@@ -160,8 +165,17 @@ async function callQwen<T>(input: {
   if (!contentText) throw new Error('qwen_response_empty')
   let parsed: unknown
   try { parsed = JSON.parse(contentText) } catch { throw new Error('qwen_json_invalid') }
+  const validated = input.schema.safeParse(parsed)
+  if (!validated.success) {
+    console.error('qwen_schema_error', {
+      issues: validated.error.issues.map((issue) => ({
+        path: issue.path.join('.'), code: issue.code, message: issue.message,
+      })),
+    })
+    throw new Error('qwen_schema_invalid')
+  }
   return {
-    data: input.schema.parse(parsed),
+    data: validated.data,
     inputTokens: raw.usage?.prompt_tokens ?? 0,
     outputTokens: raw.usage?.completion_tokens ?? 0,
     durationMs: Date.now() - started,
@@ -170,27 +184,34 @@ async function callQwen<T>(input: {
 
 const rules = `你是 Nomo 的装箱视觉分析器。只陈述照片中可见的事实。不得猜测不透明容器内部内容；只能将其记录为容器。相同物体在连续照片中出现时不得重复计数。数量无法精确确认时必须使用 at_least、approximate 或 unknown。只返回严格 JSON。Schema 版本为 ${PACKING_MODEL_SCHEMA_VERSION}，提示词版本为 ${PACKING_PROMPT_VERSION}。`
 
+const quantityContract = `quantity 必须是 {"kind":"exact|at_least|approximate|unknown","value":正整数或null}；仅 kind=unknown 时 value=null。`
+const observationContract = `JSON 结构必须严格为 {"schema_version":"1","atlas_id":string,"observations":[{"observation_id":string,"photo_id":"PNNN","object_local_id":string,"action":"appeared|persisted|disappeared|uncertain","label":string,"category":string|null,"quantity":{"kind":string,"value":number|null},"visibility":"clear|partial|occluded|reflective|opaque_container|unknown","container_label":string|null,"evidence_photo_ids":["PNNN"],"best_crop_candidate_photo_id":"PNNN","requires_original_review":boolean,"review_reason":string|null}]}。${quantityContract}`
+const consolidationContract = `JSON 结构必须严格为 {"schema_version":"1","items":[{"client_id":string,"name":string,"category":string|null,"description":string|null,"quantity":{"kind":string,"value":number|null},"visibility":"clear|partial|occluded|reflective|opaque_container|unknown","needs_review":boolean,"instances":[{"client_id":string,"provisional_name":string,"first_seen_photo_id":"PNNN","last_seen_photo_id":"PNNN","representative_photo_id":"PNNN","evidence_photo_ids":["PNNN"],"tracking_status":"tracked|ambiguous"}]}]}。每个 items[].instances 至少一项。${quantityContract}`
+const reviewContract = `JSON 结构必须严格为 {"schema_version":"1","photo_id":"PNNN","evidence_confirmed":boolean,"label":string,"category":string|null,"quantity":{"kind":string,"value":number|null},"visibility":"clear|partial|occluded|reflective|opaque_container|unknown","review_reason":string|null}。${quantityContract}`
+const localizationContract = `JSON 结构必须严格为 {"schema_version":"1","photo_id":"PNNN","instance_id":string,"bbox":[number,number,number,number],"visible_fraction":"fully_visible|mostly_visible|partially_visible","crop_suitable":boolean,"reason":string|null}。`
+const cropValidationContract = `JSON 结构必须严格为 {"schema_version":"1","valid":boolean,"reason":string|null}。`
+
 export function observeAtlas(services: PackingServices, atlasId: string, image: Uint8Array) {
   return callQwen({ services, system: rules, image, schema: atlasObservationSchema,
-    text: `分析这张按拍摄时间从左到右、从上到下排列的装箱 Atlas。每格标题 PNNN 是原始照片编号。输出物体的出现、持续、消失或不确定观察。atlas_id 必须为 ${JSON.stringify(atlasId)}。给出最佳裁剪候选照片，但不要在 Atlas 上输出 bbox。` })
+    text: `分析这张按拍摄时间从左到右、从上到下排列的装箱 Atlas。每格标题 PNNN 是原始照片编号。输出物体的出现、持续、消失或不确定观察。atlas_id 必须为 ${JSON.stringify(atlasId)}。给出最佳裁剪候选照片，但不要在 Atlas 上输出 bbox。${observationContract}` })
 }
 
 export function consolidateObservations(services: PackingServices, observations: unknown[]) {
   return callQwen({ services, system: rules, schema: consolidationSchema,
-    text: `根据以下按时间排列且已经过校验的观察构建物理实例。同一个真实物体跨照片只能生成一个实例；后来新增的同款物体必须生成另一个实例。聚合清单和数量。无法确认时 needs_review=true。\n${JSON.stringify(observations)}` })
+    text: `根据以下按时间排列且已经过校验的观察构建物理实例。同一个真实物体跨照片只能生成一个实例；后来新增的同款物体必须生成另一个实例。聚合清单和数量。无法确认时 needs_review=true。${consolidationContract}\n观察数据：${JSON.stringify(observations)}` })
 }
 
 export function reviewOriginalObservation(services: PackingServices, input: { photoId: string; proposedLabel: string; image: Uint8Array }) {
   return callQwen({ services, system: rules, image: input.image, schema: originalReviewSchema,
-    text: `用高清原图复核 ${JSON.stringify(input.proposedLabel)}。photo_id 必须为 ${JSON.stringify(input.photoId)}。只保留原图明确支持的事实。` })
+    text: `用高清原图复核 ${JSON.stringify(input.proposedLabel)}。photo_id 必须为 ${JSON.stringify(input.photoId)}。只保留原图明确支持的事实。${reviewContract}` })
 }
 
 export function localizeInstance(services: PackingServices, input: { photoId: string; instanceId: string; itemName: string; image: Uint8Array }) {
   return callQwen({ services, system: rules, image: input.image, schema: localizationSchema,
-    text: `定位 ${JSON.stringify(input.itemName)}。photo_id=${JSON.stringify(input.photoId)}，instance_id=${JSON.stringify(input.instanceId)}。bbox 为归一化 [x_min,y_min,x_max,y_max]，完整包围目标，不能框整个箱子。` })
+    text: `定位 ${JSON.stringify(input.itemName)}。photo_id=${JSON.stringify(input.photoId)}，instance_id=${JSON.stringify(input.instanceId)}。bbox 为归一化 [x_min,y_min,x_max,y_max]，完整包围目标，不能框整个箱子。${localizationContract}` })
 }
 
 export function validateItemCrop(services: PackingServices, input: { itemName: string; image: Uint8Array }) {
   return callQwen({ services, system: rules, image: input.image, schema: cropValidationSchema,
-    text: `验证裁剪图主体是否确实是 ${JSON.stringify(input.itemName)}，且没有明显截断。无法确认时 valid=false。` })
+    text: `验证裁剪图主体是否确实是 ${JSON.stringify(input.itemName)}，且没有明显截断。无法确认时 valid=false。${cropValidationContract}` })
 }
