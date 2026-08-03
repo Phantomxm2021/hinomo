@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { PackingCapturePage } from './PackingCapturePage'
+import { PackingCaptureSheet } from './PackingCapturePage'
 
 const mocks = vi.hoisted(() => ({
   getBox: vi.fn(),
@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   listDrafts: vi.fn(),
   deleteDraft: vi.fn(),
   compress: vi.fn(),
+  onClose: vi.fn(),
+  onCompleted: vi.fn(),
 }))
 
 vi.mock('../boxes/boxes.api', () => ({ getBox: mocks.getBox }))
@@ -48,15 +50,12 @@ const session = {
   updated_at: '2026-08-03T00:00:00Z',
 }
 
-function renderPage() {
+function renderSheet() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <MemoryRouter initialEntries={['/app/boxes/box-1/packing']}>
+    <MemoryRouter>
       <QueryClientProvider client={client}>
-        <Routes>
-          <Route path="/app/boxes/:boxId/packing" element={<PackingCapturePage />} />
-          <Route path="/app/boxes/:boxId" element={<p>箱子详情</p>} />
-        </Routes>
+        <PackingCaptureSheet boxId="box-1" onClose={mocks.onClose} onCompleted={mocks.onCompleted} />
       </QueryClientProvider>
     </MemoryRouter>,
   )
@@ -64,6 +63,14 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: vi.fn().mockReturnValue({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }),
+  })
   mocks.getBox.mockResolvedValue({ id: 'box-1', box_code: 'BX-00001', name: '冬季用品' })
   mocks.getOrCreateSession.mockResolvedValue(session)
   mocks.listPhotos.mockResolvedValue([])
@@ -84,12 +91,29 @@ beforeEach(() => {
 afterEach(cleanup)
 
 test('starts a zero-form packing session with only capture and finish actions', async () => {
-  renderPage()
+  renderSheet()
 
-  expect(await screen.findByRole('heading', { name: '冬季用品' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: '拍照' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: '装箱完成' })).toBeDisabled()
+  expect(await screen.findByRole('dialog', { name: 'AI 装箱' })).toBeInTheDocument()
+  expect(await screen.findByText(/BX-00001 · 冬季用品/)).toBeInTheDocument()
+  expect(screen.getByText(/每放入一个物件，拍一张/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '选择物品照片' })).toBeInTheDocument()
+  expect(screen.getByLabelText('拍摄装箱照片')).not.toHaveAttribute('capture')
+  expect(screen.queryByRole('button', { name: '继续拍照' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '完成' })).toBeDisabled()
   expect(screen.queryByLabelText('物品名称')).not.toBeInTheDocument()
+})
+
+test('requests the rear camera and uses mobile copy on a coarse pointer device', async () => {
+  vi.mocked(window.matchMedia).mockReturnValue({
+    matches: true,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  } as unknown as MediaQueryList)
+  renderSheet()
+
+  expect(await screen.findByRole('button', { name: '拍摄这件物品' })).toBeInTheDocument()
+  expect(screen.getByLabelText('拍摄装箱照片')).toHaveAttribute('capture', 'environment')
+  expect(screen.getByText('将请求使用后置相机')).toBeInTheDocument()
 })
 
 test('stores a compressed draft before upload and completes after confirmation', async () => {
@@ -104,7 +128,7 @@ test('stores a compressed draft before upload and completes after confirmation',
       updated_at: '2026-08-03T00:01:00Z',
     }])
   })
-  renderPage()
+  renderSheet()
   const file = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' })
 
   await user.upload(await screen.findByLabelText('拍摄装箱照片'), file)
@@ -117,21 +141,29 @@ test('stores a compressed draft before upload and completes after confirmation',
   })))
   await waitFor(() => expect(mocks.deleteDraft).toHaveBeenCalledWith('session-1:1'))
 
-  const finishButton = screen.getByRole('button', { name: '装箱完成' })
+  const finishButton = screen.getByRole('button', { name: '完成' })
   await waitFor(() => expect(finishButton).toBeEnabled())
   await user.click(finishButton)
   await waitFor(() => expect(mocks.completeSession).toHaveBeenCalledWith('session-1'))
-  expect(await screen.findByText('箱子详情')).toBeInTheDocument()
+  expect(mocks.onCompleted).toHaveBeenCalledOnce()
 })
 
 test('retains a local draft when upload fails', async () => {
   const user = userEvent.setup()
   mocks.uploadPhoto.mockRejectedValueOnce(new Error('offline'))
-  renderPage()
+  renderSheet()
 
   await user.upload(await screen.findByLabelText('拍摄装箱照片'), new File(['photo'], 'photo.jpg', { type: 'image/jpeg' }))
 
   expect(await screen.findByRole('alert')).toHaveTextContent('照片上传失败')
   expect(mocks.deleteDraft).not.toHaveBeenCalled()
-  expect(screen.getByRole('button', { name: '装箱完成' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: '完成' })).toBeDisabled()
+})
+
+test('closes as a modal sheet without navigating away', async () => {
+  const user = userEvent.setup()
+  renderSheet()
+
+  await user.click(await screen.findByRole('button', { name: '关闭 AI 装箱' }))
+  expect(mocks.onClose).toHaveBeenCalledOnce()
 })

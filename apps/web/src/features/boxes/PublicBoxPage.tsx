@@ -19,6 +19,7 @@ import { deleteItem, type ItemRecord } from '../items/items.api'
 import { AuthorizedImage } from '../media/AuthorizedImage'
 import { buildLabels, renderLabelsPdf } from '../qr-print/pdf'
 import { PackingChecklistSection } from '../packing/PackingChecklistSection'
+import { PackingCaptureSheet } from '../packing/PackingCapturePage'
 import { getBoxByPublicId, listBoxes } from './boxes.api'
 
 export function PublicBoxPage() {
@@ -31,6 +32,7 @@ export function PublicBoxPage() {
   const mobileActionsButtonRef = useRef<HTMLButtonElement | null>(null)
   const deleteReturnFocusRef = useRef<HTMLElement | null>(null)
   const [showItemForm, setShowItemForm] = useState(false)
+  const [showPackingCapture, setShowPackingCapture] = useState(false)
   const [showMobileActions, setShowMobileActions] = useState(false)
   const [editingItem, setEditingItem] = useState<ItemRecord | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ItemRecord | null>(null)
@@ -222,9 +224,9 @@ export function PublicBoxPage() {
               <button ref={desktopAddItemButtonRef} className="hidden min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white lg:inline-flex" type="button" onClick={openNewItem}>
                 <AppIcon name="plus" />新增物品
               </button>
-              <Link className="inline-flex min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white no-underline" to={`/app/boxes/${box.id}/packing`}>
+              <button className="inline-flex min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white" type="button" onClick={() => setShowPackingCapture(true)}>
                 <AppIcon name="scan" />AI 装箱
-              </Link>
+              </button>
             </div>
           ) : null}
         </div>
@@ -239,7 +241,7 @@ export function PublicBoxPage() {
         title="箱子操作"
         onClose={() => setShowMobileActions(false)}
         actions={[
-          { label: 'AI 装箱', onSelect: () => navigate(`/app/boxes/${box.id}/packing`) },
+          { label: 'AI 装箱', onSelect: () => setShowPackingCapture(true) },
           { label: '新增物品', onSelect: openNewItem },
           { label: '编辑箱子', onSelect: () => navigate(`/app/boxes/${box.id}/edit`) },
           { label: printing ? '正在生成标签…' : '打印标签', disabled: printing, onSelect: () => void printLabel() },
@@ -280,6 +282,17 @@ export function PublicBoxPage() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {isOwner && showPackingCapture ? (
+        <PackingCaptureSheet
+          boxId={box.id}
+          onClose={() => setShowPackingCapture(false)}
+          onCompleted={() => {
+            setShowPackingCapture(false)
+            feedback.notify('照片已提交，AI 正在整理清单')
+          }}
+        />
       ) : null}
 
       {isOwner ? <PackingChecklistSection boxId={box.id} /> : null}

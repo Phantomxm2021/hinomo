@@ -37,6 +37,11 @@ vi.mock('../media/AuthorizedImage', () => ({
     <img src={`signed:${objectKey}`} alt={alt} />
   ),
 }))
+vi.mock('../packing/PackingCapturePage', () => ({
+  PackingCaptureSheet: ({ onClose }: { onClose: () => void }) => (
+    <section role="dialog" aria-label="AI 装箱"><button type="button" onClick={onClose}>关闭 AI 装箱</button></section>
+  ),
+}))
 
 function renderPublicBox(
   session: Session | null = null,
@@ -228,9 +233,27 @@ test('opens the mobile plus menu with the owner box actions', async () => {
 
   await user.click(await screen.findByRole('button', { name: '打开箱子操作菜单' }))
   const menu = screen.getByRole('dialog', { name: '箱子操作' })
+  expect(within(menu).getByRole('button', { name: 'AI 装箱' })).toBeInTheDocument()
   expect(within(menu).getByRole('button', { name: '新增物品' })).toBeInTheDocument()
   expect(within(menu).getByRole('button', { name: '编辑箱子' })).toBeInTheDocument()
   expect(within(menu).getByRole('button', { name: '打印标签' })).toBeInTheDocument()
+})
+
+test('opens AI packing as a sheet while keeping the box route visible', async () => {
+  const user = userEvent.setup()
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    space_id: 'space-1', name: '工具', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z', items: [],
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session)
+
+  const desktopActions = await screen.findByTestId('desktop-box-actions')
+  await user.click(within(desktopActions).getByRole('button', { name: 'AI 装箱' }))
+
+  expect(screen.getByRole('dialog', { name: 'AI 装箱' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: '工具' })).toBeInTheDocument()
 })
 
 test('returns to the previous route from the mobile detail navigation', async () => {

@@ -1,7 +1,7 @@
 import imageCompression from 'browser-image-compression'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { createPortal } from 'react-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
@@ -25,11 +25,27 @@ import { PackingAuthorizedImage } from './PackingAuthorizedImage'
 
 type UploadState = 'idle' | 'compressing' | 'uploading' | 'error'
 
-export function PackingCapturePage() {
-  const { boxId = '' } = useParams<{ boxId: string }>()
-  const navigate = useNavigate()
+function useDirectCameraPreference() {
+  const query = '(hover: none) and (pointer: coarse)'
+  const [preferred, setPreferred] = useState(() => typeof window.matchMedia === 'function' && window.matchMedia(query).matches)
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return
+    const media = window.matchMedia(query)
+    const update = () => setPreferred(media.matches)
+    media.addEventListener?.('change', update)
+    return () => media.removeEventListener?.('change', update)
+  }, [])
+  return preferred
+}
+
+export function PackingCaptureSheet({ boxId, onClose, onCompleted }: {
+  boxId: string
+  onClose: () => void
+  onCompleted: () => void
+}) {
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const uploadQueueRef = useRef<Promise<void>>(Promise.resolve())
   const recoveredSessionRef = useRef<string | null>(null)
   const nextSequenceRef = useRef(1)
@@ -37,6 +53,21 @@ export function PackingCapturePage() {
   const [localDraftCount, setLocalDraftCount] = useState(0)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [finishing, setFinishing] = useState(false)
+  const prefersDirectCamera = useDirectCameraPreference()
+
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    closeButtonRef.current?.focus()
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape)
+      document.body.style.overflow = previousOverflow
+      previousFocus?.focus()
+    }
+  }, [onClose])
 
   const boxQuery = useQuery({ queryKey: ['box-id', boxId], queryFn: () => getBox(boxId) })
   const sessionQuery = useQuery({
@@ -168,7 +199,7 @@ export function PackingCapturePage() {
         queryClient.invalidateQueries({ queryKey: ['packing-session-active', boxId] }),
         queryClient.invalidateQueries({ queryKey: ['packing-sessions', boxId] }),
       ])
-      navigate(`/app/boxes/${boxId}`, { replace: true })
+      onCompleted()
     } catch {
       setErrorMessage('照片或分析索引尚未上传完成，请检查网络后重试。')
     } finally {
@@ -177,10 +208,10 @@ export function PackingCapturePage() {
   }
 
   if (boxQuery.isPending || sessionQuery.isPending) {
-    return <main className="mx-auto grid min-h-[70dvh] max-w-3xl place-content-center"><p className="font-bold text-muted">正在准备装箱记录…</p></main>
+    return createPortal(<PackingSheetFrame title="AI 装箱" onClose={onClose} closeButtonRef={closeButtonRef}><div className="grid min-h-72 place-content-center"><p className="font-bold text-muted">正在准备装箱记录…</p></div></PackingSheetFrame>, document.body)
   }
   if (!boxQuery.data || sessionQuery.isError) {
-    return <main className="mx-auto w-full max-w-3xl py-6"><PageState state="error" message="无法开始 AI 装箱" onRetry={() => void sessionQuery.refetch()} /></main>
+    return createPortal(<PackingSheetFrame title="AI 装箱" onClose={onClose} closeButtonRef={closeButtonRef}><div className="p-5"><PageState state="error" message="无法开始 AI 装箱" onRetry={() => void sessionQuery.refetch()} /></div></PackingSheetFrame>, document.body)
   }
 
   const confirmedCount = photosQuery.data?.filter((photo) => photo.upload_status === 'confirmed').length ?? 0
@@ -188,59 +219,91 @@ export function PackingCapturePage() {
   const totalCount = confirmedCount + localDraftCount
   const busy = uploadState === 'compressing' || uploadState === 'uploading' || finishing
 
-  return (
-    <main className="mx-auto grid min-h-[calc(100dvh-5rem)] w-full max-w-3xl grid-rows-[auto_1fr_auto] gap-5 py-3 pb-[calc(7rem+var(--safe-area-bottom))] lg:py-6 lg:pb-8">
-      <nav className="flex items-center justify-between gap-3" aria-label="AI 装箱导航">
-        <Link className="inline-flex min-h-11 items-center gap-2 rounded-control px-2 font-bold text-ink no-underline" to={`/app/boxes/${boxId}`}>
-          <AppIcon className="rotate-180" name="chevron-right" />返回
-        </Link>
-        <div className="min-w-0 text-center">
-          <p className="truncate text-sm font-bold text-muted">{boxQuery.data.box_code}</p>
-          <h1 className="m-0 truncate text-lg font-extrabold text-ink">{boxQuery.data.name}</h1>
-        </div>
-        <span className="min-w-14 text-right text-sm font-bold text-brand">{totalCount} 张</span>
-      </nav>
-
-      <section className="grid place-content-center justify-items-center gap-6 rounded-[1.75rem] bg-surface px-5 py-10 text-center shadow-soft">
+  return createPortal(
+    <PackingSheetFrame
+      title="AI 装箱"
+      subtitle={`${boxQuery.data.box_code} · ${boxQuery.data.name} · ${totalCount} 张`}
+      onClose={onClose}
+      closeButtonRef={closeButtonRef}
+      action={(
+        <button
+          className="min-h-11 justify-self-end rounded-full px-2 text-[1.0625rem] font-bold text-brand disabled:text-muted/50"
+          type="button"
+          disabled={busy || totalCount === 0 || localDraftCount > 0}
+          onClick={() => void finish()}
+        >{finishing ? '整理中…' : '完成'}</button>
+      )}
+    >
+      <div className="min-h-0 overflow-y-auto">
+        <section className="grid min-h-full place-content-center justify-items-center gap-5 px-7 py-8 text-center lg:px-10 lg:py-10">
         {latestPhoto ? (
-          <div className="aspect-[4/3] w-full max-w-sm overflow-hidden rounded-[1.25rem] bg-placeholder shadow-soft">
+          <div className="relative aspect-[4/3] w-full max-w-xl overflow-hidden rounded-[1.75rem] bg-placeholder shadow-soft">
             <PackingAuthorizedImage objectKey={latestPhoto.object_key} alt={`第 ${latestPhoto.sequence_no} 张装箱照片`} className="h-full w-full object-cover" />
+            <span className="absolute top-3 left-3 rounded-full bg-ink/60 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md">最近一张 · {confirmedCount}</span>
           </div>
         ) : (
-          <div className="grid size-28 place-content-center rounded-full bg-brand/10 text-brand">
-            <AppIcon name="plus" size={44} />
+          <div className="grid size-24 place-content-center rounded-full bg-brand/10 text-brand ring-1 ring-brand/10">
+            <AppIcon name="scan" size={38} />
           </div>
         )}
         <div className="max-w-md">
-          <h2 className="m-0 text-section-title font-extrabold text-ink">每放入一批，拍一张</h2>
-          <p className="mt-2 leading-7 text-muted">无需填写信息。照片会安全上传，装箱完成后由 AI 自动生成带图片的物品清单。</p>
+          <h2 className="m-0 text-[1.45rem] leading-tight font-extrabold text-ink">{latestPhoto ? '继续记录下一件' : '从第一件物品开始'}</h2>
+          <p className="mt-2 text-[0.95rem] leading-6 text-muted">每放入一个物件，拍一张。无需填写名称和数量，完成后 AI 会自动整理成带图片的清单。</p>
         </div>
-        <button className="inline-flex min-h-14 items-center justify-center gap-2 rounded-[1rem] bg-brand px-8 text-lg font-extrabold text-white disabled:opacity-50" type="button" disabled={uploadState === 'compressing' || totalCount >= 100} onClick={() => inputRef.current?.click()}>
-          <AppIcon name="plus" size={24} />{uploadState === 'compressing' ? '正在处理…' : '拍照'}
-        </button>
         <input
           ref={inputRef}
           className="sr-only"
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          capture="environment"
+          capture={prefersDirectCamera ? 'environment' : undefined}
           aria-label="拍摄装箱照片"
           onChange={(event) => {
             void captureFile(event.target.files?.[0] ?? null)
             event.currentTarget.value = ''
           }}
         />
-        <p className="min-h-6 text-sm font-bold text-muted" role="status">
-          {uploadState === 'uploading' ? `正在上传 · ${confirmedCount} 张已完成` : localDraftCount > 0 ? `${localDraftCount} 张等待上传` : confirmedCount > 0 ? `${confirmedCount} 张已安全保存` : '从箱底开始记录效果更好'}
+        <button
+          className="inline-flex min-h-13 items-center justify-center gap-2 rounded-full bg-brand px-7 text-base font-extrabold text-white shadow-soft active:scale-[0.98] disabled:opacity-40"
+          type="button"
+          disabled={uploadState === 'compressing' || totalCount >= 100}
+          onClick={() => inputRef.current?.click()}
+        >
+          <AppIcon name={prefersDirectCamera ? 'scan' : 'plus'} size={21} />
+          {uploadState === 'compressing' ? '正在处理…' : prefersDirectCamera ? '拍摄这件物品' : '选择物品照片'}
+        </button>
+        <p className="min-h-5 text-xs font-semibold text-muted" role="status">
+          {uploadState === 'compressing' ? '正在处理照片…' : uploadState === 'uploading' ? `正在安全上传 · ${confirmedCount} 张完成` : localDraftCount > 0 ? `${localDraftCount} 张等待上传` : confirmedCount > 0 ? `${confirmedCount} 张已安全保存` : prefersDirectCamera ? '将请求使用后置相机' : '支持 JPEG、PNG 与 WebP 图片'}
         </p>
-      </section>
-
-      {errorMessage ? <ResponsiveOperationError message={errorMessage} onRetry={() => void retryPendingDrafts()} /> : null}
-
-      <div className="fixed inset-x-4 bottom-[max(1rem,var(--safe-area-bottom))] z-20 flex gap-2 rounded-control border border-line bg-surface/95 p-2 shadow-float backdrop-blur min-[360px]:inset-x-5 lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
-        <button className="min-h-12 flex-1 rounded-control border border-line bg-canvas px-4 font-bold text-ink" type="button" disabled={uploadState === 'compressing'} onClick={() => inputRef.current?.click()}>继续拍照</button>
-        <button className="min-h-12 flex-1 rounded-control bg-brand px-4 font-extrabold text-white disabled:opacity-50" type="button" disabled={busy || totalCount === 0 || localDraftCount > 0} onClick={() => void finish()}>{finishing ? '正在完成…' : '装箱完成'}</button>
+          {errorMessage ? <ResponsiveOperationError message={errorMessage} onRetry={() => void retryPendingDrafts()} /> : null}
+        </section>
       </div>
-    </main>
+    </PackingSheetFrame>,
+    document.body,
+  )
+}
+
+function PackingSheetFrame({ title, subtitle, action, onClose, closeButtonRef, children }: {
+  title: string
+  subtitle?: string
+  action?: React.ReactNode
+  onClose: () => void
+  closeButtonRef: React.RefObject<HTMLButtonElement | null>
+  children: React.ReactNode
+}) {
+  return (
+    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-ink/30 backdrop-blur-[2px] lg:p-6" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+      <section className="grid h-[94dvh] w-full max-w-3xl grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-t-[1.75rem] bg-canvas shadow-float lg:h-[min(52rem,calc(100dvh-3rem))] lg:rounded-[1.75rem]" role="dialog" aria-modal="true" aria-labelledby="packing-sheet-title">
+        <header className="relative grid min-h-[4.75rem] grid-cols-[4.5rem_minmax(0,1fr)_4.5rem] items-center border-b border-line/60 bg-surface/90 px-4 pt-3 backdrop-blur-xl">
+          <button ref={closeButtonRef} className="min-h-11 justify-self-start rounded-full px-1 text-[1.0625rem] font-semibold text-brand active:opacity-50" type="button" aria-label="关闭 AI 装箱" onClick={onClose}>取消</button>
+          <div className="min-w-0 text-center">
+            <div className="absolute top-2 left-1/2 h-1.5 w-10 -translate-x-1/2 rounded-full bg-line lg:hidden" aria-hidden="true" />
+            <h1 className="m-0 truncate text-[1.0625rem] font-extrabold text-ink" id="packing-sheet-title">{title}</h1>
+            {subtitle ? <p className="mt-0.5 truncate text-xs font-semibold text-muted">{subtitle}</p> : null}
+          </div>
+          {action ?? <span />}
+        </header>
+        {children}
+      </section>
+    </div>
   )
 }
