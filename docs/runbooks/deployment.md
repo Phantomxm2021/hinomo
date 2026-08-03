@@ -130,7 +130,7 @@ supabase functions deploy stripe-webhook --no-verify-jwt
 - Build command：`npm run build --workspace @nomo/web`
 - Output directory：`apps/web/dist`
 - Variables：`VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY`、`VITE_PUBLIC_APP_ORIGIN`
-- SPA fallback：`apps/web/public/_redirects` 提供 `/* /index.html 200`
+- SPA fallback：根目录 `wrangler.jsonc` 的 `assets.not_found_handling = "single-page-application"`
 
 ## 物品流转发布顺序
 

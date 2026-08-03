@@ -18,6 +18,7 @@
     "test:db": "supabase test db"
   },
   "devDependencies": {
-    "deno-bin": "2.2.7"
+    "deno-bin": "2.2.7",
+    "wrangler": "^4.118.0"
   }
 }
