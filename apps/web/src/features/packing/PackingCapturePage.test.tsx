@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { PHOTO_UPLOAD_MAX_BYTES } from '../../lib/photo-compression'
 import { PackingCaptureSheet } from './PackingCapturePage'
 
 const mocks = vi.hoisted(() => ({
@@ -199,6 +200,30 @@ test('uploads directly when iPhone IndexedDB cannot persist the compressed draft
     expect.objectContaining({ event: 'packing_draft_storage_failed' }),
   )
   expect(screen.queryByText('照片压缩失败，请重新拍摄。')).not.toBeInTheDocument()
+})
+
+test('recompresses an oversized legacy draft before retrying its upload', async () => {
+  const legacyDraft = {
+    id: 'session-1:3',
+    sessionId: 'session-1',
+    sequenceNo: 3,
+    blob: new Blob([new Uint8Array(PHOTO_UPLOAD_MAX_BYTES + 1)], { type: 'image/jpeg' }),
+    createdAt: '2026-08-03T00:00:00Z',
+  }
+  mocks.listDrafts.mockResolvedValue([legacyDraft])
+  mocks.compress.mockResolvedValueOnce(new File(['small'], 'packing.jpg', { type: 'image/jpeg' }))
+
+  renderSheet()
+
+  await waitFor(() => expect(mocks.uploadPhoto).toHaveBeenCalledWith(expect.objectContaining({
+    sessionId: 'session-1',
+    sequenceNo: 3,
+    blob: expect.objectContaining({ size: 5, type: 'image/jpeg' }),
+  })))
+  expect(mocks.saveDraft).toHaveBeenCalledWith(expect.objectContaining({
+    id: 'session-1:3',
+    blob: expect.objectContaining({ size: 5, type: 'image/jpeg' }),
+  }))
 })
 
 test('retains a local draft when upload fails', async () => {

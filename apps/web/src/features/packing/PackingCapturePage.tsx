@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
+import { PHOTO_UPLOAD_MAX_BYTES } from '../../lib/photo-compression'
 import { getBox } from '../boxes/boxes.api'
 import {
   completePackingSession,
@@ -140,17 +141,40 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
   const uploadDraft = useCallback(async (draft: PackingDraft, persisted = true) => {
     setUploadState('uploading')
     setErrorMessage(null)
+    let readyDraft = draft
+    if (draft.blob.size > PHOTO_UPLOAD_MAX_BYTES) {
+      try {
+        const recompressed = await compressPackingPhoto(new File(
+          [draft.blob],
+          `packing-${draft.sequenceNo}.jpg`,
+          { type: draft.blob.type || 'image/jpeg' },
+        ))
+        readyDraft = { ...draft, blob: new Blob([recompressed], { type: 'image/jpeg' }) }
+        if (persisted) await savePackingDraft(readyDraft)
+        else volatileDraftsRef.current.set(readyDraft.id, readyDraft)
+      } catch (error) {
+        reportPackingPhotoError({
+          name: `packing-${draft.sequenceNo}.jpg`,
+          type: draft.blob.type,
+          size: draft.blob.size,
+        }, error, 'packing_draft_recompression_failed')
+        setUploadState('error')
+        setCanRetryUploads(true)
+        setErrorMessage('待上传照片重新压缩失败，请保持页面打开并重试。')
+        throw new Error('packing draft recompression failed')
+      }
+    }
     try {
       await uploadPackingPhoto({
-        sessionId: draft.sessionId,
-        sequenceNo: draft.sequenceNo,
-        blob: draft.blob,
+        sessionId: readyDraft.sessionId,
+        sequenceNo: readyDraft.sequenceNo,
+        blob: readyDraft.blob,
       })
     } catch (error) {
       reportPackingPhotoError({
         name: `packing-${draft.sequenceNo}.jpg`,
-        type: draft.blob.type,
-        size: draft.blob.size,
+        type: readyDraft.blob.type,
+        size: readyDraft.blob.size,
       }, error, 'packing_photo_upload_failed')
       setUploadState('error')
       setCanRetryUploads(true)
