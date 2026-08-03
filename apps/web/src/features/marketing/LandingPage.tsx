@@ -70,7 +70,14 @@ const copy = {
       title: ['少一点寻找。', '多一点生活。'],
       body: '让每一件被珍惜的东西，都能在需要时重新回到身边。',
     },
-    footer: '每件东西，都值得有一个找得到的地方。',
+    footer: {
+      tagline: '每件东西，都值得有一个找得到的地方。',
+      explore: '探索 Nomo',
+      account: '开始使用',
+      privacy: '隐私政策',
+      terms: '服务条款',
+      rights: '保留所有权利。',
+    },
   },
   en: {
     nav: { story: 'Our story', moments: 'Life with Nomo', login: 'Sign in', start: 'Get started', enter: 'Open Nomo' },
@@ -124,7 +131,14 @@ const copy = {
       title: ['Less time searching.', 'More time living.'],
       body: 'So everything worth keeping can find its way back to you, right when you need it.',
     },
-    footer: 'Everything deserves a place you can find.',
+    footer: {
+      tagline: 'Everything deserves a place you can find.',
+      explore: 'Explore Nomo',
+      account: 'Get started',
+      privacy: 'Privacy Policy',
+      terms: 'Terms of Service',
+      rights: 'All rights reserved.',
+    },
   },
 } as const
 
@@ -234,6 +248,7 @@ export function LandingPage() {
   const t = copy[language]
   const primaryHref = session ? '/app' : '/register'
   const primaryLabel = session ? t.nav.enter : t.nav.start
+  const legalLanguage = language === 'zh' ? 'zh-CN' : 'en-US'
 
   useEffect(() => {
     document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en'
@@ -415,12 +430,36 @@ export function LandingPage() {
       </main>
 
       <footer className="bg-ink text-white/60">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-5 py-10 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-12">
-          <Link className="flex items-center gap-2.5 text-lg font-black tracking-[-0.04em] text-white no-underline" to="/"><BrandMark /> Nomo</Link>
-          <p className="m-0 text-sm">{t.footer}</p>
-          <div className="flex items-center gap-5 text-sm font-semibold">
-            <button className="text-inherit hover:text-white" type="button" onClick={() => setLanguage((current) => current === 'zh' ? 'en' : 'zh')}>{language === 'zh' ? 'English' : '中文'}</button>
-            {!session ? <Link className="text-inherit no-underline hover:text-white" to="/login">{t.nav.login}</Link> : null}
+        <div className="mx-auto w-full max-w-7xl px-5 py-12 sm:px-8 sm:py-16 lg:px-12">
+          <div className="grid gap-12 border-b border-white/10 pb-12 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.5fr)_minmax(9rem,0.55fr)_minmax(9rem,0.55fr)] lg:gap-16">
+            <div className="sm:col-span-2 lg:col-span-1">
+              <Link className="flex w-fit items-center gap-2.5 text-xl font-black tracking-[-0.04em] text-white no-underline" to="/"><BrandMark /> Nomo</Link>
+              <p className="mt-5 max-w-sm text-sm leading-7 text-white/55 sm:text-base">{t.footer.tagline}</p>
+            </div>
+
+            <nav aria-label={t.footer.explore}>
+              <h2 className="text-xs font-bold tracking-[0.12em] text-white/40 uppercase">{t.footer.explore}</h2>
+              <div className="mt-5 grid gap-3 text-sm font-semibold">
+                <a className="w-fit text-white/70 no-underline transition hover:text-white" href="#story">{t.nav.story}</a>
+                <a className="w-fit text-white/70 no-underline transition hover:text-white" href="#moments">{t.nav.moments}</a>
+              </div>
+            </nav>
+
+            <nav aria-label={t.footer.account}>
+              <h2 className="text-xs font-bold tracking-[0.12em] text-white/40 uppercase">{t.footer.account}</h2>
+              <div className="mt-5 grid gap-3 text-sm font-semibold">
+                {!session ? <Link className="w-fit text-white/70 no-underline transition hover:text-white" to="/login">{t.nav.login}</Link> : null}
+                <Link className="w-fit text-white/70 no-underline transition hover:text-white" to={primaryHref}>{primaryLabel}</Link>
+              </div>
+            </nav>
+          </div>
+
+          <div className="flex flex-col gap-4 pt-6 text-xs leading-5 sm:flex-row sm:items-center sm:justify-between">
+            <p className="m-0">© {new Date().getFullYear()} Nomo. {t.footer.rights}</p>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              <Link className="text-inherit no-underline transition hover:text-white" to={`/legal/privacy?lang=${legalLanguage}`}>{t.footer.privacy}</Link>
+              <Link className="text-inherit no-underline transition hover:text-white" to={`/legal/terms?lang=${legalLanguage}`}>{t.footer.terms}</Link>
+            </div>
           </div>
         </div>
       </footer>

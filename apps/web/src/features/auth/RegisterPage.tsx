@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { supabase } from '../../lib/supabase'
+import { LEGAL_POLICY_VERSION } from '../legal/legal-policy'
 import { getAuthErrorMessage } from './auth-errors'
 import { registerSchema, type RegisterValues } from './auth.schemas'
 import { AuthField, AuthOptions, AuthPageFrame, AuthSubmitButton } from './AuthFormPrimitives'
@@ -15,15 +16,29 @@ export function RegisterPage() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<RegisterValues>({ resolver: zodResolver(registerSchema) })
+    formState: { errors, isSubmitting, isValid },
+  } = useForm<RegisterValues>({
+    resolver: zodResolver(registerSchema),
+    mode: 'onChange',
+    defaultValues: { acceptLegal: false },
+  })
 
-  const submit = handleSubmit(async ({ displayName, ...credentials }) => {
+  const submit = handleSubmit(async ({ displayName, email, password }) => {
     setSubmitError(null)
     try {
       const { data, error } = await supabase.auth.signUp({
-        ...credentials,
-        options: { data: { display_name: displayName } },
+        email,
+        password,
+        options: {
+          data: {
+            display_name: displayName,
+            legal_acceptance: {
+              terms_version: LEGAL_POLICY_VERSION,
+              privacy_version: LEGAL_POLICY_VERSION,
+              accepted_at: new Date().toISOString(),
+            },
+          },
+        },
       })
       if (error) {
         setSubmitError(getAuthErrorMessage(error))
@@ -66,6 +81,7 @@ export function RegisterPage() {
               id="register-email"
               type="email"
               autoComplete="email"
+              placeholder="请输入邮箱地址"
               aria-invalid={Boolean(errors.email)}
               aria-describedby={errors.email ? 'register-email-error' : undefined}
               {...register('email')}
@@ -77,14 +93,41 @@ export function RegisterPage() {
               id="register-password"
               type="password"
               autoComplete="new-password"
+              placeholder="请输入至少 8 位密码"
               aria-invalid={Boolean(errors.password)}
               aria-describedby={errors.password ? 'register-password-error' : undefined}
               {...register('password')}
             />
           </AuthField>
 
+          <div className="auth-legal-consent">
+            <label htmlFor="register-accept-legal">
+              <input
+                id="register-accept-legal"
+                type="checkbox"
+                aria-invalid={Boolean(errors.acceptLegal)}
+                aria-describedby={errors.acceptLegal ? 'register-accept-legal-error' : undefined}
+                {...register('acceptLegal')}
+              />
+              <span>
+                我已阅读并同意
+                <Link to="/legal/terms?lang=zh-CN" target="_blank" rel="noreferrer">《服务条款》</Link>
+                和
+                <Link to="/legal/privacy?lang=zh-CN" target="_blank" rel="noreferrer">《隐私政策》</Link>
+              </span>
+            </label>
+            {errors.acceptLegal ? (
+              <p id="register-accept-legal-error" role="alert">{errors.acceptLegal.message}</p>
+            ) : null}
+          </div>
+
           {submitError ? <ResponsiveOperationError message={submitError} /> : null}
-          <AuthSubmitButton pending={isSubmitting} label="注册" pendingLabel="注册中…" />
+          <AuthSubmitButton
+            disabled={!isValid}
+            pending={isSubmitting}
+            label="注册"
+            pendingLabel="注册中…"
+          />
           </form>
           <AuthOptions>
             <span>已经有账号？</span>

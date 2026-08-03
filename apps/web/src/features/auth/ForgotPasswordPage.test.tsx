@@ -25,6 +25,28 @@ describe('ForgotPasswordPage', () => {
   })
   afterEach(cleanup)
 
+  it('uses the shared auth form and requires a valid email', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <ForgotPasswordPage />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('main')).toHaveClass('auth-page', 'text-body')
+    expect(screen.getByPlaceholderText('请输入邮箱地址')).toBeInTheDocument()
+    expect(screen.queryByText('想起密码了？')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '返回登录' })).toHaveAttribute('href', '/login')
+    const submitButton = screen.getByRole('button', { name: '发送重置邮件' })
+    expect(submitButton).toBeDisabled()
+
+    await user.type(screen.getByLabelText('邮箱'), 'not-an-email')
+    expect(submitButton).toBeDisabled()
+    await user.clear(screen.getByLabelText('邮箱'))
+    await user.type(screen.getByLabelText('邮箱'), 'user@example.com')
+    expect(submitButton).toBeEnabled()
+  })
+
   it('requests a recovery email with the configured redirect URL', async () => {
     const user = userEvent.setup()
     render(

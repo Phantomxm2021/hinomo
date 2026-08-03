@@ -10,12 +10,10 @@ const indexHtml = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8')
 const boxesPageSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/BoxesPage.tsx'), 'utf8')
 const catalogueCardSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/BoxCatalogueCard.tsx'), 'utf8')
 const boxCardMenuSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/BoxCardMenu.tsx'), 'utf8')
-const catalogueToolbarSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/BoxCatalogueToolbar.tsx'), 'utf8')
 const spaceFilterChipsSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/SpaceFilterChips.tsx'), 'utf8')
 const catalogueSources = [
   catalogueCardSource,
   boxCardMenuSource,
-  catalogueToolbarSource,
   spaceFilterChipsSource,
 ]
 const alignedPageSources = [
@@ -191,8 +189,6 @@ test('keeps the extracted box catalogue on approved visual tokens', () => {
   expectStaticClassToken(catalogueCardSource, 'border-line')
   expectStaticClassToken(boxCardMenuSource, 'bg-surface')
   expectStaticClassToken(boxCardMenuSource, 'border-line')
-  expectStaticClassToken(catalogueToolbarSource, 'lg:rounded-card')
-  expectStaticClassToken(catalogueToolbarSource, 'lg:border-line')
   expectStaticClassToken(spaceFilterChipsSource, 'overflow-x-auto')
 })
 

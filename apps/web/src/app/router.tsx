@@ -17,6 +17,7 @@ import { MyPage } from '../features/profile/MyPage'
 import { AccountDetailsPage } from '../features/profile/AccountDetailsPage'
 import { GeneralSettingsPage } from '../features/profile/GeneralSettingsPage'
 import { SettingsPage } from '../features/profile/SettingsPage'
+import { CreditsPage } from '../features/credits/CreditsPage'
 import { AppShell } from './AppShell'
 import { RequireAuth } from './RequireAuth'
 import { RootEntry } from './RootEntry'
@@ -32,6 +33,18 @@ export const router = createBrowserRouter([
       { path: '/forgot-password', element: <ForgotPasswordPage /> },
       { path: '/reset-password', element: <ResetPasswordPage /> },
     ],
+  },
+  {
+    path: '/legal/privacy',
+    lazy: async () => ({
+      Component: (await import('../features/legal/LegalDocumentPage')).PrivacyPolicyPage,
+    }),
+  },
+  {
+    path: '/legal/terms',
+    lazy: async () => ({
+      Component: (await import('../features/legal/LegalDocumentPage')).TermsOfServicePage,
+    }),
   },
   { path: '/b/:publicId', element: <PublicBoxPage /> },
   {
@@ -53,6 +66,8 @@ export const router = createBrowserRouter([
           { path: 'venues', element: <VenuesPage /> },
           { path: 'me', element: <MyPage /> },
           { path: 'me/account', element: <AccountDetailsPage /> },
+          { path: 'me/credits', element: <CreditsPage /> },
+          { path: 'me/membership', element: <Navigate replace to="/app/me/credits" /> },
           { path: 'me/settings', element: <SettingsPage /> },
           { path: 'me/settings/general', element: <GeneralSettingsPage /> },
           { path: '*', element: <Navigate replace to="/app" /> },

@@ -202,7 +202,7 @@ test('clears the search from the aligned clear button without losing focus', asy
 
   const input = screen.getByRole('searchbox')
   const clearButton = screen.getByRole('button', { name: '清除搜索' })
-  expect(clearButton).toHaveClass('size-9', 'self-center', 'shrink-0')
+  expect(clearButton).toHaveClass('absolute', 'size-9', 'top-1/2', 'right-1.5')
   await user.click(clearButton)
 
   expect(input).toHaveValue('')
@@ -218,6 +218,8 @@ test('uses a semantic search form and submits immediately', async () => {
 
   const form = screen.getByRole('search', { name: '查找收纳' })
   const input = within(form).getByRole('searchbox')
+  expect(form).toHaveClass('w-full')
+  expect(form).not.toHaveClass('max-w-3xl')
   expect(input).toHaveAttribute('enterkeyhint', 'search')
   expect(input).toHaveClass('h-11', 'text-body', 'focus-visible:outline-none')
   expect(input).not.toHaveClass('min-h-14', 'text-lg')

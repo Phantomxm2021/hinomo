@@ -21,8 +21,11 @@ export function LoginPage() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<Credentials>({ resolver: zodResolver(credentialsSchema) })
+    formState: { errors, isSubmitting, isValid },
+  } = useForm<Credentials>({
+    resolver: zodResolver(credentialsSchema),
+    mode: 'onChange',
+  })
 
   const submit = handleSubmit(async (credentials) => {
     setSubmitError(null)
@@ -48,7 +51,7 @@ export function LoginPage() {
             id="login-email"
             type="email"
             autoComplete="email"
-            placeholder="name@example.com"
+            placeholder="请输入邮箱地址"
             aria-invalid={Boolean(errors.email)}
             aria-describedby={errors.email ? 'login-email-error' : undefined}
             {...register('email')}
@@ -60,7 +63,7 @@ export function LoginPage() {
             id="login-password"
             type="password"
             autoComplete="current-password"
-            placeholder="输入密码"
+            placeholder="请输入至少 8 位密码"
             aria-invalid={Boolean(errors.password)}
             aria-describedby={errors.password ? 'login-password-error' : undefined}
             {...register('password')}
@@ -68,7 +71,12 @@ export function LoginPage() {
         </AuthField>
 
         {submitError ? <ResponsiveOperationError message={submitError} /> : null}
-        <AuthSubmitButton pending={isSubmitting} label="登录" pendingLabel="登录中…" />
+        <AuthSubmitButton
+          disabled={!isValid}
+          pending={isSubmitting}
+          label="登录"
+          pendingLabel="登录中…"
+        />
       </form>
       <AuthOptions>
         <Link to="/register">注册账号</Link>

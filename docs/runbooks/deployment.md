@@ -19,6 +19,10 @@
    - `202608020002_item_availability_queries.sql`
    - `202608030001_ai_packing_sessions.sql`
    - `202608030002_supabase_packing_runtime.sql`
+   - `202608030003_simplify_packing_promotion.sql`
+   - `202608030004_allow_packing_photo_fallback.sql`
+   - `202608030005_explain_packing_promotion_rejection.sql`
+   - `202608030006_ai_credits_stripe.sql`
 
    不要调换顺序：物品可用性查询依赖 `stored_quantity`，AI 装箱迁移又依赖正式物品字段、R2 签名函数和媒体清理表。
 
@@ -83,6 +87,36 @@ supabase functions deploy packing-worker --no-verify-jwt
 11. 删除测试会话，确认原图、Atlas 和未晋升裁剪图进入清理队列，晋升后的正式物品图片仍可访问。
 12. 达到权威设计文档第 20 节门槛前，只在内部或受控灰度环境启用入口。
 
+## AI Credits 与 Stripe 发布顺序
+
+1. 先阅读并确认 [AI Credits 与 Stripe 权威设计](../ai-credits-stripe.md)，在隔离 Supabase 项目执行 `202608030006_ai_credits_stripe.sql`。
+2. 执行 `014_ai_packing_sessions.test.sql`、`015_supabase_packing_runtime.test.sql` 和 `016_ai_credits.test.sql`，确认余额不足时不会排队或透支。
+3. 在 Stripe test mode 创建以下一次性 Price；代码只接受环境变量对应的 allowlist，不接受客户端传入任意 Price ID。这里必须复制以 `price_` 开头的 **Price ID**，不能使用以 `prod_` 开头的 Product ID：
+   - 20 credits，`HKD 12.00` 一次性 Price → `STRIPE_CREDIT_20_PRICE_ID`；
+   - 100 credits，`HKD 42.00` 一次性 Price → `STRIPE_CREDIT_100_PRICE_ID`；
+   - 500 credits，`HKD 148.00` 一次性 Price → `STRIPE_CREDIT_500_PRICE_ID`。
+4. 确认所有 Price 都是 one-time，不创建 recurring Price，不配置 Customer Portal。
+5. 在 Supabase Function Secrets 写入：
+   - `STRIPE_SECRET_KEY`；
+   - `STRIPE_WEBHOOK_SECRET`；
+   - 三个以 `price_` 开头的 Stripe Price ID；不要填产品详情页上的 `prod_` Product ID；
+   - `PUBLIC_APP_ORIGIN`，值必须是生产站点的精确 Origin，不能包含任意 return URL。
+   - `PUBLIC_APP_ALLOWED_ORIGINS`，逗号分隔的额外 CORS Origin；测试环境设为 `http://localhost:5173,http://127.0.0.1:5173`，正式环境不需本地调试时应留空。
+6. 类型检查并发布：
+
+```bash
+npm run typecheck:billing
+supabase functions deploy billing-checkout --no-verify-jwt
+supabase functions deploy stripe-webhook --no-verify-jwt
+```
+
+7. 在 Stripe Webhook Endpoint 指向 `https://<project-ref>.supabase.co/functions/v1/stripe-webhook`，订阅：
+   - `checkout.session.completed`；
+   - `charge.refunded`；全额退款会幂等收回对应 credit 包中尚未使用的额度，已经消费的额度不生成负余额。
+8. 使用 Stripe 测试卡依次验证：一次性购买 20 credits → Webhook 发放 → 1 张照片预留 1 credit → 发布结算 → 全额退款收回剩余额度。
+9. 验证 Webhook 重放不会重复发放；并发完成两个会话不能透支；没有任何识别结果的终态失败会释放 reservation。
+10. 确认前端空余额入口显示 Apple 风格 credit Sheet，credit 页只进入一次性 Checkout，移动端安全区、焦点恢复和 Escape 行为正常后再灰度开启。
+
 ## Cloudflare R2
 
 - Bucket 必须保持 private。
@@ -118,6 +152,7 @@ supabase functions deploy packing-worker --no-verify-jwt
 
 ```bash
 npm run typecheck
+npm run typecheck:billing
 npm run lint
 npm test -- --run
 npm run build

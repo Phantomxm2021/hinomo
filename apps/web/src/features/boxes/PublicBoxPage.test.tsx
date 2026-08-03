@@ -7,7 +7,7 @@ import type { Session } from '@supabase/supabase-js'
 import { AuthProvider } from '../auth/AuthProvider'
 import { PublicBoxPage } from './PublicBoxPage'
 
-const { mockGetBoxByPublicId, mockCreateItem, mockDeleteItem, mockListBoxes, mockListItemMovements, mockMatchMedia, mockMoveItem, mockReturnItem, mockTakeOutItem, mockUpdateItem } = vi.hoisted(() => ({
+const { mockGetBoxByPublicId, mockCreateItem, mockDeleteItem, mockListBoxes, mockListItemMovements, mockMatchMedia, mockMoveItem, mockReturnItem, mockTakeOutItem, mockUpdateItem, mockGetCreditSummary } = vi.hoisted(() => ({
   mockGetBoxByPublicId: vi.fn(),
   mockCreateItem: vi.fn(),
   mockDeleteItem: vi.fn(),
@@ -18,6 +18,7 @@ const { mockGetBoxByPublicId, mockCreateItem, mockDeleteItem, mockListBoxes, moc
   mockReturnItem: vi.fn(),
   mockTakeOutItem: vi.fn(),
   mockUpdateItem: vi.fn(),
+  mockGetCreditSummary: vi.fn(),
 }))
 
 vi.mock('./boxes.api', () => ({ getBoxByPublicId: mockGetBoxByPublicId, listBoxes: mockListBoxes }))
@@ -42,6 +43,7 @@ vi.mock('../packing/PackingCapturePage', () => ({
     <section role="dialog" aria-label="AI 装箱"><button type="button" onClick={onClose}>关闭 AI 装箱</button></section>
   ),
 }))
+vi.mock('../credits/credits.api', () => ({ getCreditSummary: mockGetCreditSummary }))
 
 function renderPublicBox(
   session: Session | null = null,
@@ -76,6 +78,7 @@ beforeEach(() => {
   mockMoveItem.mockReset()
   mockReturnItem.mockReset()
   mockTakeOutItem.mockReset()
+  mockGetCreditSummary.mockReset().mockResolvedValue({ credits_available: 100, credits_reserved: 0 })
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
     value: mockMatchMedia,
@@ -168,8 +171,8 @@ test('renders a public box for an anonymous visitor without edit controls', asyn
   expect(screen.getByText(/最近更新/)).toBeInTheDocument()
   expect(screen.getByText('家里 · 家 · 卧室')).toBeInTheDocument()
   expect(screen.getByText('衣物')).toBeInTheDocument()
-  expect(screen.getAllByText('黑色长款')).toHaveLength(2)
-  expect(screen.getAllByText('2 件')).toHaveLength(4)
+  expect(screen.getByText('黑色长款')).toBeInTheDocument()
+  expect(screen.getAllByText('2 件')).toHaveLength(2)
   expect(screen.getByText('暂无封面')).toBeInTheDocument()
   expect(screen.getAllByText('暂无图片').length).toBeGreaterThan(0)
   expect(screen.getByText('共 7 件 · 3 种物品')).toBeInTheDocument()
@@ -208,8 +211,9 @@ test('shows item controls only to the box owner', async () => {
   expect(desktopActions).toHaveClass('hidden', 'lg:flex')
   expect(within(desktopActions).getByRole('link', { name: '编辑箱子' })).toHaveAttribute('href', '/app/boxes/box-1/edit')
   expect(within(desktopActions).getByRole('button', { name: '打印标签' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: '编辑锤子' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: '删除锤子' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '打开锤子操作' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '编辑锤子' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '删除锤子' })).not.toBeInTheDocument()
   expect(screen.getByText('BX-00001')).toBeInTheDocument()
   expect(screen.getByText('私密箱子')).toBeInTheDocument()
   expect(screen.getByText(/最近更新/)).toBeInTheDocument()
@@ -257,6 +261,22 @@ test('opens AI packing as a sheet while keeping the box route visible', async ()
   expect(screen.getByRole('heading', { name: '工具' })).toBeInTheDocument()
 })
 
+test('keeps AI packing behind a native credit sheet when balance is empty', async () => {
+  mockGetCreditSummary.mockResolvedValue({ credits_available: 0, credits_reserved: 0 })
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', public_id: 'public-1', owner_id: 'owner-1', box_code: 'BX-00001',
+    name: '冬季用品', visibility: 'private', items: [], updated_at: '2026-08-03T00:00:00Z',
+    venue_name: '家', space_name: '储物间', location: null, description: null,
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session)
+  const user = userEvent.setup()
+
+  await user.click(await screen.findByRole('button', { name: '拍照识别物品' }))
+
+  expect(screen.getByRole('alertdialog', { name: '需要更多识别额度' })).toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: 'AI 装箱' })).not.toBeInTheDocument()
+})
+
 test('continues directly into AI capture from a desktop handoff QR', async () => {
   mockGetBoxByPublicId.mockResolvedValue({
     id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
@@ -289,7 +309,8 @@ test('returns to the previous route from the mobile detail navigation', async ()
   expect(await screen.findByRole('heading', { name: '上一页' })).toBeInTheDocument()
 })
 
-test('restores focus to a programmatically activated delete trigger on Escape', async () => {
+test('restores focus to the item row when deletion is cancelled', async () => {
+  const user = userEvent.setup()
   mockGetBoxByPublicId.mockResolvedValue({
     id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
     space_id: 'space-1', name: '工具', category: null, description: null,
@@ -299,11 +320,13 @@ test('restores focus to a programmatically activated delete trigger on Escape', 
   })
   renderPublicBox({ user: { id: 'owner-1' } } as Session)
 
-  const deleteButton = await screen.findByRole('button', { name: '删除锤子' })
-  fireEvent.click(deleteButton)
+  const itemRow = await screen.findByRole('button', { name: '打开锤子操作' })
+  await user.click(itemRow)
+  await user.click(screen.getByRole('button', { name: '编辑物品信息' }))
+  await user.click(screen.getByRole('button', { name: '删除物品' }))
   fireEvent.keyDown(document, { key: 'Escape' })
 
-  await waitFor(() => expect(deleteButton).toHaveFocus())
+  await waitFor(() => expect(itemRow).toHaveFocus())
 })
 
 test.each([
@@ -327,7 +350,9 @@ test.each([
   mockMatchMedia.mockReturnValue({ matches } as MediaQueryList)
   renderPublicBox({ user: { id: 'owner-1' } } as Session)
 
-  await user.click(await screen.findByRole('button', { name: '删除锤子' }))
+  await user.click(await screen.findByRole('button', { name: '打开锤子操作' }))
+  await user.click(screen.getByRole('button', { name: '编辑物品信息' }))
+  await user.click(screen.getByRole('button', { name: '删除物品' }))
   await user.click(screen.getByRole('button', { name: '确认删除' }))
 
   expect(mockDeleteItem).toHaveBeenCalledWith('i1')
@@ -375,7 +400,7 @@ test('offers direct AI and manual next steps for an owner empty box', async () =
   expect(screen.getByRole('dialog', { name: '新增物品' })).toBeInTheDocument()
 })
 
-test('opens item operations from the mobile list row and keeps editing secondary', async () => {
+test('opens the same item operations from the list row at every breakpoint', async () => {
   const user = userEvent.setup()
   mockGetBoxByPublicId.mockResolvedValue({
     id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
@@ -387,7 +412,7 @@ test('opens item operations from the mobile list row and keeps editing secondary
   renderPublicBox({ user: { id: 'owner-1' } } as Session)
 
   const row = await screen.findByRole('button', { name: '打开锤子操作' })
-  expect(row.parentElement).toHaveClass('lg:hidden')
+  expect(row).toHaveClass('w-full', 'lg:grid-cols-[7rem_minmax(0,1fr)_auto]')
   expect(row).toHaveTextContent('金属手柄')
   expect(row).toHaveTextContent('2')
   await user.click(row)
@@ -443,7 +468,7 @@ test('renders authorized cover and item images when object keys exist', async ()
   renderPublicBox()
 
   expect(await screen.findByRole('img', { name: '工具封面' })).toBeInTheDocument()
-  expect(screen.getAllByRole('img', { name: '锤子图片' })).toHaveLength(2)
+  expect(screen.getByRole('img', { name: '锤子图片' })).toBeInTheDocument()
 })
 
 test('clears the edited item when switching from edit to new', async () => {
@@ -461,7 +486,8 @@ test('clears the edited item when switching from edit to new', async () => {
   })
   renderPublicBox({ user: { id: 'owner-1' } } as Session)
 
-  await user.click(await screen.findByRole('button', { name: '编辑锤子' }))
+  await user.click(await screen.findByRole('button', { name: '打开锤子操作' }))
+  await user.click(screen.getByRole('button', { name: '编辑物品信息' }))
   expect(screen.getByLabelText('物品名称')).toHaveValue('锤子')
   await user.click(screen.getByRole('button', { name: '新增物品' }))
   expect(screen.getByLabelText('物品名称')).toHaveValue('')
@@ -487,9 +513,12 @@ test('resets form values when switching directly between edited items', async ()
   })
   renderPublicBox({ user: { id: 'owner-1' } } as Session)
 
-  await user.click(await screen.findByRole('button', { name: '编辑锤子' }))
+  await user.click(await screen.findByRole('button', { name: '打开锤子操作' }))
+  await user.click(screen.getByRole('button', { name: '编辑物品信息' }))
   expect(screen.getByLabelText('物品名称')).toHaveValue('锤子')
-  await user.click(screen.getByRole('button', { name: '编辑扳手' }))
+  await user.click(screen.getByRole('button', { name: '取消' }))
+  await user.click(screen.getByRole('button', { name: '打开扳手操作' }))
+  await user.click(screen.getByRole('button', { name: '编辑物品信息' }))
   expect(screen.getByLabelText('物品名称')).toHaveValue('扳手')
   expect(screen.getByLabelText('数量')).toHaveValue(2)
 

@@ -20,12 +20,15 @@ npm run dev
 
 AI 装箱由浏览器在结束装箱前生成并上传固定网格 Atlas，随后由 `supabase/functions/packing-worker` 异步调用 Qwen、定位原图并通过 `magick-wasm` 生成单项裁剪。Postgres Trigger/`pg_net` 负责即时唤醒 Edge Function，Supabase Cron 负责漏通知恢复；Cloudflare 只继续提供现有私有 R2 存储，不运行 Packing 计算服务。开发和发布步骤见部署 Runbook，服务端密钥不得使用 `VITE_` 前缀。
 
+AI 装箱使用预付 credit 账本，不提供订阅或自动续费：1 张提交分析的照片使用 1 credit，完成会话时在 Postgres 内原子预留，发布后结算，系统失败时释放。Stripe 只处理一次性付款和退款，本地数据库是余额的权威来源。
+
 ## 验证
 
 ```bash
 npm run lint
 npm run typecheck
 npm run typecheck:worker
+npm run typecheck:billing
 npm test -- --run
 npm run test:worker
 npm run build
@@ -39,5 +42,6 @@ npm run test:e2e
 
 - [实施计划](docs/superpowers/plans/2026-07-29-qr-storage-management-implementation.md)
 - [AI 装箱照片 Atlas 设计与实施方案](docs/superpowers/specs/2026-08-03-ai-packing-photo-atlas-design.md)
+- [AI Credits 与 Stripe 权威设计](docs/ai-credits-stripe.md)
 - [部署 Runbook](docs/runbooks/deployment.md)
 - [Docker 部署 Runbook](docs/runbooks/docker.md)

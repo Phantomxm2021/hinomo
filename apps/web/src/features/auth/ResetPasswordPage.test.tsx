@@ -81,9 +81,16 @@ describe('ResetPasswordPage', () => {
     const user = userEvent.setup()
     renderReset({ access_token: 'recovery-token' } as Session, true)
 
+    const submitButton = screen.getByRole('button', { name: '保存新密码' })
+    expect(screen.getByRole('main')).toHaveClass('auth-page', 'text-body')
+    expect(screen.getByPlaceholderText('请输入至少 8 位密码')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('请再次输入新密码')).toBeInTheDocument()
+    expect(submitButton).toBeDisabled()
+
     await user.type(screen.getByLabelText('新密码'), 'new-password')
     await user.type(screen.getByLabelText('确认新密码'), 'new-password')
-    await user.click(screen.getByRole('button', { name: '保存新密码' }))
+    expect(submitButton).toBeEnabled()
+    await user.click(submitButton)
 
     expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'new-password' })
     expect(mockCompletePasswordRecovery).toHaveBeenCalledOnce()

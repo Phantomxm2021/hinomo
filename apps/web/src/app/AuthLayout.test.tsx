@@ -52,3 +52,20 @@ test('keeps the login page in one viewport and locks document scrolling', () => 
   expect(document.body.style.overflow).toBe('hidden')
   expect(document.body.style.overscrollBehavior).toBe('none')
 })
+
+test('applies the unified access layout to password recovery', () => {
+  render(
+    <MemoryRouter initialEntries={['/forgot-password']}>
+      <Routes>
+        <Route element={<AuthLayout />}>
+          <Route path="/forgot-password" element={<h1>忘记密码</h1>} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  )
+
+  const title = screen.getByRole('heading', { name: '忘记密码' })
+  expect(title.closest('.auth-shell')).toHaveClass('auth-login-shell', 'h-dvh')
+  expect(screen.getByLabelText('Nomo 产品介绍')).toHaveClass('hidden', 'md:flex')
+  expect(document.body.style.overflow).toBe('hidden')
+})

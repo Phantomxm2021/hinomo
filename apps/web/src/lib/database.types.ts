@@ -663,6 +663,23 @@ export type Database = {
         Args: { p_session_id: string }
         Returns: Database['public']['Tables']['packing_sessions']['Row']
       }
+      get_credit_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          credits_available: number
+          credits_reserved: number
+        }[]
+      }
+      list_credit_transactions: {
+        Args: { p_limit?: number }
+        Returns: {
+          created_at: string
+          credit_amount: number
+          description: string | null
+          id: string
+          kind: Database['public']['Enums']['credit_transaction_kind']
+        }[]
+      }
       confirm_packing_photo_upload: {
         Args: { p_photo_id: string }
         Returns: undefined
@@ -875,6 +892,9 @@ export type Database = {
       audit_entity: 'space' | 'box' | 'item'
       box_visibility: 'public' | 'private'
       cleanup_status: 'pending' | 'processing' | 'completed' | 'failed'
+      credit_grant_kind: 'purchased' | 'promotional' | 'refund'
+      credit_reservation_status: 'reserved' | 'consumed' | 'released'
+      credit_transaction_kind: 'grant' | 'reserve' | 'consume' | 'release' | 'expire' | 'refund' | 'revoke'
       item_movement_action: 'take_out' | 'return' | 'move'
       media_kind: 'cover' | 'item'
       media_upload_status: 'pending' | 'confirmed' | 'expired'

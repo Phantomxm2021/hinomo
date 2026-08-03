@@ -77,7 +77,7 @@ test('uses an aligned custom clear button and restores input focus', async () =>
   const input = screen.getByRole('searchbox', { name: '搜索物品或箱子' })
   await user.type(input, '相机')
   const clearButton = screen.getByRole('button', { name: '清除搜索' })
-  expect(clearButton).toHaveClass('size-9', 'self-center', 'shrink-0')
+  expect(clearButton).toHaveClass('absolute', 'size-9', 'top-1/2', 'right-1.5')
   expect(input).toHaveClass('appearance-none', '[&::-webkit-search-cancel-button]:hidden')
   await user.click(clearButton)
 

@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { AuthContext, type AuthContextValue } from '../features/auth/auth-context'
@@ -82,4 +82,15 @@ test('restores the saved landing-page language preference', () => {
   )
   expect(screen.getByRole('combobox', { name: 'Choose language' })).toHaveValue('en')
   expect(screen.getByRole('heading', { name: 'Put away. Never lost.' })).toBeInTheDocument()
+})
+
+test('shows a complete footer without a second language control', () => {
+  renderEntry({ session: null, loading: false, isPasswordRecovery: false })
+
+  const footer = screen.getByRole('contentinfo')
+  expect(within(footer).getByText('每件东西，都值得有一个找得到的地方。')).toBeInTheDocument()
+  expect(within(footer).getByRole('link', { name: '隐私政策' })).toHaveAttribute('href', '/legal/privacy?lang=zh-CN')
+  expect(within(footer).getByRole('link', { name: '服务条款' })).toHaveAttribute('href', '/legal/terms?lang=zh-CN')
+  expect(within(footer).queryByRole('combobox')).not.toBeInTheDocument()
+  expect(screen.getAllByRole('combobox')).toHaveLength(1)
 })

@@ -20,6 +20,8 @@ import { AuthorizedImage } from '../media/AuthorizedImage'
 import { buildLabels, renderLabelsPdf } from '../qr-print/pdf'
 import { PackingChecklistSection } from '../packing/PackingChecklistSection'
 import { PackingCaptureSheet } from '../packing/PackingCapturePage'
+import { CreditGateSheet } from '../credits/CreditGateSheet'
+import { getCreditSummary } from '../credits/credits.api'
 import { getBoxByPublicId, listBoxes } from './boxes.api'
 
 export function PublicBoxPage() {
@@ -32,8 +34,12 @@ export function PublicBoxPage() {
   const desktopAddItemButtonRef = useRef<HTMLButtonElement | null>(null)
   const mobileActionsButtonRef = useRef<HTMLButtonElement | null>(null)
   const deleteReturnFocusRef = useRef<HTMLElement | null>(null)
+  const itemInteractionTriggerRef = useRef<HTMLButtonElement | null>(null)
   const [showItemForm, setShowItemForm] = useState(false)
   const [showPackingCapture, setShowPackingCapture] = useState(false)
+  const [creditGate, setCreditGate] = useState<{
+    requiredCredits?: number
+  } | null>(null)
   const [showMobileActions, setShowMobileActions] = useState(false)
   const [editingItem, setEditingItem] = useState<ItemRecord | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ItemRecord | null>(null)
@@ -45,13 +51,19 @@ export function PublicBoxPage() {
     queryFn: () => getBoxByPublicId(publicId),
     retry: false,
   })
+  const creditQuery = useQuery({
+    queryKey: ['credit-summary'],
+    queryFn: getCreditSummary,
+    enabled: Boolean(session),
+  })
   useEffect(() => {
-    if (searchParams.get('capture') !== '1' || !boxQuery.data || session?.user.id !== boxQuery.data.owner_id) return
-    setShowPackingCapture(true)
+    if (searchParams.get('capture') !== '1' || !boxQuery.data || session?.user.id !== boxQuery.data.owner_id || !creditQuery.data) return
+    if (creditQuery.data.credits_available > 0) setShowPackingCapture(true)
+    else setCreditGate({})
     const next = new URLSearchParams(searchParams)
     next.delete('capture')
     setSearchParams(next, { replace: true })
-  }, [boxQuery.data, searchParams, session?.user.id, setSearchParams])
+  }, [boxQuery.data, creditQuery.data, searchParams, session?.user.id, setSearchParams])
   const targetBoxesQuery = useQuery({
     queryKey: ['boxes'],
     queryFn: listBoxes,
@@ -141,17 +153,26 @@ export function PublicBoxPage() {
     setEditingItem(null)
     setShowItemForm(true)
   }
+  const openPackingCapture = () => {
+    const credit = creditQuery.data
+    if (!credit) {
+      void creditQuery.refetch().then((result) => {
+        if (result.data && result.data.credits_available > 0) setShowPackingCapture(true)
+        else setCreditGate({})
+      })
+      return
+    }
+    if (credit.credits_available < 1) setCreditGate({})
+    else setShowPackingCapture(true)
+  }
   const openEditItem = (item: ItemRecord) => {
     setEditingItem(item)
     setShowItemForm(true)
   }
-  const openMovementItem = (item: ItemRecord) => {
+  const openMovementItem = (item: ItemRecord, trigger?: HTMLButtonElement) => {
+    if (trigger) itemInteractionTriggerRef.current = trigger
     movementMutation.reset()
     setMovementItem(item)
-  }
-  const requestDelete = (item: ItemRecord, trigger: HTMLButtonElement) => {
-    deleteReturnFocusRef.current = trigger
-    setDeleteTarget(item)
   }
   const refreshItems = async () => {
     setShowItemForm(false)
@@ -232,7 +253,7 @@ export function PublicBoxPage() {
               <button ref={desktopAddItemButtonRef} className="hidden min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white lg:inline-flex" type="button" onClick={openNewItem}>
                 <AppIcon name="plus" />新增物品
               </button>
-              <button className="inline-flex min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white" type="button" onClick={() => setShowPackingCapture(true)}>
+              <button className="inline-flex min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white" type="button" onClick={openPackingCapture}>
                 <AppIcon name="scan" />AI 装箱
               </button>
             </div>
@@ -249,7 +270,7 @@ export function PublicBoxPage() {
         title="箱子操作"
         onClose={() => setShowMobileActions(false)}
         actions={[
-          { label: 'AI 装箱', onSelect: () => setShowPackingCapture(true) },
+          { label: 'AI 装箱', onSelect: openPackingCapture },
           { label: '新增物品', onSelect: openNewItem },
           { label: '编辑箱子', onSelect: () => navigate(`/app/boxes/${box.id}/edit`) },
           { label: printing ? '正在生成标签…' : '打印标签', disabled: printing, onSelect: () => void printLabel() },
@@ -281,7 +302,7 @@ export function PublicBoxPage() {
                 onSaved={() => void refreshItems()}
                 onCancel={() => { setShowItemForm(false); setEditingItem(null) }}
                 onDelete={editingItem ? () => {
-                  deleteReturnFocusRef.current = mobileActionsButtonRef.current
+                  deleteReturnFocusRef.current = itemInteractionTriggerRef.current ?? mobileActionsButtonRef.current
                   setShowItemForm(false)
                   setEditingItem(null)
                   setDeleteTarget(editingItem)
@@ -296,9 +317,15 @@ export function PublicBoxPage() {
         <PackingCaptureSheet
           boxId={box.id}
           onClose={() => setShowPackingCapture(false)}
+          onBillingBlocked={(_reason, requiredCredits) => {
+            setShowPackingCapture(false)
+            setCreditGate({ requiredCredits })
+            void creditQuery.refetch()
+          }}
           onCompleted={() => {
             setShowPackingCapture(false)
             feedback.notify('照片已提交，AI 正在整理清单')
+            void creditQuery.refetch()
           }}
         />
       ) : null}
@@ -316,67 +343,37 @@ export function PublicBoxPage() {
         {box.items.length > 0 ? (
           <div data-testid="box-item-list" className="overflow-hidden rounded-[1.25rem] bg-surface shadow-[inset_0_0_0_1px_rgba(79,64,48,0.06)] lg:contents lg:rounded-none lg:bg-transparent lg:shadow-none">
             {box.items.map((item) => (
-              <article className="border-b border-line/60 last:border-b-0 lg:grid lg:grid-cols-[7rem_minmax(0,1fr)_auto] lg:items-center lg:gap-4 lg:rounded-card lg:border lg:border-line lg:bg-surface lg:p-4" key={item.id}>
+              <article className="border-b border-line/60 last:border-b-0 lg:overflow-hidden lg:rounded-card lg:border lg:border-line lg:bg-surface" key={item.id}>
                 {isOwner ? (
-                  <div className="lg:hidden">
-                    <button className="grid w-full min-w-0 grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 p-3 text-left active:bg-placeholder/50" type="button" aria-label={`打开${item.name}操作`} onClick={() => openMovementItem(item)}>
-                      <div className="grid size-14 place-content-center overflow-hidden rounded-[0.9rem] bg-placeholder text-muted">
-                        {item.image_object_key ? <AuthorizedImage objectKey={item.image_object_key} alt="" className="h-full w-full object-cover" /> : <AppIcon name="box" />}
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="m-0 truncate text-[1rem] font-bold text-ink">{item.name}</h3>
-                        <p className="mt-0.5 truncate text-sm text-muted">{item.description || item.category || '未添加说明'}</p>
-                        <p className="mt-1 flex min-w-0 items-center gap-2 text-xs font-bold"><span className="shrink-0 text-muted">{item.quantity} 件</span><span className="truncate text-brand">{formatItemAvailability(deriveItemAvailability(item.quantity, item.stored_quantity))}</span></p>
-                      </div>
-                      <AppIcon className="text-muted" name="chevron-right" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 p-3 lg:hidden">
-                    <div className="grid size-14 place-content-center overflow-hidden rounded-[0.9rem] bg-placeholder text-muted">
-                      {item.image_object_key ? <AuthorizedImage objectKey={item.image_object_key} alt={`${item.name}图片`} className="h-full w-full object-cover" /> : <AppIcon name="box" />}
+                  <button className="grid w-full min-w-0 grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 p-3 text-left transition-colors hover:bg-canvas/70 active:bg-placeholder/50 lg:grid-cols-[7rem_minmax(0,1fr)_auto] lg:gap-4 lg:p-4" type="button" aria-label={`打开${item.name}操作`} onClick={(event) => openMovementItem(item, event.currentTarget)}>
+                    <div className="grid size-14 place-content-center overflow-hidden rounded-[0.9rem] bg-placeholder text-muted lg:aspect-[4/3] lg:size-auto lg:w-28 lg:rounded-control">
+                      {item.image_object_key ? <AuthorizedImage objectKey={item.image_object_key} alt="" className="h-full w-full object-cover" /> : <><AppIcon name="box" /><span className="mt-1 hidden text-xs font-bold lg:inline">暂无图片</span></>}
                     </div>
                     <div className="min-w-0">
-                      <h3 className="m-0 truncate text-[1rem] font-bold text-ink">{item.name}</h3>
-                      <p className="mt-0.5 truncate text-sm text-muted">{item.description || item.category || '未添加说明'}</p>
-                      <p className="mt-1 truncate text-xs font-bold text-brand">{formatItemAvailability(deriveItemAvailability(item.quantity, item.stored_quantity))}</p>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <h3 className="m-0 min-w-0 flex-1 truncate text-[1rem] font-bold text-ink lg:flex-none lg:text-lg lg:font-extrabold">{item.name}</h3>
+                        <span className="hidden shrink-0 rounded-full bg-placeholder/70 px-2.5 py-1 text-xs font-bold text-ink lg:inline-flex">{item.category || '未分类'}</span>
+                      </div>
+                      <p className="mt-0.5 truncate text-sm text-muted lg:mt-1 lg:leading-6">{item.description || item.category || '未添加说明'}</p>
+                      <p className="mt-1 flex min-w-0 items-center gap-2 text-xs font-bold lg:mt-2 lg:text-sm"><span className="shrink-0 text-muted">{item.quantity} 件</span><span className="truncate text-brand">{formatItemAvailability(deriveItemAvailability(item.quantity, item.stored_quantity))}</span></p>
                     </div>
-                    <span className="text-sm font-semibold text-muted">{item.quantity} 件</span>
+                    <AppIcon className="text-muted" name="chevron-right" />
+                  </button>
+                ) : (
+                  <div className="grid grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3 p-3 lg:grid-cols-[7rem_minmax(0,1fr)] lg:gap-4 lg:p-4">
+                    <div className="grid size-14 place-content-center overflow-hidden rounded-[0.9rem] bg-placeholder text-muted lg:aspect-[4/3] lg:size-auto lg:w-28 lg:rounded-control">
+                      {item.image_object_key ? <AuthorizedImage objectKey={item.image_object_key} alt={`${item.name}图片`} className="h-full w-full object-cover" /> : <><AppIcon name="box" /><span className="mt-1 hidden text-xs font-bold lg:inline">暂无图片</span></>}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <h3 className="m-0 min-w-0 flex-1 truncate text-[1rem] font-bold text-ink lg:flex-none lg:text-lg lg:font-extrabold">{item.name}</h3>
+                        <span className="hidden shrink-0 rounded-full bg-placeholder/70 px-2.5 py-1 text-xs font-bold text-ink lg:inline-flex">{item.category || '未分类'}</span>
+                      </div>
+                      <p className="mt-0.5 truncate text-sm text-muted lg:mt-1 lg:leading-6">{item.description || item.category || '未添加说明'}</p>
+                      <p className="mt-1 truncate text-xs font-bold text-brand lg:mt-2 lg:text-sm"><span className="mr-2 text-muted">{item.quantity} 件</span>{formatItemAvailability(deriveItemAvailability(item.quantity, item.stored_quantity))}</p>
+                    </div>
                   </div>
                 )}
-                <div className="hidden lg:contents">
-                <div className="aspect-[4/3] overflow-hidden rounded-[0.85rem] bg-placeholder lg:rounded-control">
-                  {item.image_object_key ? (
-                    <AuthorizedImage objectKey={item.image_object_key} alt={`${item.name}图片`} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="grid h-full place-content-center justify-items-center gap-1 text-muted">
-                      <AppIcon name="box" />
-                      <span className="hidden text-xs font-bold min-[380px]:inline lg:inline">暂无图片</span>
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0 self-center">
-                  <div className="mb-1 flex min-w-0 items-center gap-2 lg:mb-2 lg:flex-wrap">
-                    <h3 className="m-0 min-w-0 flex-1 truncate text-base font-extrabold text-ink lg:flex-none lg:text-lg">{item.name}</h3>
-                    <span className="shrink-0 rounded-full bg-placeholder/70 px-2 py-0.5 text-[0.6875rem] font-bold text-ink lg:px-2.5 lg:py-1 lg:text-xs">{item.category || '未分类'}</span>
-                  </div>
-                  <p className="truncate text-sm leading-5 text-muted lg:leading-6">{item.description || '暂无描述'}</p>
-                  <p className="mt-1 text-sm font-extrabold text-ink lg:mt-2 lg:text-base">{item.quantity} 件 <span className="ml-2 text-sm text-brand">{formatItemAvailability(deriveItemAvailability(item.quantity, item.stored_quantity))}</span></p>
-                </div>
-                {isOwner ? (
-                  <div className="col-start-2 flex justify-end gap-1.5 lg:col-auto lg:self-center">
-                    <button className="inline-flex size-10 items-center justify-center rounded-full border-0 bg-brand/8 text-brand active:opacity-70 lg:size-11 lg:rounded-control lg:border lg:border-brand/20 lg:bg-canvas" type="button" aria-label={`管理${item.name}`} onClick={() => openMovementItem(item)}>
-                      <AppIcon name="more" />
-                    </button>
-                    <button className="inline-flex size-10 items-center justify-center rounded-full border-0 bg-placeholder/60 text-ink active:opacity-70 lg:size-11 lg:rounded-control lg:border lg:border-line lg:bg-canvas" type="button" aria-label={`编辑${item.name}`} onClick={() => openEditItem(item)}>
-                      <AppIcon name="edit" />
-                    </button>
-                    <button className="inline-flex size-10 items-center justify-center rounded-full border-0 bg-danger/5 text-danger active:opacity-70 lg:size-11 lg:rounded-control lg:border lg:border-danger/30 lg:bg-canvas" type="button" aria-label={`删除${item.name}`} onClick={(event) => requestDelete(item, event.currentTarget)}>
-                      <AppIcon name="trash" />
-                    </button>
-                  </div>
-                ) : null}
-                </div>
               </article>
             ))}
           </div>
@@ -389,7 +386,7 @@ export function PublicBoxPage() {
             description={isOwner ? '拍下箱内物品让 AI 帮你整理，或从第一件物品开始手动记录。' : undefined}
             action={isOwner ? (
               <div className="flex flex-col gap-2 sm:flex-row">
-                <button className="border-brand! bg-brand! text-white!" type="button" onClick={() => setShowPackingCapture(true)}>拍照识别物品</button>
+                <button className="border-brand! bg-brand! text-white!" type="button" onClick={openPackingCapture}>拍照识别物品</button>
                 <button type="button" onClick={openNewItem}>手动记录</button>
               </div>
             ) : undefined}
@@ -405,6 +402,12 @@ export function PublicBoxPage() {
         returnFocusRef={deleteReturnFocusRef}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={() => { if (deleteTarget) deleteMutation.mutate(deleteTarget.id) }}
+      />
+      <CreditGateSheet
+        open={Boolean(creditGate)}
+        availableCredits={creditQuery.data?.credits_available ?? 0}
+        requiredCredits={creditGate?.requiredCredits}
+        onClose={() => setCreditGate(null)}
       />
     </main>
   )

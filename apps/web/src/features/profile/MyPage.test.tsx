@@ -7,12 +7,13 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { AuthContext } from '../auth/auth-context'
 import { MyPage } from './MyPage'
 
-const { mockGetAvatarDownload, mockGetProfile, mockSignOut, mockUpdateLocale, mockUploadAvatar } = vi.hoisted(() => ({
+const { mockGetAvatarDownload, mockGetProfile, mockSignOut, mockUpdateLocale, mockUploadAvatar, mockGetCreditSummary } = vi.hoisted(() => ({
   mockGetAvatarDownload: vi.fn(),
   mockGetProfile: vi.fn(),
   mockSignOut: vi.fn(),
   mockUpdateLocale: vi.fn(),
   mockUploadAvatar: vi.fn(),
+  mockGetCreditSummary: vi.fn(),
 }))
 
 vi.mock('./profile.api', () => ({
@@ -22,6 +23,7 @@ vi.mock('./profile.api', () => ({
   uploadAvatar: mockUploadAvatar,
 }))
 vi.mock('../../lib/supabase', () => ({ supabase: { auth: { signOut: mockSignOut } } }))
+vi.mock('../credits/credits.api', () => ({ getCreditSummary: mockGetCreditSummary }))
 
 beforeEach(() => {
   mockGetProfile.mockReset().mockResolvedValue({
@@ -31,6 +33,7 @@ beforeEach(() => {
   mockUpdateLocale.mockReset().mockResolvedValue(undefined)
   mockUploadAvatar.mockReset().mockResolvedValue('blob:avatar')
   mockSignOut.mockReset().mockResolvedValue({ error: null })
+  mockGetCreditSummary.mockReset().mockResolvedValue({ credits_available: 0, credits_reserved: 0 })
 })
 afterEach(cleanup)
 
@@ -67,6 +70,13 @@ test('shows an email summary that opens the account details page', async () => {
   expect(screen.queryByLabelText('更换头像')).not.toBeInTheDocument()
   expect(screen.queryByLabelText('昵称')).not.toBeInTheDocument()
   expect(screen.queryByLabelText('邮箱')).not.toBeInTheDocument()
+})
+
+test('opens the AI credit store from the account summary', async () => {
+  renderPage()
+
+  const creditLink = await screen.findByRole('link', { name: /AI Credits.*0 credits/ })
+  expect(creditLink).toHaveAttribute('href', '/app/me/credits')
 })
 
 test('moves preferences into the settings hierarchy', async () => {

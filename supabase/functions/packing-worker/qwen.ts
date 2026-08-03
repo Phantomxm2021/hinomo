@@ -97,6 +97,12 @@ export type QwenResult<T> = {
   durationMs: number
 }
 
+export type QwenUsageContext = {
+  sessionId: string
+  jobId: string
+  operation: 'observe' | 'original_review' | 'track_instances' | 'localize' | 'crop_validation'
+}
+
 function imageBase64(bytes: Uint8Array): string {
   let binary = ''
   for (let offset = 0; offset < bytes.length; offset += 32768) {
@@ -131,6 +137,7 @@ export function buildQwenChatRequest(input: {
 
 async function callQwen<S extends z.ZodTypeAny>(input: {
   services: PackingServices
+  usage: QwenUsageContext
   system: string
   text: string
   image?: Uint8Array
@@ -165,12 +172,34 @@ async function callQwen<S extends z.ZodTypeAny>(input: {
     if (error instanceof OpenAI.APIConnectionError) throw new Error('qwen_connection_error')
     throw error
   }
+  const durationMs = Date.now() - started
+  const recordUsage = async (status: 'valid' | 'empty' | 'json_invalid' | 'schema_invalid') => {
+    const { error } = await input.services.database.from('ai_model_usage_events').upsert({
+      session_id: input.usage.sessionId,
+      job_id: input.usage.jobId,
+      operation: input.usage.operation,
+      provider_request_id: raw.id,
+      model_id: input.services.qwenModel,
+      response_status: status,
+      input_tokens: raw.usage?.prompt_tokens ?? 0,
+      output_tokens: raw.usage?.completion_tokens ?? 0,
+      duration_ms: durationMs,
+    }, { onConflict: 'job_id,operation,provider_request_id', ignoreDuplicates: true })
+    if (error) console.error('qwen_usage_record_failed', { code: error.code, jobId: input.usage.jobId })
+  }
   const contentText = raw.choices[0]?.message.content
-  if (!contentText) throw new Error('qwen_response_empty')
+  if (!contentText) {
+    await recordUsage('empty')
+    throw new Error('qwen_response_empty')
+  }
   let parsed: unknown
-  try { parsed = JSON.parse(contentText) } catch { throw new Error('qwen_json_invalid') }
+  try { parsed = JSON.parse(contentText) } catch {
+    await recordUsage('json_invalid')
+    throw new Error('qwen_json_invalid')
+  }
   const validated = input.schema.safeParse(parsed)
   if (!validated.success) {
+    await recordUsage('schema_invalid')
     console.error('qwen_schema_error', {
       issues: validated.error.issues.map((issue) => ({
         path: issue.path.join('.'), code: issue.code, message: issue.message,
@@ -178,11 +207,12 @@ async function callQwen<S extends z.ZodTypeAny>(input: {
     })
     throw new Error('qwen_schema_invalid')
   }
+  await recordUsage('valid')
   return {
     data: validated.data,
     inputTokens: raw.usage?.prompt_tokens ?? 0,
     outputTokens: raw.usage?.completion_tokens ?? 0,
-    durationMs: Date.now() - started,
+    durationMs,
   }
 }
 
@@ -195,27 +225,27 @@ const reviewContract = `JSON 结构必须严格为 {"schema_version":"1","photo_
 const localizationContract = `JSON 结构必须严格为 {"schema_version":"1","photo_id":"PNNN","instance_id":string,"bbox":[number,number,number,number],"visible_fraction":"fully_visible|mostly_visible|partially_visible","crop_suitable":boolean,"reason":string|null}。bbox 使用 Qwen 原生 1000×1000 相对坐标系，四个值均在 0～1000。`
 const cropValidationContract = `JSON 结构必须严格为 {"schema_version":"1","valid":boolean,"reason":string|null}。`
 
-export function observeAtlas(services: PackingServices, atlasId: string, image: Uint8Array) {
-  return callQwen({ services, system: rules, image, schema: atlasObservationSchema,
+export function observeAtlas(services: PackingServices, usage: QwenUsageContext, atlasId: string, image: Uint8Array) {
+  return callQwen({ services, usage, system: rules, image, schema: atlasObservationSchema,
     text: `分析这张按拍摄时间从左到右、从上到下排列的装箱 Atlas。每格标题 PNNN 是原始照片编号。输出物体的出现、持续、消失或不确定观察。atlas_id 必须为 ${JSON.stringify(atlasId)}。给出最佳裁剪候选照片，但不要在 Atlas 上输出 bbox。${observationContract}` })
 }
 
-export function consolidateObservations(services: PackingServices, observations: unknown[]) {
-  return callQwen({ services, system: rules, schema: consolidationSchema,
+export function consolidateObservations(services: PackingServices, usage: QwenUsageContext, observations: unknown[]) {
+  return callQwen({ services, usage, system: rules, schema: consolidationSchema,
     text: `根据以下按时间排列且已经过校验的观察构建物理实例。同一个真实物体跨照片只能生成一个实例；后来新增的同款物体必须生成另一个实例。聚合清单和数量。无法确认时 needs_review=true。${consolidationContract}\n观察数据：${JSON.stringify(observations)}` })
 }
 
-export function reviewOriginalObservation(services: PackingServices, input: { photoId: string; proposedLabel: string; image: Uint8Array }) {
-  return callQwen({ services, system: rules, image: input.image, schema: originalReviewSchema,
+export function reviewOriginalObservation(services: PackingServices, usage: QwenUsageContext, input: { photoId: string; proposedLabel: string; image: Uint8Array }) {
+  return callQwen({ services, usage, system: rules, image: input.image, schema: originalReviewSchema,
     text: `用高清原图复核 ${JSON.stringify(input.proposedLabel)}。photo_id 必须为 ${JSON.stringify(input.photoId)}。只保留原图明确支持的事实。${reviewContract}` })
 }
 
-export function localizeInstance(services: PackingServices, input: { photoId: string; instanceId: string; itemName: string; image: Uint8Array }) {
-  return callQwen({ services, system: rules, image: input.image, schema: localizationSchema,
+export function localizeInstance(services: PackingServices, usage: QwenUsageContext, input: { photoId: string; instanceId: string; itemName: string; image: Uint8Array }) {
+  return callQwen({ services, usage, system: rules, image: input.image, schema: localizationSchema,
     text: `定位 ${JSON.stringify(input.itemName)}。photo_id=${JSON.stringify(input.photoId)}，instance_id=${JSON.stringify(input.instanceId)}。bbox 为 [x_min,y_min,x_max,y_max]，完整包围目标，不能框整个箱子。${localizationContract}` })
 }
 
-export function validateItemCrop(services: PackingServices, input: { itemName: string; image: Uint8Array }) {
-  return callQwen({ services, system: rules, image: input.image, schema: cropValidationSchema,
+export function validateItemCrop(services: PackingServices, usage: QwenUsageContext, input: { itemName: string; image: Uint8Array }) {
+  return callQwen({ services, usage, system: rules, image: input.image, schema: cropValidationSchema,
     text: `验证裁剪图主体是否确实是 ${JSON.stringify(input.itemName)}，且没有明显截断。无法确认时 valid=false。${cropValidationContract}` })
 }

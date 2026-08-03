@@ -11,6 +11,8 @@ test('provides the homepage search design tokens while forwarding input behavior
   expect(input).toHaveValue('相机')
   expect(input).toHaveClass(
     'h-11',
+    'w-full',
+    'block',
     'text-body',
     'font-normal',
     'focus-visible:outline-none',
@@ -21,5 +23,9 @@ test('provides the homepage search design tokens while forwarding input behavior
     'border-line',
     'bg-surface',
     'focus-within:border-brand',
+  )
+  expect(screen.getByTestId('search-input-shell').querySelector('.app-icon')).toHaveClass(
+    'absolute',
+    'pointer-events-none',
   )
 })

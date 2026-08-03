@@ -22,6 +22,7 @@ import {
   type PackingDraft,
 } from './packing-storage'
 import { PackingPhotoDeck } from './PackingPhotoDeck'
+import { packingBillingError } from '../credits/credits.api'
 
 type UploadState = 'idle' | 'compressing' | 'uploading' | 'error'
 
@@ -38,10 +39,11 @@ function useDirectCameraPreference() {
   return preferred
 }
 
-export function PackingCaptureSheet({ boxId, onClose, onCompleted }: {
+export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBlocked }: {
   boxId: string
   onClose: () => void
   onCompleted: () => void
+  onBillingBlocked?: (reason: 'insufficient_credits', requiredCredits: number) => void
 }) {
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -196,7 +198,12 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted }: {
         queryClient.invalidateQueries({ queryKey: ['packing-sessions', boxId] }),
       ])
       onCompleted()
-    } catch {
+    } catch (error) {
+      const billingError = packingBillingError(error)
+      if (billingError) {
+        onBillingBlocked?.(billingError, Math.max(1, (photosQuery.data?.length ?? 0) + localDraftCount))
+        return
+      }
       setErrorMessage('照片或分析索引尚未上传完成，请检查网络后重试。')
     } finally {
       setFinishing(false)
@@ -243,6 +250,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted }: {
         <div className="max-w-md">
           <h2 className="m-0 text-[1.45rem] leading-tight font-extrabold text-ink">{latestPhoto ? '继续记录下一件' : '从第一件物品开始'}</h2>
           <p className="mt-2 text-[0.95rem] leading-6 text-muted">每放入一个物件，拍一张。无需填写名称和数量，完成后 AI 会自动整理成带图片的清单。</p>
+          {totalCount > 0 ? <p className="mt-2 text-sm font-extrabold text-brand">完成后将使用 {totalCount} credits</p> : null}
         </div>
         <input
           ref={inputRef}

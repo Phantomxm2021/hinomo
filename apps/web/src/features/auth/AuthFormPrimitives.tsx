@@ -30,13 +30,14 @@ export function AuthField({ id, label, error, children }: {
   )
 }
 
-export function AuthSubmitButton({ pending, label, pendingLabel }: {
+export function AuthSubmitButton({ disabled, pending, label, pendingLabel }: {
+  disabled: boolean
   pending: boolean
   label: string
   pendingLabel: string
 }) {
   return (
-    <button type="submit" disabled={pending}>
+    <button type="submit" disabled={disabled || pending}>
       <span>{pending ? pendingLabel : label}</span>
       <span aria-hidden="true">→</span>
     </button>

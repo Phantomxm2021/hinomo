@@ -7,8 +7,9 @@ import { MemoryRouter } from 'react-router-dom'
 import { AuthContext } from '../auth/auth-context'
 import { UserAccountMenu } from './UserAccountMenu'
 
-const { mockGetAvatarDownload, mockGetProfile } = vi.hoisted(() => ({
+const { mockGetAvatarDownload, mockGetCreditSummary, mockGetProfile } = vi.hoisted(() => ({
   mockGetAvatarDownload: vi.fn(),
+  mockGetCreditSummary: vi.fn(),
   mockGetProfile: vi.fn(),
 }))
 
@@ -19,10 +20,12 @@ vi.mock('./profile.api', () => ({
   uploadAvatar: vi.fn(),
 }))
 vi.mock('../../lib/supabase', () => ({ supabase: { auth: { signOut: vi.fn() } } }))
+vi.mock('../credits/credits.api', () => ({ getCreditSummary: mockGetCreditSummary }))
 
 afterEach(cleanup)
 beforeEach(() => {
   mockGetAvatarDownload.mockReset()
+  mockGetCreditSummary.mockReset().mockResolvedValue({ credits_available: 82, credits_reserved: 3 })
   mockGetProfile.mockReset()
 })
 
@@ -78,6 +81,18 @@ test('shows real profile data and keeps the account dialog available after loadi
   await user.click(screen.getByRole('menuitem', { name: '账户信息' }))
   expect(screen.getByRole('dialog', { name: '账户信息' })).toBeInTheDocument()
   expect(screen.getByDisplayValue('小诺')).toBeInTheDocument()
+})
+
+test('makes the credit balance and store available from the desktop account menu', async () => {
+  const user = userEvent.setup()
+  mockGetProfile.mockResolvedValue({
+    id: 'user-1', display_name: '小诺', avatar_object_key: null, locale: 'zh-CN',
+  })
+  renderMenu()
+
+  expect(await screen.findByText('82 AI Credits')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '打开账户菜单' }))
+  expect(screen.getByRole('menuitem', { name: 'AI Credits，82 credits，购买额度' })).toHaveAttribute('href', '/app/me/credits')
 })
 
 test('falls back to session data after a profile error', async () => {

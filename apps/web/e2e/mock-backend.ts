@@ -99,6 +99,13 @@ export async function installMockBackend(page: Page, state: MockState) {
       return json(route, null)
     }
 
+    if (url.pathname === '/rest/v1/rpc/get_credit_summary' && method === 'POST' && currentUserId) {
+      return json(route, [{
+        credits_available: 0,
+        credits_reserved: 0,
+      }])
+    }
+
     if (url.pathname === '/rest/v1/venues') {
       if (method === 'GET') {
         return json(route, state.venues.filter((venue) => venue.owner_id === currentUserId).map((venue) => ({

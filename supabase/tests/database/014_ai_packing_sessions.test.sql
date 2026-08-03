@@ -43,6 +43,13 @@ insert into public.boxes (id, owner_id, space_id, name, visibility)
 select box_id, owner_id, 'aa100000-0000-4000-8000-000000000001', 'AI 装箱测试箱', 'private'
 from packing_test_state;
 
+insert into public.credit_grants (
+  user_id, kind, original_credits, remaining_credits, effective_at, expires_at, source_reference
+)
+select owner_id, 'promotional', 100, 100, pg_catalog.now() - interval '1 minute',
+  pg_catalog.now() + interval '30 days', 'packing-test-owner'
+from packing_test_state;
+
 select has_table('public', 'packing_sessions', 'packing sessions table exists');
 select has_table('public', 'packing_detected_instances', 'physical instance table exists');
 select has_table('public', 'packing_detected_items', 'AI checklist table exists');

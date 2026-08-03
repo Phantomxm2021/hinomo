@@ -185,19 +185,12 @@ test('owner creates, finds, labels, and maintains a public box', async ({ browse
   const campingLink = page.getByRole('link', { name: '打开露营用品' })
   await expect(winterLink).toBeVisible()
   await expect(campingLink).toBeVisible()
-
-  let searchbox = page.getByRole('searchbox', { name: '搜索箱子' })
-  await searchbox.fill('BX-00001')
-  await expect(page).toHaveURL('/app/boxes?q=BX-00001')
-  await expect(winterLink).toBeVisible()
-  await expect(campingLink).toHaveCount(0)
+  await expect(page.getByRole('searchbox', { name: '搜索箱子' })).toHaveCount(0)
   await expectNoHorizontalOverflow(page)
 
   await page.reload()
-  searchbox = page.getByRole('searchbox', { name: '搜索箱子' })
-  await expect(searchbox).toHaveValue('BX-00001')
   await expect(page.getByRole('link', { name: '打开冬季衣物' })).toBeVisible()
-  await expect(page.getByRole('link', { name: '打开露营用品' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: '打开露营用品' })).toBeVisible()
 
   let managementTrigger = page.getByRole('button', { name: '管理冬季衣物' })
   await managementTrigger.click()
@@ -209,11 +202,9 @@ test('owner creates, finds, labels, and maintains a public box', async ({ browse
   await expect(page.getByLabel('箱子名称')).toHaveValue('冬季衣物')
 
   await page.goBack()
-  await expect(page).toHaveURL('/app/boxes?q=BX-00001')
-  searchbox = page.getByRole('searchbox', { name: '搜索箱子' })
-  await expect(searchbox).toHaveValue('BX-00001')
+  await expect(page).toHaveURL('/app/boxes')
   await expect(page.getByRole('link', { name: '打开冬季衣物' })).toBeVisible()
-  await expect(page.getByRole('link', { name: '打开露营用品' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: '打开露营用品' })).toBeVisible()
 
   managementTrigger = page.getByRole('button', { name: '管理冬季衣物' })
   await managementTrigger.click()

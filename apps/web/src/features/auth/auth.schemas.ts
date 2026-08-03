@@ -9,6 +9,7 @@ export const emailSchema = credentialsSchema.pick({ email: true })
 
 export const registerSchema = credentialsSchema.extend({
   displayName: z.string().trim().min(1, '请输入昵称').max(40, '昵称不能超过 40 个字符'),
+  acceptLegal: z.boolean().refine((accepted) => accepted, '请阅读并同意服务条款和隐私政策'),
 })
 
 export const resetPasswordSchema = z

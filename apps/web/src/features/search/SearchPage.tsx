@@ -107,7 +107,7 @@ export function SearchPage() {
         <h1 className="mb-0 text-page-title font-extrabold" id="search-title">查找收纳</h1>
       </header>
 
-      <form className="flex w-full max-w-3xl items-stretch gap-2.5" role="search" aria-label="查找收纳" onSubmit={submitSearch}>
+      <form className="flex w-full items-stretch gap-2.5" role="search" aria-label="查找收纳" onSubmit={submitSearch}>
         <div className="flex min-w-0 flex-1">
           <label className="sr-only" htmlFor="global-search">关键词</label>
           <SearchInputShell

@@ -10,6 +10,7 @@
     "lint": "npm run lint --workspace=@nomo/web",
     "typecheck": "npm run typecheck --workspace=@nomo/web",
     "typecheck:worker": "deno check --config supabase/functions/packing-worker/deno.json supabase/functions/packing-worker/index.ts",
+    "typecheck:billing": "deno check --config supabase/functions/deno.json supabase/functions/billing-checkout/index.ts supabase/functions/stripe-webhook/index.ts",
     "test": "npm run test --workspace=@nomo/web --",
     "test:worker": "deno test --config supabase/functions/packing-worker/deno.json supabase/functions/packing-worker",
     "build:worker": "deno check --config supabase/functions/packing-worker/deno.json supabase/functions/packing-worker/index.ts",

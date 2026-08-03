@@ -178,32 +178,16 @@ afterEach(() => {
   cleanup()
 })
 
-test('hydrates search and space from the URL without rendering sort controls', async () => {
+test('hydrates the space filter while ignoring a legacy search parameter', async () => {
   mockListBoxes.mockResolvedValue(boxes)
   renderBoxes('/app/boxes?q=衣&space=space-1&sort=items')
 
-  expect(await screen.findByRole('searchbox', { name: '搜索箱子' })).toHaveValue('衣')
-  expect(screen.getByRole('button', { name: '卧室 1' })).toHaveAttribute('aria-pressed', 'true')
+  expect(await screen.findByRole('button', { name: '卧室 1' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.queryByRole('searchbox', { name: '搜索箱子' })).not.toBeInTheDocument()
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: '打开冬季衣物' })).toHaveAttribute('href', '/b/public-1')
   expect(screen.queryByRole('link', { name: '打开露营用品' })).not.toBeInTheDocument()
   expect(screen.getByText('显示 1 个')).toBeInTheDocument()
-})
-
-test('writes search with replacement while preserving other URL state', async () => {
-  const user = userEvent.setup()
-  mockListBoxes.mockResolvedValue(boxes)
-  renderBoxes('/app/boxes?space=space-1&sort=items&panel=keep')
-
-  const searchbox = await screen.findByRole('searchbox', { name: '搜索箱子' })
-  await user.type(searchbox, '衣')
-
-  expect(screen.getByTestId('location')).toHaveTextContent('space=space-1')
-  expect(screen.getByTestId('location')).not.toHaveTextContent('sort=')
-  expect(screen.getByTestId('location')).toHaveTextContent('panel=keep')
-  expect(screen.getByTestId('location')).toHaveTextContent('q=%E8%A1%A3')
-  expect(screen.getByTestId('navigation-type')).toHaveTextContent('REPLACE')
-
 })
 
 test.each(['recent', 'items', 'unsupported'])('removes legacy sort=%s while preserving all other URL parameters', async (rawSort) => {
@@ -226,7 +210,7 @@ test.each(['recent', 'items', 'unsupported'])('removes legacy sort=%s while pres
   expect(screen.getByTestId('location')).not.toHaveTextContent('sort=')
 })
 
-test('space chips preserve search and unknown URL parameters after legacy sort cleanup', async () => {
+test('space chips preserve unknown URL parameters after legacy sort cleanup', async () => {
   const user = userEvent.setup()
   mockListBoxes.mockResolvedValue(boxes)
   renderBoxes('/app/boxes?q=%E7%94%A8%E5%93%81&sort=items&panel=keep')
@@ -249,7 +233,7 @@ test('space chips preserve search and unknown URL parameters after legacy sort c
 
 test('shows the global catalogue summary after loading', async () => {
   mockListBoxes.mockResolvedValue(boxes)
-  renderBoxes('/app/boxes?q=衣&space=space-1')
+  renderBoxes('/app/boxes?space=space-1')
 
   expect(await screen.findByText('2 个箱子 · 20 件物品')).toBeInTheDocument()
   expect(screen.getByText('显示 1 个')).toBeInTheDocument()
@@ -374,7 +358,7 @@ test('does not close an open card menu when only a legacy sort parameter changes
   expect(screen.getByRole('link', { name: '编辑冬季衣物' })).toBeInTheDocument()
 })
 
-test('keeps a restored card menu closed after catalogue criteria change through history', async () => {
+test('keeps a restored card menu closed after the space filter changes through history', async () => {
   const user = userEvent.setup()
   mockListBoxes.mockResolvedValue(boxes)
   const { router } = renderBoxes()
@@ -383,8 +367,9 @@ test('keeps a restored card menu closed after catalogue criteria change through 
   await user.click(screen.getByRole('button', { name: '管理冬季衣物' }))
   expect(screen.getByRole('link', { name: '编辑冬季衣物' })).toBeInTheDocument()
 
-  await act(async () => { await router.navigate('/app/boxes?q=missing') })
-  expect(await screen.findByText('没有匹配的箱子')).toBeInTheDocument()
+  await act(async () => { await router.navigate('/app/boxes?space=space-2') })
+  expect(await screen.findByRole('link', { name: '打开露营用品' })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: '打开冬季衣物' })).not.toBeInTheDocument()
   await act(async () => { await router.navigate(-1) })
 
   expect(await screen.findByRole('link', { name: '打开冬季衣物' })).toBeInTheDocument()
@@ -395,7 +380,7 @@ test('keeps a restored card menu closed after catalogue criteria change through 
 test('distinguishes a true empty catalogue from filtered no-match results', async () => {
   const user = userEvent.setup()
   mockListBoxes.mockResolvedValue(boxes)
-  const firstView = renderBoxes('/app/boxes?q=missing&space=space-1&sort=items&panel=keep')
+  const firstView = renderBoxes('/app/boxes?space=missing&sort=items&panel=keep')
 
   expect(await screen.findByText('没有匹配的箱子')).toBeInTheDocument()
   expect(screen.queryByText('还没有箱子')).not.toBeInTheDocument()
@@ -619,7 +604,7 @@ test('keeps real catalogue content visible without skeletons during a background
   act(() => { void client.invalidateQueries({ queryKey: ['boxes'] }) })
 
   await waitFor(() => expect(mockListBoxes).toHaveBeenCalledTimes(2))
-  expect(screen.getByRole('searchbox', { name: '搜索箱子' })).toBeInTheDocument()
+  expect(screen.queryByRole('searchbox', { name: '搜索箱子' })).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: '打开冬季衣物' })).toBeInTheDocument()
   expect(screen.queryByRole('status', { name: '正在加载箱子目录' })).not.toBeInTheDocument()
   expect(screen.queryByTestId('skeleton')).not.toBeInTheDocument()
@@ -652,7 +637,7 @@ test('keeps the stale catalogue available when a background refetch fails', asyn
   const refetchAlert = await screen.findByRole('alert')
   expect(refetchAlert).toHaveTextContent('箱子刷新失败，正在显示上次结果')
   expect(screen.getByText('2 个箱子 · 20 件物品')).toBeInTheDocument()
-  expect(screen.getByRole('searchbox', { name: '搜索箱子' })).toBeInTheDocument()
+  expect(screen.queryByRole('searchbox', { name: '搜索箱子' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: '卧室 1' })).toHaveAttribute('aria-pressed', 'true')
   expect(screen.getByRole('link', { name: '打开冬季衣物' })).toBeInTheDocument()
   expect(screen.queryByText('箱子加载失败，请重试')).not.toBeInTheDocument()

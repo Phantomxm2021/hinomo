@@ -63,6 +63,25 @@ describe('LoginPage', () => {
     expect(screen.getByRole('heading', { name: '欢迎回来' })).toHaveClass('text-page-title', 'font-extrabold')
   })
 
+  it('only enables login for valid complete credentials', async () => {
+    const user = userEvent.setup()
+    renderLogin()
+
+    const submitButton = screen.getByRole('button', { name: '登录' })
+    expect(screen.getByPlaceholderText('请输入邮箱地址')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('请输入至少 8 位密码')).toBeInTheDocument()
+    expect(submitButton).toBeDisabled()
+
+    await user.type(screen.getByLabelText('邮箱'), 'invalid-email')
+    await user.type(screen.getByLabelText('密码'), 'short')
+    expect(submitButton).toBeDisabled()
+
+    await user.clear(screen.getByLabelText('邮箱'))
+    await user.type(screen.getByLabelText('邮箱'), 'user@example.com')
+    await user.type(screen.getByLabelText('密码'), '-password')
+    expect(submitButton).toBeEnabled()
+  })
+
   it('signs in and returns to the requested page', async () => {
     renderLogin('/app/boxes')
 

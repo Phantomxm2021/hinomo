@@ -4,7 +4,8 @@ import { BrandIcon } from '../components/BrandIcon'
 
 export function AuthLayout() {
   const location = useLocation()
-  const accessPage = location.pathname === '/login' || location.pathname === '/register'
+  const accessPage = ['/login', '/register', '/forgot-password', '/reset-password']
+    .includes(location.pathname)
 
   useEffect(() => {
     if (!accessPage) return

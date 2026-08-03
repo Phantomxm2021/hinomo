@@ -68,12 +68,16 @@ async function observe(services: PackingServices, job: ClaimedJob): Promise<void
     .eq('layout_version', PACKING_LAYOUT_VERSION).eq('upload_status', 'confirmed').single()
   databaseError(error, 'observe_atlas_missing')
   const atlas = data as PackingAtlas
-  const result = await observeAtlas(services, atlas.id, await readMedia(services, atlas.object_key))
+  const result = await observeAtlas(services, {
+    sessionId: job.session_id, jobId: job.job_id, operation: 'observe',
+  }, atlas.id, await readMedia(services, atlas.object_key))
   const reviews = []
   const candidate = result.data.observations.find((entry) => entry.requires_original_review)
   if (candidate) {
     const photo = photoByLabel(await getPhotos(services, job.session_id), candidate.best_crop_candidate_photo_id)
     const review = await reviewOriginalObservation(services, {
+      sessionId: job.session_id, jobId: job.job_id, operation: 'original_review',
+    }, {
       photoId: candidate.best_crop_candidate_photo_id,
       proposedLabel: candidate.label,
       image: await readMedia(services, photo.object_key),
@@ -95,7 +99,9 @@ async function track(services: PackingServices, job: ClaimedJob): Promise<void> 
   const { data, error } = await services.database.from('packing_analysis_jobs').select('scope_key,result')
     .eq('session_id', job.session_id).eq('stage', 'observe').eq('status', 'completed').order('scope_key')
   databaseError(error, 'observations_read_failed')
-  const result = await consolidateObservations(services, (data ?? []).map((row) => row.result))
+  const result = await consolidateObservations(services, {
+    sessionId: job.session_id, jobId: job.job_id, operation: 'track_instances',
+  }, (data ?? []).map((row) => row.result))
   await completeJob(services, job.job_id, result.data, result)
   await enqueueJob(services, job.session_id, 'consolidate', 'session', `${PACKING_PROMPT_VERSION}:materialize`)
 }
@@ -195,6 +201,8 @@ async function localize(services: PackingServices, job: ClaimedJob): Promise<voi
   const source = await readMedia(services, typedPhoto.object_key)
   const photoLabel = `P${String(typedPhoto.sequence_no).padStart(3, '0')}`
   const result = await localizeInstance(services, {
+    sessionId: job.session_id, jobId: job.job_id, operation: 'localize',
+  }, {
     photoId: photoLabel, instanceId: instance.id as string, itemName: item.name as string, image: source,
   })
   const metrics: Metrics = { inputTokens: result.inputTokens, outputTokens: result.outputTokens, durationMs: result.durationMs }
@@ -202,7 +210,9 @@ async function localize(services: PackingServices, job: ClaimedJob): Promise<voi
   let validationResult: unknown = null
   if (result.data.crop_suitable) {
     const crop = cropPackingItem(source, result.data.bbox)
-    const validation = await validateItemCrop(services, { itemName: item.name as string, image: crop.bytes })
+    const validation = await validateItemCrop(services, {
+      sessionId: job.session_id, jobId: job.job_id, operation: 'crop_validation',
+    }, { itemName: item.name as string, image: crop.bytes })
     metrics.inputTokens += validation.inputTokens
     metrics.outputTokens += validation.outputTokens
     metrics.durationMs += validation.durationMs

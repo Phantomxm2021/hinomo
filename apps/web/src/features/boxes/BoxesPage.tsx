@@ -10,7 +10,6 @@ import { useMobileFeedback } from '../../components/mobile-feedback'
 import { useSelectedVenue } from '../venues/selected-venue'
 import { listVenues } from '../venues/venues.api'
 import { BoxCatalogueCard } from './BoxCatalogueCard'
-import { BoxCatalogueToolbar } from './BoxCatalogueToolbar'
 import { BoxCreationNextStep } from './BoxCreationNextStep'
 import {
   catalogueSpaces,
@@ -21,7 +20,7 @@ import { deleteBox, listBoxesForVenue, type BoxSummary, type CreatedBox } from '
 import { CreateBoxModal } from './CreateBoxModal'
 import { SpaceFilterChips } from './SpaceFilterChips'
 
-type CatalogueParam = 'q' | 'space'
+type CatalogueParam = 'space'
 
 const EMPTY_BOXES: readonly BoxSummary[] = []
 
@@ -65,7 +64,6 @@ export function BoxesPage() {
   const cataloguePending = (Boolean(selectedVenueId) && boxesQuery.isPending && boxesQuery.data === undefined)
     || (venuesQuery.isPending && venuesQuery.data === undefined)
   const catalogueError = boxesQuery.isError || venuesQuery.isError
-  const query = searchParams.get('q') ?? ''
   const selectedSpace = searchParams.get('space') ?? ''
   const creating = searchParams.get('create') === '1'
   const wasCreating = useRef(creating)
@@ -73,9 +71,9 @@ export function BoxesPage() {
   const spaces = useMemo(() => catalogueSpaces(boxes), [boxes])
   const summary = useMemo(() => catalogueSummary(boxes), [boxes])
   const visibleBoxes = useMemo(() => filterBoxes(boxes, {
-    query,
+    query: '',
     spaceId: selectedSpace,
-  }), [boxes, query, selectedSpace])
+  }), [boxes, selectedSpace])
 
   useEffect(() => {
     if (!searchParams.has('sort')) return
@@ -93,7 +91,6 @@ export function BoxesPage() {
 
   const clearCatalogueFilters = () => {
     const next = new URLSearchParams(searchParams)
-    next.delete('q')
     next.delete('space')
     next.delete('sort')
     setSearchParams(next, { replace: true })
@@ -156,7 +153,7 @@ export function BoxesPage() {
 
   useEffect(() => {
     setOpenMenuBoxId(null)
-  }, [query, selectedSpace])
+  }, [selectedSpace])
 
   useEffect(() => {
     const shouldRestoreFocus = wasCreating.current && !creating
@@ -200,7 +197,6 @@ export function BoxesPage() {
 
       {cataloguePending ? (
         <SkeletonGroup className="grid gap-5" label="正在加载箱子目录">
-          <Skeleton className="h-12 w-full" />
           <Skeleton className="h-10 w-full" />
           <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }, (_, index) => (
@@ -220,26 +216,20 @@ export function BoxesPage() {
         <ResponsiveOperationError message="箱子刷新失败，正在显示上次结果" busy={boxesQuery.isFetching || venuesQuery.isFetching} onRetry={() => { void boxesQuery.refetch(); void venuesQuery.refetch() }} />
       ) : null}
       {hasCatalogueData && boxes.length > 0 ? (
-        <>
-          <BoxCatalogueToolbar
-            query={query}
-            onQueryChange={(nextQuery) => updateCatalogueParam('q', nextQuery)}
-          />
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <SpaceFilterChips
-                spaces={spaces}
-                selectedSpace={selectedSpace}
-                totalCount={boxes.length}
-                onChange={(spaceId) => updateCatalogueParam('space', spaceId)}
-              />
-            </div>
-            <p className="shrink-0 text-sm font-bold text-muted" role="status" aria-label={`显示 ${visibleBoxes.length} 个箱子`}>
-              <span className="sm:hidden" aria-hidden="true">{visibleBoxes.length} 个</span>
-              <span className="hidden sm:inline" aria-hidden="true">显示 {visibleBoxes.length} 个</span>
-            </p>
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <SpaceFilterChips
+              spaces={spaces}
+              selectedSpace={selectedSpace}
+              totalCount={boxes.length}
+              onChange={(spaceId) => updateCatalogueParam('space', spaceId)}
+            />
           </div>
-        </>
+          <p className="shrink-0 text-sm font-bold text-muted" role="status" aria-label={`显示 ${visibleBoxes.length} 个箱子`}>
+            <span className="sm:hidden" aria-hidden="true">{visibleBoxes.length} 个</span>
+            <span className="hidden sm:inline" aria-hidden="true">显示 {visibleBoxes.length} 个</span>
+          </p>
+        </div>
       ) : null}
 
       {createSucceeded && createdBox ? (

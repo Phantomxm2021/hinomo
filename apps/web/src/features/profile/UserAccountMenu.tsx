@@ -6,6 +6,7 @@ import { AppIcon } from '../../components/AppIcon'
 import { Skeleton } from '../../components/Skeleton'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/auth-context'
+import { getCreditSummary } from '../credits/credits.api'
 import { userDisplayName } from './account-name'
 import { AccountAvatar, AvatarUploadControl, ReadOnlyAccountField } from './account-view'
 import { getAvatarDownload, getProfile, uploadAvatar } from './profile.api'
@@ -26,6 +27,7 @@ export function UserAccountMenu() {
     queryFn: getAvatarDownload,
     enabled: Boolean(profileQuery.data?.avatar_object_key),
   })
+  const creditQuery = useQuery({ queryKey: ['credit-summary'], queryFn: getCreditSummary })
   const avatarMutation = useMutation({
     mutationFn: uploadAvatar,
     onSuccess: async () => {
@@ -69,6 +71,9 @@ export function UserAccountMenu() {
             <span className="min-w-0 flex-1">
               <span className="block truncate text-body font-bold text-ink">{name}</span>
               <span className="block truncate text-meta text-muted">{user.email}</span>
+              <span className="mt-1 block text-xs font-bold text-brand">
+                {creditQuery.isPending ? '正在加载 Credits' : `${creditQuery.data?.credits_available ?? 0} AI Credits`}
+              </span>
             </span>
           </>
         )}
@@ -77,6 +82,22 @@ export function UserAccountMenu() {
       </button>
       {open ? createPortal(
         <div className="fixed bottom-28 left-6 z-[60] grid w-72 max-w-[calc(100vw-3rem)] gap-1 rounded-card border border-line bg-surface p-2 shadow-float" role="menu">
+          <Link
+            className="group mb-1 overflow-hidden rounded-[1rem] bg-[linear-gradient(145deg,#647e6e_0%,#385447_100%)] p-4 text-white no-underline shadow-soft transition-transform hover:-translate-y-0.5"
+            to="/app/me/credits"
+            role="menuitem"
+            aria-label={`AI Credits，${creditQuery.data?.credits_available ?? 0} credits，购买额度`}
+            onClick={() => setOpen(false)}
+          >
+            <span className="flex items-center justify-between gap-3">
+              <span className="grid size-9 place-items-center rounded-[0.7rem] bg-white/15 ring-1 ring-white/15"><AppIcon name="scan" size={19} /></span>
+              <span className="text-xs font-bold text-white/70">一次购买 · 不自动续费</span>
+            </span>
+            <span className="mt-4 flex items-end justify-between gap-3">
+              <span><span className="block text-xs font-semibold text-white/70">可用额度</span><strong className="mt-0.5 block text-xl leading-none">{creditQuery.data?.credits_available ?? 0} credits</strong></span>
+              <span className="flex items-center gap-0.5 text-xs font-bold">购买<AppIcon name="chevron-right" size={15} className="transition-transform group-hover:translate-x-0.5" /></span>
+            </span>
+          </Link>
           <button className="flex min-h-11 items-center gap-3 rounded-control px-3 text-left text-body font-medium text-ink hover:bg-canvas" type="button" role="menuitem" onClick={() => { setDialog('profile'); setOpen(false) }}>
             <AppIcon name="user" size={18} />账户信息
           </button>
