@@ -83,7 +83,7 @@ Nomo 新增“AI 装箱”能力。用户扫描或打开箱子后开始一次装
 
 界面固定提示“每放入一个物件，拍一张”，拍摄完成后提示“继续记录下一件”。不得使用“每批”“一批物品”等可能让用户把多个独立物品合并拍摄的文案。
 
-在无 hover 且使用粗指针的移动设备上，主操作显示“拍摄这件物品”，并点击隐藏的文件输入；该输入使用 `capture="environment"` 和 `accept="image/jpeg"`，由浏览器交给系统后置相机并请求 JPEG。系统相机返回后，客户端再统一压缩为 JPEG 并上传，不在 Sheet 内实现取景器，也不调用 `getUserMedia`。iOS 可能在已返回 JPEG MIME 的同时保留 `.HEIC` 文件名，此时必须以明确的 `image/jpeg` MIME 为准继续处理；只有实际返回 HEIC/HEIF MIME 时才拒绝，并提示用户将 iPhone 相机格式改为“兼容性最佳”。在桌面或精细指针设备上，主操作显示“选择物品照片”，由浏览器打开只接受 JPEG、PNG、WebP 的文件选择器。界面不得提供“重新尝试相机”按钮。
+在无 hover 且使用粗指针的移动设备上，主操作显示“拍摄这件物品”，并点击隐藏的文件输入；该输入使用 `capture="environment"` 和 `accept="image/jpeg"`，由浏览器交给系统后置相机并请求 JPEG。系统相机返回后，客户端再统一压缩为 JPEG 并上传，不在 Sheet 内实现取景器，也不调用 `getUserMedia`。客户端必须先读取文件头判断真实格式，不能只相信 iOS 返回的扩展名或 MIME；真实 JPEG 即使 MIME 为空或文件名仍为 `.HEIC` 也应规范化后继续处理，真实 HEIC/HEIF 则拒绝并提示用户将 iPhone 相机格式改为“兼容性最佳”。在桌面或精细指针设备上，主操作显示“选择物品照片”，由浏览器打开只接受 JPEG、PNG、WebP 的文件选择器。界面不得提供“重新尝试相机”按钮。
 
 系统 Alert、错误提示和通知必须通过 `document.body` Portal 渲染在独立最高层，层级顺序固定为 Alert > Notice > 全局 Action Sheet > 确认弹窗 > 业务 Sheet。最高提示层不得沿用业务组件的普通 z-index。系统相机不属于页面 DOM；用户返回页面后，所有提示仍必须显示在业务 Sheet 之上。
 
@@ -199,7 +199,7 @@ Atlas 和单项裁剪图都可以从客户端压缩原图重新生成，但第�
 - 自动修正方向；
 - 最长边默认 2560 px；
 - 装箱原图统一上传 JPEG，质量 85～90；
-- 移动端通过 `capture="environment"` 调起系统后置相机，并以 `accept="image/jpeg"` 请求 JPEG；系统返回后再缩放压缩。即使文件名仍为 `.HEIC`，明确的 JPEG MIME 仍按 JPEG 处理。相册和桌面文件选择器只接受 JPEG、PNG、WebP，并统一编码为 JPEG。客户端拒绝实际 HEIC/HEIF MIME，不下载或执行 HEIC WASM 转换器；
+- 移动端通过 `capture="environment"` 调起系统后置相机，并以 `accept="image/jpeg"` 请求 JPEG；系统返回后读取文件头确定真实格式，再缩放压缩。真实 JPEG 在 MIME 缺失或扩展名错误时必须先规范化。相册和桌面文件选择器只接受 JPEG、PNG、WebP，并统一编码为 JPEG。客户端拒绝实际 HEIC/HEIF，不下载或执行 HEIC WASM 转换器；
 - 单张硬限制 4.5 MB，给后台转为 Base64 data URL 后的体积膨胀留出余量；
 - 不覆盖本地待上传文件，确认上传前保留 IndexedDB 副本；
 - 使用 `session_id + sequence_no` 保证重试幂等。
@@ -717,6 +717,7 @@ capturing / uploading ──→ canceled
 ### 18.4 前端测试
 
 - 拍照后立即回到取景状态。
+- 移动端系统相机返回 MIME 为空、扩展名错误或 MIME 与文件头不一致时，必须按文件头正确规范化或显示明确的 HEIC 错误；开发模式下照片处理错误的非敏感元数据必须回传到 Vite 终端，生产构建不得发送该开发日志。
 - 弱网时本地队列不会丢失或打乱顺序。
 - 关闭 Sheet 或页面刷新后，再次打开 Sheet 可以恢复未完成会话。
 - 上传未完成时导航栏“完成”保持不可用并显示明确进度。

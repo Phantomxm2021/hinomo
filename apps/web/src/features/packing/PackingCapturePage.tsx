@@ -30,6 +30,36 @@ type UploadState = 'idle' | 'compressing' | 'uploading' | 'error'
 const LIBRARY_ACCEPT = 'image/jpeg,image/png,image/webp'
 const CAMERA_ACCEPT = 'image/jpeg'
 
+function errorDetails(error: unknown) {
+  if (!(error instanceof Error)) return { value: String(error) }
+  const cause = error.cause
+  return {
+    name: error.name,
+    message: error.message,
+    cause: cause instanceof Error ? { name: cause.name, message: cause.message } : cause ? String(cause) : undefined,
+  }
+}
+
+function reportPackingPhotoError(file: File, error: unknown) {
+  const payload = {
+    event: 'packing_photo_processing_failed',
+    page: window.location.href,
+    userAgent: navigator.userAgent,
+    file: { name: file.name, type: file.type || '(empty)', size: file.size },
+    code: error instanceof PackingImageConversionError ? error.code : 'unexpected_error',
+    error: errorDetails(error),
+  }
+  console.error('packing_photo_processing_failed', payload)
+  if (import.meta.env.DEV) {
+    void fetch('/__nomo/dev-log', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    }).catch(() => undefined)
+  }
+}
+
 function useDirectCameraPreference() {
   const query = '(hover: none) and (pointer: coarse)'
   const [preferred, setPreferred] = useState(() => typeof window.matchMedia === 'function' && window.matchMedia(query).matches)
@@ -185,10 +215,13 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
       setLocalDraftCount((count) => count + 1)
       void enqueueDraft(draft)
     } catch (error) {
+      reportPackingPhotoError(file, error)
       setUploadState('error')
-      setErrorMessage(error instanceof PackingImageConversionError
-        ? '系统未返回 JPEG。请将 iPhone 相机格式设为“兼容性最佳”后重新拍摄。'
-        : '照片处理失败，请重新拍摄。')
+      setErrorMessage(error instanceof PackingImageConversionError && error.code === 'heic_not_supported'
+        ? '系统返回了 HEIC。请将 iPhone 相机格式设为“兼容性最佳”后重新拍摄。'
+        : error instanceof PackingImageConversionError && error.code === 'unsupported_image'
+          ? '没有读取到有效照片，请重新拍摄。'
+          : '照片压缩失败，请重新拍摄。')
     }
   }
 

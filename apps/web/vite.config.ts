@@ -2,10 +2,39 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
+import type { Plugin } from 'vite'
+
+function devClientLogPlugin(): Plugin {
+  return {
+    name: 'nomo-dev-client-log',
+    configureServer(server) {
+      server.middlewares.use('/__nomo/dev-log', (request, response, next) => {
+        if (request.method !== 'POST') return next()
+        let body = ''
+        request.setEncoding('utf8')
+        request.on('data', (chunk: string) => {
+          if (body.length < 32_768) body += chunk
+        })
+        request.on('end', () => {
+          try {
+            const payload = JSON.parse(body) as unknown
+            server.config.logger.error(`[mobile-client] ${JSON.stringify(payload, null, 2)}`)
+            response.statusCode = 204
+            response.end()
+          } catch {
+            response.statusCode = 400
+            response.end('invalid log payload')
+          }
+        })
+      })
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
+    devClientLogPlugin(),
     react(),
     tailwindcss(),
     VitePWA({
