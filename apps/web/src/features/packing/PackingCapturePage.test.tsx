@@ -180,6 +180,35 @@ test('stores a compressed draft before upload and completes after confirmation',
   expect(mocks.onCompleted).toHaveBeenCalledOnce()
 })
 
+test('reports the exact finish stage to the Vite terminal bridge', async () => {
+  const user = userEvent.setup()
+  vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  mocks.listPhotos.mockResolvedValue([{
+    id: 'photo-1', session_id: 'session-1', box_id: 'box-1', owner_id: 'owner-1', sequence_no: 1,
+    object_key: 'packing/1.jpg', normalized_object_key: null, mime_type: 'image/jpeg', size_bytes: 100,
+    width: 1200, height: 900, sha256: null, perceptual_hash: null, quality_flags: [], upload_status: 'confirmed',
+    upload_expires_at: null, confirmed_at: '2026-08-03T00:00:00Z',
+    created_at: '2026-08-03T00:00:00Z', updated_at: '2026-08-03T00:00:00Z',
+  }])
+  mocks.buildAtlases.mockRejectedValueOnce(new Error('canvas encoding failed'))
+  renderSheet()
+
+  const finishButton = await screen.findByRole('button', { name: '完成' })
+  await waitFor(() => expect(finishButton).toBeEnabled())
+  await user.click(finishButton)
+
+  await waitFor(() => expect(console.error).toHaveBeenCalledWith(
+    'packing_finish_failed',
+    expect.objectContaining({
+      event: 'packing_finish_failed',
+      stage: 'build_atlas',
+      confirmedPhotoCount: 1,
+      error: expect.objectContaining({ message: 'canvas encoding failed' }),
+    }),
+  ))
+  expect(await screen.findByRole('alert')).toHaveTextContent('照片或分析索引尚未上传完成')
+})
+
 test('uploads directly when iPhone IndexedDB cannot persist the compressed draft', async () => {
   const user = userEvent.setup()
   vi.spyOn(console, 'error').mockImplementation(() => undefined)

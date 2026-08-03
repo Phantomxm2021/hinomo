@@ -28,6 +28,7 @@ import { PackingPhotoDeck } from './PackingPhotoDeck'
 import { packingBillingError } from '../credits/credits.api'
 
 type UploadState = 'idle' | 'compressing' | 'uploading' | 'error'
+type FinishStage = 'wait_photo_uploads' | 'check_pending_drafts' | 'load_confirmed_photos' | 'build_atlas' | 'upload_atlas' | 'complete_session' | 'refresh_state'
 
 const LIBRARY_ACCEPT = 'image/jpeg,image/png,image/webp'
 const CAMERA_ACCEPT = 'image/jpeg'
@@ -53,14 +54,12 @@ function errorDetails(error: unknown) {
   return { value: String(error) }
 }
 
-function reportPackingPhotoError(file: Pick<File, 'name' | 'type' | 'size'>, error: unknown, event = 'packing_photo_processing_failed') {
+function reportPackingDevError(event: string, details: Record<string, unknown>) {
   const payload = {
     event,
     page: window.location.href,
     userAgent: navigator.userAgent,
-    file: { name: file.name, type: file.type || '(empty)', size: file.size },
-    code: error instanceof PackingImageConversionError ? error.code : 'unexpected_error',
-    error: errorDetails(error),
+    ...details,
   }
   console.error(event, payload)
   if (import.meta.env.DEV) {
@@ -71,6 +70,14 @@ function reportPackingPhotoError(file: Pick<File, 'name' | 'type' | 'size'>, err
       keepalive: true,
     }).catch(() => undefined)
   }
+}
+
+function reportPackingPhotoError(file: Pick<File, 'name' | 'type' | 'size'>, error: unknown, event = 'packing_photo_processing_failed') {
+  reportPackingDevError(event, {
+    file: { name: file.name, type: file.type || '(empty)', size: file.size },
+    code: error instanceof PackingImageConversionError ? error.code : 'unexpected_error',
+    error: errorDetails(error),
+  })
 }
 
 function useDirectCameraPreference() {
@@ -307,17 +314,33 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
   const finish = async () => {
     const session = sessionQuery.data
     if (!session) return
+    let stage: FinishStage = 'wait_photo_uploads'
+    let confirmedPhotoCount = 0
+    let atlasCount = 0
+    let currentAtlasNo: number | null = null
     setFinishing(true)
     setErrorMessage(null)
     setCanRetryUploads(false)
     try {
       await uploadQueueRef.current
-      const drafts = await listPackingDrafts(session.id).catch(() => [])
+      stage = 'check_pending_drafts'
+      const drafts = await listPackingDrafts(session.id)
       if (drafts.length > 0 || volatileDraftsRef.current.size > 0) throw new Error('pending drafts remain')
+      stage = 'load_confirmed_photos'
       const photos = (await listPackingPhotos(session.id)).filter((photo) => photo.upload_status === 'confirmed')
+      confirmedPhotoCount = photos.length
+      stage = 'build_atlas'
       const atlases = await buildClientPackingAtlases(photos, downloadPackingPhoto)
-      for (const atlas of atlases) await uploadPackingAtlas(session.id, atlas)
+      atlasCount = atlases.length
+      stage = 'upload_atlas'
+      for (const atlas of atlases) {
+        currentAtlasNo = atlas.atlasNo
+        await uploadPackingAtlas(session.id, atlas)
+      }
+      currentAtlasNo = null
+      stage = 'complete_session'
       await completePackingSession(session.id)
+      stage = 'refresh_state'
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['packing-session-active', boxId] }),
         queryClient.invalidateQueries({ queryKey: ['packing-sessions', boxId] }),
@@ -329,6 +352,16 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
         onBillingBlocked?.(billingError, Math.max(1, (photosQuery.data?.length ?? 0) + localDraftCount))
         return
       }
+      reportPackingDevError('packing_finish_failed', {
+        stage,
+        sessionId: session.id,
+        confirmedPhotoCount,
+        atlasCount,
+        currentAtlasNo,
+        persistentDraftCount: await listPackingDrafts(session.id).then((drafts) => drafts.length).catch(() => null),
+        volatileDraftCount: volatileDraftsRef.current.size,
+        error: errorDetails(error),
+      })
       setErrorMessage('照片或分析索引尚未上传完成，请检查网络后重试。')
       setCanRetryUploads(true)
     } finally {
