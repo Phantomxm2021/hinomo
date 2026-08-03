@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { MobileActionSheet } from '../../components/MobileActionSheet'
@@ -25,6 +25,7 @@ import { getBoxByPublicId, listBoxes } from './boxes.api'
 export function PublicBoxPage() {
   const { publicId = '' } = useParams<{ publicId: string }>()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { session } = useAuth()
   const feedback = useMobileFeedback()
   const queryClient = useQueryClient()
@@ -44,6 +45,13 @@ export function PublicBoxPage() {
     queryFn: () => getBoxByPublicId(publicId),
     retry: false,
   })
+  useEffect(() => {
+    if (searchParams.get('capture') !== '1' || !boxQuery.data || session?.user.id !== boxQuery.data.owner_id) return
+    setShowPackingCapture(true)
+    const next = new URLSearchParams(searchParams)
+    next.delete('capture')
+    setSearchParams(next, { replace: true })
+  }, [boxQuery.data, searchParams, session?.user.id, setSearchParams])
   const targetBoxesQuery = useQuery({
     queryKey: ['boxes'],
     queryFn: listBoxes,

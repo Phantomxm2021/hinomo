@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createSpace, listSpaceLayouts, listSpaces, saveSpaceLayout } from './spaces.api'
+import { createSpace, createSpaces, listSpaceLayouts, listSpaces, saveSpaceLayout } from './spaces.api'
 
 const { mockFrom, mockGetSession, mockLayoutSelect, mockOrder, mockSelect, mockUpsert } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
@@ -102,6 +102,26 @@ describe('spaces api', () => {
     expect(mockInsert).toHaveBeenCalledWith({
       owner_id: 'user-1', venue_id: 'venue-home', name: '卧室', description: null,
     })
+  })
+
+  it('creates several selected spaces in one atomic insert', async () => {
+    const mockInsertSelect = vi.fn().mockResolvedValue({ data: [{ id: 'space-1' }, { id: 'space-2' }], error: null })
+    const mockInsert = vi.fn().mockReturnValue({ select: mockInsertSelect })
+    mockFrom.mockImplementation((table: string) => table === 'spaces'
+      ? { select: mockSelect, insert: mockInsert }
+      : { select: mockLayoutSelect, upsert: mockUpsert })
+    mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'user-1' } } } })
+
+    await expect(createSpaces([
+      { venue_id: 'venue-home', name: '客厅', description: null },
+      { venue_id: 'venue-home', name: '卧室', description: null },
+    ])).resolves.toEqual([{ id: 'space-1' }, { id: 'space-2' }])
+
+    expect(mockInsert).toHaveBeenCalledWith([
+      { owner_id: 'user-1', venue_id: 'venue-home', name: '客厅', description: null },
+      { owner_id: 'user-1', venue_id: 'venue-home', name: '卧室', description: null },
+    ])
+    expect(mockInsertSelect).toHaveBeenCalledWith('id')
   })
 
   it('maps persisted percentage layouts', async () => {

@@ -46,9 +46,10 @@ vi.mock('../packing/PackingCapturePage', () => ({
 function renderPublicBox(
   session: Session | null = null,
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+  entry = '/b/public-1',
 ) {
   return render(
-    <MemoryRouter initialEntries={['/previous', '/b/public-1']}>
+    <MemoryRouter initialEntries={['/previous', entry]}>
       <QueryClientProvider client={client}>
         <AuthProvider session={session}>
           <Routes>
@@ -254,6 +255,22 @@ test('opens AI packing as a sheet while keeping the box route visible', async ()
 
   expect(screen.getByRole('dialog', { name: 'AI 装箱' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: '工具' })).toBeInTheDocument()
+})
+
+test('continues directly into AI capture from a desktop handoff QR', async () => {
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    space_id: 'space-1', name: '工具', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z', items: [],
+  })
+  renderPublicBox(
+    { user: { id: 'owner-1' } } as Session,
+    new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+    '/b/public-1?capture=1',
+  )
+
+  expect(await screen.findByRole('dialog', { name: 'AI 装箱' })).toBeInTheDocument()
 })
 
 test('returns to the previous route from the mobile detail navigation', async () => {

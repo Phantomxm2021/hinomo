@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useBlocker, useNavigate, useSearchParams } from 'react-router-dom'
+import { useBlocker, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
@@ -11,6 +11,7 @@ import { useSelectedVenue } from '../venues/selected-venue'
 import { listVenues } from '../venues/venues.api'
 import { BoxCatalogueCard } from './BoxCatalogueCard'
 import { BoxCatalogueToolbar } from './BoxCatalogueToolbar'
+import { BoxCreationNextStep } from './BoxCreationNextStep'
 import {
   catalogueSpaces,
   catalogueSummary,
@@ -242,15 +243,7 @@ export function BoxesPage() {
       ) : null}
 
       {createSucceeded && createdBox ? (
-        <section className="flex flex-col gap-3 rounded-card border border-brand/25 bg-brand/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5" role="status" aria-label="箱子已创建">
-          <div>
-            <p className="m-0 font-bold text-ink">“{createdBox.name}”已创建</p>
-            <p className="mt-1 mb-0 text-sm text-muted">接下来记录箱内物品，以后就能直接搜索找到。</p>
-          </div>
-          <Link className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-control bg-brand px-4 py-2 font-bold text-white no-underline hover:bg-brand-strong" to={`/b/${createdBox.public_id}`}>
-            记录箱内物品
-          </Link>
-        </section>
+        <BoxCreationNextStep box={createdBox} />
       ) : null}
 
       {hasCatalogueData && boxes.length === 0 ? (
