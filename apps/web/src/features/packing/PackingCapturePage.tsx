@@ -26,6 +26,9 @@ import { packingBillingError } from '../credits/credits.api'
 
 type UploadState = 'idle' | 'compressing' | 'uploading' | 'error'
 
+const CAMERA_ACCEPT = 'image/jpeg'
+const LIBRARY_ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif'
+
 function useDirectCameraPreference() {
   const query = '(hover: none) and (pointer: coarse)'
   const [preferred, setPreferred] = useState(() => typeof window.matchMedia === 'function' && window.matchMedia(query).matches)
@@ -256,7 +259,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
           ref={inputRef}
           className="sr-only"
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+          accept={prefersDirectCamera ? CAMERA_ACCEPT : LIBRARY_ACCEPT}
           capture={prefersDirectCamera ? 'environment' : undefined}
           aria-label="拍摄装箱照片"
           onChange={(event) => {

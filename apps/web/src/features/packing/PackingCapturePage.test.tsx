@@ -115,7 +115,10 @@ test('requests the rear camera and uses mobile copy on a coarse pointer device',
   renderSheet()
 
   expect(await screen.findByRole('button', { name: '拍摄这件物品' })).toBeInTheDocument()
-  expect(screen.getByLabelText('拍摄装箱照片')).toHaveAttribute('capture', 'environment')
+  const cameraInput = screen.getByLabelText('拍摄装箱照片')
+  expect(cameraInput).toHaveAttribute('capture', 'environment')
+  expect(cameraInput).toHaveAttribute('accept', 'image/jpeg')
+  expect(cameraInput).not.toHaveAttribute('accept', expect.stringContaining('image/heic'))
   expect(screen.getByText('将请求使用后置相机')).toBeInTheDocument()
 })
 
