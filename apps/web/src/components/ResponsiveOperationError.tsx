@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMobileFeedback } from './mobile-feedback'
+import { SYSTEM_ALERT_Z_INDEX } from './overlay-layers'
 
 type ResponsiveOperationErrorProps = {
   message: string
@@ -37,7 +38,7 @@ export function ResponsiveOperationError({ message, onRetry, busy = false, retry
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[200] hidden place-items-center bg-ink/28 p-5 backdrop-blur-[3px] lg:grid" role="presentation" onMouseDown={(event) => {
+    <div className="fixed inset-0 isolate hidden place-items-center bg-ink/28 p-5 backdrop-blur-[3px] lg:grid" style={{ zIndex: SYSTEM_ALERT_Z_INDEX }} role="presentation" onMouseDown={(event) => {
       if (event.target === event.currentTarget && !busy) dismiss()
     }}>
       <section className="w-full max-w-sm overflow-hidden rounded-[1.6rem] border border-line/80 bg-surface shadow-[0_28px_80px_rgb(48_39_30_/_24%)]" role="alert" aria-labelledby={titleId} aria-live="assertive">

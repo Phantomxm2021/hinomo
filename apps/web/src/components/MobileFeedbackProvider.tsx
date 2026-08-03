@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { MobileActionSheet } from './MobileActionSheet'
 import { MobileAlert } from './MobileAlert'
 import { MobileFeedbackContext, type MobileAlertOptions, type MobileFeedbackApi, type MobileSheetOptions } from './mobile-feedback'
+import { SYSTEM_NOTICE_Z_INDEX } from './overlay-layers'
 
 export function MobileFeedbackProvider({ children }: PropsWithChildren) {
   const [notice, setNotice] = useState<string | null>(null)
@@ -31,7 +32,7 @@ export function MobileFeedbackProvider({ children }: PropsWithChildren) {
     <MobileFeedbackContext.Provider value={api}>
       {children}
       {notice ? createPortal(
-        <div className="fixed inset-x-4 top-[max(0.75rem,var(--safe-area-top))] z-[190] flex min-h-11 items-center justify-center rounded-full bg-ink/92 px-4 py-2 text-center text-sm font-semibold text-white shadow-float backdrop-blur-xl lg:inset-x-auto lg:right-6 lg:max-w-md" role="status" aria-label={notice} aria-live="polite">
+        <div className="fixed inset-x-4 top-[max(0.75rem,var(--safe-area-top))] isolate flex min-h-11 items-center justify-center rounded-full bg-ink/92 px-4 py-2 text-center text-sm font-semibold text-white shadow-float backdrop-blur-xl lg:inset-x-auto lg:right-6 lg:max-w-md" style={{ zIndex: SYSTEM_NOTICE_Z_INDEX }} role="status" aria-label={notice} aria-live="polite">
           {notice}
         </div>,
         document.body,

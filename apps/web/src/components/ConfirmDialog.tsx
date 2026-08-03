@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useId, useRef, type RefObject } from 'react'
+import { createPortal } from 'react-dom'
+import { SYSTEM_DIALOG_Z_INDEX } from './overlay-layers'
 
 type ConfirmDialogProps = {
   open: boolean
@@ -100,8 +102,8 @@ export function ConfirmDialog({
 
   if (!open) return null
 
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-5 backdrop-blur-sm" role="presentation">
+  return createPortal(
+    <div className="fixed inset-0 isolate grid place-items-center bg-black/45 p-5 backdrop-blur-sm" style={{ zIndex: SYSTEM_DIALOG_Z_INDEX }} role="presentation">
       <section
         ref={dialogRef}
         className="w-full max-w-sm rounded-shell border border-line bg-surface p-6 shadow-float"
@@ -125,6 +127,7 @@ export function ConfirmDialog({
           </button>
         </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   )
 }

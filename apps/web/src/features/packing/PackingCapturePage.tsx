@@ -323,10 +323,10 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
       <div className="min-h-0 overflow-y-auto">
         <section className="grid min-h-full place-content-center justify-items-center gap-5 px-7 py-8 text-center lg:px-10 lg:py-10">
         {cameraOpen ? (
-          <div className="relative w-full max-w-xl overflow-hidden rounded-[1.75rem] bg-ink shadow-float">
+          <div className="relative z-0 isolate w-full max-w-xl overflow-hidden rounded-[1.75rem] bg-ink shadow-float">
             <video
               ref={videoRef}
-              className="aspect-[3/4] max-h-[58dvh] w-full object-cover"
+              className="relative z-0 aspect-[3/4] max-h-[58dvh] w-full object-cover"
               muted
               playsInline
               aria-label="装箱拍照取景"
