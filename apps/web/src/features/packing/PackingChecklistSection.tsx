@@ -65,6 +65,7 @@ function ChecklistItem({ item, boxId, mergeTargets }: { item: PackingDetectedIte
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [showEvidence, setShowEvidence] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [merging, setMerging] = useState(false)
   const [mergeTargetId, setMergeTargetId] = useState('')
   const [name, setName] = useState(item.name)
@@ -93,7 +94,15 @@ function ChecklistItem({ item, boxId, mergeTargets }: { item: PackingDetectedIte
   })
 
   const canSave = name.trim().length > 0 && (quantityKind === 'unknown' || Number(quantityValue) > 0)
-  const canPromote = item.quantity_kind === 'exact' && item.quantity_value !== null && item.crop_status === 'ready'
+  const cropReady = item.crop_status === 'ready' && Boolean(item.cover_object_key)
+  const promotionBusy = promotionMutation.isPending || promotionMutation.isSuccess
+  const promotionLabel = promotionBusy
+    ? '正在加入…'
+    : cropReady
+      ? '加入清单'
+      : item.crop_status === 'failed'
+        ? '图片处理失败'
+        : '图片处理中'
 
   return (
     <article className="border-b border-line/60 p-3 last:border-b-0">
@@ -104,9 +113,9 @@ function ChecklistItem({ item, boxId, mergeTargets }: { item: PackingDetectedIte
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2"><h3 className="m-0 truncate font-bold text-ink">{item.name}</h3><span className="shrink-0 rounded-full bg-brand/10 px-2 py-0.5 text-[0.6875rem] font-bold text-brand">AI 识别</span></div>
           <p className="mt-0.5 truncate text-sm text-muted">{item.description || item.category || '未分类'}</p>
-          {item.review_status === 'needs_review' || item.crop_status !== 'ready' ? <p className="mt-1 text-xs font-bold text-danger">需要确认</p> : null}
+          <p className="mt-1 text-sm font-extrabold text-ink">{quantityLabel(item.quantity_kind, item.quantity_value)}</p>
         </div>
-        <span className="text-sm font-bold text-muted">{quantityLabel(item.quantity_kind, item.quantity_value)}</span>
+        <button className="grid size-10 place-items-center rounded-full text-muted active:bg-canvas" type="button" aria-label={`更多${item.name}操作`} aria-expanded={menuOpen} onClick={() => setMenuOpen((value) => !value)}><AppIcon name="more" /></button>
       </div>
 
       {editing ? (
@@ -124,13 +133,13 @@ function ChecklistItem({ item, boxId, mergeTargets }: { item: PackingDetectedIte
           <button className="min-h-10 rounded-control bg-brand px-4 font-bold text-white disabled:opacity-50" type="button" disabled={!mergeTargetId || mergeMutation.isPending} onClick={() => mergeMutation.mutate()}>确认合并</button>
         </div>
       ) : (
-        <div className="mt-2 flex flex-wrap justify-end gap-1">
-          <button className="min-h-9 px-3 text-sm font-bold text-muted" type="button" onClick={() => setShowEvidence(true)}>原图</button>
-          <button className="min-h-9 px-3 text-sm font-bold text-muted" type="button" onClick={() => setEditing(true)}>修改</button>
-          {mergeTargets.length > 0 ? <button className="min-h-9 px-3 text-sm font-bold text-muted" type="button" onClick={() => setMerging(true)}>合并</button> : null}
-          <button className="min-h-9 px-3 text-sm font-bold text-danger" type="button" disabled={updateMutation.isPending} onClick={() => updateMutation.mutate('dismissed')}>驳回</button>
-          {item.review_status !== 'confirmed' ? <button className="min-h-9 rounded-control bg-brand/10 px-3 text-sm font-bold text-brand" type="button" disabled={updateMutation.isPending} onClick={() => updateMutation.mutate('confirmed')}>确认</button> : null}
-          <button className="min-h-9 rounded-control bg-ink px-3 text-sm font-bold text-white disabled:opacity-40" type="button" title={canPromote ? undefined : '需要精确数量和有效裁剪图'} disabled={!canPromote || promotionMutation.isPending || promotionMutation.isSuccess} onClick={() => promotionMutation.mutate()}>{promotionMutation.isPending || promotionMutation.isSuccess ? '正在转为正式物品' : '设为正式物品'}</button>
+        <div className="mt-3 grid gap-2">
+          {menuOpen ? <div className="flex items-center justify-end gap-1 rounded-control bg-canvas p-1.5">
+            <button className="min-h-10 px-3 text-sm font-bold text-muted" type="button" onClick={() => { setMenuOpen(false); setEditing(true) }}>修改</button>
+            {mergeTargets.length > 0 ? <button className="min-h-10 px-3 text-sm font-bold text-muted" type="button" onClick={() => { setMenuOpen(false); setMerging(true) }}>合并</button> : null}
+            <button className="min-h-10 px-3 text-sm font-bold text-danger" type="button" disabled={updateMutation.isPending} onClick={() => updateMutation.mutate('dismissed')}>忽略</button>
+          </div> : null}
+          <button className="min-h-11 w-full rounded-control bg-ink px-4 font-extrabold text-white disabled:bg-placeholder disabled:text-muted" type="button" disabled={!cropReady || promotionBusy} onClick={() => promotionMutation.mutate()}>{promotionLabel}</button>
         </div>
       )}
       {updateMutation.isError || promotionMutation.isError || mergeMutation.isError ? <p className="mt-2 text-right text-xs font-bold text-danger">操作失败，请稍后重试</p> : null}
@@ -161,7 +170,7 @@ export function PackingChecklistSection({ boxId }: { boxId: string }) {
     ? `${activeSession?.photo_count ?? 0} 张照片正在分析，可以先离开`
     : hasFailure
       ? '分析未完整完成，点按查看结果或重新分析'
-      : `识别到 ${items.length} 项，审核后可加入正式物品`
+      : `识别到 ${items.length} 项，点按查看`
 
   return (
     <section aria-label="AI 智能清单入口">
@@ -226,15 +235,15 @@ function PackingChecklistSheet({ open, items, boxId, activeSession, reanalyzing,
           <div className="min-w-0 text-center">
             <div className="absolute top-2 left-1/2 h-1.5 w-10 -translate-x-1/2 rounded-full bg-line lg:hidden" aria-hidden="true" />
             <h2 className="m-0 truncate text-[1.0625rem] font-extrabold text-ink" id="packing-checklist-title">AI 智能清单</h2>
-            <p className="mt-0.5 truncate text-xs font-semibold text-muted">{items.length > 0 ? `${items.length} 项待审核结果` : activeSession ? sessionLabels[activeSession.status] : '分析结果'}</p>
+            <p className="mt-0.5 truncate text-xs font-semibold text-muted">{items.length > 0 ? `${items.length} 项待加入` : activeSession ? sessionLabels[activeSession.status] : '分析结果'}</p>
           </div>
           <button ref={closeButtonRef} className="grid size-11 justify-self-end place-items-center rounded-full bg-canvas text-ink active:opacity-50" type="button" aria-label="关闭智能清单" onClick={onClose}><AppIcon name="close" size={20} /></button>
         </header>
         <div className="min-h-0 overflow-y-auto px-4 py-5 lg:px-6">
           <div className="mx-auto grid max-w-2xl gap-4">
             <div className="rounded-[1.1rem] bg-surface p-4 shadow-[inset_0_0_0_1px_rgba(79,64,48,0.06)]">
-              <p className="font-extrabold text-ink">审核 AI 识别结果</p>
-              <p className="mt-1 text-sm leading-6 text-muted">这些项目还不是正式库存。确认名称和数量后，可逐项设为正式物品。</p>
+              <p className="font-extrabold text-ink">识别到的物品</p>
+              <p className="mt-1 text-sm leading-6 text-muted">内容正确就直接加入清单；需要时可从更多菜单修改。</p>
             </div>
             {isProcessing ? <div className="flex items-center gap-3 rounded-[1.1rem] border border-brand/15 bg-brand/5 p-4" role="status"><span className="size-4 animate-pulse rounded-full bg-brand" /><div><p className="font-bold text-ink">正在整理 {activeSession?.photo_count ?? 0} 张装箱照片</p><p className="mt-1 text-sm text-muted">可以关闭弹窗，完成后从箱子页再次打开。</p></div></div> : null}
             {hasFailure ? <div className="flex items-center justify-between gap-3 rounded-[1.1rem] border border-danger/20 bg-danger/5 p-4"><p className="font-bold text-danger">本次分析没有完整完成，已保留可用结果。</p><button className="min-h-10 shrink-0 rounded-control bg-danger px-4 font-bold text-white" type="button" disabled={reanalyzing} onClick={onReanalyze}>{reanalyzing ? '正在重试…' : '重新分析'}</button></div> : null}

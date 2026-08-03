@@ -44,7 +44,7 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
-test('lets the owner verify evidence and confirm an AI item', async () => {
+test('keeps secondary review actions behind a compact menu', async () => {
   const user = userEvent.setup()
   renderSection()
   expect(await screen.findByRole('button', { name: /AI 智能清单/ })).toBeInTheDocument()
@@ -55,20 +55,24 @@ test('lets the owner verify evidence and confirm an AI item', async () => {
   expect(await screen.findByText('白色充电器')).toBeInTheDocument()
   expect(screen.getByText('白色充电器裁剪图片')).toBeInTheDocument()
 
-  await user.click(screen.getByRole('button', { name: '原图' }))
+  expect(screen.queryByRole('button', { name: '修改' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '确认' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '查看白色充电器原图证据' }))
   expect(await screen.findByRole('dialog', { name: '白色充电器原图证据' })).toBeInTheDocument()
   expect(await screen.findByText('白色充电器来源原图')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '关闭' }))
 
-  await user.click(screen.getByRole('button', { name: '确认' }))
-  await waitFor(() => expect(mocks.updateItem).toHaveBeenCalledWith('detected-1', expect.objectContaining({ review_status: 'confirmed' })))
+  await user.click(screen.getByRole('button', { name: '更多白色充电器操作' }))
+  expect(screen.getByRole('button', { name: '修改' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '忽略' })).toBeInTheDocument()
 })
 
-test('queues an exact item for safe asynchronous promotion', async () => {
+test('lets an estimated quantity join the formal checklist in one step', async () => {
   const user = userEvent.setup()
+  mocks.listItems.mockResolvedValue([{ ...item, quantity_kind: 'at_least', quantity_value: 3 }])
   renderSection()
   await user.click(await screen.findByRole('button', { name: /AI 智能清单/ }))
-  await user.click(await screen.findByRole('button', { name: '设为正式物品' }))
+  await user.click(await screen.findByRole('button', { name: '加入清单' }))
   await waitFor(() => expect(mocks.promote).toHaveBeenCalledWith('detected-1'))
-  expect(screen.getByRole('button', { name: '正在转为正式物品' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: '正在加入…' })).toBeDisabled()
 })
