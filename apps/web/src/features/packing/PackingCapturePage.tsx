@@ -21,7 +21,7 @@ import {
   savePackingDraft,
   type PackingDraft,
 } from './packing-storage'
-import { PackingAuthorizedImage } from './PackingAuthorizedImage'
+import { PackingPhotoDeck } from './PackingPhotoDeck'
 
 type UploadState = 'idle' | 'compressing' | 'uploading' | 'error'
 
@@ -210,8 +210,9 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted }: {
     return createPortal(<PackingSheetFrame title="AI 装箱" onClose={onClose} closeButtonRef={closeButtonRef}><div className="p-5"><PageState state="error" message="无法开始 AI 装箱" onRetry={() => void sessionQuery.refetch()} /></div></PackingSheetFrame>, document.body)
   }
 
-  const confirmedCount = photosQuery.data?.filter((photo) => photo.upload_status === 'confirmed').length ?? 0
-  const latestPhoto = photosQuery.data?.filter((photo) => photo.upload_status === 'confirmed').at(-1)
+  const confirmedPhotos = photosQuery.data?.filter((photo) => photo.upload_status === 'confirmed') ?? []
+  const confirmedCount = confirmedPhotos.length
+  const latestPhoto = confirmedPhotos.at(-1)
   const totalCount = confirmedCount + localDraftCount
   const busy = uploadState === 'compressing' || uploadState === 'uploading' || finishing
 
@@ -233,10 +234,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted }: {
       <div className="min-h-0 overflow-y-auto">
         <section className="grid min-h-full place-content-center justify-items-center gap-5 px-7 py-8 text-center lg:px-10 lg:py-10">
         {latestPhoto ? (
-          <div className="relative aspect-[4/3] w-full max-w-xl overflow-hidden rounded-[1.75rem] bg-placeholder shadow-soft">
-            <PackingAuthorizedImage objectKey={latestPhoto.object_key} alt={`第 ${latestPhoto.sequence_no} 张装箱照片`} className="h-full w-full object-cover" />
-            <span className="absolute top-3 left-3 rounded-full bg-ink/60 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md">最近一张 · {confirmedCount}</span>
-          </div>
+          <PackingPhotoDeck photos={confirmedPhotos} />
         ) : (
           <div className="grid size-24 place-content-center rounded-full bg-brand/10 text-brand ring-1 ring-brand/10">
             <AppIcon name="scan" size={38} />
