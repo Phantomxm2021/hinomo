@@ -32,7 +32,16 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true,
         cleanupOutdatedCaches: true,
-        runtimeCaching: [],
+        globIgnores: ['**/heic-to-*.js'],
+        runtimeCaching: [{
+          urlPattern: /\/assets\/heic-to-.*\.js$/,
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'nomo-heic-decoder',
+            expiration: { maxEntries: 2, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            cacheableResponse: { statuses: [200] },
+          },
+        }],
       },
     }),
   ],

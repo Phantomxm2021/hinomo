@@ -1,4 +1,3 @@
-import imageCompression from 'browser-image-compression'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -15,6 +14,7 @@ import {
   uploadPackingAtlas,
 } from './packing.api'
 import { buildClientPackingAtlases } from './packing-atlas'
+import { compressPackingPhoto, PackingImageConversionError } from './packing-image'
 import {
   deletePackingDraft,
   listPackingDrafts,
@@ -158,13 +158,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted }: {
     setUploadState('compressing')
     setErrorMessage(null)
     try {
-      const compressed = await imageCompression(file, {
-        maxSizeMB: 4.5,
-        maxWidthOrHeight: 2560,
-        useWebWorker: true,
-        fileType: 'image/webp',
-        initialQuality: 0.88,
-      })
+      const compressed = await compressPackingPhoto(file)
       const sequenceNo = nextSequenceRef.current++
       const draft: PackingDraft = {
         id: `${session.id}:${sequenceNo}`,
@@ -176,9 +170,11 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted }: {
       await savePackingDraft(draft)
       setLocalDraftCount((count) => count + 1)
       void enqueueDraft(draft)
-    } catch {
+    } catch (error) {
       setUploadState('error')
-      setErrorMessage('照片处理失败，请重新拍摄。')
+      setErrorMessage(error instanceof PackingImageConversionError
+        ? 'HEIC 照片转换失败，请换一张照片或将相机格式改为“兼容性最佳”。'
+        : '照片处理失败，请重新拍摄。')
     }
   }
 
@@ -254,7 +250,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted }: {
           ref={inputRef}
           className="sr-only"
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
           capture={prefersDirectCamera ? 'environment' : undefined}
           aria-label="拍摄装箱照片"
           onChange={(event) => {

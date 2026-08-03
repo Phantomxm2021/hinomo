@@ -193,6 +193,7 @@ Atlas 和单项裁剪图都可以从客户端压缩原图重新生成，但第�
 - 自动修正方向；
 - 最长边默认 2560 px；
 - 优先 WebP，质量 85～90；
+- 文件选择器接受 HEIC/HEIF；Safari 等可原生解码的浏览器直接压缩为 WebP，其余浏览器按需加载 `heic-to` 的 libheif 解码器，先在本地转换为高质量 JPEG，再进入相同 WebP 压缩流程；原始 HEIC 不上传；
 - 单张硬限制 4.5 MB，给后台转为 Base64 data URL 后的体积膨胀留出余量；
 - 不覆盖本地待上传文件，确认上传前保留 IndexedDB 副本；
 - 使用 `session_id + sequence_no` 保证重试幂等。
