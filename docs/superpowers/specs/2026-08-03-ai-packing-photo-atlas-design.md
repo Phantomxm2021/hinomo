@@ -226,6 +226,7 @@ Atlas 和单项裁剪图都可以从客户端压缩原图重新生成，但第�
 ### 7.3 输出
 
 - JPEG，初始质量 82；超过 7 MB 时以质量 68 重新编码，仍超限则中止完成流程；
+- SHA-256 优先使用 Web Crypto；局域网 HTTP 导致 `crypto.subtle` 不可用时，必须使用等价的纯 JavaScript 实现，不能阻断移动端 Atlas；
 - 每张 Atlas 独立保存 object key、宽高、字节数和 SHA-256；
 - 数据库记录 Atlas 与照片的映射；
 - 每个检测结果引用逻辑 `photo_id`，不能只引用 Atlas 坐标。

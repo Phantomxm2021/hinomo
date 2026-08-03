@@ -1,4 +1,5 @@
 import type { PackingPhoto } from './packing.api'
+import { sha256Hex } from '../../lib/sha256'
 
 export const PACKING_ATLAS_TILE_SIZE = 512
 export const PACKING_ATLAS_LABEL_HEIGHT = 40
@@ -53,8 +54,7 @@ export function encodePackingAtlasCanvas(canvas: HTMLCanvasElement, quality: num
 }
 
 async function blobSha256(blob: Blob): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer())
-  return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, '0')).join('')
+  return sha256Hex(new Uint8Array(await blob.arrayBuffer()))
 }
 
 export async function buildClientPackingAtlases(
