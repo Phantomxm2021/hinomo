@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest'
-import { buildLabels, paginateLabels, renderLabelsPdf } from './pdf'
+import { buildLabels, describePdfGenerationFailure, paginateLabels, renderLabelsPdf } from './pdf'
 import { PRINT_LABEL_COLORS, PRINT_LABEL_MM, PRINT_SHEET_MM, labelPlacementMm } from './print-label-layout'
 
 const { mockAddImage, mockAddPage, mockBoxQrPng, mockPdfConstructor, mockSave } = vi.hoisted(() => ({
@@ -36,6 +36,19 @@ const box = {
   id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', name: '冬季衣物',
   venue_name: '家里', space_name: '家', location: '衣柜上层', visibility: 'private' as const,
 }
+
+test('asks for a page refresh when a deployed PDF chunk is stale', () => {
+  expect(describePdfGenerationFailure(new TypeError(
+    'Failed to fetch dynamically imported module: https://nomo.example/assets/jspdf.js',
+  ))).toEqual({
+    message: '应用资源刚刚更新，请刷新页面后重新打印',
+    requiresReload: true,
+  })
+  expect(describePdfGenerationFailure(new Error('Canvas is unavailable'))).toEqual({
+    message: 'PDF 生成失败，请重试',
+    requiresReload: false,
+  })
+})
 
 test('maps selected boxes to printable labels', () => {
   expect(buildLabels([box], 'https://nomo.example/')).toEqual([{

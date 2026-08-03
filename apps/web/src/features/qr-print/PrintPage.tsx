@@ -7,7 +7,7 @@ import { ResponsiveOperationError } from '../../components/ResponsiveOperationEr
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { publicAppOrigin } from '../../lib/env'
 import { listBoxes, type BoxSummary } from '../boxes/boxes.api'
-import { buildLabels, renderLabelsPdf } from './pdf'
+import { buildLabels, describePdfGenerationFailure, renderLabelsPdf, type PdfGenerationFailure } from './pdf'
 import { PrintBoxSelector } from './PrintBoxSelector'
 import { filterPrintBoxes, selectedPrintBoxes, toggleVisibleSelection } from './print-model'
 import { PrintSheetPreview } from './PrintSheetPreview'
@@ -36,7 +36,7 @@ export function PrintPage() {
   const [mobileSelectedId, setMobileSelectedId] = useState('')
   const [query, setQuery] = useState('')
   const [progress, setProgress] = useState<{ completed: number; total: number } | null>(null)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<PdfGenerationFailure | null>(null)
   const [generating, setGenerating] = useState(false)
   const isDesktopViewport = useSyncExternalStore(
     subscribeDesktopViewport,
@@ -84,7 +84,7 @@ export function PrintPage() {
   async function generate(boxes: BoxSummary[]) {
     if (boxes.length === 0 || generating) return
     setGenerating(true)
-    setError(false)
+    setError(null)
     setProgress({ completed: 0, total: boxes.length })
     try {
       await renderLabelsPdf(
@@ -93,8 +93,11 @@ export function PrintPage() {
           if (mounted.current) setProgress({ completed, total })
         },
       )
-    } catch {
-      if (mounted.current) setError(true)
+    } catch (error) {
+      if (mounted.current) {
+        console.error('pdf_label_generation_failed', error)
+        setError(describePdfGenerationFailure(error))
+      }
     } finally {
       if (mounted.current) setGenerating(false)
     }
@@ -226,7 +229,15 @@ export function PrintPage() {
           二维码渲染进度：{progress.completed}/{progress.total}
         </p>
       ) : null}
-      {error ? <ResponsiveOperationError message="PDF 生成失败，请重试" onRetry={() => void generate(isDesktopViewport ? selectedBoxes : mobileBox ? [mobileBox] : [])} /> : null}
+      {error ? (
+        <ResponsiveOperationError
+          message={error.message}
+          retryLabel={error.requiresReload ? '刷新页面' : '重试'}
+          onRetry={error.requiresReload
+            ? () => window.location.reload()
+            : () => void generate(isDesktopViewport ? selectedBoxes : mobileBox ? [mobileBox] : [])}
+        />
+      ) : null}
     </section>
   )
 }

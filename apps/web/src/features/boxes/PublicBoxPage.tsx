@@ -17,7 +17,7 @@ import { listItemMovements, moveItem, returnItem, takeOutItem } from '../item-mo
 import { ItemForm } from '../items/ItemForm'
 import { deleteItem, type ItemRecord } from '../items/items.api'
 import { AuthorizedImage } from '../media/AuthorizedImage'
-import { buildLabels, renderLabelsPdf } from '../qr-print/pdf'
+import { buildLabels, describePdfGenerationFailure, renderLabelsPdf, type PdfGenerationFailure } from '../qr-print/pdf'
 import { PackingChecklistSection } from '../packing/PackingChecklistSection'
 import { PackingCaptureSheet } from '../packing/PackingCapturePage'
 import { CreditGateSheet } from '../credits/CreditGateSheet'
@@ -44,7 +44,7 @@ export function PublicBoxPage() {
   const [editingItem, setEditingItem] = useState<ItemRecord | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ItemRecord | null>(null)
   const [movementItem, setMovementItem] = useState<ItemRecord | null>(null)
-  const [printError, setPrintError] = useState(false)
+  const [printError, setPrintError] = useState<PdfGenerationFailure | null>(null)
   const [printing, setPrinting] = useState(false)
   const boxQuery = useQuery({
     queryKey: ['box', publicId],
@@ -184,11 +184,12 @@ export function PublicBoxPage() {
   }
   const printLabel = async () => {
     setPrinting(true)
-    setPrintError(false)
+    setPrintError(null)
     try {
       await renderLabelsPdf(buildLabels([box], publicAppOrigin()))
-    } catch {
-      setPrintError(true)
+    } catch (error) {
+      console.error('pdf_label_generation_failed', error)
+      setPrintError(describePdfGenerationFailure(error))
     } finally {
       setPrinting(false)
     }
@@ -260,7 +261,13 @@ export function PublicBoxPage() {
           ) : null}
         </div>
       </section>
-      {printError ? <ResponsiveOperationError message="PDF 生成失败，请重试" onRetry={() => void printLabel()} /> : null}
+      {printError ? (
+        <ResponsiveOperationError
+          message={printError.message}
+          retryLabel={printError.requiresReload ? '刷新页面' : '重试'}
+          onRetry={printError.requiresReload ? () => window.location.reload() : () => void printLabel()}
+        />
+      ) : null}
       {movementMutation.isError ? <ResponsiveOperationError message="物品操作失败，请稍后重试" /> : null}
       {targetBoxesQuery.isError ? <ResponsiveOperationError message="目标箱子加载失败，请重试" busy={targetBoxesQuery.isFetching} onRetry={() => void targetBoxesQuery.refetch()} /> : null}
       {movementHistoryQuery.isError ? <ResponsiveOperationError message="流转记录加载失败，请重试" busy={movementHistoryQuery.isFetching} onRetry={() => void movementHistoryQuery.refetch()} /> : null}
