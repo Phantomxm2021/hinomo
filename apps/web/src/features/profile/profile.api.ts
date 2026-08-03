@@ -1,5 +1,11 @@
 import imageCompression from 'browser-image-compression'
 import type { Database } from '../../lib/database.types'
+import {
+  assertPhotoUploadSize,
+  PHOTO_UPLOAD_INITIAL_QUALITY,
+  PHOTO_UPLOAD_MAX_ITERATIONS,
+  PHOTO_UPLOAD_MAX_SIZE_MB,
+} from '../../lib/photo-compression'
 import { supabase } from '../../lib/supabase'
 
 export type ProfileRecord = Database['public']['Tables']['profiles']['Row']
@@ -40,11 +46,13 @@ export async function getAvatarDownload() {
 export async function uploadAvatar(file: File) {
   const compressed = await imageCompression(file, {
     fileType: 'image/webp',
-    initialQuality: 0.82,
-    maxSizeMB: 0.5,
+    initialQuality: PHOTO_UPLOAD_INITIAL_QUALITY,
+    maxSizeMB: PHOTO_UPLOAD_MAX_SIZE_MB,
     maxWidthOrHeight: 512,
+    maxIteration: PHOTO_UPLOAD_MAX_ITERATIONS,
     useWebWorker: true,
   })
+  assertPhotoUploadSize(compressed)
   const session = await createAvatarUpload({ mimeType: compressed.type, sizeBytes: compressed.size })
   const response = await fetch(session.upload_url, {
     method: 'PUT',

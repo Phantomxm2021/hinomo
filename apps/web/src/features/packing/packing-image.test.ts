@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
+import { PHOTO_UPLOAD_MAX_BYTES, PHOTO_UPLOAD_MAX_SIZE_MB } from '../../lib/photo-compression'
 import { compressPackingPhoto, isHeicCandidate, PackingImageConversionError } from './packing-image'
 
 const mocks = vi.hoisted(() => ({ compress: vi.fn() }))
@@ -34,7 +35,8 @@ test('compresses supported camera and library images directly to JPEG', async ()
   const result = await compressPackingPhoto(input)
 
   expect(mocks.compress).toHaveBeenCalledWith(input, expect.objectContaining({
-    fileType: 'image/jpeg', maxSizeMB: 4.5, maxWidthOrHeight: 2560,
+    fileType: 'image/jpeg', maxSizeMB: PHOTO_UPLOAD_MAX_SIZE_MB, maxWidthOrHeight: 1920,
+    initialQuality: 0.8, maxIteration: 15,
   }))
   expect(result.type).toBe('image/jpeg')
 })
@@ -62,4 +64,15 @@ test('rejects HEIC without loading a conversion library', async () => {
   await expect(compressPackingPhoto(new File(['heic'], 'photo.heic', { type: 'image/heic' })))
     .rejects.toBeInstanceOf(PackingImageConversionError)
   expect(mocks.compress).not.toHaveBeenCalled()
+})
+
+test('never returns a packing photo larger than 500 KB', async () => {
+  mocks.compress.mockResolvedValueOnce(new File(
+    [new Uint8Array(PHOTO_UPLOAD_MAX_BYTES + 1)],
+    'packing.jpg',
+    { type: 'image/jpeg' },
+  ))
+
+  await expect(compressPackingPhoto(new File(['jpeg'], 'photo.jpg', { type: 'image/jpeg' })))
+    .rejects.toMatchObject({ code: 'jpeg_encoding_failed' })
 })

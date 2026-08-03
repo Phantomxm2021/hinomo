@@ -1,4 +1,5 @@
 import { beforeEach, expect, test, vi } from 'vitest'
+import { PHOTO_UPLOAD_MAX_SIZE_MB } from '../../lib/photo-compression'
 import { getProfile, updateLocale, uploadAvatar } from './profile.api'
 
 const { mockCompress, mockEq, mockFrom, mockMaybeSingle, mockRpc, mockSelect } = vi.hoisted(() => ({
@@ -63,9 +64,10 @@ test('compresses an avatar before signing and uploading it', async () => {
 
   expect(mockCompress).toHaveBeenCalledWith(original, {
     fileType: 'image/webp',
-    initialQuality: 0.82,
-    maxSizeMB: 0.5,
+    initialQuality: 0.8,
+    maxSizeMB: PHOTO_UPLOAD_MAX_SIZE_MB,
     maxWidthOrHeight: 512,
+    maxIteration: 15,
     useWebWorker: true,
   })
   expect(mockRpc).toHaveBeenCalledWith('create_profile_avatar_upload', {

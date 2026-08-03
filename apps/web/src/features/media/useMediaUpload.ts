@@ -1,5 +1,12 @@
 import imageCompression from 'browser-image-compression'
 import { useCallback, useState } from 'react'
+import {
+  assertPhotoUploadSize,
+  PHOTO_UPLOAD_INITIAL_QUALITY,
+  PHOTO_UPLOAD_MAX_DIMENSION,
+  PHOTO_UPLOAD_MAX_ITERATIONS,
+  PHOTO_UPLOAD_MAX_SIZE_MB,
+} from '../../lib/photo-compression'
 import { confirmMediaUpload, createMediaUpload } from './media.api'
 
 export type UploadStage =
@@ -25,10 +32,14 @@ export function useMediaUpload() {
     try {
       setStage('compressing')
       const compressed = await imageCompression(input.file, {
-        maxSizeMB: 4.5,
-        maxWidthOrHeight: 2048,
+        fileType: 'image/webp',
+        initialQuality: PHOTO_UPLOAD_INITIAL_QUALITY,
+        maxSizeMB: PHOTO_UPLOAD_MAX_SIZE_MB,
+        maxWidthOrHeight: PHOTO_UPLOAD_MAX_DIMENSION,
+        maxIteration: PHOTO_UPLOAD_MAX_ITERATIONS,
         useWebWorker: true,
       })
+      assertPhotoUploadSize(compressed)
 
       setStage('signing')
       const session = await createMediaUpload({

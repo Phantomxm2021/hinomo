@@ -1,4 +1,11 @@
 import imageCompression from 'browser-image-compression'
+import {
+  assertPhotoUploadSize,
+  PHOTO_UPLOAD_INITIAL_QUALITY,
+  PHOTO_UPLOAD_MAX_DIMENSION,
+  PHOTO_UPLOAD_MAX_ITERATIONS,
+  PHOTO_UPLOAD_MAX_SIZE_MB,
+} from '../../lib/photo-compression'
 
 const HEIC_MIME_TYPES = new Set(['image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence'])
 const HEIC_FILE_PATTERN = /\.(heic|heif)$/i
@@ -69,17 +76,23 @@ export async function compressPackingPhoto(file: File): Promise<File> {
   let compressed: File
   try {
     compressed = await imageCompression(normalized, {
-      maxSizeMB: 4.5,
-      maxWidthOrHeight: 2560,
+      maxSizeMB: PHOTO_UPLOAD_MAX_SIZE_MB,
+      maxWidthOrHeight: PHOTO_UPLOAD_MAX_DIMENSION,
+      maxIteration: PHOTO_UPLOAD_MAX_ITERATIONS,
       useWebWorker: true,
       fileType: 'image/jpeg',
-      initialQuality: 0.88,
+      initialQuality: PHOTO_UPLOAD_INITIAL_QUALITY,
     })
   } catch (error) {
     throw new PackingImageConversionError('jpeg_encoding_failed', 'The browser could not encode this image as JPEG', { cause: error })
   }
   if (compressed.type !== 'image/jpeg') {
     throw new PackingImageConversionError('jpeg_encoding_failed', 'JPEG encoding is unavailable')
+  }
+  try {
+    assertPhotoUploadSize(compressed)
+  } catch (error) {
+    throw new PackingImageConversionError('jpeg_encoding_failed', 'JPEG output exceeds the photo upload limit', { cause: error })
   }
   return compressed
 }

@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { PHOTO_UPLOAD_MAX_SIZE_MB } from '../../lib/photo-compression'
 import { useMediaUpload } from './useMediaUpload'
 
 const { mockCompress, mockConfirmUpload, mockCreateUpload } = vi.hoisted(() => ({
@@ -47,6 +48,14 @@ test('compresses, uploads, and confirms a media session in order', async () => {
     mockConfirmUpload.mock.invocationCallOrder[0],
   )
   expect(result.current.stage).toBe('complete')
+  expect(mockCompress).toHaveBeenCalledWith(file, {
+    fileType: 'image/webp',
+    initialQuality: 0.8,
+    maxSizeMB: PHOTO_UPLOAD_MAX_SIZE_MB,
+    maxWidthOrHeight: 1920,
+    maxIteration: 15,
+    useWebWorker: true,
+  })
 })
 
 test('does not confirm when R2 PUT fails', async () => {

@@ -212,7 +212,7 @@ users/{owner_id}/boxes/{box_id}/{media_kind}/{random_uuid}.{extension}
 6. React 调用 `confirm_media_upload` RPC，提交上传会话 ID。
 7. RPC 锁定并验证会话的调用者、状态和有效期，然后使用会话内的对象键与媒体元数据更新目标记录并标记 `confirmed`。旧对象由 Trigger 加入清理队列。
 
-箱子封面和物品图片的压缩后大小上限统一为 5 MiB。签名 URL 默认 5 分钟失效。R2 CORS 只允许已配置的应用来源执行所需的 `PUT`、`GET` 和 `HEAD` 请求。
+箱子封面、物品图片和头像在客户端统一转为 WebP；普通照片最长边为 1920 px、头像为 512 px，初始质量 80%，最多执行 15 轮压缩，并在签名前硬性校验不超过 500,000 bytes。服务端可继续接受旧客户端的历史上限，但新版客户端不得上传超过该限制的普通照片。签名 URL 默认 5 分钟失效。R2 CORS 只允许已配置的应用来源执行所需的 `PUT`、`GET` 和 `HEAD` 请求。
 
 ### 6.3 下载流程
 
