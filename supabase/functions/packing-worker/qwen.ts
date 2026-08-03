@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 import { z } from 'zod'
 import type { PackingServices } from './services.ts'
+import type { PackingImageMimeType } from './types.ts'
 import { PACKING_MODEL_SCHEMA_VERSION, PACKING_PROMPT_VERSION } from './types.ts'
 
 const quantitySchema = z.object({
@@ -111,6 +112,10 @@ function imageBase64(bytes: Uint8Array): string {
   return btoa(binary)
 }
 
+export function packingImageDataUrl(image: Uint8Array, mimeType: PackingImageMimeType): string {
+  return `data:${mimeType};base64,${imageBase64(image)}`
+}
+
 function client(services: PackingServices): OpenAI {
   return new OpenAI({
     apiKey: services.qwenApiKey,
@@ -141,11 +146,12 @@ async function callQwen<S extends z.ZodTypeAny>(input: {
   system: string
   text: string
   image?: Uint8Array
+  imageMimeType?: PackingImageMimeType
   schema: S
 }): Promise<QwenResult<z.output<S>>> {
   const content: OpenAI.Chat.Completions.ChatCompletionContentPart[] = []
   if (input.image) content.push({
-    type: 'image_url', image_url: { url: `data:image/webp;base64,${imageBase64(input.image)}` },
+    type: 'image_url', image_url: { url: packingImageDataUrl(input.image, input.imageMimeType ?? 'image/webp') },
   })
   content.push({ type: 'text', text: input.text })
   const started = Date.now()
@@ -225,8 +231,8 @@ const reviewContract = `JSON 结构必须严格为 {"schema_version":"1","photo_
 const localizationContract = `JSON 结构必须严格为 {"schema_version":"1","photo_id":"PNNN","instance_id":string,"bbox":[number,number,number,number],"visible_fraction":"fully_visible|mostly_visible|partially_visible","crop_suitable":boolean,"reason":string|null}。bbox 使用 Qwen 原生 1000×1000 相对坐标系，四个值均在 0～1000。`
 const cropValidationContract = `JSON 结构必须严格为 {"schema_version":"1","valid":boolean,"reason":string|null}。`
 
-export function observeAtlas(services: PackingServices, usage: QwenUsageContext, atlasId: string, image: Uint8Array) {
-  return callQwen({ services, usage, system: rules, image, schema: atlasObservationSchema,
+export function observeAtlas(services: PackingServices, usage: QwenUsageContext, atlasId: string, image: Uint8Array, imageMimeType: PackingImageMimeType = 'image/jpeg') {
+  return callQwen({ services, usage, system: rules, image, imageMimeType, schema: atlasObservationSchema,
     text: `分析这张按拍摄时间从左到右、从上到下排列的装箱 Atlas。每格标题 PNNN 是原始照片编号。输出物体的出现、持续、消失或不确定观察。atlas_id 必须为 ${JSON.stringify(atlasId)}。给出最佳裁剪候选照片，但不要在 Atlas 上输出 bbox。${observationContract}` })
 }
 
@@ -235,13 +241,13 @@ export function consolidateObservations(services: PackingServices, usage: QwenUs
     text: `根据以下按时间排列且已经过校验的观察构建物理实例。同一个真实物体跨照片只能生成一个实例；后来新增的同款物体必须生成另一个实例。聚合清单和数量。无法确认时 needs_review=true。${consolidationContract}\n观察数据：${JSON.stringify(observations)}` })
 }
 
-export function reviewOriginalObservation(services: PackingServices, usage: QwenUsageContext, input: { photoId: string; proposedLabel: string; image: Uint8Array }) {
-  return callQwen({ services, usage, system: rules, image: input.image, schema: originalReviewSchema,
+export function reviewOriginalObservation(services: PackingServices, usage: QwenUsageContext, input: { photoId: string; proposedLabel: string; image: Uint8Array; imageMimeType: PackingImageMimeType }) {
+  return callQwen({ services, usage, system: rules, image: input.image, imageMimeType: input.imageMimeType, schema: originalReviewSchema,
     text: `用高清原图复核 ${JSON.stringify(input.proposedLabel)}。photo_id 必须为 ${JSON.stringify(input.photoId)}。只保留原图明确支持的事实。${reviewContract}` })
 }
 
-export function localizeInstance(services: PackingServices, usage: QwenUsageContext, input: { photoId: string; instanceId: string; itemName: string; image: Uint8Array }) {
-  return callQwen({ services, usage, system: rules, image: input.image, schema: localizationSchema,
+export function localizeInstance(services: PackingServices, usage: QwenUsageContext, input: { photoId: string; instanceId: string; itemName: string; image: Uint8Array; imageMimeType: PackingImageMimeType }) {
+  return callQwen({ services, usage, system: rules, image: input.image, imageMimeType: input.imageMimeType, schema: localizationSchema,
     text: `定位 ${JSON.stringify(input.itemName)}。photo_id=${JSON.stringify(input.photoId)}，instance_id=${JSON.stringify(input.instanceId)}。bbox 为 [x_min,y_min,x_max,y_max]，完整包围目标，不能框整个箱子。${localizationContract}` })
 }
 

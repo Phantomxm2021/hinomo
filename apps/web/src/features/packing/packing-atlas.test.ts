@@ -1,5 +1,15 @@
-import { describe, expect, test } from 'vitest'
-import { packingAtlasGrid, packingAtlasRanges } from './packing-atlas'
+import { describe, expect, test, vi } from 'vitest'
+import { encodePackingAtlasCanvas, packingAtlasGrid, packingAtlasRanges } from './packing-atlas'
+
+test('encodes client Atlases directly as JPEG for iPhone Canvas compatibility', async () => {
+  const toBlob = vi.fn((callback: BlobCallback, type?: string) => callback(new Blob(['atlas'], { type })))
+  const canvas = { toBlob } as unknown as HTMLCanvasElement
+
+  const blob = await encodePackingAtlasCanvas(canvas, 0.82)
+
+  expect(toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/jpeg', 0.82)
+  expect(blob.type).toBe('image/jpeg')
+})
 
 describe('packingAtlasGrid', () => {
   test.each([

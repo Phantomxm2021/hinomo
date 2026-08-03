@@ -87,7 +87,7 @@ beforeEach(() => {
   mocks.downloadPhoto.mockResolvedValue(new Blob(['photo'], { type: 'image/webp' }))
   mocks.buildAtlases.mockResolvedValue([{
     atlasNo: 1, firstSequenceNo: 1, lastSequenceNo: 1, width: 512, height: 552,
-    sha256: 'a'.repeat(64), blob: new Blob(['atlas'], { type: 'image/webp' }),
+    sha256: 'a'.repeat(64), blob: new Blob(['atlas'], { type: 'image/jpeg' }),
   }])
   mocks.completeSession.mockResolvedValue({ ...session, status: 'queued', photo_count: 1 })
   mocks.compress.mockImplementation(async (file: File) => new File([file], 'packing.jpg', { type: 'image/jpeg' }))

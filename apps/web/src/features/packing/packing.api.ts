@@ -117,7 +117,7 @@ export async function uploadPackingAtlas(sessionId: string, atlas: ClientPacking
   const upload = data?.[0]
   if (!upload) throw new Error('packing atlas upload was not created')
   const response = await fetch(upload.upload_url, {
-    method: 'PUT', headers: { 'Content-Type': 'image/webp' }, body: atlas.blob,
+    method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: atlas.blob,
   })
   if (!response.ok) throw new Error('packing atlas upload failed')
   const { error: confirmError } = await supabase.rpc('confirm_packing_atlas_upload', { p_atlas_id: upload.atlas_id })

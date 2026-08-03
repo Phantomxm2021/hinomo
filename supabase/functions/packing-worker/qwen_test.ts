@@ -1,4 +1,9 @@
-import { atlasObservationSchema, buildQwenChatRequest, localizationSchema } from './qwen.ts'
+import { atlasObservationSchema, buildQwenChatRequest, localizationSchema, packingImageDataUrl } from './qwen.ts'
+
+Deno.test('labels JPEG Atlas bytes correctly for the vision request', () => {
+  const url = packingImageDataUrl(new Uint8Array([0xff, 0xd8, 0xff]), 'image/jpeg')
+  if (url !== 'data:image/jpeg;base64,/9j/') throw new Error('JPEG data URL has the wrong MIME type')
+})
 
 Deno.test('builds Qwen non-thinking JSON requests without replacing the OpenAI body', () => {
   const request = buildQwenChatRequest({

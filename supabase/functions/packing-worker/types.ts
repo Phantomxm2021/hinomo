@@ -26,6 +26,7 @@ export type PackingAtlas = {
   atlas_no: number
   object_key: string
 }
+export type PackingImageMimeType = 'image/jpeg' | 'image/png' | 'image/webp'
 export type PackingSession = {
   id: string
   box_id: string

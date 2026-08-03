@@ -40,15 +40,15 @@ export function packingAtlasGrid(photoCount: number) {
   return { columns, rows: Math.ceil(photoCount / columns) }
 }
 
-function canvasBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+export function encodePackingAtlasCanvas(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
-      if (!blob || blob.type !== 'image/webp') {
-        reject(new Error('packing atlas WebP encoding is unavailable'))
+      if (!blob || blob.type !== 'image/jpeg') {
+        reject(new Error('packing atlas JPEG encoding is unavailable'))
         return
       }
       resolve(blob)
-    }, 'image/webp', quality)
+    }, 'image/jpeg', quality)
   })
 }
 
@@ -109,8 +109,8 @@ export async function buildClientPackingAtlases(
       }
     }
 
-    let blob = await canvasBlob(canvas, 0.88)
-    if (blob.size > 7_000_000) blob = await canvasBlob(canvas, 0.74)
+    let blob = await encodePackingAtlasCanvas(canvas, 0.82)
+    if (blob.size > 7_000_000) blob = await encodePackingAtlasCanvas(canvas, 0.68)
     if (blob.size > 7_000_000) throw new Error('packing atlas is too large')
     atlases.push({
       atlasNo: range.atlasNo,

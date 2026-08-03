@@ -70,7 +70,7 @@ async function observe(services: PackingServices, job: ClaimedJob): Promise<void
   const atlas = data as PackingAtlas
   const result = await observeAtlas(services, {
     sessionId: job.session_id, jobId: job.job_id, operation: 'observe',
-  }, atlas.id, await readMedia(services, atlas.object_key))
+  }, atlas.id, await readMedia(services, atlas.object_key), atlas.object_key.endsWith('.jpg') ? 'image/jpeg' : 'image/webp')
   const reviews = []
   const candidate = result.data.observations.find((entry) => entry.requires_original_review)
   if (candidate) {
@@ -81,6 +81,7 @@ async function observe(services: PackingServices, job: ClaimedJob): Promise<void
       photoId: candidate.best_crop_candidate_photo_id,
       proposedLabel: candidate.label,
       image: await readMedia(services, photo.object_key),
+      imageMimeType: photo.mime_type,
     })
     reviews.push(review.data)
     result.inputTokens += review.inputTokens
@@ -203,7 +204,8 @@ async function localize(services: PackingServices, job: ClaimedJob): Promise<voi
   const result = await localizeInstance(services, {
     sessionId: job.session_id, jobId: job.job_id, operation: 'localize',
   }, {
-    photoId: photoLabel, instanceId: instance.id as string, itemName: item.name as string, image: source,
+    photoId: photoLabel, instanceId: instance.id as string, itemName: item.name as string,
+    image: source, imageMimeType: typedPhoto.mime_type,
   })
   const metrics: Metrics = { inputTokens: result.inputTokens, outputTokens: result.outputTokens, durationMs: result.durationMs }
   let succeeded = false

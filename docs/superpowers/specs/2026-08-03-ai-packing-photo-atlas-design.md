@@ -188,7 +188,7 @@ Supabase Edge Function（packing-worker）
 
 ```text
 users/{owner_id}/boxes/{box_id}/packing/{session_id}/original/{photo_id}.webp
-users/{owner_id}/boxes/{box_id}/packing/{session_id}/atlas/{atlas_no}.webp
+users/{owner_id}/boxes/{box_id}/packing/{session_id}/atlas/{atlas_no}.jpg
 users/{owner_id}/boxes/{box_id}/packing/{session_id}/items/{detected_item_id}.webp
 ```
 
@@ -200,7 +200,7 @@ Atlas 和单项裁剪图都可以从客户端压缩原图重新生成，但第�
 - 普通照片最长边默认 1920 px，头像保持 512 px；
 - 装箱原图统一上传 JPEG，初始质量 80%，最多执行 15 轮压缩；
 - 移动端通过 `capture="environment"` 调起系统后置相机，并以 `accept="image/jpeg"` 请求 JPEG；系统返回后读取文件头确定真实格式，再缩放压缩。真实 JPEG 在 MIME 缺失或扩展名错误时必须先规范化。相册和桌面文件选择器只接受 JPEG、PNG、WebP，并统一编码为 JPEG。客户端拒绝实际 HEIC/HEIF，不下载或执行 HEIC WASM 转换器；
-- 所有普通照片上传前必须再次校验为不超过 500,000 bytes；超过时不得签名或上传。IndexedDB 中按旧参数生成且仍未上传的装箱草稿必须在上传队列入口重新压缩并覆盖草稿。Atlas 是合成分析图的唯一例外，继续使用第 7 节的独立 WebP 质量与 7 MB 上限；
+- 所有普通照片上传前必须再次校验为不超过 500,000 bytes；超过时不得签名或上传。IndexedDB 中按旧参数生成且仍未上传的装箱草稿必须在上传队列入口重新压缩并覆盖草稿。Atlas 是合成分析图的唯一例外，直接编码为 JPEG（初始质量 82%，超限后降到 68%），使用第 7 节的 7 MB 上限；不得依赖 iPhone Canvas 的 WebP 编码能力；
 - 不覆盖本地待上传文件，确认上传前保留 IndexedDB 副本；
 - 使用 `session_id + sequence_no` 保证重试幂等。
 
@@ -225,7 +225,7 @@ Atlas 和单项裁剪图都可以从客户端压缩原图重新生成，但第�
 
 ### 7.3 输出
 
-- WebP，质量 88；
+- JPEG，初始质量 82；超过 7 MB 时以质量 68 重新编码，仍超限则中止完成流程；
 - 每张 Atlas 独立保存 object key、宽高、字节数和 SHA-256；
 - 数据库记录 Atlas 与照片的映射；
 - 每个检测结果引用逻辑 `photo_id`，不能只引用 Atlas 坐标。
@@ -598,7 +598,7 @@ qwen3-vl-plus-2025-12-19
 - 浏览器只能访问当前账号拥有的箱子会话。
 - 任务表不向普通 authenticated 客户端开放写权限；只能通过受控 RPC 创建或查询状态。
 - Edge Function 的 Supabase service role、Qwen key 和唤醒密钥只存于 Supabase Function Secrets；R2 长期凭据继续只存于 Vault。
-- Edge Function 使用 service-role-only RPC 获取短效 R2 URL并读取 WebP，再以 `data:` URL放入 OpenAI 兼容请求；Atlas 二进制限制在 7 MB，单张原图客户端硬限制为 500,000 bytes，进一步降低 Base64 膨胀和批量会话带宽。
+- Edge Function 使用 service-role-only RPC 获取短效 R2 URL并读取媒体，再按真实 MIME 生成 `data:` URL放入 OpenAI 兼容请求；Atlas 使用 JPEG且二进制限制在 7 MB，单张原图客户端硬限制为 500,000 bytes，进一步降低 Base64 膨胀和批量会话带宽。
 - 不在模型提示词、日志或错误信息中包含用户 ID、签名查询参数和密钥。
 - 记录模型供应区域、数据处理条款和保留策略，生产上线前完成隐私评审。
 - 用户删除会话时同时删除 AI 结果并异步清理原图、Atlas 和未提升的单项裁剪图。
