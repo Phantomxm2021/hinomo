@@ -627,7 +627,7 @@ capturing / uploading ──→ canceled
 - 至少一张照片为 `confirmed`，且所有已确认照片都被已确认 Atlas 完整覆盖，才能进入 `queued`。
 - Edge Function 使用有期限的 lease 认领任务，崩溃后任务可自动回收。
 - 每个处理产物由输入指纹和版本决定，相同输入重复执行只能覆盖同一逻辑产物。
-- “加入清单”提交 promotion 后立即唤醒 Edge Function；前端轮询该 promotion，完成后自动刷新箱子正式物品列表，不要求用户手动刷新页面。
+- “加入清单”提交 promotion 后立即从待加入列表移除并唤醒 Edge Function；父级在后台轮询该 promotion，成功后自动刷新箱子正式物品列表，失败则恢复识别项并明确提示，不要求用户等待或手动刷新页面。
 - 实例追踪、清单汇总、定位裁剪全部完成后，再在一个数据库事务中发布新 revision 的检测项。
 - 重新分析创建新 analysis revision；新结果完整成功前，用户继续看到上一版结果。
 

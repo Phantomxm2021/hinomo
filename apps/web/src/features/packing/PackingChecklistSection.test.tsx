@@ -79,7 +79,8 @@ test('lets an estimated quantity join the formal checklist in one step', async (
   await user.click(await screen.findByRole('button', { name: /AI 智能清单/ }))
   await user.click(await screen.findByRole('button', { name: '加入清单' }))
   await waitFor(() => expect(mocks.promote).toHaveBeenCalledWith('detected-1'))
-  expect(await screen.findByRole('button', { name: '后台加入中' })).toBeDisabled()
+  expect(await screen.findByText('已提交 1 项，正在后台加入清单')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '加入清单' })).not.toBeInTheDocument()
 })
 
 test('refreshes the formal item list when background promotion completes', async () => {
@@ -89,8 +90,20 @@ test('refreshes the formal item list when background promotion completes', async
   queryClient.setQueryData(['items', 'box-1'], [{ id: 'existing-item' }])
   await user.click(await screen.findByRole('button', { name: /AI 智能清单/ }))
   await user.click(await screen.findByRole('button', { name: '加入清单' }))
-  expect(await screen.findByRole('button', { name: '已加入' })).toBeDisabled()
   await waitFor(() => expect(queryClient.getQueryState(['items', 'box-1'])?.isInvalidated).toBe(true))
+})
+
+test('restores the detected item when background promotion fails', async () => {
+  const user = userEvent.setup()
+  mocks.getPromotion.mockResolvedValue({ id: 'promotion-1', status: 'failed' })
+  renderSection()
+  await user.click(await screen.findByRole('button', { name: /AI 智能清单/ }))
+  await user.click(await screen.findByRole('button', { name: '加入清单' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('白色充电器加入失败，请重试')
+  mocks.getPromotion.mockResolvedValue({ id: 'promotion-1', status: 'pending' })
+  await user.click(await screen.findByRole('button', { name: '加入清单' }))
+  expect(await screen.findByText('已提交 1 项，正在后台加入清单')).toBeInTheDocument()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
 
 test('uses the source photo while an item crop is still pending', async () => {

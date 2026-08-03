@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AppIcon } from '../../components/AppIcon'
@@ -62,7 +62,12 @@ function EvidenceOverlay({ item, onClose }: { item: PackingDetectedItem; onClose
   )
 }
 
-function ChecklistItem({ item, boxId, mergeTargets }: { item: PackingDetectedItem; boxId: string; mergeTargets: PackingDetectedItem[] }) {
+function ChecklistItem({ item, boxId, mergeTargets, onPromotionAccepted }: {
+  item: PackingDetectedItem
+  boxId: string
+  mergeTargets: PackingDetectedItem[]
+  onPromotionAccepted: (item: PackingDetectedItem, promotionId: string) => void
+}) {
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [showEvidence, setShowEvidence] = useState(false)
@@ -74,7 +79,6 @@ function ChecklistItem({ item, boxId, mergeTargets }: { item: PackingDetectedIte
   const [description, setDescription] = useState(item.description ?? '')
   const [quantityKind, setQuantityKind] = useState(item.quantity_kind)
   const [quantityValue, setQuantityValue] = useState(item.quantity_value?.toString() ?? '')
-  const [promotionId, setPromotionId] = useState<string | null>(null)
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['packing-detected-items', boxId] })
   const updateMutation = useMutation({
@@ -88,16 +92,7 @@ function ChecklistItem({ item, boxId, mergeTargets }: { item: PackingDetectedIte
   })
   const promotionMutation = useMutation({
     mutationFn: () => requestPackingItemPromotion(item.id),
-    onSuccess: (promotion) => {
-      setPromotionId(promotion.id)
-      void queryClient.invalidateQueries({ queryKey: ['packing-item-promotion', promotion.id] })
-    },
-  })
-  const promotionQuery = useQuery({
-    queryKey: ['packing-item-promotion', promotionId],
-    queryFn: () => getPackingItemPromotion(promotionId ?? ''),
-    enabled: Boolean(promotionId),
-    refetchInterval: (query) => ['pending', 'processing'].includes(query.state.data?.status ?? '') ? 1500 : false,
+    onSuccess: (promotion) => onPromotionAccepted(item, promotion.id),
   })
   const mergeMutation = useMutation({
     mutationFn: () => mergeDetectedPackingItems(mergeTargetId, item.id),
@@ -106,28 +101,7 @@ function ChecklistItem({ item, boxId, mergeTargets }: { item: PackingDetectedIte
 
   const canSave = name.trim().length > 0 && (quantityKind === 'unknown' || Number(quantityValue) > 0)
   const hasSourcePhoto = Boolean(item.cover_object_key || item.first_seen_photo_id || item.representative_instance_id)
-  const promotionStatus = promotionQuery.data?.status
-  const promotionBusy = promotionMutation.isPending || promotionStatus === 'pending' || promotionStatus === 'processing' || promotionStatus === 'completed'
-  const promotionLabel = promotionMutation.isPending
-    ? '正在提交…'
-    : promotionStatus === 'pending' || promotionStatus === 'processing'
-      ? '后台加入中'
-      : promotionStatus === 'completed'
-        ? '已加入'
-        : promotionStatus === 'failed'
-          ? '重新加入'
-          : hasSourcePhoto
-            ? '加入清单'
-            : '照片不可用'
-
-  useEffect(() => {
-    if (promotionStatus !== 'completed') return
-    void Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['items', boxId] }),
-      queryClient.invalidateQueries({ queryKey: ['box'] }),
-      queryClient.invalidateQueries({ queryKey: ['packing-detected-items', boxId] }),
-    ])
-  }, [boxId, promotionStatus, queryClient])
+  const promotionLabel = promotionMutation.isPending ? '正在提交…' : hasSourcePhoto ? '加入清单' : '照片不可用'
 
   return (
     <article className="border-b border-line/60 p-3 last:border-b-0">
@@ -164,10 +138,10 @@ function ChecklistItem({ item, boxId, mergeTargets }: { item: PackingDetectedIte
             {mergeTargets.length > 0 ? <button className="min-h-10 px-3 text-sm font-bold text-muted" type="button" onClick={() => { setMenuOpen(false); setMerging(true) }}>合并</button> : null}
             <button className="min-h-10 px-3 text-sm font-bold text-danger" type="button" disabled={updateMutation.isPending} onClick={() => updateMutation.mutate('dismissed')}>忽略</button>
           </div> : null}
-          <button className="min-h-11 w-full rounded-control bg-ink px-4 font-extrabold text-white disabled:bg-placeholder disabled:text-muted" type="button" disabled={!hasSourcePhoto || promotionBusy} onClick={() => promotionMutation.mutate()}>{promotionLabel}</button>
+          <button className="min-h-11 w-full rounded-control bg-ink px-4 font-extrabold text-white disabled:bg-placeholder disabled:text-muted" type="button" disabled={!hasSourcePhoto || promotionMutation.isPending} onClick={() => promotionMutation.mutate()}>{promotionLabel}</button>
         </div>
       )}
-      {updateMutation.isError || promotionMutation.isError || promotionQuery.isError || promotionStatus === 'failed' || mergeMutation.isError ? <p className="mt-2 text-right text-xs font-bold text-danger">操作失败，请稍后重试</p> : null}
+      {updateMutation.isError || promotionMutation.isError || mergeMutation.isError ? <p className="mt-2 text-right text-xs font-bold text-danger">操作失败，请稍后重试</p> : null}
       {showEvidence ? <EvidenceOverlay item={item} onClose={() => setShowEvidence(false)} /> : null}
     </article>
   )
@@ -177,6 +151,9 @@ export function PackingChecklistSection({ boxId }: { boxId: string }) {
   const queryClient = useQueryClient()
   const launcherRef = useRef<HTMLButtonElement | null>(null)
   const [open, setOpen] = useState(false)
+  const [promotionTasks, setPromotionTasks] = useState<Array<{ item: PackingDetectedItem; promotionId: string }>>([])
+  const [promotionError, setPromotionError] = useState<string | null>(null)
+  const handledPromotionsRef = useRef(new Set<string>())
   const sessionsQuery = useQuery({ queryKey: ['packing-sessions', boxId], queryFn: () => listPackingSessions(boxId), refetchInterval: (query) => query.state.data?.some((session) => ['queued', 'processing'].includes(session.status)) ? 3000 : false })
   const resultSession = sessionsQuery.data?.find((session) => !['capturing', 'uploading', 'canceled'].includes(session.status))
   const itemsQuery = useQuery({
@@ -187,21 +164,60 @@ export function PackingChecklistSection({ boxId }: { boxId: string }) {
   })
   const activeSession = sessionsQuery.data?.find((session) => ['queued', 'processing', 'partial_failed', 'failed'].includes(session.status))
   const items = itemsQuery.data ?? []
+  const promotionQueries = useQueries({
+    queries: promotionTasks.map((task) => ({
+      queryKey: ['packing-item-promotion', task.promotionId],
+      queryFn: () => getPackingItemPromotion(task.promotionId),
+      refetchInterval: (query: { state: { data?: { status?: string } } }) => ['pending', 'processing'].includes(query.state.data?.status ?? '') ? 1500 : false,
+      retry: 3,
+    })),
+  })
+  const hiddenItemIds = new Set(promotionTasks.map((task) => task.item.id))
+  const visibleItems = items.filter((item) => !hiddenItemIds.has(item.id))
   const reanalysisMutation = useMutation({ mutationFn: () => requestPackingReanalysis(activeSession?.id ?? ''), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['packing-sessions', boxId] }) } })
+
+  useEffect(() => {
+    promotionTasks.forEach((task, index) => {
+      const status = promotionQueries[index]?.data?.status
+      if (!status || !['completed', 'failed'].includes(status) || handledPromotionsRef.current.has(task.promotionId)) return
+      handledPromotionsRef.current.add(task.promotionId)
+      if (status === 'failed') {
+        setPromotionError(`${task.item.name}加入失败，请重试`)
+        setPromotionTasks((current) => current.filter((candidate) => candidate.promotionId !== task.promotionId))
+        return
+      }
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['items', boxId] }),
+        queryClient.invalidateQueries({ queryKey: ['box'] }),
+        queryClient.invalidateQueries({ queryKey: ['packing-detected-items', boxId] }),
+      ]).then(() => {
+        setPromotionTasks((current) => current.filter((candidate) => candidate.promotionId !== task.promotionId))
+      })
+    })
+  }, [boxId, promotionQueries, promotionTasks, queryClient])
+
+  const acceptPromotion = useCallback((item: PackingDetectedItem, promotionId: string) => {
+    setPromotionError(null)
+    handledPromotionsRef.current.delete(promotionId)
+    queryClient.removeQueries({ queryKey: ['packing-item-promotion', promotionId], exact: true })
+    setPromotionTasks((current) => current.some((task) => task.promotionId === promotionId)
+      ? current
+      : [...current, { item, promotionId }])
+  }, [queryClient])
 
   const close = useCallback(() => {
     setOpen(false)
     requestAnimationFrame(() => launcherRef.current?.focus())
   }, [])
 
-  if (!activeSession && items.length === 0) return null
+  if (!activeSession && visibleItems.length === 0 && promotionTasks.length === 0) return null
   const isProcessing = Boolean(activeSession && ['queued', 'processing'].includes(activeSession.status))
   const hasFailure = Boolean(activeSession && ['partial_failed', 'failed'].includes(activeSession.status))
   const summary = isProcessing
     ? `${activeSession?.photo_count ?? 0} 张照片正在分析，可以先离开`
     : hasFailure
       ? '分析未完整完成，点按查看结果或重新分析'
-      : `识别到 ${items.length} 项，点按查看`
+      : `识别到 ${visibleItems.length} 项，点按查看`
 
   return (
     <section aria-label="AI 智能清单入口">
@@ -215,13 +231,16 @@ export function PackingChecklistSection({ boxId }: { boxId: string }) {
       >
         <span className="grid size-12 place-items-center rounded-[0.9rem] bg-brand text-white shadow-soft"><AppIcon name="scan" size={23} /></span>
         <span className="min-w-0"><span className="block font-extrabold text-ink">AI 智能清单</span><span className="mt-0.5 block truncate text-sm font-semibold text-muted">{summary}</span></span>
-        <span className="flex items-center gap-2 pl-2"><span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${hasFailure ? 'bg-danger/10 text-danger' : 'bg-brand/10 text-brand'}`}>{items.length > 0 ? `${items.length} 项` : activeSession ? sessionLabels[activeSession.status] : '查看'}</span><AppIcon className="text-muted" name="chevron-right" size={18} /></span>
+        <span className="flex items-center gap-2 pl-2"><span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${hasFailure ? 'bg-danger/10 text-danger' : 'bg-brand/10 text-brand'}`}>{visibleItems.length > 0 ? `${visibleItems.length} 项` : promotionTasks.length > 0 ? '正在加入' : activeSession ? sessionLabels[activeSession.status] : '查看'}</span><AppIcon className="text-muted" name="chevron-right" size={18} /></span>
       </button>
       <PackingChecklistSheet
         open={open}
-        items={items}
+        items={visibleItems}
         boxId={boxId}
         activeSession={activeSession}
+        promotionCount={promotionTasks.length}
+        promotionError={promotionError}
+        onPromotionAccepted={acceptPromotion}
         reanalyzing={reanalysisMutation.isPending}
         onReanalyze={() => reanalysisMutation.mutate()}
         onClose={close}
@@ -230,12 +249,15 @@ export function PackingChecklistSection({ boxId }: { boxId: string }) {
   )
 }
 
-function PackingChecklistSheet({ open, items, boxId, activeSession, reanalyzing, onReanalyze, onClose }: {
+function PackingChecklistSheet({ open, items, boxId, activeSession, promotionCount, promotionError, reanalyzing, onPromotionAccepted, onReanalyze, onClose }: {
   open: boolean
   items: PackingDetectedItem[]
   boxId: string
   activeSession: Awaited<ReturnType<typeof listPackingSessions>>[number] | undefined
+  promotionCount: number
+  promotionError: string | null
   reanalyzing: boolean
+  onPromotionAccepted: (item: PackingDetectedItem, promotionId: string) => void
   onReanalyze: () => void
   onClose: () => void
 }) {
@@ -277,8 +299,10 @@ function PackingChecklistSheet({ open, items, boxId, activeSession, reanalyzing,
               <p className="mt-1 text-sm leading-6 text-muted">内容正确就直接加入清单；需要时可从更多菜单修改。</p>
             </div>
             {isProcessing ? <div className="flex items-center gap-3 rounded-[1.1rem] border border-brand/15 bg-brand/5 p-4" role="status"><span className="size-4 animate-pulse rounded-full bg-brand" /><div><p className="font-bold text-ink">正在整理 {activeSession?.photo_count ?? 0} 张装箱照片</p><p className="mt-1 text-sm text-muted">可以关闭弹窗，完成后从箱子页再次打开。</p></div></div> : null}
+            {promotionCount > 0 ? <div className="flex items-center gap-3 rounded-[1.1rem] border border-brand/15 bg-brand/5 p-4" role="status"><span className="size-4 animate-pulse rounded-full bg-brand" /><p className="font-bold text-ink">已提交 {promotionCount} 项，正在后台加入清单</p></div> : null}
+            {promotionError ? <p className="rounded-[1.1rem] border border-danger/20 bg-danger/5 p-4 font-bold text-danger" role="alert">{promotionError}</p> : null}
             {hasFailure ? <div className="flex items-center justify-between gap-3 rounded-[1.1rem] border border-danger/20 bg-danger/5 p-4"><p className="font-bold text-danger">本次分析没有完整完成，已保留可用结果。</p><button className="min-h-10 shrink-0 rounded-control bg-danger px-4 font-bold text-white" type="button" disabled={reanalyzing} onClick={onReanalyze}>{reanalyzing ? '正在重试…' : '重新分析'}</button></div> : null}
-            {items.length > 0 ? <div className="overflow-hidden rounded-[1.25rem] bg-surface shadow-[inset_0_0_0_1px_rgba(79,64,48,0.06)]">{items.map((item) => <ChecklistItem key={item.id} item={item} boxId={boxId} mergeTargets={items.filter((candidate) => candidate.id !== item.id)} />)}</div> : !isProcessing && !hasFailure ? <p className="grid min-h-48 place-content-center text-center font-semibold text-muted">暂时没有可审核的识别结果</p> : null}
+            {items.length > 0 ? <div className="overflow-hidden rounded-[1.25rem] bg-surface shadow-[inset_0_0_0_1px_rgba(79,64,48,0.06)]">{items.map((item) => <ChecklistItem key={item.id} item={item} boxId={boxId} mergeTargets={items.filter((candidate) => candidate.id !== item.id)} onPromotionAccepted={onPromotionAccepted} />)}</div> : !isProcessing && !hasFailure && promotionCount === 0 ? <p className="grid min-h-48 place-content-center text-center font-semibold text-muted">暂时没有可审核的识别结果</p> : null}
           </div>
         </div>
       </section>
