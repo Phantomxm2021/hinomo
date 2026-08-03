@@ -1,5 +1,5 @@
 export const PACKING_MODEL_SCHEMA_VERSION = '1'
-export const PACKING_PROMPT_VERSION = 'packing-atlas-v2'
+export const PACKING_PROMPT_VERSION = 'packing-atlas-v3'
 export const PACKING_LAYOUT_VERSION = 'client-grid-4x4-v1'
 
 export type PackingJobStage = 'observe' | 'track_instances' | 'consolidate' | 'localize' | 'publish'

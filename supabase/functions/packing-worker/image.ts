@@ -1,21 +1,10 @@
 import { ImageMagick, initializeImageMagick, MagickFormat, MagickGeometry } from '@imagemagick/magick-wasm'
+import { validateNormalizedBox, type NormalizedBox } from './bbox.ts'
+
+export { validateNormalizedBox, type NormalizedBox } from './bbox.ts'
 
 const wasmBytes = await Deno.readFile(new URL('magick.wasm', import.meta.resolve('@imagemagick/magick-wasm')))
 await initializeImageMagick(wasmBytes)
-
-export type NormalizedBox = [number, number, number, number]
-
-export function validateNormalizedBox(value: unknown): NormalizedBox {
-  if (!Array.isArray(value) || value.length !== 4 || value.some((entry) => typeof entry !== 'number' || !Number.isFinite(entry))) {
-    throw new Error('localization_bbox_invalid')
-  }
-  const [xMin, yMin, xMax, yMax] = value
-  if (xMin < 0 || yMin < 0 || xMax > 1 || yMax > 1 || xMin >= xMax || yMin >= yMax) {
-    throw new Error('localization_bbox_out_of_bounds')
-  }
-  if ((xMax - xMin) * (yMax - yMin) < 0.0004) throw new Error('localization_bbox_too_small')
-  return [xMin, yMin, xMax, yMax]
-}
 
 export function cropPackingItem(source: Uint8Array, rawBox: unknown, paddingRatio = 0.14): {
   bytes: Uint8Array

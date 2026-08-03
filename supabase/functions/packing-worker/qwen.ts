@@ -188,7 +188,7 @@ const quantityContract = `quantity 必须是 {"kind":"exact|at_least|approximate
 const observationContract = `JSON 结构必须严格为 {"schema_version":"1","atlas_id":string,"observations":[{"observation_id":string,"photo_id":"PNNN","object_local_id":string,"action":"appeared|persisted|disappeared|uncertain","label":string,"category":string|null,"quantity":{"kind":string,"value":number|null},"visibility":"clear|partial|occluded|reflective|opaque_container|unknown","container_label":string|null,"evidence_photo_ids":["PNNN"],"best_crop_candidate_photo_id":"PNNN","requires_original_review":boolean,"review_reason":string|null}]}。${quantityContract}`
 const consolidationContract = `JSON 结构必须严格为 {"schema_version":"1","items":[{"client_id":string,"name":string,"category":string|null,"description":string|null,"quantity":{"kind":string,"value":number|null},"visibility":"clear|partial|occluded|reflective|opaque_container|unknown","needs_review":boolean,"instances":[{"client_id":string,"provisional_name":string,"first_seen_photo_id":"PNNN","last_seen_photo_id":"PNNN","representative_photo_id":"PNNN","evidence_photo_ids":["PNNN"],"tracking_status":"tracked|ambiguous"}]}]}。每个 items[].instances 至少一项。${quantityContract}`
 const reviewContract = `JSON 结构必须严格为 {"schema_version":"1","photo_id":"PNNN","evidence_confirmed":boolean,"label":string,"category":string|null,"quantity":{"kind":string,"value":number|null},"visibility":"clear|partial|occluded|reflective|opaque_container|unknown","review_reason":string|null}。${quantityContract}`
-const localizationContract = `JSON 结构必须严格为 {"schema_version":"1","photo_id":"PNNN","instance_id":string,"bbox":[number,number,number,number],"visible_fraction":"fully_visible|mostly_visible|partially_visible","crop_suitable":boolean,"reason":string|null}。`
+const localizationContract = `JSON 结构必须严格为 {"schema_version":"1","photo_id":"PNNN","instance_id":string,"bbox":[number,number,number,number],"visible_fraction":"fully_visible|mostly_visible|partially_visible","crop_suitable":boolean,"reason":string|null}。bbox 使用 Qwen 原生 1000×1000 相对坐标系，四个值均在 0～1000。`
 const cropValidationContract = `JSON 结构必须严格为 {"schema_version":"1","valid":boolean,"reason":string|null}。`
 
 export function observeAtlas(services: PackingServices, atlasId: string, image: Uint8Array) {
@@ -208,7 +208,7 @@ export function reviewOriginalObservation(services: PackingServices, input: { ph
 
 export function localizeInstance(services: PackingServices, input: { photoId: string; instanceId: string; itemName: string; image: Uint8Array }) {
   return callQwen({ services, system: rules, image: input.image, schema: localizationSchema,
-    text: `定位 ${JSON.stringify(input.itemName)}。photo_id=${JSON.stringify(input.photoId)}，instance_id=${JSON.stringify(input.instanceId)}。bbox 为归一化 [x_min,y_min,x_max,y_max]，完整包围目标，不能框整个箱子。${localizationContract}` })
+    text: `定位 ${JSON.stringify(input.itemName)}。photo_id=${JSON.stringify(input.photoId)}，instance_id=${JSON.stringify(input.instanceId)}。bbox 为 [x_min,y_min,x_max,y_max]，完整包围目标，不能框整个箱子。${localizationContract}` })
 }
 
 export function validateItemCrop(services: PackingServices, input: { itemName: string; image: Uint8Array }) {
