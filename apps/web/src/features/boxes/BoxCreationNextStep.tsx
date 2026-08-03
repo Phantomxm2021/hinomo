@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Skeleton } from '../../components/Skeleton'
-import { env } from '../../lib/env'
+import { publicAppOrigin } from '../../lib/env'
 import { boxQrPng, boxQrUrl } from '../qr-print/qr'
 import type { CreatedBox } from './boxes.api'
 
 export function BoxCreationNextStep({ box }: { box: CreatedBox }) {
-  const captureUrl = `${boxQrUrl(env.VITE_PUBLIC_APP_ORIGIN, box.public_id)}?capture=1`
+  const captureUrl = `${boxQrUrl(publicAppOrigin(), box.public_id)}?capture=1`
   const qrQuery = useQuery({
     queryKey: ['box-capture-qr', box.public_id],
     queryFn: () => boxQrPng(captureUrl),

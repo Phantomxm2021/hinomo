@@ -5,7 +5,7 @@ import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
-import { env } from '../../lib/env'
+import { publicAppOrigin } from '../../lib/env'
 import { listBoxes, type BoxSummary } from '../boxes/boxes.api'
 import { buildLabels, renderLabelsPdf } from './pdf'
 import { PrintBoxSelector } from './PrintBoxSelector'
@@ -88,7 +88,7 @@ export function PrintPage() {
     setProgress({ completed: 0, total: boxes.length })
     try {
       await renderLabelsPdf(
-        buildLabels(boxes, env.VITE_PUBLIC_APP_ORIGIN),
+        buildLabels(boxes, publicAppOrigin()),
         (completed, total) => {
           if (mounted.current) setProgress({ completed, total })
         },

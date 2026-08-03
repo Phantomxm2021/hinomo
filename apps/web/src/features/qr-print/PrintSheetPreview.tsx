@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Skeleton } from '../../components/Skeleton'
-import { env } from '../../lib/env'
+import { publicAppOrigin } from '../../lib/env'
 import type { BoxSummary } from '../boxes/boxes.api'
 import { paginatePrintBoxes } from './print-model'
 import { PRINT_LABEL_COLORS, PRINT_SHEET_MM, labelPlacementPercent } from './print-label-layout'
@@ -119,7 +119,7 @@ export function PrintSheetPreview({ boxes, mode }: Props) {
 
       const loading: QrState = { status: 'loading' }
       qrCache.current.set(identity, loading)
-      const url = boxQrUrl(env.VITE_PUBLIC_APP_ORIGIN, box.public_id)
+      const url = boxQrUrl(publicAppOrigin(), box.public_id)
 
       void boxQrPng(url)
         .then((image) => {

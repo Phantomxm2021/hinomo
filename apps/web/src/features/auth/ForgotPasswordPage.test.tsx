@@ -10,6 +10,7 @@ const { mockResetPasswordForEmail } = vi.hoisted(() => ({
 
 vi.mock('../../lib/env', () => ({
   env: { VITE_PUBLIC_APP_ORIGIN: 'https://nomo.example/' },
+  publicAppOrigin: () => 'https://nomo.example',
 }))
 
 vi.mock('../../lib/supabase', () => ({

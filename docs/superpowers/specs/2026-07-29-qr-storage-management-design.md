@@ -96,7 +96,7 @@ Cloudflare R2 Bucket 始终保持私有。R2 访问密钥存入 Supabase Vault�
 | `created_at` | timestamptz | 默认当前时间 |
 | `updated_at` | timestamptz | 自动维护 |
 
-创建箱子时由数据库安全生成 `box_code`，前端不能自行决定编号。二维码内容为 `${PUBLIC_APP_ORIGIN}/b/${public_id}`。重新生成二维码只重新导出同一地址，不轮换 `public_id`，已经打印的标签持续有效。
+创建箱子时由数据库安全生成 `box_code`，前端不能自行决定编号。二维码内容为 `${PUBLIC_APP_ORIGIN}/b/${public_id}`。重新生成二维码只重新导出同一地址，不轮换 `public_id`，已经打印的标签持续有效。若手动生产构建误将 localhost 写入 `PUBLIC_APP_ORIGIN`，而页面实际运行在非本地域名，浏览器必须回退到当前页面 Origin 生成二维码并执行同源扫描校验；显式配置的非本地生产 Origin 始终优先。
 
 ### 4.3 `items`
 

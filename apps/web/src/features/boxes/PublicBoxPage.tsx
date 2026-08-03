@@ -8,7 +8,7 @@ import { PageState } from '../../components/PageState'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { useMobileFeedback } from '../../components/mobile-feedback'
-import { env } from '../../lib/env'
+import { publicAppOrigin } from '../../lib/env'
 import { formatStoragePath } from '../../lib/format-storage-path'
 import { useAuth } from '../auth/auth-context'
 import { ItemMovementSheet, type ItemMovementCommand } from '../item-movements/ItemMovementSheet'
@@ -186,7 +186,7 @@ export function PublicBoxPage() {
     setPrinting(true)
     setPrintError(false)
     try {
-      await renderLabelsPdf(buildLabels([box], env.VITE_PUBLIC_APP_ORIGIN))
+      await renderLabelsPdf(buildLabels([box], publicAppOrigin()))
     } catch {
       setPrintError(true)
     } finally {

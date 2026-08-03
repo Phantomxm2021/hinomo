@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
-import { env } from '../../lib/env'
+import { publicAppOrigin } from '../../lib/env'
 import { supabase } from '../../lib/supabase'
 import { getAuthErrorMessage } from './auth-errors'
 import { emailSchema, type EmailValues } from './auth.schemas'
@@ -24,7 +24,7 @@ export function ForgotPasswordPage() {
   const submit = handleSubmit(async ({ email }) => {
     setSubmitError(null)
     try {
-      const origin = env.VITE_PUBLIC_APP_ORIGIN.replace(/\/+$/, '')
+      const origin = publicAppOrigin()
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${origin}/reset-password`,
       })
