@@ -6,7 +6,7 @@ import { PackingChecklistSection } from './PackingChecklistSection'
 
 const mocks = vi.hoisted(() => ({
   listSessions: vi.fn(), listItems: vi.fn(), updateItem: vi.fn(), promote: vi.fn(),
-  reanalyze: vi.fn(), getPhoto: vi.fn(), mergeItems: vi.fn(),
+  reanalyze: vi.fn(), getPhoto: vi.fn(), getPromotion: vi.fn(), mergeItems: vi.fn(),
 }))
 
 vi.mock('./packing.api', () => ({
@@ -14,6 +14,7 @@ vi.mock('./packing.api', () => ({
   listDetectedPackingItems: mocks.listItems,
   updateDetectedPackingItem: mocks.updateItem,
   requestPackingItemPromotion: mocks.promote,
+  getPackingItemPromotion: mocks.getPromotion,
   requestPackingReanalysis: mocks.reanalyze,
   getPackingPhoto: mocks.getPhoto,
   mergeDetectedPackingItems: mocks.mergeItems,
@@ -31,7 +32,9 @@ const item = {
 }
 
 function renderSection() {
-  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><PackingChecklistSection boxId="box-1" /></QueryClientProvider>)
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const result = render(<QueryClientProvider client={queryClient}><PackingChecklistSection boxId="box-1" /></QueryClientProvider>)
+  return { ...result, queryClient }
 }
 
 beforeEach(() => {
@@ -40,6 +43,7 @@ beforeEach(() => {
   mocks.listItems.mockResolvedValue([item])
   mocks.updateItem.mockResolvedValue(undefined)
   mocks.promote.mockResolvedValue({ id: 'promotion-1', status: 'pending' })
+  mocks.getPromotion.mockResolvedValue({ id: 'promotion-1', status: 'pending' })
   mocks.getPhoto.mockResolvedValue({ id: 'photo-1', object_key: 'packing/original.webp' })
 })
 afterEach(cleanup)
@@ -75,7 +79,18 @@ test('lets an estimated quantity join the formal checklist in one step', async (
   await user.click(await screen.findByRole('button', { name: /AI 智能清单/ }))
   await user.click(await screen.findByRole('button', { name: '加入清单' }))
   await waitFor(() => expect(mocks.promote).toHaveBeenCalledWith('detected-1'))
-  expect(screen.getByRole('button', { name: '正在加入…' })).toBeDisabled()
+  expect(await screen.findByRole('button', { name: '后台加入中' })).toBeDisabled()
+})
+
+test('refreshes the formal item list when background promotion completes', async () => {
+  const user = userEvent.setup()
+  mocks.getPromotion.mockResolvedValue({ id: 'promotion-1', status: 'completed' })
+  const { queryClient } = renderSection()
+  queryClient.setQueryData(['items', 'box-1'], [{ id: 'existing-item' }])
+  await user.click(await screen.findByRole('button', { name: /AI 智能清单/ }))
+  await user.click(await screen.findByRole('button', { name: '加入清单' }))
+  expect(await screen.findByRole('button', { name: '已加入' })).toBeDisabled()
+  await waitFor(() => expect(queryClient.getQueryState(['items', 'box-1'])?.isInvalidated).toBe(true))
 })
 
 test('uses the source photo while an item crop is still pending', async () => {

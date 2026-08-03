@@ -5,6 +5,7 @@ import { AppIcon } from '../../components/AppIcon'
 import { PackingAuthorizedImage } from './PackingAuthorizedImage'
 import {
   getPackingPhoto,
+  getPackingItemPromotion,
   listDetectedPackingItems,
   listPackingSessions,
   mergeDetectedPackingItems,
@@ -73,6 +74,7 @@ function ChecklistItem({ item, boxId, mergeTargets }: { item: PackingDetectedIte
   const [description, setDescription] = useState(item.description ?? '')
   const [quantityKind, setQuantityKind] = useState(item.quantity_kind)
   const [quantityValue, setQuantityValue] = useState(item.quantity_value?.toString() ?? '')
+  const [promotionId, setPromotionId] = useState<string | null>(null)
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['packing-detected-items', boxId] })
   const updateMutation = useMutation({
@@ -86,7 +88,16 @@ function ChecklistItem({ item, boxId, mergeTargets }: { item: PackingDetectedIte
   })
   const promotionMutation = useMutation({
     mutationFn: () => requestPackingItemPromotion(item.id),
-    onSuccess: () => { void refresh() },
+    onSuccess: (promotion) => {
+      setPromotionId(promotion.id)
+      void queryClient.invalidateQueries({ queryKey: ['packing-item-promotion', promotion.id] })
+    },
+  })
+  const promotionQuery = useQuery({
+    queryKey: ['packing-item-promotion', promotionId],
+    queryFn: () => getPackingItemPromotion(promotionId ?? ''),
+    enabled: Boolean(promotionId),
+    refetchInterval: (query) => ['pending', 'processing'].includes(query.state.data?.status ?? '') ? 1500 : false,
   })
   const mergeMutation = useMutation({
     mutationFn: () => mergeDetectedPackingItems(mergeTargetId, item.id),
@@ -95,12 +106,28 @@ function ChecklistItem({ item, boxId, mergeTargets }: { item: PackingDetectedIte
 
   const canSave = name.trim().length > 0 && (quantityKind === 'unknown' || Number(quantityValue) > 0)
   const hasSourcePhoto = Boolean(item.cover_object_key || item.first_seen_photo_id || item.representative_instance_id)
-  const promotionBusy = promotionMutation.isPending || promotionMutation.isSuccess
-  const promotionLabel = promotionBusy
-    ? '正在加入…'
-    : hasSourcePhoto
-      ? '加入清单'
-      : '照片不可用'
+  const promotionStatus = promotionQuery.data?.status
+  const promotionBusy = promotionMutation.isPending || promotionStatus === 'pending' || promotionStatus === 'processing' || promotionStatus === 'completed'
+  const promotionLabel = promotionMutation.isPending
+    ? '正在提交…'
+    : promotionStatus === 'pending' || promotionStatus === 'processing'
+      ? '后台加入中'
+      : promotionStatus === 'completed'
+        ? '已加入'
+        : promotionStatus === 'failed'
+          ? '重新加入'
+          : hasSourcePhoto
+            ? '加入清单'
+            : '照片不可用'
+
+  useEffect(() => {
+    if (promotionStatus !== 'completed') return
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['items', boxId] }),
+      queryClient.invalidateQueries({ queryKey: ['box'] }),
+      queryClient.invalidateQueries({ queryKey: ['packing-detected-items', boxId] }),
+    ])
+  }, [boxId, promotionStatus, queryClient])
 
   return (
     <article className="border-b border-line/60 p-3 last:border-b-0">
@@ -140,7 +167,7 @@ function ChecklistItem({ item, boxId, mergeTargets }: { item: PackingDetectedIte
           <button className="min-h-11 w-full rounded-control bg-ink px-4 font-extrabold text-white disabled:bg-placeholder disabled:text-muted" type="button" disabled={!hasSourcePhoto || promotionBusy} onClick={() => promotionMutation.mutate()}>{promotionLabel}</button>
         </div>
       )}
-      {updateMutation.isError || promotionMutation.isError || mergeMutation.isError ? <p className="mt-2 text-right text-xs font-bold text-danger">操作失败，请稍后重试</p> : null}
+      {updateMutation.isError || promotionMutation.isError || promotionQuery.isError || promotionStatus === 'failed' || mergeMutation.isError ? <p className="mt-2 text-right text-xs font-bold text-danger">操作失败，请稍后重试</p> : null}
       {showEvidence ? <EvidenceOverlay item={item} onClose={() => setShowEvidence(false)} /> : null}
     </article>
   )

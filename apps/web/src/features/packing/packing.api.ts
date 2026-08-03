@@ -181,6 +181,16 @@ export async function requestPackingItemPromotion(itemId: string) {
   return data
 }
 
+export async function getPackingItemPromotion(promotionId: string) {
+  const { data, error } = await supabase
+    .from('packing_item_promotions')
+    .select('*')
+    .eq('id', promotionId)
+    .single()
+  if (error) throw error
+  return data
+}
+
 export async function mergeDetectedPackingItems(targetItemId: string, sourceItemId: string): Promise<void> {
   const { error } = await supabase.rpc('merge_packing_detected_items', {
     p_target_item_id: targetItemId,
