@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../boxes/boxes.api', () => ({ getBox: mocks.getBox }))
 vi.mock('./packing.api', () => ({
+  PackingPhotoUploadError: class PackingPhotoUploadError extends Error {},
   getOrCreatePackingSession: mocks.getOrCreateSession,
   listPackingPhotos: mocks.listPhotos,
   uploadPackingPhoto: mocks.uploadPhoto,

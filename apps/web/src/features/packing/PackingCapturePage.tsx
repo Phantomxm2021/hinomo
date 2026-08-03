@@ -13,6 +13,7 @@ import {
   listPackingPhotos,
   uploadPackingPhoto,
   uploadPackingAtlas,
+  PackingPhotoUploadError,
 } from './packing.api'
 import { buildClientPackingAtlases } from './packing-atlas'
 import { compressPackingPhoto, PackingImageConversionError } from './packing-image'
@@ -31,16 +32,27 @@ const LIBRARY_ACCEPT = 'image/jpeg,image/png,image/webp'
 const CAMERA_ACCEPT = 'image/jpeg'
 
 function errorDetails(error: unknown) {
-  if (!(error instanceof Error)) return { value: String(error) }
-  const cause = error.cause
-  return {
-    name: error.name,
-    message: error.message,
-    cause: cause instanceof Error ? { name: cause.name, message: cause.message } : cause ? String(cause) : undefined,
+  if (error instanceof Error) {
+    const cause = error.cause
+    return {
+      name: error.name,
+      message: error.message,
+      stage: error instanceof PackingPhotoUploadError ? error.stage : undefined,
+      status: error instanceof PackingPhotoUploadError ? error.status : undefined,
+      cause: cause instanceof Error
+        ? { name: cause.name, message: cause.message }
+        : cause && typeof cause === 'object'
+          ? Object.fromEntries(Object.entries(cause).filter(([, value]) => ['string', 'number', 'boolean'].includes(typeof value)))
+          : cause ? String(cause) : undefined,
+    }
   }
+  if (error && typeof error === 'object') {
+    return Object.fromEntries(Object.entries(error).filter(([, value]) => ['string', 'number', 'boolean'].includes(typeof value)))
+  }
+  return { value: String(error) }
 }
 
-function reportPackingPhotoError(file: File, error: unknown, event = 'packing_photo_processing_failed') {
+function reportPackingPhotoError(file: Pick<File, 'name' | 'type' | 'size'>, error: unknown, event = 'packing_photo_processing_failed') {
   const payload = {
     event,
     page: window.location.href,
@@ -134,7 +146,12 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
         sequenceNo: draft.sequenceNo,
         blob: draft.blob,
       })
-    } catch {
+    } catch (error) {
+      reportPackingPhotoError({
+        name: `packing-${draft.sequenceNo}.jpg`,
+        type: draft.blob.type,
+        size: draft.blob.size,
+      }, error, 'packing_photo_upload_failed')
       setUploadState('error')
       setCanRetryUploads(true)
       setErrorMessage(persisted

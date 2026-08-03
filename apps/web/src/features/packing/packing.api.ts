@@ -6,6 +6,20 @@ export type PackingSession = Database['public']['Tables']['packing_sessions']['R
 export type PackingPhoto = Database['public']['Tables']['packing_photos']['Row']
 export type PackingDetectedItem = Database['public']['Tables']['packing_detected_items']['Row']
 
+export type PackingPhotoUploadStage = 'create_upload' | 'r2_put' | 'confirm_upload'
+
+export class PackingPhotoUploadError extends Error {
+  readonly stage: PackingPhotoUploadStage
+  readonly status?: number
+
+  constructor(stage: PackingPhotoUploadStage, message: string, options?: ErrorOptions & { status?: number }) {
+    super(message, options)
+    this.name = 'PackingPhotoUploadError'
+    this.stage = stage
+    this.status = options?.status
+  }
+}
+
 export async function getOrCreatePackingSession(boxId: string): Promise<PackingSession> {
   const { data: active, error: activeError } = await supabase
     .from('packing_sessions')
@@ -45,21 +59,28 @@ export async function uploadPackingPhoto(input: {
     p_mime_type: input.blob.type,
     p_size_bytes: input.blob.size,
   })
-  if (error) throw error
+  if (error) throw new PackingPhotoUploadError('create_upload', error.message, { cause: error })
   const upload = data?.[0]
-  if (!upload) throw new Error('packing photo upload was not created')
+  if (!upload) throw new PackingPhotoUploadError('create_upload', 'packing photo upload was not created')
 
-  const response = await fetch(upload.upload_url, {
-    method: 'PUT',
-    headers: { 'Content-Type': input.blob.type },
-    body: input.blob,
-  })
-  if (!response.ok) throw new Error('packing photo upload failed')
+  let response: Response
+  try {
+    response = await fetch(upload.upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': input.blob.type },
+      body: input.blob,
+    })
+  } catch (error) {
+    throw new PackingPhotoUploadError('r2_put', 'R2 upload request failed before receiving a response', { cause: error })
+  }
+  if (!response.ok) {
+    throw new PackingPhotoUploadError('r2_put', `R2 upload returned HTTP ${response.status}`, { status: response.status })
+  }
 
   const { error: confirmError } = await supabase.rpc('confirm_packing_photo_upload', {
     p_photo_id: upload.photo_id,
   })
-  if (confirmError) throw confirmError
+  if (confirmError) throw new PackingPhotoUploadError('confirm_upload', confirmError.message, { cause: confirmError })
 }
 
 export async function deletePackingPhoto(photoId: string): Promise<void> {
