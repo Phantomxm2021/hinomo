@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   getOrCreateSession: vi.fn(),
   listPhotos: vi.fn(),
   uploadPhoto: vi.fn(),
+  deletePhoto: vi.fn(),
   uploadAtlas: vi.fn(),
   downloadPhoto: vi.fn(),
   buildAtlases: vi.fn(),
@@ -18,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   listDrafts: vi.fn(),
   deleteDraft: vi.fn(),
   compress: vi.fn(),
+  captureJpeg: vi.fn(),
   onClose: vi.fn(),
   onCompleted: vi.fn(),
 }))
@@ -27,11 +29,13 @@ vi.mock('./packing.api', () => ({
   getOrCreatePackingSession: mocks.getOrCreateSession,
   listPackingPhotos: mocks.listPhotos,
   uploadPackingPhoto: mocks.uploadPhoto,
+  deletePackingPhoto: mocks.deletePhoto,
   uploadPackingAtlas: mocks.uploadAtlas,
   downloadPackingPhoto: mocks.downloadPhoto,
   completePackingSession: mocks.completeSession,
 }))
 vi.mock('./packing-atlas', () => ({ buildClientPackingAtlases: mocks.buildAtlases }))
+vi.mock('./packing-camera', () => ({ captureVideoFrameAsJpeg: mocks.captureJpeg }))
 vi.mock('./packing-storage', () => ({
   savePackingDraft: mocks.saveDraft,
   listPackingDrafts: mocks.listDrafts,
@@ -78,6 +82,7 @@ beforeEach(() => {
   mocks.saveDraft.mockResolvedValue(undefined)
   mocks.deleteDraft.mockResolvedValue(undefined)
   mocks.uploadPhoto.mockResolvedValue(undefined)
+  mocks.deletePhoto.mockResolvedValue(undefined)
   mocks.uploadAtlas.mockResolvedValue(undefined)
   mocks.downloadPhoto.mockResolvedValue(new Blob(['photo'], { type: 'image/webp' }))
   mocks.buildAtlases.mockResolvedValue([{
@@ -85,7 +90,13 @@ beforeEach(() => {
     sha256: 'a'.repeat(64), blob: new Blob(['atlas'], { type: 'image/webp' }),
   }])
   mocks.completeSession.mockResolvedValue({ ...session, status: 'queued', photo_count: 1 })
-  mocks.compress.mockImplementation(async (file: File) => new File([file], 'packing.webp', { type: 'image/webp' }))
+  mocks.compress.mockImplementation(async (file: File) => new File([file], 'packing.jpg', { type: 'image/jpeg' }))
+  mocks.captureJpeg.mockResolvedValue(new File(['camera'], 'camera.jpg', { type: 'image/jpeg' }))
+  Object.defineProperty(navigator, 'mediaDevices', {
+    configurable: true,
+    value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] }) },
+  })
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
 })
 
 afterEach(cleanup)
@@ -99,14 +110,14 @@ test('starts a zero-form packing session with only capture and finish actions', 
   expect(screen.getByRole('button', { name: '选择物品照片' })).toBeInTheDocument()
   const fileInput = screen.getByLabelText('拍摄装箱照片')
   expect(fileInput).not.toHaveAttribute('capture')
-  expect(fileInput.getAttribute('accept')).toContain('image/heic')
-  expect(fileInput.getAttribute('accept')).toContain('.heif')
+  expect(fileInput).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp')
   expect(screen.queryByRole('button', { name: '继续拍照' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: '完成' })).toBeDisabled()
   expect(screen.queryByLabelText('物品名称')).not.toBeInTheDocument()
 })
 
-test('requests the rear camera and uses mobile copy on a coarse pointer device', async () => {
+test('opens an in-app rear camera that captures JPEG on a coarse pointer device', async () => {
+  const user = userEvent.setup()
   vi.mocked(window.matchMedia).mockReturnValue({
     matches: true,
     addEventListener: vi.fn(),
@@ -114,12 +125,55 @@ test('requests the rear camera and uses mobile copy on a coarse pointer device',
   } as unknown as MediaQueryList)
   renderSheet()
 
-  expect(await screen.findByRole('button', { name: '拍摄这件物品' })).toBeInTheDocument()
+  const openCamera = await screen.findByRole('button', { name: '拍摄这件物品' })
   const cameraInput = screen.getByLabelText('拍摄装箱照片')
-  expect(cameraInput).toHaveAttribute('capture', 'environment')
-  expect(cameraInput).toHaveAttribute('accept', 'image/jpeg')
-  expect(cameraInput).not.toHaveAttribute('accept', expect.stringContaining('image/heic'))
-  expect(screen.getByText('将请求使用后置相机')).toBeInTheDocument()
+  expect(cameraInput).not.toHaveAttribute('capture')
+  expect(cameraInput).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp')
+  expect(screen.getByText('照片将直接保存为压缩 JPEG')).toBeInTheDocument()
+
+  await user.click(openCamera)
+
+  expect(await screen.findByLabelText('装箱拍照取景')).toBeInTheDocument()
+  expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
+    audio: false,
+    video: { facingMode: { ideal: 'environment' } },
+  })
+  expect(screen.queryByRole('button', { name: '重新尝试相机' })).not.toBeInTheDocument()
+})
+
+test('shows camera permission guidance without any retry-camera action', async () => {
+  const user = userEvent.setup()
+  vi.mocked(window.matchMedia).mockReturnValue({
+    matches: true,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  } as unknown as MediaQueryList)
+  vi.mocked(navigator.mediaDevices.getUserMedia).mockRejectedValueOnce(new DOMException('denied', 'NotAllowedError'))
+  renderSheet()
+
+  await user.click(await screen.findByRole('button', { name: '拍摄这件物品' }))
+
+  const alert = await screen.findByRole('alert')
+  expect(alert).toHaveTextContent('无法使用相机，请在浏览器站点设置中允许相机')
+  expect(screen.queryByRole('button', { name: '重新尝试相机' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '重试' })).not.toBeInTheDocument()
+})
+
+test('removes an uploaded photo from a capturing session', async () => {
+  const user = userEvent.setup()
+  const uploadedPhoto = {
+    id: 'photo-1', session_id: 'session-1', box_id: 'box-1', owner_id: 'owner-1', sequence_no: 1,
+    object_key: 'packing/1.jpg', normalized_object_key: null, mime_type: 'image/jpeg', size_bytes: 100,
+    width: 1200, height: 900, sha256: null, perceptual_hash: null, quality_flags: [], upload_status: 'confirmed',
+    upload_expires_at: '2026-08-03T01:00:00Z', confirmed_at: '2026-08-03T00:00:00Z',
+    created_at: '2026-08-03T00:00:00Z', updated_at: '2026-08-03T00:00:00Z',
+  }
+  mocks.listPhotos.mockResolvedValue([uploadedPhoto])
+  renderSheet()
+
+  await user.click(await screen.findByRole('button', { name: '移除第 1 张照片' }))
+
+  await waitFor(() => expect(mocks.deletePhoto).toHaveBeenCalledWith('photo-1'))
 })
 
 test('stores a compressed draft before upload and completes after confirmation', async () => {

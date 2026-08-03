@@ -7,6 +7,7 @@ import { ResponsiveOperationError } from '../../components/ResponsiveOperationEr
 import { getBox } from '../boxes/boxes.api'
 import {
   completePackingSession,
+  deletePackingPhoto,
   downloadPackingPhoto,
   getOrCreatePackingSession,
   listPackingPhotos,
@@ -14,6 +15,7 @@ import {
   uploadPackingAtlas,
 } from './packing.api'
 import { buildClientPackingAtlases } from './packing-atlas'
+import { captureVideoFrameAsJpeg } from './packing-camera'
 import { compressPackingPhoto, PackingImageConversionError } from './packing-image'
 import {
   deletePackingDraft,
@@ -26,8 +28,7 @@ import { packingBillingError } from '../credits/credits.api'
 
 type UploadState = 'idle' | 'compressing' | 'uploading' | 'error'
 
-const CAMERA_ACCEPT = 'image/jpeg'
-const LIBRARY_ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif'
+const LIBRARY_ACCEPT = 'image/jpeg,image/png,image/webp'
 
 function useDirectCameraPreference() {
   const query = '(hover: none) and (pointer: coarse)'
@@ -50,6 +51,8 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
 }) {
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const cameraStreamRef = useRef<MediaStream | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const uploadQueueRef = useRef<Promise<void>>(Promise.resolve())
   const recoveredSessionRef = useRef<string | null>(null)
@@ -57,8 +60,22 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
   const [uploadState, setUploadState] = useState<UploadState>('idle')
   const [localDraftCount, setLocalDraftCount] = useState(0)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [canRetryUploads, setCanRetryUploads] = useState(false)
   const [finishing, setFinishing] = useState(false)
+  const [cameraOpen, setCameraOpen] = useState(false)
+  const [cameraStarting, setCameraStarting] = useState(false)
+  const [cameraReady, setCameraReady] = useState(false)
+  const [removingPhotoId, setRemovingPhotoId] = useState<string | null>(null)
   const prefersDirectCamera = useDirectCameraPreference()
+
+  const stopCamera = useCallback(() => {
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop())
+    cameraStreamRef.current = null
+    if (videoRef.current) videoRef.current.srcObject = null
+    setCameraOpen(false)
+    setCameraStarting(false)
+    setCameraReady(false)
+  }, [])
 
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -68,6 +85,8 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
     document.addEventListener('keydown', closeOnEscape)
     return () => {
+      cameraStreamRef.current?.getTracks().forEach((track) => track.stop())
+      cameraStreamRef.current = null
       document.removeEventListener('keydown', closeOnEscape)
       document.body.style.overflow = previousOverflow
       previousFocus?.focus()
@@ -106,6 +125,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
       setUploadState('idle')
     } catch {
       setUploadState('error')
+      setCanRetryUploads(true)
       setErrorMessage('照片上传失败，已保存在这台设备上。恢复网络后会继续上传。')
       throw new Error('packing photo upload failed')
     }
@@ -125,6 +145,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
     const drafts = await listPackingDrafts(session.id)
     setLocalDraftCount(drafts.length)
     setErrorMessage(null)
+    setCanRetryUploads(false)
     for (const draft of drafts) void enqueueDraft(draft)
   }, [enqueueDraft, sessionQuery.data])
 
@@ -138,7 +159,10 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
       nextSequenceRef.current = Math.max(serverMax, draftMax) + 1
       setLocalDraftCount(drafts.length)
       for (const draft of drafts) void enqueueDraft(draft)
-    }).catch(() => setErrorMessage('无法恢复这台设备上的待上传照片。'))
+    }).catch(() => {
+      setCanRetryUploads(false)
+      setErrorMessage('无法恢复这台设备上的待上传照片。')
+    })
   }, [enqueueDraft, sessionQuery.data, photosQuery.data])
 
   useEffect(() => {
@@ -162,6 +186,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
 
     setUploadState('compressing')
     setErrorMessage(null)
+    setCanRetryUploads(false)
     try {
       const compressed = await compressPackingPhoto(file)
       const sequenceNo = nextSequenceRef.current++
@@ -178,8 +203,60 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
     } catch (error) {
       setUploadState('error')
       setErrorMessage(error instanceof PackingImageConversionError
-        ? 'HEIC 照片转换失败，请换一张照片或将相机格式改为“兼容性最佳”。'
+        ? '请选择 JPEG、PNG 或 WebP 照片。移动端请直接使用页面相机拍摄。'
         : '照片处理失败，请重新拍摄。')
+    }
+  }
+
+  const openCamera = async () => {
+    setErrorMessage(null)
+    setCanRetryUploads(false)
+    setCameraOpen(true)
+    setCameraStarting(true)
+    setCameraReady(false)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: 'environment' } },
+      })
+      cameraStreamRef.current = stream
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
+      if (!videoRef.current) throw new Error('camera view is unavailable')
+      videoRef.current.srcObject = stream
+      await videoRef.current.play()
+      setCameraStarting(false)
+    } catch {
+      stopCamera()
+      setErrorMessage('无法使用相机，请在浏览器站点设置中允许相机。')
+    }
+  }
+
+  const captureCameraPhoto = async () => {
+    if (!videoRef.current || !cameraReady) return
+    setUploadState('compressing')
+    setErrorMessage(null)
+    setCanRetryUploads(false)
+    try {
+      const jpeg = await captureVideoFrameAsJpeg(videoRef.current)
+      stopCamera()
+      await captureFile(jpeg)
+    } catch {
+      setUploadState('error')
+      setErrorMessage('照片处理失败，请重新拍摄。')
+    }
+  }
+
+  const removePhoto = async (photoId: string) => {
+    setRemovingPhotoId(photoId)
+    setErrorMessage(null)
+    setCanRetryUploads(false)
+    try {
+      await deletePackingPhoto(photoId)
+      await refreshPhotos()
+    } catch {
+      setErrorMessage('照片移除失败，请稍后再试。')
+    } finally {
+      setRemovingPhotoId(null)
     }
   }
 
@@ -188,6 +265,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
     if (!session) return
     setFinishing(true)
     setErrorMessage(null)
+    setCanRetryUploads(false)
     try {
       await uploadQueueRef.current
       const drafts = await listPackingDrafts(session.id)
@@ -208,6 +286,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
         return
       }
       setErrorMessage('照片或分析索引尚未上传完成，请检查网络后重试。')
+      setCanRetryUploads(true)
     } finally {
       setFinishing(false)
     }
@@ -224,7 +303,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
   const confirmedCount = confirmedPhotos.length
   const latestPhoto = confirmedPhotos.at(-1)
   const totalCount = confirmedCount + localDraftCount
-  const busy = uploadState === 'compressing' || uploadState === 'uploading' || finishing
+  const busy = uploadState === 'compressing' || uploadState === 'uploading' || finishing || cameraStarting || Boolean(removingPhotoId)
 
   return createPortal(
     <PackingSheetFrame
@@ -243,8 +322,25 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
     >
       <div className="min-h-0 overflow-y-auto">
         <section className="grid min-h-full place-content-center justify-items-center gap-5 px-7 py-8 text-center lg:px-10 lg:py-10">
-        {latestPhoto ? (
-          <PackingPhotoDeck photos={confirmedPhotos} />
+        {cameraOpen ? (
+          <div className="relative w-full max-w-xl overflow-hidden rounded-[1.75rem] bg-ink shadow-float">
+            <video
+              ref={videoRef}
+              className="aspect-[3/4] max-h-[58dvh] w-full object-cover"
+              muted
+              playsInline
+              aria-label="装箱拍照取景"
+              onLoadedMetadata={() => setCameraReady(true)}
+            />
+            <button className="absolute top-3 left-3 min-h-10 rounded-full bg-ink/65 px-4 text-sm font-bold text-white backdrop-blur-md" type="button" onClick={stopCamera}>关闭相机</button>
+            <div className="absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-ink/70 to-transparent px-5 pt-12 pb-5">
+              <button className="grid size-16 place-items-center rounded-full border-4 border-white bg-white/25 disabled:opacity-40" type="button" aria-label="拍下这件物品" disabled={!cameraReady || cameraStarting} onClick={() => void captureCameraPhoto()}>
+                <span className="size-11 rounded-full bg-white" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        ) : latestPhoto ? (
+          <PackingPhotoDeck photos={confirmedPhotos} removingPhotoId={removingPhotoId} onRemove={(photo) => void removePhoto(photo.id)} />
         ) : (
           <div className="grid size-24 place-content-center rounded-full bg-brand/10 text-brand ring-1 ring-brand/10">
             <AppIcon name="scan" size={38} />
@@ -259,27 +355,26 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
           ref={inputRef}
           className="sr-only"
           type="file"
-          accept={prefersDirectCamera ? CAMERA_ACCEPT : LIBRARY_ACCEPT}
-          capture={prefersDirectCamera ? 'environment' : undefined}
+          accept={LIBRARY_ACCEPT}
           aria-label="拍摄装箱照片"
           onChange={(event) => {
             void captureFile(event.target.files?.[0] ?? null)
             event.currentTarget.value = ''
           }}
         />
-        <button
+        {!cameraOpen ? <button
           className="inline-flex min-h-13 items-center justify-center gap-2 rounded-full bg-brand px-7 text-base font-extrabold text-white shadow-soft active:scale-[0.98] disabled:opacity-40"
           type="button"
           disabled={uploadState === 'compressing' || totalCount >= 100}
-          onClick={() => inputRef.current?.click()}
+          onClick={() => prefersDirectCamera ? void openCamera() : inputRef.current?.click()}
         >
           <AppIcon name={prefersDirectCamera ? 'scan' : 'plus'} size={21} />
           {uploadState === 'compressing' ? '正在处理…' : prefersDirectCamera ? '拍摄这件物品' : '选择物品照片'}
-        </button>
+        </button> : null}
         <p className="min-h-5 text-xs font-semibold text-muted" role="status">
-          {uploadState === 'compressing' ? '正在处理照片…' : uploadState === 'uploading' ? `正在安全上传 · ${confirmedCount} 张完成` : localDraftCount > 0 ? `${localDraftCount} 张等待上传` : confirmedCount > 0 ? `${confirmedCount} 张已安全保存` : prefersDirectCamera ? '将请求使用后置相机' : '支持 JPEG、PNG 与 WebP 图片'}
+          {cameraStarting ? '正在打开后置相机…' : cameraOpen ? '照片将直接保存为压缩 JPEG' : uploadState === 'compressing' ? '正在处理照片…' : uploadState === 'uploading' ? `正在安全上传 · ${confirmedCount} 张完成` : localDraftCount > 0 ? `${localDraftCount} 张等待上传` : confirmedCount > 0 ? `${confirmedCount} 张已安全保存` : prefersDirectCamera ? '照片将直接保存为压缩 JPEG' : '支持 JPEG、PNG 与 WebP 图片'}
         </p>
-          {errorMessage ? <ResponsiveOperationError message={errorMessage} onRetry={() => void retryPendingDrafts()} /> : null}
+          {errorMessage ? <ResponsiveOperationError message={errorMessage} onRetry={canRetryUploads ? () => void retryPendingDrafts() : undefined} /> : null}
         </section>
       </div>
     </PackingSheetFrame>,

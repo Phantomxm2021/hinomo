@@ -62,6 +62,11 @@ export async function uploadPackingPhoto(input: {
   if (confirmError) throw confirmError
 }
 
+export async function deletePackingPhoto(photoId: string): Promise<void> {
+  const { error } = await supabase.rpc('delete_packing_photo', { p_photo_id: photoId })
+  if (error) throw error
+}
+
 export async function completePackingSession(sessionId: string): Promise<PackingSession> {
   const { data, error } = await supabase.rpc('complete_packing_session', { p_session_id: sessionId })
   if (error) throw error

@@ -15,7 +15,11 @@ function stackedCardStyle(distance: number) {
   }
 }
 
-export function PackingPhotoDeck({ photos }: { photos: PackingPhoto[] }) {
+export function PackingPhotoDeck({ photos, onRemove, removingPhotoId }: {
+  photos: PackingPhoto[]
+  onRemove?: (photo: PackingPhoto) => void
+  removingPhotoId?: string | null
+}) {
   const orderedPhotos = useMemo(() => [...photos].sort((a, b) => a.sequence_no - b.sequence_no), [photos])
   const newestPhotoId = orderedPhotos.at(-1)?.id
   const [activeIndex, setActiveIndex] = useState(() => Math.max(orderedPhotos.length - 1, 0))
@@ -63,9 +67,20 @@ export function PackingPhotoDeck({ photos }: { photos: PackingPhoto[] }) {
               className="h-full w-full object-cover"
             />
             {distance === 0 ? (
-              <span className="absolute top-3 left-3 rounded-full bg-ink/60 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md">
-                第 {index + 1} 张
-              </span>
+              <>
+                <span className="absolute top-3 left-3 rounded-full bg-ink/60 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md">
+                  第 {index + 1} 张
+                </span>
+                {onRemove ? (
+                  <button
+                    className="absolute top-3 right-3 min-h-9 rounded-full bg-ink/65 px-3 text-xs font-bold text-white backdrop-blur-md disabled:opacity-50"
+                    type="button"
+                    disabled={Boolean(removingPhotoId)}
+                    aria-label={`移除第 ${index + 1} 张照片`}
+                    onClick={() => onRemove(photo)}
+                  >{removingPhotoId === photo.id ? '移除中…' : '移除'}</button>
+                ) : null}
+              </>
             ) : null}
           </div>
         ))}

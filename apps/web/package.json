@@ -18,7 +18,6 @@
     "@tanstack/react-query": "^5.101.4",
     "@zxing/browser": "^0.2.1",
     "browser-image-compression": "^2.0.2",
-    "heic-to": "^1.4.2",
     "jspdf": "^4.2.1",
     "qrcode": "^1.5.4",
     "react": "^19.2.7",

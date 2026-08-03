@@ -66,3 +66,13 @@ test('automatically follows a newly uploaded photo', () => {
   expect(screen.getByRole('img', { name: '第 3 张装箱照片' })).toBeInTheDocument()
   expect(screen.getByText('3 / 3')).toBeInTheDocument()
 })
+
+test('offers removal only for the active photo', () => {
+  const onRemove = vi.fn()
+  render(<PackingPhotoDeck photos={[photo(1), photo(2)]} onRemove={onRemove} />)
+
+  fireEvent.click(screen.getByRole('button', { name: '移除第 2 张照片' }))
+
+  expect(onRemove).toHaveBeenCalledWith(expect.objectContaining({ id: 'photo-2' }))
+  expect(screen.queryByRole('button', { name: '移除第 1 张照片' })).not.toBeInTheDocument()
+})

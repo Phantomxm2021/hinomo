@@ -717,6 +717,10 @@ export type Database = {
         Args: { p_session_id: string }
         Returns: undefined
       }
+      delete_packing_photo: {
+        Args: { p_photo_id: string }
+        Returns: undefined
+      }
       request_packing_item_promotion: {
         Args: { p_detected_item_id: string }
         Returns: Database['public']['Tables']['packing_item_promotions']['Row']
