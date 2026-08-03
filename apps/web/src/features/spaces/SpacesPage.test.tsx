@@ -8,9 +8,8 @@ import { AppShell } from '../../app/AppShell'
 import { AuthProvider } from '../../features/auth/AuthProvider'
 import { SpacesPage } from './SpacesPage'
 
-const { mockCreateSpace, mockCreateSpaces, mockCreateVenue, mockDeleteSpace, mockDeleteVenue, mockListSpaceLayouts, mockListSpaces, mockListVenues, mockSaveSpaceLayout, mockStorageGetItem, mockStorageSetItem, mockUpdateSpace, mockUpdateVenue } = vi.hoisted(() => ({
+const { mockCreateSpace, mockCreateVenue, mockDeleteSpace, mockDeleteVenue, mockListSpaceLayouts, mockListSpaces, mockListVenues, mockSaveSpaceLayout, mockStorageGetItem, mockStorageSetItem, mockUpdateSpace, mockUpdateVenue } = vi.hoisted(() => ({
   mockCreateSpace: vi.fn(),
-  mockCreateSpaces: vi.fn(),
   mockCreateVenue: vi.fn(),
   mockDeleteSpace: vi.fn(),
   mockDeleteVenue: vi.fn(),
@@ -26,7 +25,6 @@ const { mockCreateSpace, mockCreateSpaces, mockCreateVenue, mockDeleteSpace, moc
 
 vi.mock('./spaces.api', () => ({
   createSpace: mockCreateSpace,
-  createSpaces: mockCreateSpaces,
   deleteSpace: mockDeleteSpace,
   listSpaceLayouts: mockListSpaceLayouts,
   listSpaces: mockListSpaces,
@@ -73,7 +71,6 @@ function deferred<T>() {
 
 beforeEach(() => {
   mockCreateSpace.mockReset()
-  mockCreateSpaces.mockReset()
   mockCreateVenue.mockReset()
   mockDeleteSpace.mockReset()
   mockDeleteVenue.mockReset()
@@ -175,32 +172,6 @@ test('prefills a new space from common templates while keeping the name editable
   await user.clear(within(dialog).getByLabelText('空间名称'))
   await user.type(within(dialog).getByLabelText('空间名称'), '地下室货架')
   expect(within(dialog).getByLabelText('空间名称')).toHaveValue('地下室货架')
-})
-
-test('creates several selected common spaces in one operation', async () => {
-  const user = userEvent.setup()
-  mockListSpaces.mockResolvedValue([])
-  mockCreateSpaces.mockResolvedValue([{ id: 'space-1' }, { id: 'space-2' }, { id: 'space-3' }])
-  renderSpaces('/app/spaces?create=1')
-
-  let dialog = await screen.findByRole('dialog', { name: '创建空间' })
-  await user.click(within(dialog).getByRole('button', { name: '一次创建多个常用空间' }))
-  dialog = screen.getByRole('dialog', { name: '批量创建空间' })
-  const submit = within(dialog).getByRole('button', { name: '创建 0 个空间' })
-  expect(submit).toBeDisabled()
-
-  await user.click(within(dialog).getByRole('button', { name: '客厅' }))
-  await user.click(within(dialog).getByRole('button', { name: '卧室' }))
-  await user.click(within(dialog).getByRole('button', { name: '储藏室' }))
-  expect(within(dialog).getByText('已选择 3 个；创建后仍可分别改名和补充描述。')).toBeInTheDocument()
-  await user.click(within(dialog).getByRole('button', { name: '创建 3 个空间' }))
-
-  await waitFor(() => expect(mockCreateSpaces).toHaveBeenCalledWith([
-    { venue_id: 'venue-home', name: '客厅', description: null },
-    { venue_id: 'venue-home', name: '卧室', description: null },
-    { venue_id: 'venue-home', name: '储藏室', description: null },
-  ]))
-  expect(screen.queryByRole('dialog', { name: '批量创建空间' })).not.toBeInTheDocument()
 })
 
 test('filters by venue and defaults a new space to the selected venue', async () => {

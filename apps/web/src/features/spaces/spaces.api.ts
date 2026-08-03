@@ -97,21 +97,6 @@ export async function createSpace(input: SpaceInput) {
   return data
 }
 
-export async function createSpaces(inputs: SpaceInput[]) {
-  if (inputs.length === 0) return []
-  const { data: sessionData } = await supabase.auth.getSession()
-  const ownerId = sessionData.session?.user.id
-  if (!ownerId) throw new Error('authentication is required')
-
-  const { data, error } = await supabase
-    .from('spaces')
-    .insert(inputs.map((input) => ({ ...input, owner_id: ownerId })))
-    .select('id')
-
-  if (error) throw error
-  return data ?? []
-}
-
 export async function deleteSpace(spaceId: string) {
   const { error } = await supabase.from('spaces').delete().eq('id', spaceId)
   if (error) throw error

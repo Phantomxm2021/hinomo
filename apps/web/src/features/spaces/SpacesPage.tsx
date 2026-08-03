@@ -20,7 +20,6 @@ import { SpaceMap } from './SpaceMap'
 import { spaceSchema, type SpaceFormValues } from './space.schema'
 import {
   createSpace,
-  createSpaces,
   deleteSpace,
   isLayoutStorageUnavailable,
   listSpaceLayouts,
@@ -69,8 +68,6 @@ export function SpacesPage() {
   const [deleteTarget, setDeleteTarget] = useState<SpaceSummary | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<SpaceSummary | null>(null)
-  const [bulkCreateMode, setBulkCreateMode] = useState(false)
-  const [selectedTemplates, setSelectedTemplates] = useState<string[]>([])
   const [layoutEditMode, setLayoutEditMode] = useState(false)
   const [view, setView] = useState<SpaceView>(getInitialView)
   const venuesQuery = useQuery({ queryKey: ['venues'], queryFn: listVenues })
@@ -80,10 +77,6 @@ export function SpacesPage() {
   const [selectedVenueId] = useSelectedVenue(venues)
   const createMutation = useMutation({
     mutationFn: (input: Parameters<typeof createSpace>[0]) => createSpace(input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['spaces'] }),
-  })
-  const bulkCreateMutation = useMutation({
-    mutationFn: (inputs: Parameters<typeof createSpaces>[0]) => createSpaces(inputs),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['spaces'] }),
   })
   const deleteMutation = useMutation({
@@ -118,7 +111,6 @@ export function SpacesPage() {
   const {
     register,
     handleSubmit,
-    getValues,
     reset,
     setValue,
     formState: { errors },
@@ -126,10 +118,9 @@ export function SpacesPage() {
     resolver: zodResolver(spaceSchema),
     defaultValues: { venue_id: '', name: '', description: '' },
   })
-  const editorPending = createMutation.isPending || bulkCreateMutation.isPending || updateMutation.isPending
+  const editorPending = createMutation.isPending || updateMutation.isPending
   const layoutStorageUnavailable = isLayoutStorageUnavailable(layoutsQuery.error)
   const resetCreateMutation = createMutation.reset
-  const resetBulkCreateMutation = bulkCreateMutation.reset
   const resetUpdateMutation = updateMutation.reset
 
   const clearCreateRequest = useCallback(() => {
@@ -153,14 +144,11 @@ export function SpacesPage() {
     if (editorPending) return
     setEditorOpen(false)
     setEditTarget(null)
-    setBulkCreateMode(false)
-    setSelectedTemplates([])
     reset({ venue_id: '', name: '', description: '' })
     resetCreateMutation()
-    resetBulkCreateMutation()
     resetUpdateMutation()
     clearCreateRequest()
-  }, [clearCreateRequest, editorPending, reset, resetBulkCreateMutation, resetCreateMutation, resetUpdateMutation])
+  }, [clearCreateRequest, editorPending, reset, resetCreateMutation, resetUpdateMutation])
 
   useEffect(() => {
     if (!editorOpen && editorOpenerRef.current) restoreEditorFocus()
@@ -219,8 +207,6 @@ export function SpacesPage() {
       setEditorOpen(false)
       setEditTarget(null)
       reset({ venue_id: '', name: '', description: '' })
-      setBulkCreateMode(false)
-      setSelectedTemplates([])
       clearCreateRequest()
     } catch {
       // Mutation state renders a stable Chinese error without leaking backend text.
@@ -234,10 +220,7 @@ export function SpacesPage() {
       ? document.activeElement
       : null
     createMutation.reset()
-    bulkCreateMutation.reset()
     updateMutation.reset()
-    setBulkCreateMode(false)
-    setSelectedTemplates([])
     setEditTarget(space)
     reset({
       venue_id: space.venue_id || selectedVenueId || venuesQuery.data?.[0]?.id || '',
@@ -252,10 +235,7 @@ export function SpacesPage() {
       ? document.activeElement
       : null
     resetCreateMutation()
-    resetBulkCreateMutation()
     resetUpdateMutation()
-    setBulkCreateMode(false)
-    setSelectedTemplates([])
     setEditTarget(null)
     reset({
       venue_id: selectedVenueId ?? venuesQuery.data?.[0]?.id ?? '',
@@ -263,30 +243,7 @@ export function SpacesPage() {
       description: '',
     })
     setEditorOpen(true)
-  }, [reset, resetBulkCreateMutation, resetCreateMutation, resetUpdateMutation, selectedVenueId, venuesQuery.data])
-
-  async function submitBulkCreate() {
-    const venueId = getValues('venue_id')
-    if (!venueId || selectedTemplates.length === 0 || submissionPendingRef.current) return
-    submissionPendingRef.current = true
-    try {
-      await bulkCreateMutation.mutateAsync(selectedTemplates.map((name) => ({
-        venue_id: venueId,
-        name,
-        description: null,
-      })))
-      feedback.notify(`已创建 ${selectedTemplates.length} 个空间`)
-      setEditorOpen(false)
-      setBulkCreateMode(false)
-      setSelectedTemplates([])
-      reset({ venue_id: '', name: '', description: '' })
-      clearCreateRequest()
-    } catch {
-      // Mutation state renders a stable error while keeping the selection available.
-    } finally {
-      submissionPendingRef.current = false
-    }
-  }
+  }, [reset, resetCreateMutation, resetUpdateMutation, selectedVenueId, venuesQuery.data])
 
   useEffect(() => {
     if (searchParams.get('create') !== '1' || editorOpen || venuesQuery.isPending) return
@@ -319,7 +276,6 @@ export function SpacesPage() {
     ? spaces.filter((space) => !space.venue_id || space.venue_id === selectedVenueId)
     : []
   const existingSpaceNames = new Set(visibleSpaces.map((space) => space.name.trim()))
-  const availableTemplateCount = spaceNameTemplates.filter((template) => !existingSpaceNames.has(template)).length
 
   return (
     <section className="mx-auto grid min-w-0 w-full max-w-7xl gap-5 lg:gap-6" aria-labelledby="spaces-title">
@@ -379,7 +335,7 @@ export function SpacesPage() {
               onFocus={() => getEditorControls(editorDialogRef.current).at(-1)?.focus()}
             />
             <div className="mb-5 flex items-center justify-between gap-4">
-              <h2 className="mb-0 text-section-title font-bold" id="space-editor-title">{editTarget ? '编辑空间' : bulkCreateMode ? '批量创建空间' : '创建空间'}</h2>
+              <h2 className="mb-0 text-section-title font-bold" id="space-editor-title">{editTarget ? '编辑空间' : '创建空间'}</h2>
               <button
                 ref={editorCloseButtonRef}
                 className="grid min-h-11 w-11 flex-none place-items-center rounded-control border border-line bg-canvas p-0 text-ink"
@@ -416,93 +372,48 @@ export function SpacesPage() {
               </select>
               {errors.venue_id ? <p role="alert">{errors.venue_id.message}</p> : null}
               {!editTarget ? (
-                <button
-                  className="mb-1 min-h-11 w-fit rounded-control border border-brand/30 bg-brand/10 px-4 py-2 text-sm font-bold text-brand-strong disabled:cursor-not-allowed disabled:opacity-50"
-                  type="button"
-                  aria-pressed={bulkCreateMode}
-                  disabled={!bulkCreateMode && availableTemplateCount === 0}
-                  onClick={() => {
-                    setBulkCreateMode((current) => !current)
-                    setSelectedTemplates([])
-                    bulkCreateMutation.reset()
-                  }}
-                >
-                  {bulkCreateMode ? '改为创建单个空间' : '一次创建多个常用空间'}
-                </button>
-              ) : null}
-              {bulkCreateMode && !editTarget ? (
-                <fieldset className="grid gap-3 rounded-control border border-line bg-canvas p-4">
-                  <legend className="px-1 font-bold text-ink">选择要创建的空间</legend>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {spaceNameTemplates.map((template) => {
-                      const selected = selectedTemplates.includes(template)
-                      const alreadyExists = existingSpaceNames.has(template)
-                      return (
-                        <button
-                          className={`min-h-11 rounded-control border px-3 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50 ${selected ? 'border-brand bg-brand text-white' : 'border-line bg-surface text-ink'}`}
-                          type="button"
-                          key={template}
-                          aria-pressed={selected}
-                          disabled={alreadyExists}
-                          aria-label={alreadyExists ? `${template}，已存在` : template}
-                          onClick={() => setSelectedTemplates((current) => current.includes(template)
-                            ? current.filter((name) => name !== template)
-                            : [...current, template])}
-                        >
-                          {template}{alreadyExists ? ' · 已有' : ''}
-                        </button>
-                      )
-                    })}
+                <fieldset className="mb-1 grid gap-2 border-0 p-0">
+                  <legend className="font-bold text-ink">常用空间</legend>
+                  <div className="flex flex-wrap gap-2">
+                    {spaceNameTemplates.map((template) => (
+                      <button
+                        className="min-h-10 rounded-full border border-line bg-canvas px-3.5 py-2 text-sm font-semibold text-ink hover:border-brand/40 hover:bg-brand/10 disabled:cursor-not-allowed disabled:opacity-50"
+                        type="button"
+                        key={template}
+                        disabled={existingSpaceNames.has(template)}
+                        aria-label={existingSpaceNames.has(template) ? `${template}，已存在` : template}
+                        onClick={() => setValue('name', template, { shouldDirty: true, shouldValidate: true })}
+                      >
+                        {template}{existingSpaceNames.has(template) ? ' · 已有' : ''}
+                      </button>
+                    ))}
                   </div>
-                  <p className="m-0 text-xs leading-relaxed text-muted">已选择 {selectedTemplates.length} 个；创建后仍可分别改名和补充描述。</p>
+                  <p className="m-0 text-xs leading-relaxed text-muted">选择一个常用名称，或在下方自定义。</p>
                 </fieldset>
-              ) : (
-                <>
-                  {!editTarget ? (
-                    <fieldset className="mb-1 grid gap-2 border-0 p-0">
-                      <legend className="font-bold text-ink">常用空间</legend>
-                      <div className="flex flex-wrap gap-2">
-                        {spaceNameTemplates.map((template) => (
-                          <button
-                            className="min-h-10 rounded-full border border-line bg-canvas px-3.5 py-2 text-sm font-semibold text-ink hover:border-brand/40 hover:bg-brand/10 disabled:cursor-not-allowed disabled:opacity-50"
-                            type="button"
-                            key={template}
-                            disabled={existingSpaceNames.has(template)}
-                            aria-label={existingSpaceNames.has(template) ? `${template}，已存在` : template}
-                            onClick={() => setValue('name', template, { shouldDirty: true, shouldValidate: true })}
-                          >
-                            {template}{existingSpaceNames.has(template) ? ' · 已有' : ''}
-                          </button>
-                        ))}
-                      </div>
-                      <p className="m-0 text-xs leading-relaxed text-muted">选择一个常用名称，或在下方自定义。</p>
-                    </fieldset>
-                  ) : null}
-                  <label className="font-bold text-ink" htmlFor="space-name">空间名称</label>
-                  <input
-                    className="min-h-12 w-full rounded-control border border-line bg-surface px-3 py-2.5 text-ink focus:border-brand"
-                    id="space-name"
-                    {...register('name')}
-                    autoFocus
-                    aria-invalid={errors.name ? 'true' : undefined}
-                    aria-describedby={errors.name ? 'space-name-error' : undefined}
-                    readOnly={editorPending}
-                  />
-                  {errors.name ? <p id="space-name-error" role="alert">{errors.name.message}</p> : null}
-                  <label className="font-bold text-ink" htmlFor="space-description">描述（可选）</label>
-                  <textarea
-                    className="min-h-28 w-full resize-y rounded-control border border-line bg-surface px-3 py-2.5 text-ink focus:border-brand"
-                    id="space-description"
-                    rows={3}
-                    {...register('description')}
-                    aria-invalid={errors.description ? 'true' : undefined}
-                    aria-describedby={errors.description ? 'space-description-error' : undefined}
-                    readOnly={editorPending}
-                  />
-                  {errors.description ? <p id="space-description-error" role="alert">{errors.description.message}</p> : null}
-                </>
-              )}
-              {createMutation.isError || bulkCreateMutation.isError || updateMutation.isError ? (
+              ) : null}
+              <label className="font-bold text-ink" htmlFor="space-name">空间名称</label>
+              <input
+                className="min-h-12 w-full rounded-control border border-line bg-surface px-3 py-2.5 text-ink focus:border-brand"
+                id="space-name"
+                {...register('name')}
+                autoFocus
+                aria-invalid={errors.name ? 'true' : undefined}
+                aria-describedby={errors.name ? 'space-name-error' : undefined}
+                readOnly={editorPending}
+              />
+              {errors.name ? <p id="space-name-error" role="alert">{errors.name.message}</p> : null}
+              <label className="font-bold text-ink" htmlFor="space-description">描述（可选）</label>
+              <textarea
+                className="min-h-28 w-full resize-y rounded-control border border-line bg-surface px-3 py-2.5 text-ink focus:border-brand"
+                id="space-description"
+                rows={3}
+                {...register('description')}
+                aria-invalid={errors.description ? 'true' : undefined}
+                aria-describedby={errors.description ? 'space-description-error' : undefined}
+                readOnly={editorPending}
+              />
+              {errors.description ? <p id="space-description-error" role="alert">{errors.description.message}</p> : null}
+              {createMutation.isError || updateMutation.isError ? (
                 <ResponsiveOperationError message="保存失败，请稍后重试" />
               ) : null}
               {editorPending ? (
@@ -515,9 +426,8 @@ export function SpacesPage() {
                 <button
                   ref={editorSubmitButtonRef}
                   className="min-h-12 rounded-control border border-brand bg-brand px-4.5 py-2.5 font-bold text-white hover:bg-brand-strong"
-                  type={bulkCreateMode ? 'button' : 'submit'}
-                  disabled={editorPending || (bulkCreateMode && selectedTemplates.length === 0)}
-                  onClick={bulkCreateMode ? () => void submitBulkCreate() : undefined}
+                  type="submit"
+                  disabled={editorPending}
                   onKeyDown={(event) => {
                     if (event.key === 'Tab' && !event.shiftKey) {
                       event.preventDefault()
@@ -525,13 +435,7 @@ export function SpacesPage() {
                     }
                   }}
                 >
-                  {editorPending
-                    ? '保存中…'
-                    : editTarget
-                      ? '保存空间'
-                      : bulkCreateMode
-                        ? `创建 ${selectedTemplates.length} 个空间`
-                        : '创建空间'}
+                  {editorPending ? '保存中…' : editTarget ? '保存空间' : '创建空间'}
                 </button>
               </div>
             </form>
