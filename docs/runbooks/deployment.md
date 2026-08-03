@@ -17,8 +17,9 @@
    - `202608010006_allow_direct_space_layout_resize.sql`
    - `202608020001_item_movements.sql`
    - `202608020002_item_availability_queries.sql`
+   - `202608030001_ai_packing_sessions.sql`
 
-   不要调换最后两份迁移：第二份查询迁移依赖第一份已经创建的 `stored_quantity`。
+   不要调换顺序：物品可用性查询依赖 `stored_quantity`，AI 装箱迁移又依赖正式物品字段、R2 签名函数和媒体清理表。
 
 4. 执行后运行下面的只读验证查询。预期：公开 RPC 存在；`venues` 有数据；没有 `venue_id` 为空的空间；默认场地检查返回零行；所有旧物品都已有合法的在箱数量；三个流转 RPC 与流转表存在。
 
@@ -50,11 +51,22 @@ where n.nspname = 'public'
 order by p.proname;
 
 select to_regclass('public.item_movements') as item_movements_table;
+select to_regclass('public.packing_sessions') as packing_sessions_table;
+select to_regclass('public.packing_item_promotions') as packing_item_promotions_table;
 ```
 
 5. 在 Dashboard Vault 写入所需的四项 R2 配置。值只从密码管理器粘贴，不记录到文档、代码、日志或查询结果中。
 6. Auth Site URL 设置为生产站点；Redirect URLs 加入生产站点的 `/reset-password`。
 7. 确认 `pg_cron` 与 `pg_net` 可用，并检查媒体清理任务已注册。
+
+## AI 装箱 Worker 发布顺序
+
+1. 先在隔离 Supabase 环境执行 `202608030001_ai_packing_sessions.sql` 和 `014_ai_packing_sessions.test.sql`。
+2. 为 Worker 创建仅限目标 R2 Bucket 读写的 Token，并注入 service role 与 DashScope 密钥。
+3. 固定 `QWEN_VL_MODEL=qwen3-vl-plus-2025-12-19`，构建并启动 `nomo-packing-worker`。
+4. 使用 3 张无敏感内容的测试照片验证：连续上传 → 完成会话 → Atlas → AI 清单 → 原图高亮 → 转正式物品。
+5. 删除测试会话，确认原图、规范图、Atlas 和未晋升裁剪图进入清理队列，晋升后的正式物品图片仍可访问。
+6. 达到权威设计文档第 20 节门槛前，只在内部或受控灰度环境启用入口。
 
 ## Cloudflare R2
 

@@ -18,6 +18,7 @@ import { ItemForm } from '../items/ItemForm'
 import { deleteItem, type ItemRecord } from '../items/items.api'
 import { AuthorizedImage } from '../media/AuthorizedImage'
 import { buildLabels, renderLabelsPdf } from '../qr-print/pdf'
+import { PackingChecklistSection } from '../packing/PackingChecklistSection'
 import { getBoxByPublicId, listBoxes } from './boxes.api'
 
 export function PublicBoxPage() {
@@ -221,6 +222,9 @@ export function PublicBoxPage() {
               <button ref={desktopAddItemButtonRef} className="hidden min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white lg:inline-flex" type="button" onClick={openNewItem}>
                 <AppIcon name="plus" />新增物品
               </button>
+              <Link className="inline-flex min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white no-underline" to={`/app/boxes/${box.id}/packing`}>
+                <AppIcon name="scan" />AI 装箱
+              </Link>
             </div>
           ) : null}
         </div>
@@ -235,6 +239,7 @@ export function PublicBoxPage() {
         title="箱子操作"
         onClose={() => setShowMobileActions(false)}
         actions={[
+          { label: 'AI 装箱', onSelect: () => navigate(`/app/boxes/${box.id}/packing`) },
           { label: '新增物品', onSelect: openNewItem },
           { label: '编辑箱子', onSelect: () => navigate(`/app/boxes/${box.id}/edit`) },
           { label: printing ? '正在生成标签…' : '打印标签', disabled: printing, onSelect: () => void printLabel() },
@@ -276,6 +281,8 @@ export function PublicBoxPage() {
           </div>
         </div>
       ) : null}
+
+      {isOwner ? <PackingChecklistSection boxId={box.id} /> : null}
 
       <section className="grid gap-3" aria-labelledby="box-items-heading">
         <div className="flex items-end justify-between gap-4">

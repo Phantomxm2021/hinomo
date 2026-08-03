@@ -9,7 +9,10 @@
     "build": "npm run build --workspace=@nomo/web",
     "lint": "npm run lint --workspace=@nomo/web",
     "typecheck": "npm run typecheck --workspace=@nomo/web",
+    "typecheck:worker": "npm run typecheck --workspace=@nomo/packing-worker",
     "test": "npm run test --workspace=@nomo/web --",
+    "test:worker": "npm run test --workspace=@nomo/packing-worker",
+    "build:worker": "npm run build --workspace=@nomo/packing-worker",
     "test:e2e": "npm run test:e2e --workspace=@nomo/web",
     "test:db": "supabase test db"
   }

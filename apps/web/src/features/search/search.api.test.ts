@@ -26,7 +26,7 @@ describe('search api', () => {
     mockRpc.mockResolvedValue({ data: [result], error: null })
 
     await expect(searchItems('充电器')).resolves.toEqual([result])
-    expect(mockRpc).toHaveBeenCalledWith('search_my_items', { p_query: '充电器' })
+    expect(mockRpc).toHaveBeenCalledWith('search_my_inventory', { p_query: '充电器' })
   })
 
   it('returns an empty list for a successful RPC without rows', async () => {

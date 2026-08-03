@@ -11,6 +11,13 @@ import { listBoxes } from '../boxes/boxes.api'
 import { deriveItemAvailability, formatItemAvailability } from '../item-movements/item-movement-status'
 import { searchItems } from './search.api'
 
+function searchQuantityLabel(result: { quantity: number | null; quantity_kind: string }): string {
+  if (result.quantity === null || result.quantity_kind === 'unknown') return '数量未知'
+  if (result.quantity_kind === 'at_least') return `至少 ${result.quantity}`
+  if (result.quantity_kind === 'approximate') return `约 ${result.quantity}`
+  return String(result.quantity)
+}
+
 export function SearchPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -189,11 +196,11 @@ export function SearchPage() {
           </div>
           <div className="overflow-hidden rounded-card border border-line bg-surface">
             {items.map((result) => (
-              <Link className="group flex min-h-20 items-center gap-4 border-b border-line px-4 py-3 text-ink no-underline last:border-b-0 hover:bg-canvas" key={result.item_id} to={`/b/${result.box_public_id}`}>
+              <Link className="group flex min-h-20 items-center gap-4 border-b border-line px-4 py-3 text-ink no-underline last:border-b-0 hover:bg-canvas" key={`${result.source ?? 'formal'}:${result.result_id ?? result.item_name}`} to={`/b/${result.box_public_id}`}>
                 <span className="grid size-12 shrink-0 place-items-center rounded-control bg-brand/10 text-brand"><AppIcon name="search" /></span>
                 <span className="min-w-0 flex-1">
-                  <strong className="block truncate">{result.item_name} × {result.quantity}</strong>
-                  <span className="mt-0.5 block truncate text-xs font-bold text-brand">{formatItemAvailability(deriveItemAvailability(result.quantity, result.stored_quantity))}</span>
+                  <strong className="block truncate">{result.item_name} × {searchQuantityLabel(result)} {result.source === 'ai' ? <span className="ml-1 rounded-full bg-brand/10 px-2 py-0.5 text-[0.6875rem] text-brand">AI 识别</span> : null}</strong>
+                  {result.source !== 'ai' && result.quantity !== null && result.stored_quantity !== null ? <span className="mt-0.5 block truncate text-xs font-bold text-brand">{formatItemAvailability(deriveItemAvailability(result.quantity, result.stored_quantity))}</span> : null}
                   <span className="block truncate text-sm text-muted">{formatStoragePath([result.venue_name, result.space_name, result.box_name, result.location || '未填写位置'])}</span>
                 </span>
                 <AppIcon className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5" name="chevron-right" />

@@ -1,5 +1,7 @@
 # AI 装箱照片 Atlas 设计与实施方案
 
+> 本文是 AI 装箱功能的唯一权威设计。实现改变数据语义、状态机、媒体生命周期或模型编排时，必须先同步更新本文。当前仓库已落地会话上传、Atlas Worker、Qwen 结构化推理、实例清单、原图定位裁剪、revision 发布、结果审核、搜索和异步转正式物品；生产放量仍受第 18、20 节真实数据评测与上线门槛约束。
+
 ## 1. 决策摘要
 
 Nomo 新增“AI 装箱”能力。用户扫描或打开箱子后开始一次装箱会话，每放入一批物品只拍一张照片，不填写名称、分类、数量或备注。用户点击“装箱完成”后，后台异步处理全部照片：
@@ -463,6 +465,8 @@ qwen3-vl-plus-2025-12-19
 | `next_attempt_at` | 下次执行时间 |
 | `lease_expires_at` | Worker 崩溃后的任务回收时间 |
 | `input_fingerprint` | 输入和版本的稳定摘要 |
+| `result` | 当前阶段经过 Schema 校验的结构化结果；只对 Worker 可见 |
+| `input_tokens / output_tokens / duration_ms` | 模型成本和延迟指标 |
 | `last_error_code` | 脱敏错误码 |
 
 唯一约束：`(session_id, stage, scope_key, input_fingerprint)`，保证重复完成请求不会创建重复任务。
@@ -505,6 +509,7 @@ qwen3-vl-plus-2025-12-19
 | `crop_version` | 定位提示词与裁剪算法版本 |
 | `crop_status` | `pending / ready / needs_review / failed` |
 | `model_id / prompt_version` | 生成版本 |
+| `published_at` | 当前 revision 完整完成后的原子发布时间；为空时用户不可见 |
 | `created_at / updated_at` | 时间 |
 
 清晰识别项发布为 `ready` 前，`cover_object_key`、`crop_source_photo_id` 和 `crop_bbox` 必须同时存在。无法可靠裁剪的项目必须进入 `needs_review`，不能伪造完整媒体元数据。
@@ -520,6 +525,16 @@ qwen3-vl-plus-2025-12-19
 - `visibility` 和 `crop_suitable`。
 
 定位框用于原图高亮和裁剪，但不作为物品是否存在的唯一证据。最终清单项通过所属实例间接获得全部照片证据。
+
+### 11.8 `packing_item_promotions`
+
+转正式物品是独立的异步工作流，不能在浏览器中复制私有 R2 对象：
+
+- 用户 RPC 校验检测项属于当前用户、当前 revision、数量为精确值且裁剪图已就绪；
+- 预先生成稳定的 `target_item_id` 和正式物品 `target_object_key`，重复请求返回同一个 promotion；
+- Worker 把会话裁剪图复制到 `users/{owner_id}/boxes/{box_id}/item/{target_item_id}.webp`；
+- service-role RPC 在一个数据库事务内创建正式 `items`、写入独立媒体元数据、标记检测项 `promoted` 并完成 promotion；
+- 复制或事务失败可以重试；未完成 promotion 的目标对象在删除会话时进入媒体清理，已完成的正式图片不随会话删除。
 
 ## 12. AI 清单与正式物品的边界
 

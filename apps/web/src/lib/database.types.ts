@@ -342,6 +342,164 @@ export type Database = {
           },
         ]
       }
+      packing_sessions: {
+        Row: {
+          box_id: string
+          completed_at: string | null
+          created_at: string
+          current_revision: number
+          id: string
+          last_error_code: string | null
+          model_id: string | null
+          owner_id: string
+          photo_count: number
+          processed_at: string | null
+          prompt_version: string | null
+          schema_version: string | null
+          started_at: string
+          status: Database['public']['Enums']['packing_session_status']
+          updated_at: string
+        }
+        Insert: {
+          box_id: string
+          completed_at?: string | null
+          created_at?: string
+          current_revision?: number
+          id?: string
+          last_error_code?: string | null
+          model_id?: string | null
+          owner_id: string
+          photo_count?: number
+          processed_at?: string | null
+          prompt_version?: string | null
+          schema_version?: string | null
+          started_at?: string
+          status?: Database['public']['Enums']['packing_session_status']
+          updated_at?: string
+        }
+        Update: {
+          [_ in never]: never
+        }
+        Relationships: []
+      }
+      packing_photos: {
+        Row: {
+          box_id: string
+          confirmed_at: string | null
+          created_at: string
+          height: number | null
+          id: string
+          mime_type: string
+          normalized_object_key: string | null
+          object_key: string
+          owner_id: string
+          perceptual_hash: string | null
+          quality_flags: Json
+          sequence_no: number
+          session_id: string
+          sha256: string | null
+          size_bytes: number
+          updated_at: string
+          upload_expires_at: string
+          upload_status: Database['public']['Enums']['packing_photo_status']
+          width: number | null
+        }
+        Insert: {
+          [_ in never]: never
+        }
+        Update: {
+          [_ in never]: never
+        }
+        Relationships: []
+      }
+      packing_atlases: {
+        Row: {
+          atlas_no: number
+          created_at: string
+          first_sequence_no: number
+          height: number
+          id: string
+          last_sequence_no: number
+          layout_version: string
+          object_key: string
+          session_id: string
+          sha256: string
+          size_bytes: number
+          width: number
+        }
+        Insert: {
+          [_ in never]: never
+        }
+        Update: {
+          [_ in never]: never
+        }
+        Relationships: []
+      }
+      packing_detected_items: {
+        Row: {
+          analysis_revision: number
+          box_id: string
+          category: string | null
+          cover_height: number | null
+          cover_mime_type: string | null
+          cover_object_key: string | null
+          cover_size_bytes: number | null
+          cover_width: number | null
+          created_at: string
+          crop_bbox: Json | null
+          crop_source_photo_id: string | null
+          crop_status: Database['public']['Enums']['packing_crop_status']
+          crop_version: string | null
+          description: string | null
+          first_seen_photo_id: string | null
+          id: string
+          model_id: string
+          name: string
+          prompt_version: string
+          published_at: string | null
+          quantity_kind: Database['public']['Enums']['packing_quantity_kind']
+          quantity_value: number | null
+          representative_instance_id: string | null
+          review_status: Database['public']['Enums']['packing_review_status']
+          session_id: string
+          updated_at: string
+          visibility: Database['public']['Enums']['packing_visibility']
+        }
+        Insert: {
+          [_ in never]: never
+        }
+        Update: {
+          category?: string | null
+          description?: string | null
+          name?: string
+          quantity_kind?: Database['public']['Enums']['packing_quantity_kind']
+          quantity_value?: number | null
+          review_status?: Database['public']['Enums']['packing_review_status']
+        }
+        Relationships: []
+      }
+      packing_item_promotions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          detected_item_id: string
+          id: string
+          last_error_code: string | null
+          owner_id: string
+          session_id: string
+          status: Database['public']['Enums']['packing_promotion_status']
+          target_item_id: string
+          target_object_key: string
+          updated_at: string
+        }
+        Insert: {
+          [_ in never]: never
+        }
+        Update: {
+          [_ in never]: never
+        }
+        Relationships: []
+      }
       spaces: {
         Row: {
           created_at: string
@@ -495,6 +653,58 @@ export type Database = {
         Args: { p_upload_id: string }
         Returns: undefined
       }
+      cancel_packing_session: {
+        Args: { p_session_id: string }
+        Returns: undefined
+      }
+      complete_packing_session: {
+        Args: { p_session_id: string }
+        Returns: Database['public']['Tables']['packing_sessions']['Row']
+      }
+      confirm_packing_photo_upload: {
+        Args: { p_photo_id: string }
+        Returns: undefined
+      }
+      create_packing_media_download: {
+        Args: { p_object_key: string }
+        Returns: { download_url: string; expires_at: string }[]
+      }
+      create_packing_photo_upload: {
+        Args: { p_mime_type: string; p_sequence_no: number; p_session_id: string; p_size_bytes: number }
+        Returns: { object_key: string; photo_id: string; upload_url: string }[]
+      }
+      create_packing_session: {
+        Args: { p_box_id: string }
+        Returns: Database['public']['Tables']['packing_sessions']['Row']
+      }
+      delete_packing_session: {
+        Args: { p_session_id: string }
+        Returns: undefined
+      }
+      request_packing_item_promotion: {
+        Args: { p_detected_item_id: string }
+        Returns: Database['public']['Tables']['packing_item_promotions']['Row']
+      }
+      request_packing_reanalysis: {
+        Args: { p_session_id: string }
+        Returns: Database['public']['Tables']['packing_sessions']['Row']
+      }
+      update_packing_detected_item: {
+        Args: {
+          p_category: string | null
+          p_description: string | null
+          p_detected_item_id: string
+          p_name: string
+          p_quantity_kind: Database['public']['Enums']['packing_quantity_kind']
+          p_quantity_value: number | null
+          p_review_status: Database['public']['Enums']['packing_review_status']
+        }
+        Returns: Database['public']['Tables']['packing_detected_items']['Row']
+      }
+      merge_packing_detected_items: {
+        Args: { p_source_item_id: string; p_target_item_id: string }
+        Returns: Database['public']['Tables']['packing_detected_items']['Row']
+      }
       create_media_download: {
         Args: { p_object_key: string }
         Returns: {
@@ -601,6 +811,23 @@ export type Database = {
           venue_name: string
         }[]
       }
+      search_my_inventory: {
+        Args: { p_query: string }
+        Returns: {
+          box_id: string
+          box_name: string
+          box_public_id: string
+          item_name: string
+          location: string | null
+          quantity: number | null
+          quantity_kind: string
+          result_id: string
+          source: string
+          space_name: string
+          stored_quantity: number | null
+          venue_name: string
+        }[]
+      }
       set_updated_at: {
         Args: Record<PropertyKey, never>
         Returns: unknown
@@ -632,6 +859,17 @@ export type Database = {
       item_movement_action: 'take_out' | 'return' | 'move'
       media_kind: 'cover' | 'item'
       media_upload_status: 'pending' | 'confirmed' | 'expired'
+      packing_crop_status: 'pending' | 'ready' | 'needs_review' | 'failed'
+      packing_evidence_kind: 'first_seen' | 'supporting' | 'conflict' | 'verification'
+      packing_job_stage: 'normalize' | 'atlas' | 'observe' | 'verify' | 'track_instances' | 'consolidate' | 'localize' | 'crop' | 'validate_crops' | 'publish'
+      packing_job_status: 'pending' | 'processing' | 'completed' | 'failed'
+      packing_photo_status: 'pending' | 'confirmed' | 'expired'
+      packing_promotion_status: 'pending' | 'processing' | 'completed' | 'failed'
+      packing_quantity_kind: 'exact' | 'at_least' | 'approximate' | 'unknown'
+      packing_review_status: 'unreviewed' | 'needs_review' | 'confirmed' | 'corrected' | 'dismissed' | 'promoted'
+      packing_session_status: 'capturing' | 'uploading' | 'queued' | 'processing' | 'ready' | 'partial_failed' | 'failed' | 'canceled'
+      packing_tracking_status: 'provisional' | 'tracked' | 'ambiguous' | 'merged' | 'dismissed'
+      packing_visibility: 'clear' | 'partial' | 'occluded' | 'reflective' | 'opaque_container' | 'unknown'
     }
     CompositeTypes: {
       [_ in never]: never
