@@ -30,6 +30,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
     enabled: editing,
   })
   const [saved, setSaved] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [pendingBox, setPendingBox] = useState<CreatedBox | null>(null)
   const [mediaError, setMediaError] = useState(false)
@@ -64,6 +65,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
   })
   const busy = createMutation.isPending || updateMutation.isPending || isUploadPending(mediaUpload.stage)
   const dismissalBlocked = busy || (!editing && Boolean(pendingBox))
+  const advancedVisible = editing || showAdvanced
 
   useEffect(() => {
     onBusyChange?.(dismissalBlocked)
@@ -73,6 +75,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
     initializedBoxId.current = undefined
     setCoverFile(null)
     setSaved(false)
+    setShowAdvanced(false)
     setMediaError(false)
     setPendingBox(null)
     resetMediaUpload()
@@ -233,32 +236,49 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
         <input className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="box-name" aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'box-name-error' : undefined} {...register('name')} />
         {errors.name ? <p id="box-name-error" role="alert">{errors.name.message}</p> : null}
 
-        <label htmlFor="box-category">分类（可选）</label>
-        <input className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="box-category" {...register('category')} />
         <label htmlFor="box-location">具体位置</label>
         <input className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="box-location" {...register('location')} />
-        <label htmlFor="box-description">备注（可选）</label>
-        <textarea className="min-h-28 w-full resize-y rounded-control border border-line bg-canvas px-3 py-3 text-ink focus:border-brand" id="box-description" rows={4} {...register('description')} />
+        {!editing ? (
+          <div className="grid gap-2 sm:hidden">
+            <p className="m-0 text-xs leading-relaxed text-muted">基础信息填写后即可创建，其余信息可以稍后补充。</p>
+            <button
+              className="min-h-11 w-fit rounded-control border border-line bg-surface px-4 py-2 text-sm font-bold text-ink"
+              type="button"
+              aria-expanded={showAdvanced}
+              aria-controls="box-advanced-fields"
+              onClick={() => setShowAdvanced((current) => !current)}
+            >
+              {showAdvanced ? '收起更多设置' : '更多设置'}
+            </button>
+          </div>
+        ) : null}
 
-        <label htmlFor="box-cover">箱子封面（可选）</label>
-        <input
-          key={boxId ?? 'create'}
-          className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 py-2 text-ink file:mr-3 file:rounded-lg file:border-0 file:bg-placeholder file:px-3 file:py-2 file:font-bold file:text-ink"
-          id="box-cover"
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          onChange={(event) => {
-            setCoverFile(event.target.files?.[0] ?? null)
-            setMediaError(false)
-            mediaUpload.reset()
-          }}
-        />
+        <div className={`${advancedVisible ? 'contents' : 'hidden'} sm:contents`} id="box-advanced-fields">
+          <label htmlFor="box-category">分类（可选）</label>
+          <input className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="box-category" {...register('category')} />
+          <label htmlFor="box-description">备注（可选）</label>
+          <textarea className="min-h-28 w-full resize-y rounded-control border border-line bg-canvas px-3 py-3 text-ink focus:border-brand" id="box-description" rows={4} {...register('description')} />
 
-        <label htmlFor="box-visibility">查看权限</label>
-        <select className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="box-visibility" {...register('visibility')}>
-          <option value="private">私有</option>
-          <option value="public">公开</option>
-        </select>
+          <label htmlFor="box-cover">箱子封面（可选）</label>
+          <input
+            key={boxId ?? 'create'}
+            className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 py-2 text-ink file:mr-3 file:rounded-lg file:border-0 file:bg-placeholder file:px-3 file:py-2 file:font-bold file:text-ink"
+            id="box-cover"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(event) => {
+              setCoverFile(event.target.files?.[0] ?? null)
+              setMediaError(false)
+              mediaUpload.reset()
+            }}
+          />
+
+          <label htmlFor="box-visibility">查看权限</label>
+          <select className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="box-visibility" {...register('visibility')}>
+            <option value="private">私有</option>
+            <option value="public">公开</option>
+          </select>
+        </div>
 
         {createMutation.isError || updateMutation.isError ? (
           <ResponsiveOperationError message="保存失败，请稍后重试" />

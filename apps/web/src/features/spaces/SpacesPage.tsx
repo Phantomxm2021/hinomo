@@ -33,6 +33,8 @@ import {
 
 type SpaceView = 'cards' | 'plan'
 
+const spaceNameTemplates = ['客厅', '卧室', '厨房', '储藏室', '书房'] as const
+
 function getInitialView(): SpaceView {
   try {
     return window.localStorage.getItem('nomo-space-view') === 'plan' ? 'plan' : 'cards'
@@ -110,6 +112,7 @@ export function SpacesPage() {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<SpaceFormValues>({
     resolver: zodResolver(spaceSchema),
@@ -367,6 +370,24 @@ export function SpacesPage() {
                 {venues.map((venue) => <option value={venue.id} key={venue.id}>{venue.name}</option>)}
               </select>
               {errors.venue_id ? <p role="alert">{errors.venue_id.message}</p> : null}
+              {!editTarget ? (
+                <fieldset className="mb-1 grid gap-2 border-0 p-0">
+                  <legend className="font-bold text-ink">常用空间</legend>
+                  <div className="flex flex-wrap gap-2">
+                    {spaceNameTemplates.map((template) => (
+                      <button
+                        className="min-h-10 rounded-full border border-line bg-canvas px-3.5 py-2 text-sm font-semibold text-ink hover:border-brand/40 hover:bg-brand/10"
+                        type="button"
+                        key={template}
+                        onClick={() => setValue('name', template, { shouldDirty: true, shouldValidate: true })}
+                      >
+                        {template}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="m-0 text-xs leading-relaxed text-muted">选择一个常用名称，或在下方自定义。</p>
+                </fieldset>
+              ) : null}
               <label className="font-bold text-ink" htmlFor="space-name">空间名称</label>
               <input
                 className="min-h-12 w-full rounded-control border border-line bg-surface px-3 py-2.5 text-ink focus:border-brand"

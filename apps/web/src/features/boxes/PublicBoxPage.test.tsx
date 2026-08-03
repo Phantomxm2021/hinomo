@@ -339,6 +339,25 @@ test('opens the item form from the mobile action menu', async () => {
   expect(screen.getByRole('button', { name: '打开箱子操作菜单' })).toBeInTheDocument()
 })
 
+test('offers direct AI and manual next steps for an owner empty box', async () => {
+  const user = userEvent.setup()
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    space_id: 'space-1', name: '工具', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z', items: [],
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session)
+
+  expect(await screen.findByText('拍下箱内物品让 AI 帮你整理，或从第一件物品开始手动记录。')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '拍照识别物品' }))
+  expect(screen.getByRole('dialog', { name: 'AI 装箱' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '关闭 AI 装箱' }))
+
+  await user.click(screen.getByRole('button', { name: '手动记录' }))
+  expect(screen.getByRole('dialog', { name: '新增物品' })).toBeInTheDocument()
+})
+
 test('opens item operations from the mobile list row and keeps editing secondary', async () => {
   const user = userEvent.setup()
   mockGetBoxByPublicId.mockResolvedValue({

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useBlocker, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useBlocker, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
@@ -16,7 +16,7 @@ import {
   catalogueSummary,
   filterBoxes,
 } from './box-catalogue'
-import { deleteBox, listBoxesForVenue, type BoxSummary } from './boxes.api'
+import { deleteBox, listBoxesForVenue, type BoxSummary, type CreatedBox } from './boxes.api'
 import { CreateBoxModal } from './CreateBoxModal'
 import { SpaceFilterChips } from './SpaceFilterChips'
 
@@ -36,6 +36,7 @@ export function BoxesPage() {
   const [createBusy, setCreateBusy] = useState(false)
   const [createCompletionPending, setCreateCompletionPending] = useState(false)
   const [createSucceeded, setCreateSucceeded] = useState(false)
+  const [createdBox, setCreatedBox] = useState<CreatedBox | null>(null)
   const createSuccessTimerRef = useRef<number | null>(null)
   const venuesQuery = useQuery({ queryKey: ['venues'], queryFn: listVenues })
   const venues = venuesQuery.data ?? []
@@ -110,6 +111,7 @@ export function BoxesPage() {
     }
     clearCreateSuccessTimer()
     setCreateSucceeded(false)
+    setCreatedBox(null)
     setCreateCompletionPending(false)
     const next = new URLSearchParams(searchParams)
     next.set('create', '1')
@@ -145,7 +147,8 @@ export function BoxesPage() {
     createSuccessTimerRef.current = window.setTimeout(() => {
       createSuccessTimerRef.current = null
       setCreateSucceeded(false)
-    }, 4_000)
+      setCreatedBox(null)
+    }, 12_000)
   }, [clearCreateSuccessTimer, createCompletionPending, creating, feedback])
 
   useEffect(() => clearCreateSuccessTimer, [clearCreateSuccessTimer])
@@ -238,7 +241,17 @@ export function BoxesPage() {
         </>
       ) : null}
 
-      {createSucceeded ? <p className="m-0 hidden text-sm font-medium text-brand lg:block" role="status" aria-label="箱子已创建">箱子已创建</p> : null}
+      {createSucceeded && createdBox ? (
+        <section className="flex flex-col gap-3 rounded-card border border-brand/25 bg-brand/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5" role="status" aria-label="箱子已创建">
+          <div>
+            <p className="m-0 font-bold text-ink">“{createdBox.name}”已创建</p>
+            <p className="mt-1 mb-0 text-sm text-muted">接下来记录箱内物品，以后就能直接搜索找到。</p>
+          </div>
+          <Link className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-control bg-brand px-4 py-2 font-bold text-white no-underline hover:bg-brand-strong" to={`/b/${createdBox.public_id}`}>
+            记录箱内物品
+          </Link>
+        </section>
+      ) : null}
 
       {hasCatalogueData && boxes.length === 0 ? (
         <PageState
@@ -304,7 +317,8 @@ export function BoxesPage() {
       <CreateBoxModal
         open={creating}
         onClose={closeCreate}
-        onCompleted={() => {
+        onCompleted={(box) => {
+          setCreatedBox(box)
           setCreateCompletionPending(true)
           setCreateBusy(false)
           void queryClient.invalidateQueries({ queryKey: ['boxes'] })

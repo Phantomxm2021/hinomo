@@ -159,6 +159,21 @@ test('keeps the create editor closed until the prominent action is used', async 
   expect(within(dialog).getByLabelText('描述（可选）')).toHaveValue('')
 })
 
+test('prefills a new space from common templates while keeping the name editable', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([])
+  renderSpaces('/app/spaces?create=1')
+
+  const dialog = await screen.findByRole('dialog', { name: '创建空间' })
+  expect(within(dialog).getByRole('group', { name: '常用空间' })).toBeInTheDocument()
+  await user.click(within(dialog).getByRole('button', { name: '储藏室' }))
+  expect(within(dialog).getByLabelText('空间名称')).toHaveValue('储藏室')
+
+  await user.clear(within(dialog).getByLabelText('空间名称'))
+  await user.type(within(dialog).getByLabelText('空间名称'), '地下室货架')
+  expect(within(dialog).getByLabelText('空间名称')).toHaveValue('地下室货架')
+})
+
 test('filters by venue and defaults a new space to the selected venue', async () => {
   const user = userEvent.setup()
   mockStorageGetItem.mockImplementation((key: string) => key === 'nomo-selected-venue-id' ? 'venue-office' : null)

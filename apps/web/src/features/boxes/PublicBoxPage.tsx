@@ -374,7 +374,18 @@ export function PublicBoxPage() {
           </div>
         ) : null}
         {box.items.length === 0 ? (
-          <PageState state="empty" icon="box" title="箱子里还没有物品" />
+          <PageState
+            state="empty"
+            icon="box"
+            title="箱子里还没有物品"
+            description={isOwner ? '拍下箱内物品让 AI 帮你整理，或从第一件物品开始手动记录。' : undefined}
+            action={isOwner ? (
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button className="border-brand! bg-brand! text-white!" type="button" onClick={() => setShowPackingCapture(true)}>拍照识别物品</button>
+                <button type="button" onClick={openNewItem}>手动记录</button>
+              </div>
+            ) : undefined}
+          />
         ) : null}
       </section>
 

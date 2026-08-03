@@ -61,8 +61,8 @@ vi.mock('./CreateBoxModal', async () => {
     return open ? (
       <div role="dialog" aria-label="创建箱子">
         <button type="button" onClick={onClose}>关闭测试模态</button>
-        <button type="button" onClick={() => onCompleted({ id: 'box-new' })}>完成测试创建</button>
-        <button type="button" onClick={() => onCompleted({ id: 'box-new' })}>暂不上传封面</button>
+        <button type="button" onClick={() => onCompleted({ id: 'box-new', public_id: 'public-new', name: '书籍' })}>完成测试创建</button>
+        <button type="button" onClick={() => onCompleted({ id: 'box-new', public_id: 'public-new', name: '待补封面' })}>暂不上传封面</button>
         <button type="button" onClick={() => onBusyChange?.(true)}>开始忙碌</button>
         <button type="button" onClick={() => onBusyChange?.(false)}>结束忙碌</button>
       </div>
@@ -474,6 +474,7 @@ test('closes, refreshes, announces success, renders the new card, and restores f
   expect(screen.queryByRole('dialog', { name: '创建箱子' })).not.toBeInTheDocument()
   expect(await screen.findByRole('article', { name: '书籍' })).toBeInTheDocument()
   expect(screen.getByRole('status', { name: '箱子已创建' })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: '记录箱内物品' })).toHaveAttribute('href', '/b/public-new')
   expect(mockModalCleanupSawStatus).toHaveBeenCalledWith(false)
   expect(document.querySelector('[data-app-shell]')).not.toHaveAttribute('inert')
   expect(document.querySelector('[data-app-shell]')).not.toHaveAttribute('aria-hidden')
@@ -481,7 +482,7 @@ test('closes, refreshes, announces success, renders the new card, and restores f
   expect(mockListBoxes).toHaveBeenCalledTimes(2)
 })
 
-test('removes the creation success status after four seconds', async () => {
+test('keeps the creation next step visible long enough to act on it', async () => {
   mockListBoxes.mockResolvedValue(boxes)
   renderBoxes('/app/boxes?create=1')
   await screen.findByRole('dialog', { name: '创建箱子' })
@@ -491,7 +492,7 @@ test('removes the creation success status after four seconds', async () => {
   await act(async () => { await Promise.resolve() })
   expect(screen.getByRole('status', { name: '箱子已创建' })).toBeInTheDocument()
 
-  act(() => { vi.advanceTimersByTime(4_000) })
+  act(() => { vi.advanceTimersByTime(12_000) })
   expect(screen.queryByRole('status', { name: '箱子已创建' })).not.toBeInTheDocument()
   vi.useRealTimers()
 })

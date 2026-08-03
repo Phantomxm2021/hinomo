@@ -88,6 +88,29 @@ test('omits independent page framing inside a modal', async () => {
   expect(screen.getByRole('button', { name: '创建箱子' }).closest('form')).not.toHaveClass('rounded-shell', 'p-5')
 })
 
+test('keeps mobile creation focused on essential fields and progressively reveals more settings', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([
+    { id: 'space-home', name: '储藏室', description: null, box_count: 0 },
+  ])
+  renderModalBoxForm()
+
+  await screen.findByRole('option', { name: '储藏室' })
+  expect(screen.getByLabelText('空间')).toBeInTheDocument()
+  expect(screen.getByLabelText('箱子名称')).toBeInTheDocument()
+  expect(screen.getByLabelText('具体位置')).toBeInTheDocument()
+  const advancedFields = document.getElementById('box-advanced-fields')
+  const toggle = screen.getByRole('button', { name: '更多设置' })
+  expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  expect(advancedFields).toHaveClass('hidden', 'sm:contents')
+
+  await user.click(toggle)
+  expect(screen.getByRole('button', { name: '收起更多设置' })).toHaveAttribute('aria-expanded', 'true')
+  expect(advancedFields).toHaveClass('contents', 'sm:contents')
+  expect(screen.getByLabelText('分类（可选）')).toBeInTheDocument()
+  expect(screen.getByLabelText('箱子封面（可选）')).toBeInTheDocument()
+})
+
 beforeEach(() => {
   mockCreateBox.mockReset()
   mockGetBox.mockReset()
