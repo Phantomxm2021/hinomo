@@ -47,6 +47,11 @@ afterEach(cleanup)
 test('lets the owner verify evidence and confirm an AI item', async () => {
   const user = userEvent.setup()
   renderSection()
+  expect(await screen.findByRole('button', { name: /AI 智能清单/ })).toBeInTheDocument()
+  expect(screen.queryByText('白色充电器')).not.toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: /AI 智能清单/ }))
+  expect(await screen.findByRole('dialog', { name: 'AI 智能清单' })).toBeInTheDocument()
   expect(await screen.findByText('白色充电器')).toBeInTheDocument()
   expect(screen.getByText('白色充电器裁剪图片')).toBeInTheDocument()
 
@@ -62,6 +67,7 @@ test('lets the owner verify evidence and confirm an AI item', async () => {
 test('queues an exact item for safe asynchronous promotion', async () => {
   const user = userEvent.setup()
   renderSection()
+  await user.click(await screen.findByRole('button', { name: /AI 智能清单/ }))
   await user.click(await screen.findByRole('button', { name: '设为正式物品' }))
   await waitFor(() => expect(mocks.promote).toHaveBeenCalledWith('detected-1'))
   expect(screen.getByRole('button', { name: '正在转为正式物品' })).toBeDisabled()
