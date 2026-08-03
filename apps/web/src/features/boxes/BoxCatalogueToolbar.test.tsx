@@ -95,6 +95,6 @@ test('keeps the toolbar responsive and chips horizontally scrollable', () => {
     .toHaveClass('w-full')
   expect(screen.getByRole('searchbox', { name: '搜索箱子' }).parentElement)
     .not.toHaveClass('sm:grid-cols-2')
-  expect(screen.getByRole('group', { name: '按空间筛选' })).toHaveClass('overflow-x-auto')
+  expect(screen.getByRole('group', { name: '按空间筛选' })).toHaveClass('overflow-x-auto', 'space-filter-scroll')
   expect(screen.getByRole('button', { name: '全部空间 6' })).toHaveClass('min-h-11', 'shrink-0')
 })
