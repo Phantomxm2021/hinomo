@@ -76,3 +76,12 @@ test('lets an estimated quantity join the formal checklist in one step', async (
   await waitFor(() => expect(mocks.promote).toHaveBeenCalledWith('detected-1'))
   expect(screen.getByRole('button', { name: '正在加入…' })).toBeDisabled()
 })
+
+test('uses the source photo while an item crop is still pending', async () => {
+  const user = userEvent.setup()
+  mocks.listItems.mockResolvedValue([{ ...item, crop_status: 'pending', cover_object_key: null }])
+  renderSection()
+  await user.click(await screen.findByRole('button', { name: /AI 智能清单/ }))
+  await user.click(await screen.findByRole('button', { name: '加入清单' }))
+  await waitFor(() => expect(mocks.promote).toHaveBeenCalledWith('detected-1'))
+})

@@ -254,14 +254,31 @@ async function promote(services: PackingServices, job: ClaimedJob): Promise<void
   if (promotion.status === 'completed') return completeJob(services, job.job_id)
   await services.database.from('packing_item_promotions').update({ status: 'processing', last_error_code: null }).eq('id', promotionId)
   const { data: item, error: itemError } = await services.database.from('packing_detected_items')
-    .select('cover_object_key,cover_mime_type,cover_size_bytes').eq('id', promotion.detected_item_id).single()
+    .select('cover_object_key,cover_mime_type,representative_instance_id,first_seen_photo_id').eq('id', promotion.detected_item_id).single()
   databaseError(itemError, 'promotion_item_missing')
   if (!item) throw new Error('promotion_item_missing')
-  if (!item.cover_object_key || !item.cover_mime_type) throw new Error('promotion_crop_missing')
-  const bytes = await readMedia(services, item.cover_object_key)
+  let sourceObjectKey = item.cover_object_key
+  let sourceMimeType = item.cover_mime_type
+  if (!sourceObjectKey || !sourceMimeType) {
+    let sourcePhotoId = item.first_seen_photo_id
+    if (item.representative_instance_id) {
+      const { data: instance, error: instanceError } = await services.database.from('packing_detected_instances')
+        .select('representative_photo_id').eq('id', item.representative_instance_id).single()
+      databaseError(instanceError, 'promotion_instance_missing')
+      sourcePhotoId = instance?.representative_photo_id ?? sourcePhotoId
+    }
+    if (!sourcePhotoId) throw new Error('promotion_source_photo_missing')
+    const { data: photo, error: photoError } = await services.database.from('packing_photos')
+      .select('object_key,mime_type').eq('id', sourcePhotoId).single()
+    databaseError(photoError, 'promotion_source_photo_missing')
+    sourceObjectKey = photo?.object_key ?? null
+    sourceMimeType = photo?.mime_type ?? null
+  }
+  if (!sourceObjectKey || !sourceMimeType) throw new Error('promotion_source_photo_missing')
+  const bytes = await readMedia(services, sourceObjectKey)
   await writeMedia(services, promotion.target_object_key, bytes)
   const { error: finalizeError } = await services.database.rpc('finalize_packing_item_promotion', {
-    p_promotion_id: promotionId, p_mime_type: item.cover_mime_type, p_size_bytes: bytes.length,
+    p_promotion_id: promotionId, p_mime_type: sourceMimeType, p_size_bytes: bytes.length,
   })
   databaseError(finalizeError, 'promotion_finalize_failed')
   await completeJob(services, job.job_id)
@@ -277,12 +294,19 @@ export async function processPackingJob(services: PackingServices, job: ClaimedJ
     else throw new Error(`stage_not_implemented_${job.stage}`)
   } catch (error) {
     const code = safeErrorCode(error)
+    const retryable = !code.startsWith('stage_not_implemented')
+    const terminal = !retryable || job.attempts >= 5
     if (job.scope_key.startsWith('promotion:')) {
       const promotionId = job.scope_key.split(':')[1]
       if (promotionId) await services.database.from('packing_item_promotions').update({ status: 'failed', last_error_code: code }).eq('id', promotionId)
     }
+    if (terminal && job.stage === 'localize' && job.scope_key.startsWith('item:')) {
+      const itemId = job.scope_key.split(':')[1]
+      if (itemId) await services.database.from('packing_detected_items')
+        .update({ crop_status: 'failed', review_status: 'needs_review' }).eq('id', itemId)
+    }
     const { error: failureError } = await services.database.rpc('fail_packing_analysis_job', {
-      p_job_id: job.job_id, p_error_code: code, p_retryable: !code.startsWith('stage_not_implemented'),
+      p_job_id: job.job_id, p_error_code: code, p_retryable: retryable,
     })
     if (failureError) throw new Error(`job_failure_record_failed_${failureError.code}`)
     throw new Error(code)

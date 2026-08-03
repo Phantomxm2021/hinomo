@@ -94,15 +94,13 @@ function ChecklistItem({ item, boxId, mergeTargets }: { item: PackingDetectedIte
   })
 
   const canSave = name.trim().length > 0 && (quantityKind === 'unknown' || Number(quantityValue) > 0)
-  const cropReady = item.crop_status === 'ready' && Boolean(item.cover_object_key)
+  const hasSourcePhoto = Boolean(item.cover_object_key || item.first_seen_photo_id || item.representative_instance_id)
   const promotionBusy = promotionMutation.isPending || promotionMutation.isSuccess
   const promotionLabel = promotionBusy
     ? '正在加入…'
-    : cropReady
+    : hasSourcePhoto
       ? '加入清单'
-      : item.crop_status === 'failed'
-        ? '图片处理失败'
-        : '图片处理中'
+      : '照片不可用'
 
   return (
     <article className="border-b border-line/60 p-3 last:border-b-0">
@@ -139,7 +137,7 @@ function ChecklistItem({ item, boxId, mergeTargets }: { item: PackingDetectedIte
             {mergeTargets.length > 0 ? <button className="min-h-10 px-3 text-sm font-bold text-muted" type="button" onClick={() => { setMenuOpen(false); setMerging(true) }}>合并</button> : null}
             <button className="min-h-10 px-3 text-sm font-bold text-danger" type="button" disabled={updateMutation.isPending} onClick={() => updateMutation.mutate('dismissed')}>忽略</button>
           </div> : null}
-          <button className="min-h-11 w-full rounded-control bg-ink px-4 font-extrabold text-white disabled:bg-placeholder disabled:text-muted" type="button" disabled={!cropReady || promotionBusy} onClick={() => promotionMutation.mutate()}>{promotionLabel}</button>
+          <button className="min-h-11 w-full rounded-control bg-ink px-4 font-extrabold text-white disabled:bg-placeholder disabled:text-muted" type="button" disabled={!hasSourcePhoto || promotionBusy} onClick={() => promotionMutation.mutate()}>{promotionLabel}</button>
         </div>
       )}
       {updateMutation.isError || promotionMutation.isError || mergeMutation.isError ? <p className="mt-2 text-right text-xs font-bold text-danger">操作失败，请稍后重试</p> : null}

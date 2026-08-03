@@ -39,3 +39,13 @@ Deno.test('rejects malformed localization tuples', () => {
   } catch { rejected = true }
   if (!rejected) throw new Error('malformed bbox was accepted')
 })
+
+Deno.test('truncates verbose localization reasons instead of failing the job', () => {
+  const parsed = localizationSchema.parse({
+    schema_version: '1', photo_id: 'P001', instance_id: 'instance-1', bbox: [100, 200, 800, 900],
+    visible_fraction: 'mostly_visible', crop_suitable: true, reason: '说明'.repeat(180),
+  })
+  if (!parsed.reason || Array.from(parsed.reason).length !== 240) {
+    throw new Error('verbose reason was not normalized')
+  }
+})

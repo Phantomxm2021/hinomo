@@ -17,6 +17,10 @@ const schemaVersionSchema = z.union([
   z.literal(Number(PACKING_MODEL_SCHEMA_VERSION)),
 ]).transform(() => PACKING_MODEL_SCHEMA_VERSION)
 
+const conciseReasonSchema = z.string().transform((value) =>
+  Array.from(value.trim()).slice(0, 240).join('')
+).nullable()
+
 export const atlasObservationSchema = z.object({
   schema_version: schemaVersionSchema,
   atlas_id: z.string().min(1),
@@ -33,7 +37,7 @@ export const atlasObservationSchema = z.object({
     evidence_photo_ids: z.array(z.string().regex(/^P\d{3}$/)).min(1),
     best_crop_candidate_photo_id: z.string().regex(/^P\d{3}$/),
     requires_original_review: z.boolean(),
-    review_reason: z.string().max(240).nullable(),
+    review_reason: conciseReasonSchema,
   })),
 })
 
@@ -66,13 +70,13 @@ export const localizationSchema = z.object({
   bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]),
   visible_fraction: z.enum(['fully_visible', 'mostly_visible', 'partially_visible']),
   crop_suitable: z.boolean(),
-  reason: z.string().max(240).nullable(),
+  reason: conciseReasonSchema,
 })
 
 const cropValidationSchema = z.object({
   schema_version: schemaVersionSchema,
   valid: z.boolean(),
-  reason: z.string().max(240).nullable(),
+  reason: conciseReasonSchema,
 })
 
 export const originalReviewSchema = z.object({
@@ -83,7 +87,7 @@ export const originalReviewSchema = z.object({
   category: z.string().max(80).nullable(),
   quantity: quantitySchema,
   visibility: z.enum(['clear', 'partial', 'occluded', 'reflective', 'opaque_container', 'unknown']),
-  review_reason: z.string().max(240).nullable(),
+  review_reason: conciseReasonSchema,
 })
 
 export type QwenResult<T> = {
@@ -182,7 +186,7 @@ async function callQwen<S extends z.ZodTypeAny>(input: {
   }
 }
 
-const rules = `你是 Nomo 的装箱视觉分析器。只陈述照片中可见的事实。不得猜测不透明容器内部内容；只能将其记录为容器。相同物体在连续照片中出现时不得重复计数。数量无法精确确认时必须使用 at_least、approximate 或 unknown。只返回严格 JSON。Schema 版本为 ${PACKING_MODEL_SCHEMA_VERSION}，提示词版本为 ${PACKING_PROMPT_VERSION}。`
+const rules = `你是 Nomo 的装箱视觉分析器。只陈述照片中可见的事实。不得猜测不透明容器内部内容；只能将其记录为容器。相同物体在连续照片中出现时不得重复计数。数量无法精确确认时必须使用 at_least、approximate 或 unknown。reason 和 review_reason 只写一句简短结论，不得超过 120 个汉字。只返回严格 JSON。Schema 版本为 ${PACKING_MODEL_SCHEMA_VERSION}，提示词版本为 ${PACKING_PROMPT_VERSION}。`
 
 const quantityContract = `quantity 必须是 {"kind":"exact|at_least|approximate|unknown","value":正整数或null}；仅 kind=unknown 时 value=null。`
 const observationContract = `JSON 结构必须严格为 {"schema_version":"1","atlas_id":string,"observations":[{"observation_id":string,"photo_id":"PNNN","object_local_id":string,"action":"appeared|persisted|disappeared|uncertain","label":string,"category":string|null,"quantity":{"kind":string,"value":number|null},"visibility":"clear|partial|occluded|reflective|opaque_container|unknown","container_label":string|null,"evidence_photo_ids":["PNNN"],"best_crop_candidate_photo_id":"PNNN","requires_original_review":boolean,"review_reason":string|null}]}。${quantityContract}`
