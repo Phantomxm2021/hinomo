@@ -8,10 +8,13 @@ import { ResponsiveOperationError } from '../../components/ResponsiveOperationEr
 import { getBox } from '../boxes/boxes.api'
 import {
   completePackingSession,
+  downloadPackingPhoto,
   getOrCreatePackingSession,
   listPackingPhotos,
   uploadPackingPhoto,
+  uploadPackingAtlas,
 } from './packing.api'
+import { buildClientPackingAtlases } from './packing-atlas'
 import {
   deletePackingDraft,
   listPackingDrafts,
@@ -125,7 +128,7 @@ export function PackingCapturePage() {
     setErrorMessage(null)
     try {
       const compressed = await imageCompression(file, {
-        maxSizeMB: 7.5,
+        maxSizeMB: 4.5,
         maxWidthOrHeight: 2560,
         useWebWorker: true,
         fileType: 'image/webp',
@@ -157,6 +160,9 @@ export function PackingCapturePage() {
       await uploadQueueRef.current
       const drafts = await listPackingDrafts(session.id)
       if (drafts.length > 0) throw new Error('pending drafts remain')
+      const photos = (await listPackingPhotos(session.id)).filter((photo) => photo.upload_status === 'confirmed')
+      const atlases = await buildClientPackingAtlases(photos, downloadPackingPhoto)
+      for (const atlas of atlases) await uploadPackingAtlas(session.id, atlas)
       await completePackingSession(session.id)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['packing-session-active', boxId] }),
@@ -164,7 +170,7 @@ export function PackingCapturePage() {
       ])
       navigate(`/app/boxes/${boxId}`, { replace: true })
     } catch {
-      setErrorMessage('还有照片未上传完成，请检查网络后重试。')
+      setErrorMessage('照片或分析索引尚未上传完成，请检查网络后重试。')
     } finally {
       setFinishing(false)
     }

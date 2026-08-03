@@ -18,7 +18,7 @@ cp .env.docker.example .env
 - `VITE_SUPABASE_ANON_KEY`：生产 anon key；不得使用 service role key。
 - `VITE_PUBLIC_APP_ORIGIN`：用户实际访问的 HTTPS Origin，例如 `https://nomo.example.com`。
 
-这些是 Vite 的**构建时**变量，修改后必须重新构建镜像。AI 装箱后台不包含在 Docker Compose 中，而是独立部署为 Cloudflare Worker；配置见 [部署 Runbook](deployment.md)。
+这些是 Vite 的**构建时**变量，修改后必须重新构建镜像。AI 装箱后台不包含在 Docker Compose 中，而是部署为 Supabase Edge Function；配置见 [部署 Runbook](deployment.md)。
 
 ## 2. 构建并启动
 

@@ -19,6 +19,7 @@ create temporary table packing_test_state (
   box_id uuid not null,
   session_id uuid,
   photo_id uuid,
+  atlas_id uuid,
   object_key text,
   upload_url text,
   disposable_session_id uuid
@@ -107,6 +108,14 @@ select is(
   'owner confirms the uploaded photo'
 );
 
+with upload as (
+  select * from public.create_packing_atlas_upload(
+    (select session_id from packing_test_state), 1, 1, 1, 512, 552, 2048, repeat('a', 64)
+  )
+)
+update packing_test_state state set atlas_id = upload.atlas_id from upload;
+select public.confirm_packing_atlas_upload((select atlas_id from packing_test_state));
+
 select is(
   (public.complete_packing_session((select session_id from packing_test_state))).status::text,
   'queued',
@@ -114,9 +123,9 @@ select is(
 );
 select is(
   (select count(*)::integer from public.packing_analysis_jobs
-   where session_id = (select session_id from packing_test_state) and stage = 'normalize'),
+   where session_id = (select session_id from packing_test_state) and stage = 'observe'),
   1,
-  'completion creates one normalize job'
+  'completion creates one Atlas observation job'
 );
 select lives_ok(
   $$select public.complete_packing_session((select session_id from packing_test_state))$$,

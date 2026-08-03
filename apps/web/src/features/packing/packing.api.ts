@@ -1,5 +1,6 @@
 import type { Database } from '../../lib/database.types'
 import { supabase } from '../../lib/supabase'
+import type { ClientPackingAtlas } from './packing-atlas'
 
 export type PackingSession = Database['public']['Tables']['packing_sessions']['Row']
 export type PackingPhoto = Database['public']['Tables']['packing_photos']['Row']
@@ -66,6 +67,35 @@ export async function completePackingSession(sessionId: string): Promise<Packing
   if (error) throw error
   if (!data) throw new Error('packing session was not completed')
   return data
+}
+
+export async function downloadPackingPhoto(photo: PackingPhoto): Promise<Blob> {
+  const download = await createPackingMediaDownload(photo.object_key)
+  const response = await fetch(download.download_url)
+  if (!response.ok) throw new Error('packing photo download failed')
+  return response.blob()
+}
+
+export async function uploadPackingAtlas(sessionId: string, atlas: ClientPackingAtlas): Promise<void> {
+  const { data, error } = await supabase.rpc('create_packing_atlas_upload', {
+    p_session_id: sessionId,
+    p_atlas_no: atlas.atlasNo,
+    p_first_sequence_no: atlas.firstSequenceNo,
+    p_last_sequence_no: atlas.lastSequenceNo,
+    p_width: atlas.width,
+    p_height: atlas.height,
+    p_size_bytes: atlas.blob.size,
+    p_sha256: atlas.sha256,
+  })
+  if (error) throw error
+  const upload = data?.[0]
+  if (!upload) throw new Error('packing atlas upload was not created')
+  const response = await fetch(upload.upload_url, {
+    method: 'PUT', headers: { 'Content-Type': 'image/webp' }, body: atlas.blob,
+  })
+  if (!response.ok) throw new Error('packing atlas upload failed')
+  const { error: confirmError } = await supabase.rpc('confirm_packing_atlas_upload', { p_atlas_id: upload.atlas_id })
+  if (confirmError) throw confirmError
 }
 
 export async function cancelPackingSession(sessionId: string): Promise<void> {

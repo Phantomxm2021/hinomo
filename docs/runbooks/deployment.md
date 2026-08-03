@@ -18,6 +18,7 @@
    - `202608020001_item_movements.sql`
    - `202608020002_item_availability_queries.sql`
    - `202608030001_ai_packing_sessions.sql`
+   - `202608030002_supabase_packing_runtime.sql`
 
    不要调换顺序：物品可用性查询依赖 `stored_quantity`，AI 装箱迁移又依赖正式物品字段、R2 签名函数和媒体清理表。
 
@@ -59,26 +60,28 @@ select to_regclass('public.packing_item_promotions') as packing_item_promotions_
 6. Auth Site URL 设置为生产站点；Redirect URLs 加入生产站点的 `/reset-password`。
 7. 确认 `pg_cron` 与 `pg_net` 可用，并检查媒体清理任务已注册。
 
-## AI 装箱 Worker 发布顺序
+## AI 装箱 Supabase Runtime 发布顺序
 
-1. 先在隔离 Supabase 环境执行 `202608030001_ai_packing_sessions.sql` 和 `014_ai_packing_sessions.test.sql`。
-2. 在 `apps/packing-worker/wrangler.jsonc` 为当前环境设置目标 R2 Bucket；Worker 使用原生 R2 binding，不创建或注入 R2 S3 access key。
-3. 在 Cloudflare Dashboard 启用 Images binding/Transformations，并确认账号套餐支持所需的 Workers CPU 时间与 Images 用量。
-4. 使用 `wrangler secret put` 分别注入 `SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY` 和 `QWEN_API_KEY`。密钥只能从密码管理器粘贴，不写入命令参数或仓库文件。
-5. 固定 `QWEN_VL_MODEL=qwen3-vl-plus-2025-12-19`，然后发布：
+1. 先在隔离 Supabase 环境依次执行 `202608030001_ai_packing_sessions.sql`、`202608030002_supabase_packing_runtime.sql`。
+2. 再依次运行 `014_ai_packing_sessions.test.sql`、`015_supabase_packing_runtime.test.sql`。后一个测试覆盖客户端 Atlas 上传、service-role 媒体签名、`pg_net` 唤醒与 Cron 兜底。
+3. 生成至少 32 字节随机 `PACKING_FUNCTION_SECRET`。将相同值分别写入 Supabase Function Secret 和 Vault 的 `packing_function_secret`，不要出现在命令参数、文档或日志中。
+4. 在 Vault 新增 `packing_function_url`，值为当前项目的完整函数 URL：`https://<project-ref>.supabase.co/functions/v1/packing-worker`。
+5. 在 Function Secrets 注入 `QWEN_API_KEY`，并设置 `QWEN_OPENAI_BASE_URL`、`QWEN_VL_MODEL=qwen3-vl-plus-2025-12-19`。`SUPABASE_URL` 和 `SUPABASE_SERVICE_ROLE_KEY` 由托管运行时提供。
+6. 检查项目原有 Vault 中四项 R2 凭据仍有效；Edge Function 不持有这些长期凭据，只通过 RPC 获取短效 URL。
+7. 类型检查并发布：
 
 ```bash
 npm run typecheck:worker
 npm run test:worker
 npm run build:worker
-npm run deploy --workspace=@nomo/packing-worker
+supabase functions deploy packing-worker --no-verify-jwt
 ```
 
-6. 确认 Cloudflare 中存在每分钟 Cron Trigger、`PACKING_MEDIA` R2 binding 和 `IMAGES` binding，并访问 `/health` 验证返回 `runtime: cloudflare-workers`。
-7. 本地 Images binding 不完整支持 Atlas 使用的多图 `draw`；使用 `npm run dev --workspace=@nomo/packing-worker -- --remote` 连接隔离的 `nomo-dev` Bucket 做远程冒烟测试。
-8. 使用 3 张无敏感内容的测试照片验证：连续上传 → 完成会话 → Cron 认领 → Atlas → AI 清单 → 原图高亮 → 转正式物品。
-9. 删除测试会话，确认原图、规范图、Atlas 和未晋升裁剪图进入清理队列，晋升后的正式物品图片仍可访问。
-10. 达到权威设计文档第 20 节门槛前，只在内部或受控灰度环境启用入口。
+8. 确认 `packing_sessions_wake_edge_function` Trigger 和 `invoke-packing-edge-function` Cron 已存在；访问函数 `/health` 验证返回 `runtime: supabase-edge-function`。
+9. 使用 3 张无敏感内容的测试照片验证：连续上传 → 浏览器 Atlas → 完成会话 → Trigger 唤醒 → AI 清单 → 原图高亮 → 转正式物品。
+10. 再使用至少一个 50 张会话验证移动浏览器内存、Atlas 耗时以及 Edge Function CPU/内存日志。
+11. 删除测试会话，确认原图、Atlas 和未晋升裁剪图进入清理队列，晋升后的正式物品图片仍可访问。
+12. 达到权威设计文档第 20 节门槛前，只在内部或受控灰度环境启用入口。
 
 ## Cloudflare R2
 

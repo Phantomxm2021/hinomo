@@ -18,7 +18,7 @@ npm run dev
 
 数据库迁移位于 `supabase/migrations/`。本项目约定迁移由管理员审核后手动执行；应用和测试不会自动连接、创建或重置数据库。
 
-AI 装箱的异步图片处理与 Qwen 推理由 `apps/packing-worker` 承载。它直接部署为 Cloudflare Worker，以 Cron 认领 Postgres 任务，使用原生 R2/Images binding 处理媒体，并用官方 `openai` SDK 连接 Qwen OpenAI 兼容端点；不使用 Container、`sharp` 或 R2 S3 access key。开发和发布步骤见部署 Runbook，服务端密钥不得使用 `VITE_` 前缀。
+AI 装箱由浏览器在结束装箱前生成并上传固定网格 Atlas，随后由 `supabase/functions/packing-worker` 异步调用 Qwen、定位原图并通过 `magick-wasm` 生成单项裁剪。Postgres Trigger/`pg_net` 负责即时唤醒 Edge Function，Supabase Cron 负责漏通知恢复；Cloudflare 只继续提供现有私有 R2 存储，不运行 Packing 计算服务。开发和发布步骤见部署 Runbook，服务端密钥不得使用 `VITE_` 前缀。
 
 ## 验证
 

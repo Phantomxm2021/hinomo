@@ -7,7 +7,7 @@
 Nomo 新增“AI 装箱”能力。用户扫描或打开箱子后开始一次装箱会话，每放入一批物品只拍一张照片，不填写名称、分类、数量或备注。用户点击“装箱完成”后，后台异步处理全部照片：
 
 1. 保存并校验原始照片；
-2. 按拍摄顺序生成固定网格的故事板 Atlas；
+2. 用户结束装箱时，浏览器按拍摄顺序生成固定网格 Atlas 并持久化上传；
 3. 使用 `qwen3-vl-plus` 分组分析照片变化；
 4. 跨 Atlas 追踪物理实例、合并同一实例并聚合同类物品；
 5. 为每个最终清单项回到高清原图完成定位和单项裁剪；
@@ -97,7 +97,7 @@ Nomo 新增“AI 装箱”能力。用户扫描或打开箱子后开始一次装
 
 1. 客户端等待本地照片全部确认上传；
 2. 调用完成会话 RPC；
-3. 服务端冻结照片顺序并创建分析任务；
+3. 客户端生成并确认上传全部 Atlas，服务端随后冻结照片顺序并创建分析任务；
 4. 页面显示“正在生成清单，可先离开”；
 5. 用户可以关闭页面，稍后从箱子详情查看进度和结果。
 
@@ -123,41 +123,41 @@ AI 项目和正式物品在箱子详情中使用同一套清单行视觉结构�
 
 ## 5. 总体架构
 
-现有架构是 React PWA + Supabase + 私有 Cloudflare R2，生产前端为静态部署。Atlas 合成、图片预处理和长时间模型调用不应在浏览器或同步数据库 RPC 内执行，因此新增独立的 Cloudflare Worker。该服务直接运行在 Workers isolate 中，不使用 Cloudflare Containers，也不运行常驻 Node 进程。
+现有架构是 React PWA + Supabase + 私有 Cloudflare R2，生产前端为静态部署。Atlas 合成属于结束装箱前的一次确定性客户端操作；耗时模型调用、原图定位、裁剪、重试和发布由 Supabase Edge Function 异步执行，不放入同步数据库事务。Cloudflare 仅保留既有的私有 R2 对象存储，不承载 Packing 计算服务。
 
 ```text
 React PWA
-  │  创建会话、获取签名 URL、上传照片
+  │  创建会话、上传原图、生成并上传 Atlas、完成会话
   ▼
 Supabase Postgres / RPC
   │  保存元数据、RLS、任务状态、SKIP LOCKED 认领任务
+  │  Trigger + pg_net 即时唤醒，Cron 每分钟兜底
   ▼
-Cloudflare Packing Worker（Cron Trigger，每分钟）
-  ├── 通过 R2 binding 从私有 Bucket 读取原图
-  ├── 使用 Images binding 规范化、合成 Atlas 和裁剪
+Supabase Edge Function（packing-worker）
+  ├── 通过 service-role RPC 获取私有 R2 短效签名 URL
   ├── 调用 Qwen3-VL-Plus
   ├── 追踪物理实例并合并结构化结果
-  ├── 回到原图定位、裁剪并验证单项图片
+  ├── 回到原图定位，使用 magick-wasm 裁剪并验证单项图片
   └── 写回检测清单和处理状态
   │
-  ├── Cloudflare R2：原图、规范图、Atlas、单项裁剪图
+  ├── Cloudflare R2：客户端压缩原图、Atlas、单项裁剪图
   └── Qwen OpenAI 兼容端点：视觉推理
 ```
 
-`apps/packing-worker` 采用以下部署边界：
+`supabase/functions/packing-worker` 采用以下部署边界：
 
-- Cloudflare Workers isolate，启用 `nodejs_compat` 仅兼容官方 `openai` SDK 等依赖，不依赖 Node 原生扩展；
-- Cloudflare Images binding 负责方向处理、缩放、留白、Atlas 多图叠加、物品裁剪和 WebP 输出；不得引入 `sharp`；
-- Cloudflare R2 binding 直接读写私有 Bucket，不向 Worker 注入 S3 access key；
-- Supabase service role 仅存在于 Cloudflare Worker secret；
-- Worker 使用官方 `openai` Node.js SDK 的 `OpenAI({ apiKey, baseURL })` 连接 Qwen 的 OpenAI 兼容端点，不手写 HTTP 请求，也不引入厂商专有 SDK；
-- `QWEN_API_KEY` 仅存在于 Cloudflare Worker secret；
+- Supabase Edge Runtime（Deno 2），依赖使用函数级 `deno.json` 固定版本；
+- 浏览器 Canvas 负责 Atlas 多图合成；Edge Function 不重复合成 Atlas；
+- `magick-wasm` 每次只处理一张已选中的原图裁剪，不引入 `sharp`/libvips；
+- Supabase service role 与 Qwen key 仅存在于 Edge Function secret；
+- R2 凭据仍只保存在 Supabase Vault，Edge Function 通过仅授予 service role 的 RPC 获取 10 分钟短效 GET/PUT URL；
+- Edge Function 使用官方 `openai` SDK 的 `OpenAI({ apiKey, baseURL })` 连接 Qwen 的 OpenAI 兼容端点，不手写 HTTP 请求，也不引入厂商专有 SDK；
+- `QWEN_API_KEY` 仅存在于 Supabase Edge Function secret；
 - 不创建任何 `VITE_` 前缀的服务端秘密；
-- 前端静态 Worker 与 Packing Worker 分开发布，Packing Worker 不暴露任务执行接口，只提供无敏感信息的 `/health`；
-- `wrangler.jsonc` 配置每分钟 Cron、R2/Images binding、5 分钟 CPU 上限和可观测性。
-- 规范化任务每次最多处理 10 张照片，Atlas 任务每次只生成一张 Atlas；100 张上限不会被塞入单次 Worker 调用。
+- Edge Function 关闭平台 JWT 校验，但所有执行请求必须携带独立 `PACKING_FUNCTION_SECRET`；健康检查不执行任务；
+- 完成会话状态 Trigger 通过 `pg_net` 异步即时唤醒函数，Supabase Cron 每分钟再次唤醒作为兜底。
 
-任务队列第一期继续使用 Postgres 表加 `for update skip locked` 的认领 RPC。Cron 每分钟唤醒 Worker，每次默认只认领一个阶段任务；空队列不会产生常驻轮询。任务 lease 为 900 秒，与 Cron 调用的最长墙钟窗口一致，允许 Cron 重叠运行且不会在正常执行期间重复认领同一任务。吞吐量增长后可增加 Cloudflare Queues 作为唤醒与削峰层，但 Postgres 始终是任务和业务状态的唯一最终来源。
+任务队列继续使用 Postgres 表加 `for update skip locked` 的认领 RPC。每次 Edge Function 调用只认领一个任务，lease 为 390 秒，低于托管 Edge Function 400 秒墙钟上限。完成 RPC 与重新分析 RPC 原有的 `normalize` 起始任务由数据库 Trigger 原子转换为逐 Atlas `observe` 任务。Postgres 始终是任务和业务状态的唯一最终来源。
 
 ## 6. 媒体上传与存储
 
@@ -177,19 +177,18 @@ Cloudflare Packing Worker（Cron Trigger，每分钟）
 
 ```text
 users/{owner_id}/boxes/{box_id}/packing/{session_id}/original/{photo_id}.webp
-users/{owner_id}/boxes/{box_id}/packing/{session_id}/normalized/{photo_id}.webp
 users/{owner_id}/boxes/{box_id}/packing/{session_id}/atlas/{atlas_no}.webp
 users/{owner_id}/boxes/{box_id}/packing/{session_id}/items/{detected_item_id}.webp
 ```
 
-规范图、Atlas 和单项裁剪图都可以从原图重新生成，但第一期仍保留，方便局部重试和问题排查。删除会话或箱子时，将未被正式物品引用的关联对象加入现有异步媒体清理机制。已经提升为正式物品的图片必须先复制到独立的正式物品路径，不能继续依赖会话目录。
+Atlas 和单项裁剪图都可以从客户端压缩原图重新生成，但第一期仍保留，方便重试和问题排查。删除会话或箱子时，将未被正式物品引用的关联对象加入现有异步媒体清理机制。已经提升为正式物品的图片必须先复制到独立的正式物品路径，不能继续依赖会话目录。
 
 ### 6.3 客户端压缩
 
 - 自动修正方向；
 - 最长边默认 2560 px；
 - 优先 WebP，质量 85～90；
-- 单张硬限制 8 MB，低于模型 URL 输入的 10 MB 限制；
+- 单张硬限制 4.5 MB，给后台转为 Base64 data URL 后的体积膨胀留出余量；
 - 不覆盖本地待上传文件，确认上传前保留 IndexedDB 副本；
 - 使用 `session_id + sequence_no` 保证重试幂等。
 
@@ -237,16 +236,16 @@ Atlas 不用于：
 
 ## 8. 图片预处理
 
-Worker 对每张照片执行确定性处理，并记录参数和版本：
+浏览器在拍照时对每张照片执行确定性处理，并记录服务端元数据：
 
 1. 解码和 EXIF 方向修正；
 2. 限制最大尺寸，避免无意义超高分辨率；
-3. 生成保留原始构图的规范图；
+3. 生成保留原始构图的 WebP 上传原图；
 4. 记录宽高、字节数和 SHA-256；
 5. 仅以相同 SHA-256 标记字节或规范化结果完全重复；
 6. 生成 Atlas 单元格。
 
-浏览器可在拍摄时计算近乎全黑和严重失焦等非阻塞质量提示。第一期 Worker 不为获取像素统计而引入原生图像库或自维护 WASM 解码器；Images binding 无法直接提供亮度、清晰度和感知哈希时，这些指标不作为服务端阻塞条件。若真实评测证明必要，再单独评估 Worker 兼容的 WASM 方案。
+浏览器可在拍摄时计算近乎全黑和严重失焦等非阻塞质量提示。第一期 Edge Function 不重复规范化整套照片，也不为像素统计消耗有限 CPU；这些指标不作为服务端阻塞条件。客户端生成 Atlas 时重新下载已确认的原图，避免依赖已删除的 IndexedDB 临时副本。
 
 只能自动忽略字节完全相同或可以证明为同一连拍副本的照片。不得仅因 SSIM、感知哈希或全图 embedding 相似而删除照片，因为一件随后被覆盖的小物品可能只在某一张高相似照片中出现。
 
@@ -315,7 +314,7 @@ qwen3-vl-plus-2025-12-19
 1. 从实例证据中选择清晰度高、可见面积大、遮挡少的最佳照片；
 2. 将最佳照片和目标实例描述发送给模型；
 3. 获取归一化 `bbox`，并验证坐标合法且目标确实位于框内；
-4. 使用 Cloudflare Images binding 的 `trim` 与缩放能力按原图比例裁剪，并在目标框四周增加 10%～18% 上下文边距；
+4. 使用 Edge Function 中的 `magick-wasm` 按原图比例裁剪，并在目标框四周增加 10%～18% 上下文边距；
 5. 输出独立 WebP 单项图片；
 6. 对裁剪结果执行一次低成本视觉验证，确认主体没有被截断或定位到错误对象；
 7. 验证失败时尝试下一张证据照片，最多尝试 3 张。
@@ -336,7 +335,7 @@ qwen3-vl-plus-2025-12-19
 }
 ```
 
-`bbox` 固定为 `[x_min, y_min, x_max, y_max]`，所有值归一化到 `0～1`。业务代码必须检查坐标顺序、面积下限、边界和长宽比；非法坐标不能进入 Images binding。
+`bbox` 固定为 `[x_min, y_min, x_max, y_max]`，所有值归一化到 `0～1`。业务代码必须检查坐标顺序、面积下限、边界和长宽比；非法坐标不能进入 `magick-wasm`。
 
 如果三张证据照片都无法生成可靠裁剪，项目进入 `needs_review`，展示明确占位图和最佳原图入口，不得用无关区域充当物品图片。达到 `ready` 的清晰识别项目必须拥有有效裁剪图。
 
@@ -350,8 +349,8 @@ qwen3-vl-plus-2025-12-19
 - 已成功的 Atlas 结果不因其他分组失败而丢弃；
 - 单个物品定位或裁剪失败只重试该物品，不重新执行整个会话；
 - 用户可以对失败会话点击“重新分析”。
-- Cron 触发器中断或超过平台时限时不确认任务完成；lease 到期后由下一次触发安全回收。
-- 单个阶段必须控制在 Workers 的 15 分钟墙钟时间和配置的 5 分钟 CPU 时间内；默认批量为 1，不在一次触发中串行处理整个会话的所有阶段。
+- Edge Function 中断或超过平台时限时不确认任务完成；390 秒 lease 到期后由下一次触发安全回收。
+- 单个任务必须控制在 Supabase Edge Function 的 400 秒墙钟、2 秒 CPU 和 256 MB 内存限制内；默认批量为 1，Atlas 观察最多回查一张原图，单项定位每次只处理一张代表原图。
 
 ## 10. 输出 Schema
 
@@ -439,7 +438,7 @@ qwen3-vl-plus-2025-12-19
 | `session_id` | 装箱会话 |
 | `sequence_no` | 从 1 开始，单会话唯一 |
 | `object_key` | 原图 R2 key |
-| `normalized_object_key` | 规范图 R2 key |
+| `normalized_object_key` | 兼容旧 Worker 的保留字段；Supabase Runtime 路径保持为空 |
 | `mime_type / size_bytes / width / height` | 媒体元数据 |
 | `sha256 / perceptual_hash` | 幂等和质量辅助 |
 | `quality_flags` | 模糊、过暗、过曝、反光等标记 |
@@ -583,11 +582,11 @@ qwen3-vl-plus-2025-12-19
 - 所有会话、照片、Atlas、任务和检测项启用 RLS。
 - 浏览器只能访问当前账号拥有的箱子会话。
 - 任务表不向普通 authenticated 客户端开放写权限；只能通过受控 RPC 创建或查询状态。
-- Worker 的 Supabase service role 和 Qwen key 只存于 Cloudflare secret；R2 访问只通过部署配置中的目标 Bucket binding 授权，不注入可导出的 R2 Token。
-- Worker 从 R2 binding 读取派生 WebP 后，以 `data:` URL 放入 OpenAI 兼容请求；进入模型前将二进制限制在 7 MB，给 Base64 膨胀和端点 10 MB 级输入限制留出余量，不生成或记录可访问原图的签名 URL。
+- Edge Function 的 Supabase service role、Qwen key 和唤醒密钥只存于 Supabase Function Secrets；R2 长期凭据继续只存于 Vault。
+- Edge Function 使用 service-role-only RPC 获取短效 R2 URL并读取 WebP，再以 `data:` URL放入 OpenAI 兼容请求；Atlas 二进制限制在 7 MB，单张原图客户端压缩到 4.5 MB，给 Base64 膨胀留出余量。
 - 不在模型提示词、日志或错误信息中包含用户 ID、签名查询参数和密钥。
 - 记录模型供应区域、数据处理条款和保留策略，生产上线前完成隐私评审。
-- 用户删除会话时同时删除 AI 结果并异步清理原图、规范图、Atlas 和未提升的单项裁剪图。
+- 用户删除会话时同时删除 AI 结果并异步清理原图、Atlas 和未提升的单项裁剪图。
 - 已提升为正式物品的图片位于独立路径，不随装箱会话删除。
 - 原图默认保留作为证据；后续可以提供“只保留清单，删除装箱照片”的明确选项。
 
@@ -609,7 +608,7 @@ capturing / uploading ──→ canceled
 
 - `complete_packing_session` 使用行锁，冻结照片数和顺序，只能成功一次。
 - 只有所有已声明照片都为 confirmed 才能进入 `queued`。
-- Worker 使用有期限的 lease 认领任务，崩溃后任务可自动回收。
+- Edge Function 使用有期限的 lease 认领任务，崩溃后任务可自动回收。
 - 每个处理产物由输入指纹和版本决定，相同输入重复执行只能覆盖同一逻辑产物。
 - 实例追踪、清单汇总、定位裁剪全部完成后，再在一个数据库事务中发布新 revision 的检测项。
 - 重新分析创建新 analysis revision；新结果完整成功前，用户继续看到上一版结果。
@@ -683,7 +682,7 @@ capturing / uploading ──→ canceled
 - 转正式物品事务不会产生重复项目。
 - 删除装箱会话不会删除已提升正式物品的独立图片。
 
-### 18.3 Cloudflare Worker 测试
+### 18.3 Supabase Edge Function 测试
 
 - EXIF 方向、横竖图和不同宽高比不被裁剪。
 - 1～16 张生成正确网格；17、32、50、100 张正确分组。
@@ -693,12 +692,12 @@ capturing / uploading ──→ canceled
 - 模型无效 JSON、429、5xx 和超时均按规则处理。
 - 回查只发送目标原图，不意外发送整个会话。
 - 同一实例跨图持续出现不会增加数量，新增相同实例会增加数量。
-- 定位框坐标经过边界、面积、顺序和长宽比校验后才进入 Images binding。
+- 定位框坐标经过边界、面积、顺序和长宽比校验后才进入 `magick-wasm`。
 - 单项裁剪包含规定上下文边距，不截断主体且不会越过原图边界。
 - 单个裁剪失败可以切换证据照片并局部重试。
 - 会话删除会清理未提升裁剪图，正式物品图片继续可访问。
-- Wrangler dry-run 构建通过，Cron handler、R2 binding 和 Images binding 类型一致。
-- 由于本地 Images binding 的低保真实现不支持 `draw`，Atlas 合成必须在 `wrangler dev --remote` 的隔离 Bucket 中做远程冒烟测试。
+- Deno check、Schema 单元测试和 Supabase Edge Runtime 本地启动通过。
+- Atlas Canvas 生成覆盖横竖图、最后一组最小网格、7 MB 限制和标签映射；真实移动浏览器至少完成一次 50 张冒烟测试。
 
 ### 18.4 前端测试
 
@@ -733,12 +732,12 @@ capturing / uploading ──→ canceled
 
 退出条件：弱网、刷新和重复请求不会丢失、打乱或重复照片。
 
-### 阶段 2：Cloudflare Atlas Worker
+### 阶段 2：客户端 Atlas 与 Supabase Runtime
 
-- 新增 `apps/packing-worker`。
+- 新增客户端 Atlas 生成器和 `supabase/functions/packing-worker`。
 - 实现任务认领、lease、退避和幂等。
-- 使用原生 R2 binding 和 Cloudflare Images binding 生成规范图及 4 × 4 Atlas。
-- 使用 Cron Trigger 认领 Postgres 任务，每次默认执行一个阶段任务，不使用 Container 或常驻轮询。
+- 浏览器在完成会话前使用 Canvas 生成并上传 4 × 4 Atlas。
+- 使用 Database Trigger/`pg_net` 即时唤醒 Edge Function，并使用 Supabase Cron 兜底。
 - 实现接收已校验 bbox 的确定性裁剪基础能力和单项图片对象路径。
 - 实现 R2 派生对象清理。
 - 建立 Atlas 可视化调试页，仅开发和测试环境使用。
@@ -824,7 +823,9 @@ capturing / uploading ──→ canceled
 - [千问结构化输出](https://help.aliyun.com/zh/model-studio/qwen-structured-output)
 - [OpenAI 兼容接口](https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions)
 - [OpenAI 官方 Node.js SDK](https://github.com/openai/openai-node)
-- [Cloudflare Workers Node.js 兼容性](https://developers.cloudflare.com/workers/runtime-apis/nodejs/)
-- [Cloudflare Images binding](https://developers.cloudflare.com/images/optimization/binding/)
-- [Cloudflare R2 Workers API](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/)
-- [Cloudflare Workers 平台限制](https://developers.cloudflare.com/workers/platform/limits/)
+- [Supabase Edge Functions](https://supabase.com/docs/guides/functions)
+- [Supabase Edge Functions 限制](https://supabase.com/docs/guides/functions/limits)
+- [Supabase Edge Functions 后台任务](https://supabase.com/docs/guides/functions/background-tasks)
+- [Supabase Edge Functions 图像处理](https://supabase.com/docs/guides/functions/examples/image-manipulation)
+- [Supabase Database Webhooks / pg_net](https://supabase.com/docs/guides/database/webhooks)
+- [Supabase 调度 Edge Functions](https://supabase.com/docs/guides/functions/schedule-functions)

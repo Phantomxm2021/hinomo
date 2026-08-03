@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "@imagemagick/magick-wasm": "npm:@imagemagick/magick-wasm@0.0.41",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.111.0",
+    "openai": "npm:openai@7.3.0",
+    "zod": "npm:zod@3.25.76"
+  },
+  "compilerOptions": {
+    "strict": true
+  }
+}

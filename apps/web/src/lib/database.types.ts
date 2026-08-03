@@ -419,12 +419,14 @@ export type Database = {
           first_sequence_no: number
           height: number
           id: string
+          confirmed_at: string | null
           last_sequence_no: number
           layout_version: string
           object_key: string
           session_id: string
           sha256: string
           size_bytes: number
+          upload_status: string
           width: number
         }
         Insert: {
@@ -665,6 +667,10 @@ export type Database = {
         Args: { p_photo_id: string }
         Returns: undefined
       }
+      confirm_packing_atlas_upload: {
+        Args: { p_atlas_id: string }
+        Returns: undefined
+      }
       create_packing_media_download: {
         Args: { p_object_key: string }
         Returns: { download_url: string; expires_at: string }[]
@@ -672,6 +678,19 @@ export type Database = {
       create_packing_photo_upload: {
         Args: { p_mime_type: string; p_sequence_no: number; p_session_id: string; p_size_bytes: number }
         Returns: { object_key: string; photo_id: string; upload_url: string }[]
+      }
+      create_packing_atlas_upload: {
+        Args: {
+          p_atlas_no: number
+          p_first_sequence_no: number
+          p_height: number
+          p_last_sequence_no: number
+          p_session_id: string
+          p_sha256: string
+          p_size_bytes: number
+          p_width: number
+        }
+        Returns: { atlas_id: string; object_key: string; upload_url: string }[]
       }
       create_packing_session: {
         Args: { p_box_id: string }

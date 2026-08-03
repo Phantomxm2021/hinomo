@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => ({
   getOrCreateSession: vi.fn(),
   listPhotos: vi.fn(),
   uploadPhoto: vi.fn(),
+  uploadAtlas: vi.fn(),
+  downloadPhoto: vi.fn(),
+  buildAtlases: vi.fn(),
   completeSession: vi.fn(),
   saveDraft: vi.fn(),
   listDrafts: vi.fn(),
@@ -22,8 +25,11 @@ vi.mock('./packing.api', () => ({
   getOrCreatePackingSession: mocks.getOrCreateSession,
   listPackingPhotos: mocks.listPhotos,
   uploadPackingPhoto: mocks.uploadPhoto,
+  uploadPackingAtlas: mocks.uploadAtlas,
+  downloadPackingPhoto: mocks.downloadPhoto,
   completePackingSession: mocks.completeSession,
 }))
+vi.mock('./packing-atlas', () => ({ buildClientPackingAtlases: mocks.buildAtlases }))
 vi.mock('./packing-storage', () => ({
   savePackingDraft: mocks.saveDraft,
   listPackingDrafts: mocks.listDrafts,
@@ -65,6 +71,12 @@ beforeEach(() => {
   mocks.saveDraft.mockResolvedValue(undefined)
   mocks.deleteDraft.mockResolvedValue(undefined)
   mocks.uploadPhoto.mockResolvedValue(undefined)
+  mocks.uploadAtlas.mockResolvedValue(undefined)
+  mocks.downloadPhoto.mockResolvedValue(new Blob(['photo'], { type: 'image/webp' }))
+  mocks.buildAtlases.mockResolvedValue([{
+    atlasNo: 1, firstSequenceNo: 1, lastSequenceNo: 1, width: 512, height: 552,
+    sha256: 'a'.repeat(64), blob: new Blob(['atlas'], { type: 'image/webp' }),
+  }])
   mocks.completeSession.mockResolvedValue({ ...session, status: 'queued', photo_count: 1 })
   mocks.compress.mockImplementation(async (file: File) => new File([file], 'packing.webp', { type: 'image/webp' }))
 })
