@@ -18,7 +18,7 @@ npm run dev
 
 数据库迁移位于 `supabase/migrations/`。本项目约定迁移由管理员审核后手动执行；应用和测试不会自动连接、创建或重置数据库。
 
-AI 装箱的异步图片处理与 Qwen 推理由 `apps/packing-worker` 承载。复制该目录的 `.env.example`、注入 Supabase service role、私有 R2 Token 与 DashScope Key 后，可用 `npm run dev --workspace=@nomo/packing-worker` 启动；生产部署见 Docker Runbook。服务端密钥不得使用 `VITE_` 前缀。
+AI 装箱的异步图片处理与 Qwen 推理由 `apps/packing-worker` 承载。Worker 使用官方 `openai` Node.js SDK 连接 Qwen OpenAI 兼容端点。复制该目录的 `.env.example`、注入 Supabase service role、私有 R2 Token、`QWEN_API_KEY` 与 `QWEN_OPENAI_BASE_URL` 后，可用 `npm run dev --workspace=@nomo/packing-worker` 启动；生产部署见 Docker Runbook。服务端密钥不得使用 `VITE_` 前缀。
 
 ## 验证
 

@@ -141,7 +141,7 @@ Packing Worker（Node 22）
   └── 写回检测清单和处理状态
   │
   ├── Cloudflare R2：原图、规范图、Atlas、单项裁剪图
-  └── DashScope：视觉推理
+  └── Qwen OpenAI 兼容端点：视觉推理
 ```
 
 建议新增 `apps/packing-worker`：
@@ -149,7 +149,8 @@ Packing Worker（Node 22）
 - Node.js 22；
 - `sharp` 负责方向修正、缩放、留白、Atlas 合成、物品裁剪和基础质量统计；
 - Supabase service role 仅存在于 Worker 密钥环境；
-- R2 S3 凭据和 DashScope API Key 仅存在于 Worker 密钥环境；
+- Worker 使用官方 `openai` Node.js SDK 的 `OpenAI({ apiKey, baseURL })` 连接 Qwen 的 OpenAI 兼容端点，不手写 HTTP 请求，也不引入厂商专有 SDK；
+- R2 S3 凭据和 `QWEN_API_KEY` 仅存在于 Worker 密钥环境；
 - 不创建任何 `VITE_` 前缀的服务端秘密；
 - Docker 部署增加独立服务，Cloudflare 静态前端部署方式不变。
 
@@ -247,6 +248,8 @@ Worker 对每张照片执行确定性处理，并记录参数和版本：
 影像增强保持保守：允许轻度阴影提升、白平衡和锐化，不使用生成式补全，不修改物品形状，不消除反光后虚构纹理。
 
 ## 9. Qwen3-VL-Plus 推理编排
+
+传输层统一使用官方 `openai` Node.js SDK 的 Chat Completions 客户端。`QWEN_OPENAI_BASE_URL` 与 `QWEN_API_KEY` 由部署环境注入，因此推理编排不依赖 DashScope SDK；切换兼容供应端点时不改变业务 Schema、任务状态机或图片流水线。Qwen 的 `enable_thinking` 作为兼容端点扩展参数，通过 SDK request options 的额外 body 字段发送。SDK 自身重试关闭，由第 9.6 节任务队列统一控制总尝试次数和退避。
 
 ### 9.1 模型版本
 
@@ -810,3 +813,4 @@ capturing / uploading ──→ canceled
 - [视觉理解与多图输入](https://help.aliyun.com/zh/model-studio/vision)
 - [千问结构化输出](https://help.aliyun.com/zh/model-studio/qwen-structured-output)
 - [OpenAI 兼容接口](https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions)
+- [OpenAI 官方 Node.js SDK](https://github.com/openai/openai-node)

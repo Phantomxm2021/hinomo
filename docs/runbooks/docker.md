@@ -20,7 +20,7 @@ cp .env.docker.example .env
 
 这些是 Vite 的**构建时**变量，修改后必须重新构建镜像。
 
-启用 AI 装箱 Worker 时，还要从部署平台的秘密管理器注入 `SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`、`R2_ACCOUNT_ID`、`R2_BUCKET_NAME`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY` 和 `DASHSCOPE_API_KEY`。这些服务端秘密不得进入前端变量、镜像层或版本控制；本地 `.env` 只用于受控服务器且权限应限制为仅部署账号可读。
+启用 AI 装箱 Worker 时，还要从部署平台的秘密管理器注入 `SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`、`R2_ACCOUNT_ID`、`R2_BUCKET_NAME`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`、`QWEN_API_KEY` 和 `QWEN_OPENAI_BASE_URL`。Worker 通过官方 `openai` Node.js SDK 访问兼容端点。这些服务端秘密不得进入前端变量、镜像层或版本控制；本地 `.env` 只用于受控服务器且权限应限制为仅部署账号可读。
 
 ## 2. 构建并启动
 

@@ -1,3 +1,4 @@
+import OpenAI from 'openai'
 import { z } from 'zod'
 import type { WorkerConfig } from './config.js'
 import { PACKING_MODEL_SCHEMA_VERSION, PACKING_PROMPT_VERSION } from './types.js'
@@ -80,20 +81,28 @@ export const originalReviewSchema = z.object({
   review_reason: z.string().max(240).nullable(),
 })
 
-type ModelUsage = { prompt_tokens?: number; completion_tokens?: number }
-
-type QwenResponse = {
-  choices?: Array<{ message?: { content?: string } }>
-  usage?: ModelUsage
-  id?: string
-}
-
 export type QwenResult<T> = {
   data: T
   inputTokens: number
   outputTokens: number
   durationMs: number
   requestId: string | null
+}
+
+const compatibleClients = new WeakMap<WorkerConfig, OpenAI>()
+
+function getCompatibleClient(config: WorkerConfig): OpenAI {
+  const existing = compatibleClients.get(config)
+  if (existing) return existing
+  const client = new OpenAI({
+    apiKey: config.QWEN_API_KEY,
+    baseURL: config.QWEN_OPENAI_BASE_URL.replace(/\/$/, ''),
+    // Packing jobs own the five-attempt exponential backoff policy.
+    maxRetries: 0,
+    timeout: 120_000,
+  })
+  compatibleClients.set(config, client)
+  return client
 }
 
 async function callQwen<T>(input: {
@@ -103,7 +112,7 @@ async function callQwen<T>(input: {
   image?: Buffer
   schema: z.ZodType<T>
 }): Promise<QwenResult<T>> {
-  const content: Array<Record<string, unknown>> = []
+  const content: OpenAI.Chat.Completions.ChatCompletionContentPart[] = []
   if (input.image) {
     content.push({
       type: 'image_url',
@@ -112,24 +121,29 @@ async function callQwen<T>(input: {
   }
   content.push({ type: 'text', text: input.text })
   const started = Date.now()
-  const response = await fetch(`${input.config.DASHSCOPE_BASE_URL.replace(/\/$/, '')}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${input.config.DASHSCOPE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
+  let raw: OpenAI.Chat.Completions.ChatCompletion
+  let requestId: string | null = null
+  try {
+    const response = await getCompatibleClient(input.config).chat.completions.create({
       model: input.config.QWEN_VL_MODEL,
       messages: [
         { role: 'system', content: input.system },
         { role: 'user', content },
       ],
       response_format: { type: 'json_object' },
-      enable_thinking: false,
-    }),
-  })
-  if (!response.ok) throw new Error(`qwen_http_${response.status}`)
-  const raw = await response.json() as QwenResponse
+    }, {
+      // Qwen's OpenAI-compatible endpoint accepts this vendor extension at
+      // the request-body top level; the SDK keeps transport and errors typed.
+      body: { enable_thinking: false },
+    }).withResponse()
+    raw = response.data
+    requestId = response.request_id
+  } catch (error) {
+    if (error instanceof OpenAI.APIConnectionTimeoutError) throw new Error('qwen_timeout')
+    if (error instanceof OpenAI.APIError) throw new Error(`qwen_http_${error.status ?? 'unknown'}`)
+    if (error instanceof OpenAI.APIConnectionError) throw new Error('qwen_connection_error')
+    throw error
+  }
   const modelContent = raw.choices?.[0]?.message?.content
   if (!modelContent) throw new Error('qwen_response_empty')
   let parsed: unknown
@@ -143,7 +157,7 @@ async function callQwen<T>(input: {
     inputTokens: raw.usage?.prompt_tokens ?? 0,
     outputTokens: raw.usage?.completion_tokens ?? 0,
     durationMs: Date.now() - started,
-    requestId: raw.id ?? null,
+    requestId: requestId ?? raw.id ?? null,
   }
 }
 
