@@ -17,9 +17,8 @@ import { observeAtlas } from './qwen.js'
 
 const config = {
   SUPABASE_URL: 'https://project.example.com', SUPABASE_SERVICE_ROLE_KEY: 'service-role',
-  R2_ACCOUNT_ID: 'account', R2_BUCKET_NAME: 'bucket', R2_ACCESS_KEY_ID: 'access', R2_SECRET_ACCESS_KEY: 'secret',
   QWEN_API_KEY: 'qwen-key', QWEN_OPENAI_BASE_URL: 'https://qwen-compatible.example.com/v1/',
-  QWEN_VL_MODEL: 'qwen3-vl-plus-2025-12-19', PACKING_WORKER_POLL_MS: 3000, PACKING_WORKER_BATCH_SIZE: 2,
+  QWEN_VL_MODEL: 'qwen3-vl-plus-2025-12-19', PACKING_WORKER_BATCH_SIZE: 1,
 } satisfies WorkerConfig
 
 beforeEach(() => {

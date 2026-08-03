@@ -18,9 +18,7 @@ cp .env.docker.example .env
 - `VITE_SUPABASE_ANON_KEY`：生产 anon key；不得使用 service role key。
 - `VITE_PUBLIC_APP_ORIGIN`：用户实际访问的 HTTPS Origin，例如 `https://nomo.example.com`。
 
-这些是 Vite 的**构建时**变量，修改后必须重新构建镜像。
-
-启用 AI 装箱 Worker 时，还要从部署平台的秘密管理器注入 `SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`、`R2_ACCOUNT_ID`、`R2_BUCKET_NAME`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`、`QWEN_API_KEY` 和 `QWEN_OPENAI_BASE_URL`。Worker 通过官方 `openai` Node.js SDK 访问兼容端点。这些服务端秘密不得进入前端变量、镜像层或版本控制；本地 `.env` 只用于受控服务器且权限应限制为仅部署账号可读。
+这些是 Vite 的**构建时**变量，修改后必须重新构建镜像。AI 装箱后台不包含在 Docker Compose 中，而是独立部署为 Cloudflare Worker；配置见 [部署 Runbook](deployment.md)。
 
 ## 2. 构建并启动
 
@@ -28,13 +26,6 @@ cp .env.docker.example .env
 docker compose build --pull
 docker compose up -d
 docker compose ps
-```
-
-AI 装箱 Worker 使用可选 Compose profile，数据库迁移完成且秘密已注入后再启动：
-
-```bash
-docker compose --profile packing up -d --build
-docker compose logs --tail=100 nomo-packing-worker
 ```
 
 首次验证：

@@ -123,18 +123,18 @@ AI 项目和正式物品在箱子详情中使用同一套清单行视觉结构�
 
 ## 5. 总体架构
 
-现有架构是 React PWA + Supabase + 私有 Cloudflare R2，生产前端为静态部署。Atlas 合成、图片预处理和长时间模型调用不应在浏览器或同步数据库 RPC 内执行，因此新增独立异步 Worker。
+现有架构是 React PWA + Supabase + 私有 Cloudflare R2，生产前端为静态部署。Atlas 合成、图片预处理和长时间模型调用不应在浏览器或同步数据库 RPC 内执行，因此新增独立的 Cloudflare Worker。该服务直接运行在 Workers isolate 中，不使用 Cloudflare Containers，也不运行常驻 Node 进程。
 
 ```text
 React PWA
   │  创建会话、获取签名 URL、上传照片
   ▼
 Supabase Postgres / RPC
-  │  保存元数据、RLS、任务状态、认领任务
+  │  保存元数据、RLS、任务状态、SKIP LOCKED 认领任务
   ▼
-Packing Worker（Node 22）
-  ├── 从私有 R2 读取原图
-  ├── 使用 Sharp 规范化并生成 Atlas
+Cloudflare Packing Worker（Cron Trigger，每分钟）
+  ├── 通过 R2 binding 从私有 Bucket 读取原图
+  ├── 使用 Images binding 规范化、合成 Atlas 和裁剪
   ├── 调用 Qwen3-VL-Plus
   ├── 追踪物理实例并合并结构化结果
   ├── 回到原图定位、裁剪并验证单项图片
@@ -144,17 +144,20 @@ Packing Worker（Node 22）
   └── Qwen OpenAI 兼容端点：视觉推理
 ```
 
-建议新增 `apps/packing-worker`：
+`apps/packing-worker` 采用以下部署边界：
 
-- Node.js 22；
-- `sharp` 负责方向修正、缩放、留白、Atlas 合成、物品裁剪和基础质量统计；
-- Supabase service role 仅存在于 Worker 密钥环境；
+- Cloudflare Workers isolate，启用 `nodejs_compat` 仅兼容官方 `openai` SDK 等依赖，不依赖 Node 原生扩展；
+- Cloudflare Images binding 负责方向处理、缩放、留白、Atlas 多图叠加、物品裁剪和 WebP 输出；不得引入 `sharp`；
+- Cloudflare R2 binding 直接读写私有 Bucket，不向 Worker 注入 S3 access key；
+- Supabase service role 仅存在于 Cloudflare Worker secret；
 - Worker 使用官方 `openai` Node.js SDK 的 `OpenAI({ apiKey, baseURL })` 连接 Qwen 的 OpenAI 兼容端点，不手写 HTTP 请求，也不引入厂商专有 SDK；
-- R2 S3 凭据和 `QWEN_API_KEY` 仅存在于 Worker 密钥环境；
+- `QWEN_API_KEY` 仅存在于 Cloudflare Worker secret；
 - 不创建任何 `VITE_` 前缀的服务端秘密；
-- Docker 部署增加独立服务，Cloudflare 静态前端部署方式不变。
+- 前端静态 Worker 与 Packing Worker 分开发布，Packing Worker 不暴露任务执行接口，只提供无敏感信息的 `/health`；
+- `wrangler.jsonc` 配置每分钟 Cron、R2/Images binding、5 分钟 CPU 上限和可观测性。
+- 规范化任务每次最多处理 10 张照片，Atlas 任务每次只生成一张 Atlas；100 张上限不会被塞入单次 Worker 调用。
 
-任务队列第一期使用 Postgres 表加 `for update skip locked` 的认领 RPC，避免在 MVP 同时引入新的队列产品。吞吐量增长后可迁移至 Cloudflare Queues，数据库仍是最终状态来源。
+任务队列第一期继续使用 Postgres 表加 `for update skip locked` 的认领 RPC。Cron 每分钟唤醒 Worker，每次默认只认领一个阶段任务；空队列不会产生常驻轮询。任务 lease 为 900 秒，与 Cron 调用的最长墙钟窗口一致，允许 Cron 重叠运行且不会在正常执行期间重复认领同一任务。吞吐量增长后可增加 Cloudflare Queues 作为唤醒与削峰层，但 Postgres 始终是任务和业务状态的唯一最终来源。
 
 ## 6. 媒体上传与存储
 
@@ -239,9 +242,11 @@ Worker 对每张照片执行确定性处理，并记录参数和版本：
 1. 解码和 EXIF 方向修正；
 2. 限制最大尺寸，避免无意义超高分辨率；
 3. 生成保留原始构图的规范图；
-4. 计算亮度、清晰度、过曝比例和感知哈希；
-5. 标记完全重复或连拍重复；
+4. 记录宽高、字节数和 SHA-256；
+5. 仅以相同 SHA-256 标记字节或规范化结果完全重复；
 6. 生成 Atlas 单元格。
+
+浏览器可在拍摄时计算近乎全黑和严重失焦等非阻塞质量提示。第一期 Worker 不为获取像素统计而引入原生图像库或自维护 WASM 解码器；Images binding 无法直接提供亮度、清晰度和感知哈希时，这些指标不作为服务端阻塞条件。若真实评测证明必要，再单独评估 Worker 兼容的 WASM 方案。
 
 只能自动忽略字节完全相同或可以证明为同一连拍副本的照片。不得仅因 SSIM、感知哈希或全图 embedding 相似而删除照片，因为一件随后被覆盖的小物品可能只在某一张高相似照片中出现。
 
@@ -310,7 +315,7 @@ qwen3-vl-plus-2025-12-19
 1. 从实例证据中选择清晰度高、可见面积大、遮挡少的最佳照片；
 2. 将最佳照片和目标实例描述发送给模型；
 3. 获取归一化 `bbox`，并验证坐标合法且目标确实位于框内；
-4. 使用 Sharp 按原图尺寸裁剪，并在目标框四周增加 10%～18% 上下文边距；
+4. 使用 Cloudflare Images binding 的 `trim` 与缩放能力按原图比例裁剪，并在目标框四周增加 10%～18% 上下文边距；
 5. 输出独立 WebP 单项图片；
 6. 对裁剪结果执行一次低成本视觉验证，确认主体没有被截断或定位到错误对象；
 7. 验证失败时尝试下一张证据照片，最多尝试 3 张。
@@ -331,7 +336,7 @@ qwen3-vl-plus-2025-12-19
 }
 ```
 
-`bbox` 固定为 `[x_min, y_min, x_max, y_max]`，所有值归一化到 `0～1`。业务代码必须检查坐标顺序、面积下限、边界和长宽比；非法坐标不能进入 Sharp。
+`bbox` 固定为 `[x_min, y_min, x_max, y_max]`，所有值归一化到 `0～1`。业务代码必须检查坐标顺序、面积下限、边界和长宽比；非法坐标不能进入 Images binding。
 
 如果三张证据照片都无法生成可靠裁剪，项目进入 `needs_review`，展示明确占位图和最佳原图入口，不得用无关区域充当物品图片。达到 `ready` 的清晰识别项目必须拥有有效裁剪图。
 
@@ -345,6 +350,8 @@ qwen3-vl-plus-2025-12-19
 - 已成功的 Atlas 结果不因其他分组失败而丢弃；
 - 单个物品定位或裁剪失败只重试该物品，不重新执行整个会话；
 - 用户可以对失败会话点击“重新分析”。
+- Cron 触发器中断或超过平台时限时不确认任务完成；lease 到期后由下一次触发安全回收。
+- 单个阶段必须控制在 Workers 的 15 分钟墙钟时间和配置的 5 分钟 CPU 时间内；默认批量为 1，不在一次触发中串行处理整个会话的所有阶段。
 
 ## 10. 输出 Schema
 
@@ -576,8 +583,8 @@ qwen3-vl-plus-2025-12-19
 - 所有会话、照片、Atlas、任务和检测项启用 RLS。
 - 浏览器只能访问当前账号拥有的箱子会话。
 - 任务表不向普通 authenticated 客户端开放写权限；只能通过受控 RPC 创建或查询状态。
-- Worker 使用最小权限的 service role 和仅限目标 Bucket 的 R2 Token。
-- Qwen 请求使用短效签名 GET URL，过期时间只覆盖本次推理。
+- Worker 的 Supabase service role 和 Qwen key 只存于 Cloudflare secret；R2 访问只通过部署配置中的目标 Bucket binding 授权，不注入可导出的 R2 Token。
+- Worker 从 R2 binding 读取派生 WebP 后，以 `data:` URL 放入 OpenAI 兼容请求；进入模型前将二进制限制在 7 MB，给 Base64 膨胀和端点 10 MB 级输入限制留出余量，不生成或记录可访问原图的签名 URL。
 - 不在模型提示词、日志或错误信息中包含用户 ID、签名查询参数和密钥。
 - 记录模型供应区域、数据处理条款和保留策略，生产上线前完成隐私评审。
 - 用户删除会话时同时删除 AI 结果并异步清理原图、规范图、Atlas 和未提升的单项裁剪图。
@@ -676,7 +683,7 @@ capturing / uploading ──→ canceled
 - 转正式物品事务不会产生重复项目。
 - 删除装箱会话不会删除已提升正式物品的独立图片。
 
-### 18.3 Worker 测试
+### 18.3 Cloudflare Worker 测试
 
 - EXIF 方向、横竖图和不同宽高比不被裁剪。
 - 1～16 张生成正确网格；17、32、50、100 张正确分组。
@@ -686,10 +693,12 @@ capturing / uploading ──→ canceled
 - 模型无效 JSON、429、5xx 和超时均按规则处理。
 - 回查只发送目标原图，不意外发送整个会话。
 - 同一实例跨图持续出现不会增加数量，新增相同实例会增加数量。
-- 定位框坐标经过边界、面积、顺序和长宽比校验后才进入 Sharp。
+- 定位框坐标经过边界、面积、顺序和长宽比校验后才进入 Images binding。
 - 单项裁剪包含规定上下文边距，不截断主体且不会越过原图边界。
 - 单个裁剪失败可以切换证据照片并局部重试。
 - 会话删除会清理未提升裁剪图，正式物品图片继续可访问。
+- Wrangler dry-run 构建通过，Cron handler、R2 binding 和 Images binding 类型一致。
+- 由于本地 Images binding 的低保真实现不支持 `draw`，Atlas 合成必须在 `wrangler dev --remote` 的隔离 Bucket 中做远程冒烟测试。
 
 ### 18.4 前端测试
 
@@ -724,11 +733,12 @@ capturing / uploading ──→ canceled
 
 退出条件：弱网、刷新和重复请求不会丢失、打乱或重复照片。
 
-### 阶段 2：Atlas Worker
+### 阶段 2：Cloudflare Atlas Worker
 
 - 新增 `apps/packing-worker`。
 - 实现任务认领、lease、退避和幂等。
-- 使用 Sharp 生成规范图和 4 × 4 Atlas。
+- 使用原生 R2 binding 和 Cloudflare Images binding 生成规范图及 4 × 4 Atlas。
+- 使用 Cron Trigger 认领 Postgres 任务，每次默认执行一个阶段任务，不使用 Container 或常驻轮询。
 - 实现接收已校验 bbox 的确定性裁剪基础能力和单项图片对象路径。
 - 实现 R2 派生对象清理。
 - 建立 Atlas 可视化调试页，仅开发和测试环境使用。
@@ -814,3 +824,7 @@ capturing / uploading ──→ canceled
 - [千问结构化输出](https://help.aliyun.com/zh/model-studio/qwen-structured-output)
 - [OpenAI 兼容接口](https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions)
 - [OpenAI 官方 Node.js SDK](https://github.com/openai/openai-node)
+- [Cloudflare Workers Node.js 兼容性](https://developers.cloudflare.com/workers/runtime-apis/nodejs/)
+- [Cloudflare Images binding](https://developers.cloudflare.com/images/optimization/binding/)
+- [Cloudflare R2 Workers API](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/)
+- [Cloudflare Workers 平台限制](https://developers.cloudflare.com/workers/platform/limits/)

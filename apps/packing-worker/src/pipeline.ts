@@ -15,7 +15,7 @@ import {
   reviewOriginalObservation,
   validateItemCrop,
 } from './qwen.js'
-import { readR2Object, writeR2Object, type WorkerServices } from './services.js'
+import { readR2Object, readR2Stream, writeR2Object, type WorkerServices } from './services.js'
 import {
   PACKING_LAYOUT_VERSION,
   PACKING_MODEL_SCHEMA_VERSION,
@@ -30,6 +30,16 @@ type ModelMetrics = {
   inputTokens: number
   outputTokens: number
   durationMs: number
+}
+
+const NORMALIZE_PHOTOS_PER_JOB = 10
+
+function stageOffset(scopeKey: string, prefix: string): number {
+  if (scopeKey === 'session') return 0
+  const match = new RegExp(`^${prefix}:(\\d+)$`).exec(scopeKey)
+  const offset = Number(match?.[1])
+  if (!Number.isInteger(offset) || offset < 0) throw new Error(`${prefix}_scope_invalid`)
+  return offset
 }
 
 function databaseError(error: PostgrestError | null, fallback: string): void {
@@ -95,9 +105,12 @@ async function enqueueJob(
 async function normalizeSession(services: WorkerServices, job: ClaimedJob): Promise<void> {
   const photos = await getPhotos(services, job.session_id)
   if (photos.length === 0) throw new Error('normalize_photos_missing')
-  for (const photo of photos) {
-    const source = await readR2Object(services, photo.object_key)
-    const normalized = await normalizePackingPhoto(source)
+  const offset = stageOffset(job.scope_key, 'photos')
+  const chunk = photos.slice(offset, offset + NORMALIZE_PHOTOS_PER_JOB)
+  if (chunk.length === 0) throw new Error('normalize_scope_out_of_range')
+  for (const photo of chunk) {
+    const source = await readR2Stream(services, photo.object_key)
+    const normalized = await normalizePackingPhoto(services.images, source)
     const objectKey = normalizedObjectKey(photo)
     await writeR2Object(services, objectKey, normalized.buffer, 'image/webp')
     const { error } = await services.database.from('packing_photos').update({
@@ -109,43 +122,53 @@ async function normalizeSession(services: WorkerServices, job: ClaimedJob): Prom
     databaseError(error, 'photo_normalize_write_failed')
   }
   await completeJob(services, job.job_id)
-  await enqueueJob(services, job.session_id, 'atlas', 'session', `${PACKING_LAYOUT_VERSION}:${photos.length}`)
+  const nextOffset = offset + chunk.length
+  if (nextOffset < photos.length) {
+    await enqueueJob(services, job.session_id, 'normalize', `photos:${nextOffset}`, `${job.input_fingerprint}:${nextOffset}`)
+  } else {
+    await enqueueJob(services, job.session_id, 'atlas', 'session', `${PACKING_LAYOUT_VERSION}:${photos.length}`)
+  }
 }
 
 async function generateAtlases(services: WorkerServices, job: ClaimedJob): Promise<void> {
   const session = await getSession(services, job.session_id)
   const photos = await getPhotos(services, job.session_id)
-  for (let offset = 0; offset < photos.length; offset += ATLAS_MAX_PHOTOS) {
-    const group = photos.slice(offset, offset + ATLAS_MAX_PHOTOS)
-    const sources = await Promise.all(group.map(async (photo) => ({
-      id: photo.id,
-      sequence_no: photo.sequence_no,
-      buffer: await readR2Object(services, photo.normalized_object_key ?? photo.object_key),
-    })))
-    const atlas = await buildPackingAtlas(sources)
-    const atlasNo = Math.floor(offset / ATLAS_MAX_PHOTOS) + 1
-    const objectKey = atlasObjectKey({
-      ownerId: session.owner_id,
-      boxId: session.box_id,
-      sessionId: session.id,
-      atlasNo,
-    })
-    await writeR2Object(services, objectKey, atlas.buffer, 'image/webp')
-    const { error } = await services.database.from('packing_atlases').upsert({
-      session_id: session.id,
-      atlas_no: atlasNo,
-      first_sequence_no: group[0]?.sequence_no,
-      last_sequence_no: group.at(-1)?.sequence_no,
-      object_key: objectKey,
-      layout_version: PACKING_LAYOUT_VERSION,
-      width: atlas.width,
-      height: atlas.height,
-      size_bytes: atlas.buffer.length,
-      sha256: atlas.sha256,
-    }, { onConflict: 'session_id,atlas_no,layout_version' })
-    databaseError(error, 'atlas_write_failed')
-  }
+  const offset = stageOffset(job.scope_key, 'photos')
+  const group = photos.slice(offset, offset + ATLAS_MAX_PHOTOS)
+  if (group.length === 0) throw new Error('atlas_scope_out_of_range')
+  const sources = await Promise.all(group.map(async (photo) => ({
+    id: photo.id,
+    sequence_no: photo.sequence_no,
+    stream: await readR2Stream(services, photo.normalized_object_key ?? photo.object_key),
+  })))
+  const atlas = await buildPackingAtlas(services.images, sources)
+  const atlasNo = Math.floor(offset / ATLAS_MAX_PHOTOS) + 1
+  const objectKey = atlasObjectKey({
+    ownerId: session.owner_id,
+    boxId: session.box_id,
+    sessionId: session.id,
+    atlasNo,
+  })
+  await writeR2Object(services, objectKey, atlas.buffer, 'image/webp')
+  const { error: atlasError } = await services.database.from('packing_atlases').upsert({
+    session_id: session.id,
+    atlas_no: atlasNo,
+    first_sequence_no: group[0]?.sequence_no,
+    last_sequence_no: group.at(-1)?.sequence_no,
+    object_key: objectKey,
+    layout_version: PACKING_LAYOUT_VERSION,
+    width: atlas.width,
+    height: atlas.height,
+    size_bytes: atlas.buffer.length,
+    sha256: atlas.sha256,
+  }, { onConflict: 'session_id,atlas_no,layout_version' })
+  databaseError(atlasError, 'atlas_write_failed')
   await completeJob(services, job.job_id)
+  const nextOffset = offset + group.length
+  if (nextOffset < photos.length) {
+    await enqueueJob(services, session.id, 'atlas', `photos:${nextOffset}`, `${job.input_fingerprint}:${nextOffset}`)
+    return
+  }
   const { data, error } = await services.database.from('packing_atlases').select('*')
     .eq('session_id', session.id).eq('layout_version', PACKING_LAYOUT_VERSION).order('atlas_no')
   databaseError(error, 'atlases_read_failed')
@@ -348,7 +371,7 @@ async function localizeAndCrop(services: WorkerServices, job: ClaimedJob): Promi
       continue
     }
 
-    const crop = await cropPackingItem(source, localization.data.bbox)
+    const crop = await cropPackingItem(services.images, new Response(source).body!, localization.data.bbox)
     lastBox = crop.bbox
     const validation = await validateItemCrop(services.config, { itemName: item.name as string, image: crop.buffer })
     metrics.inputTokens += validation.inputTokens
@@ -362,7 +385,7 @@ async function localizeAndCrop(services: WorkerServices, job: ClaimedJob): Promi
     const { error: itemUpdateError } = await services.database.from('packing_detected_items').update({
       cover_object_key: objectKey, cover_mime_type: 'image/webp', cover_size_bytes: crop.buffer.length,
       cover_width: crop.width, cover_height: crop.height, crop_source_photo_id: typedPhoto.id,
-      crop_bbox: crop.bbox, crop_version: `${PACKING_PROMPT_VERSION}:sharp-14pct-v1`, crop_status: 'ready',
+      crop_bbox: crop.bbox, crop_version: `${PACKING_PROMPT_VERSION}:cf-images-14pct-v1`, crop_status: 'ready',
     }).eq('id', itemId)
     databaseError(itemUpdateError, 'crop_item_update_failed')
     const { error: evidenceError } = await services.database.from('packing_detected_instance_evidence').upsert({
@@ -474,7 +497,9 @@ export async function processPackingJob(services: WorkerServices, job: ClaimedJo
 export async function claimPackingJobs(services: WorkerServices, batchSize: number): Promise<ClaimedJob[]> {
   const { data, error } = await services.database.rpc('claim_packing_analysis_jobs', {
     p_batch_size: batchSize,
-    p_lease_seconds: 300,
+    // Match the maximum Queue/Cron wall-clock window so a second Cron
+    // invocation cannot reclaim a job while Qwen is still responding.
+    p_lease_seconds: 900,
   })
   databaseError(error, 'job_claim_failed')
   return (data ?? []) as ClaimedJob[]

@@ -62,11 +62,23 @@ select to_regclass('public.packing_item_promotions') as packing_item_promotions_
 ## AI 装箱 Worker 发布顺序
 
 1. 先在隔离 Supabase 环境执行 `202608030001_ai_packing_sessions.sql` 和 `014_ai_packing_sessions.test.sql`。
-2. 为 Worker 创建仅限目标 R2 Bucket 读写的 Token，并注入 service role、`QWEN_API_KEY` 和 `QWEN_OPENAI_BASE_URL`；推理调用统一通过官方 `openai` Node.js SDK。
-3. 固定 `QWEN_VL_MODEL=qwen3-vl-plus-2025-12-19`，构建并启动 `nomo-packing-worker`。
-4. 使用 3 张无敏感内容的测试照片验证：连续上传 → 完成会话 → Atlas → AI 清单 → 原图高亮 → 转正式物品。
-5. 删除测试会话，确认原图、规范图、Atlas 和未晋升裁剪图进入清理队列，晋升后的正式物品图片仍可访问。
-6. 达到权威设计文档第 20 节门槛前，只在内部或受控灰度环境启用入口。
+2. 在 `apps/packing-worker/wrangler.jsonc` 为当前环境设置目标 R2 Bucket；Worker 使用原生 R2 binding，不创建或注入 R2 S3 access key。
+3. 在 Cloudflare Dashboard 启用 Images binding/Transformations，并确认账号套餐支持所需的 Workers CPU 时间与 Images 用量。
+4. 使用 `wrangler secret put` 分别注入 `SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY` 和 `QWEN_API_KEY`。密钥只能从密码管理器粘贴，不写入命令参数或仓库文件。
+5. 固定 `QWEN_VL_MODEL=qwen3-vl-plus-2025-12-19`，然后发布：
+
+```bash
+npm run typecheck:worker
+npm run test:worker
+npm run build:worker
+npm run deploy --workspace=@nomo/packing-worker
+```
+
+6. 确认 Cloudflare 中存在每分钟 Cron Trigger、`PACKING_MEDIA` R2 binding 和 `IMAGES` binding，并访问 `/health` 验证返回 `runtime: cloudflare-workers`。
+7. 本地 Images binding 不完整支持 Atlas 使用的多图 `draw`；使用 `npm run dev --workspace=@nomo/packing-worker -- --remote` 连接隔离的 `nomo-dev` Bucket 做远程冒烟测试。
+8. 使用 3 张无敏感内容的测试照片验证：连续上传 → 完成会话 → Cron 认领 → Atlas → AI 清单 → 原图高亮 → 转正式物品。
+9. 删除测试会话，确认原图、规范图、Atlas 和未晋升裁剪图进入清理队列，晋升后的正式物品图片仍可访问。
+10. 达到权威设计文档第 20 节门槛前，只在内部或受控灰度环境启用入口。
 
 ## Cloudflare R2
 

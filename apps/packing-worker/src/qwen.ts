@@ -109,14 +109,14 @@ async function callQwen<T>(input: {
   config: WorkerConfig
   system: string
   text: string
-  image?: Buffer
+  image?: Uint8Array
   schema: z.ZodType<T>
 }): Promise<QwenResult<T>> {
   const content: OpenAI.Chat.Completions.ChatCompletionContentPart[] = []
   if (input.image) {
     content.push({
       type: 'image_url',
-      image_url: { url: `data:image/webp;base64,${input.image.toString('base64')}` },
+      image_url: { url: `data:image/webp;base64,${Buffer.from(input.image).toString('base64')}` },
     })
   }
   content.push({ type: 'text', text: input.text })
@@ -163,7 +163,7 @@ async function callQwen<T>(input: {
 
 const sharedRules = `你是 Nomo 的装箱视觉分析器。只陈述照片中可见的事实。不得猜测不透明容器内部内容；只能将其记录为容器。相同物体在连续照片中出现时不得重复计数。数量无法精确确认时必须使用 at_least、approximate 或 unknown。只返回严格 JSON。Schema 版本为 ${PACKING_MODEL_SCHEMA_VERSION}，提示词版本为 ${PACKING_PROMPT_VERSION}。`
 
-export function observeAtlas(config: WorkerConfig, atlasId: string, atlas: Buffer) {
+export function observeAtlas(config: WorkerConfig, atlasId: string, atlas: Uint8Array) {
   return callQwen({
     config,
     system: sharedRules,
@@ -185,7 +185,7 @@ export function consolidateObservations(config: WorkerConfig, observations: unkn
 export function reviewOriginalObservation(config: WorkerConfig, input: {
   photoId: string
   proposedLabel: string
-  image: Buffer
+  image: Uint8Array
 }) {
   return callQwen({
     config,
@@ -200,7 +200,7 @@ export function localizeInstance(config: WorkerConfig, input: {
   photoId: string
   instanceId: string
   itemName: string
-  image: Buffer
+  image: Uint8Array
 }) {
   return callQwen({
     config,
@@ -211,7 +211,7 @@ export function localizeInstance(config: WorkerConfig, input: {
   })
 }
 
-export function validateItemCrop(config: WorkerConfig, input: { itemName: string; image: Buffer }) {
+export function validateItemCrop(config: WorkerConfig, input: { itemName: string; image: Uint8Array }) {
   return callQwen({
     config,
     system: sharedRules,
