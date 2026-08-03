@@ -5,7 +5,7 @@ test('private details and the owner catalogue stay scoped to the current account
   const state = createMockState()
   await installMockBackend(page, state)
   await register(page, 'owner@example.com')
-  await expect(page.getByRole('heading', { name: '早上好，今天找什么？' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /^(早上好|中午好|下午好|晚上好)，今天找什么？$/ })).toBeVisible()
   await createSpace(page, '家')
   const privateUrl = await createBox(page, '证件箱', 'private')
   const publicUrl = await createBox(page, '公开纪念品', 'public')

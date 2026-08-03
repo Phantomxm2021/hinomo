@@ -3,7 +3,7 @@ import { expect, type Page, type Route } from '@playwright/test'
 type Venue = { id: string; owner_id: string; name: string; description: string | null; is_default: boolean }
 type Space = { id: string; owner_id: string; venue_id: string; name: string; description: string | null }
 type SpaceLayout = { space_id: string; owner_id: string; x_percent: number; y_percent: number; width_percent: number; height_percent: number }
-type Item = { id: string; box_id: string; name: string; category: string | null; quantity: number; description: string | null }
+type Item = { id: string; box_id: string; name: string; category: string | null; quantity: number; stored_quantity: number; description: string | null }
 type Profile = { id: string; display_name: string | null; avatar_object_key: string | null; locale: 'zh-CN' | 'en-US' }
 type Box = {
   id: string
@@ -249,7 +249,7 @@ export async function installMockBackend(page: Page, state: MockState) {
       }])
     }
 
-    if (url.pathname === '/rest/v1/rpc/search_my_items' && method === 'POST' && currentUserId) {
+    if (url.pathname === '/rest/v1/rpc/search_my_inventory' && method === 'POST' && currentUserId) {
       const { p_query: query = '' } = request.postDataJSON() as { p_query?: string }
       const needle = query.toLocaleLowerCase()
       return json(route, state.items.flatMap((item) => {
@@ -257,10 +257,13 @@ export async function installMockBackend(page: Page, state: MockState) {
         const space = state.spaces.find((candidate) => candidate.id === box?.space_id)
         if (!box || box.owner_id !== currentUserId || !item.name.toLocaleLowerCase().includes(needle)) return []
         return [{
-          item_id: item.id,
+          result_id: item.id,
+          source: 'formal',
           item_name: item.name,
           category: item.category,
           quantity: item.quantity,
+          quantity_kind: 'exact',
+          stored_quantity: item.stored_quantity,
           box_id: box.id,
           box_name: box.name,
           box_public_id: box.public_id,
@@ -274,7 +277,7 @@ export async function installMockBackend(page: Page, state: MockState) {
 
     if (url.pathname === '/rest/v1/items' && method === 'POST' && currentUserId) {
       const input = request.postDataJSON() as Omit<Item, 'id'>
-      const item = { ...input, id: `item-${state.items.length + 1}` }
+      const item = { ...input, stored_quantity: input.stored_quantity ?? input.quantity, id: `item-${state.items.length + 1}` }
       state.items.push(item)
       return json(route, item, 201)
     }
@@ -285,8 +288,10 @@ export async function installMockBackend(page: Page, state: MockState) {
 
 export async function register(page: Page, email: string) {
   await page.goto('/register')
+  await page.getByLabel('昵称').fill(email.split('@')[0])
   await page.getByLabel('邮箱').fill(email)
   await page.getByLabel('密码').fill('correct-horse-battery-staple')
+  await page.getByRole('checkbox', { name: /我已阅读并同意/ }).check()
   await page.getByRole('button', { name: '注册' }).click()
   await page.waitForURL('**/app')
 }
@@ -330,6 +335,8 @@ export async function createBox(page: Page, name: string, visibility: 'public' |
   await dialog.getByLabel('空间').selectOption({ label: '家' })
   await dialog.getByLabel('箱子名称').fill(name)
   await dialog.getByLabel('具体位置').fill('衣柜上层')
+  const moreSettings = dialog.getByRole('button', { name: '更多设置' })
+  if (await moreSettings.isVisible()) await moreSettings.click()
   await dialog.getByLabel('查看权限').selectOption(visibility)
   await dialog.getByRole('button', { name: '创建箱子', exact: true }).click()
   await dialog.waitFor({ state: 'hidden' })
