@@ -6,7 +6,7 @@ import { Skeleton, SkeletonGroup } from './Skeleton'
 type PageStateProps =
   | { state: 'loading'; label: string }
   | { state: 'empty'; title: string; description?: string; icon?: AppIconName; action?: ReactNode }
-  | { state: 'error'; message: string; onRetry: () => void }
+  | { state: 'error'; message: string; onRetry: () => void; retryLabel?: string }
 
 export function PageState(props: PageStateProps) {
   if (props.state === 'loading') {
@@ -40,5 +40,5 @@ export function PageState(props: PageStateProps) {
     )
   }
 
-  return <ResponsiveOperationError message={props.message} onRetry={props.onRetry} />
+  return <ResponsiveOperationError message={props.message} onRetry={props.onRetry} retryLabel={props.retryLabel} />
 }

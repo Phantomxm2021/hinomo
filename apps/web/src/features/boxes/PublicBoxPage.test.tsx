@@ -57,6 +57,7 @@ function renderPublicBox(
           <Routes>
             <Route path="/b/:publicId" element={<PublicBoxPage />} />
             <Route path="/previous" element={<h1>上一页</h1>} />
+            <Route path="/app/scan" element={<h1>扫码查看</h1>} />
           </Routes>
         </AuthProvider>
       </QueryClientProvider>
@@ -108,7 +109,7 @@ test('shows the initial public-box error in the global responsive alert layer', 
   const alert = await screen.findByRole('alert')
   expect(alert.closest('main')).toBeNull()
   expect(alert.parentElement).toHaveClass('fixed', 'inset-0')
-  expect(alert).toHaveTextContent('无权限或内容不存在')
+  expect(alert).toHaveTextContent('箱子加载失败，请检查网络后重试')
 })
 
 test('keeps cached public-box details visible when a refetch fails', async () => {
@@ -444,13 +445,17 @@ test('takes out an item from the owner movement sheet', async () => {
   }))
 })
 
-test('shows a neutral gate for a private or missing box', async () => {
+test('returns to the scanner when a scanned box is private or missing', async () => {
+  const user = userEvent.setup()
   mockGetBoxByPublicId.mockResolvedValue(null)
   renderPublicBox()
 
-  expect(
-    await screen.findByRole('heading', { name: '无权限或内容不存在' }),
-  ).toBeInTheDocument()
+  const alert = await screen.findByRole('alert')
+  expect(alert).toHaveTextContent('箱子不存在或无法访问')
+  await user.click(within(alert).getByRole('button', { name: '重新扫码' }))
+
+  expect(await screen.findByRole('heading', { name: '扫码查看' })).toBeInTheDocument()
+  expect(mockGetBoxByPublicId).toHaveBeenCalledOnce()
 })
 
 test('renders authorized cover and item images when object keys exist', async () => {

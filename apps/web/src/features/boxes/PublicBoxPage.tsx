@@ -139,8 +139,11 @@ export function PublicBoxPage() {
       </main>
     )
   }
-  if ((boxQuery.isError && boxQuery.data === undefined) || !boxQuery.data) {
-    return <main className={frameClassName}><PageState state="error" message="无权限或内容不存在" onRetry={() => void boxQuery.refetch()} /></main>
+  if (boxQuery.isError && boxQuery.data === undefined) {
+    return <main className={frameClassName}><PageState state="error" message="箱子加载失败，请检查网络后重试" onRetry={() => void boxQuery.refetch()} /></main>
+  }
+  if (!boxQuery.data) {
+    return <main className={frameClassName}><PageState state="error" message="箱子不存在或无法访问" retryLabel="重新扫码" onRetry={() => navigate('/app/scan')} /></main>
   }
 
   const box = boxQuery.data
