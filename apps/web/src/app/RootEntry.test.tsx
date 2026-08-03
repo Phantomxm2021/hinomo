@@ -1,12 +1,27 @@
 import type { Session } from '@supabase/supabase-js'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { AuthContext, type AuthContextValue } from '../features/auth/auth-context'
 import { RootEntry } from './RootEntry'
 
+let languageStorage: Map<string, string>
+
+beforeEach(() => {
+  languageStorage = new Map()
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: vi.fn((key: string) => languageStorage.get(key) ?? null),
+      setItem: vi.fn((key: string, value: string) => { languageStorage.set(key, value) }),
+      clear: vi.fn(() => languageStorage.clear()),
+    },
+  })
+})
+
 afterEach(() => {
   cleanup()
+  window.localStorage.clear()
   document.documentElement.lang = 'zh-CN'
 })
 
@@ -45,12 +60,26 @@ test('gives an authenticated visitor a direct path to the app', () => {
 test('switches the complete landing-page experience between Chinese and English', () => {
   renderEntry({ session: null, loading: false, isPasswordRecovery: false })
 
-  fireEvent.click(screen.getByRole('button', { name: 'Switch to English' }))
+  const languageSelect = screen.getByRole('combobox', { name: '选择语言' })
+  expect(languageSelect).toHaveValue('zh')
+  fireEvent.change(languageSelect, { target: { value: 'en' } })
 
   expect(document.documentElement).toHaveAttribute('lang', 'en')
   expect(screen.getByRole('heading', { name: 'Put away. Never lost.' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'We put so much away. Then forget it was ever there.' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: "Home's order shouldn't live in one person's head." })).toBeInTheDocument()
   expect(screen.getAllByRole('link', { name: 'Get started' })[0]).toHaveAttribute('href', '/register')
-  expect(screen.getByRole('button', { name: '切换到中文' })).toBeInTheDocument()
+  expect(screen.getByRole('combobox', { name: 'Choose language' })).toHaveValue('en')
+  expect(window.localStorage.getItem('nomo-landing-language')).toBe('en')
+})
+
+test('restores the saved landing-page language preference', () => {
+  window.localStorage.setItem('nomo-landing-language', 'en')
+  renderEntry({ session: null, loading: false, isPasswordRecovery: false })
+
+  expect(screen.getByRole('navigation', { name: 'Landing page navigation' })).toHaveClass(
+    'flex', 'max-w-7xl', 'items-center',
+  )
+  expect(screen.getByRole('combobox', { name: 'Choose language' })).toHaveValue('en')
+  expect(screen.getByRole('heading', { name: 'Put away. Never lost.' })).toBeInTheDocument()
 })

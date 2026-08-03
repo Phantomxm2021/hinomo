@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, expect, test } from 'vitest'
 import { AuthLayout } from './AuthLayout'
@@ -17,7 +17,7 @@ test('frames authentication forms with the Nomo product identity', () => {
   )
 
   expect(screen.getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/')
-  expect(within(screen.getByRole('link', { name: 'Nomo' })).getByText('N')).toHaveAttribute('aria-hidden', 'true')
+  expect(screen.getByRole('link', { name: 'Nomo' }).querySelector('img')).toHaveAttribute('src', '/brand/nomo-apple-icon-v2-192.png')
   expect(screen.getByLabelText('Nomo 产品介绍')).toHaveClass('bg-sidebar')
   expect(screen.getByText('认证表单').parentElement).toHaveClass('bg-surface')
   expect(screen.getByText('让每件物品都有迹可循')).toBeInTheDocument()

@@ -33,5 +33,6 @@ npm run test:e2e
 ## 文档
 
 - [实施计划](docs/superpowers/plans/2026-07-29-qr-storage-management-implementation.md)
+- [AI 装箱照片 Atlas 设计与实施方案](docs/superpowers/specs/2026-08-03-ai-packing-photo-atlas-design.md)
 - [部署 Runbook](docs/runbooks/deployment.md)
 - [Docker 部署 Runbook](docs/runbooks/docker.md)

@@ -1,4 +1,5 @@
 import { Link, Outlet } from 'react-router-dom'
+import { BrandIcon } from '../components/BrandIcon'
 
 export function AuthLayout() {
   return (
@@ -7,7 +8,7 @@ export function AuthLayout() {
         <img className="auth-visual-image absolute inset-0 size-full object-cover" src="/landing/hero-home-v2.jpg" alt="" />
         <span className="auth-visual-shade absolute inset-0" aria-hidden="true" />
         <Link className="auth-brand relative z-10 flex w-fit items-center gap-2.5 text-2xl font-black tracking-[-0.05em] text-ink no-underline" to="/">
-          <span className="grid size-11 place-items-center rounded-[0.9rem] bg-brand text-2xl font-black tracking-normal text-white shadow-soft" aria-hidden="true">N</span>
+          <BrandIcon className="size-11 rounded-[0.9rem] shadow-soft" />
           Nomo
         </Link>
         <div className="auth-story relative z-10 max-w-[31rem] rounded-[1.6rem] border border-white/60 bg-[#fffaf2]/88 p-5 shadow-[0_18px_50px_rgb(62_39_22_/_16%)] backdrop-blur-xl md:p-7">

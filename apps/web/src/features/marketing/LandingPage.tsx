@@ -1,8 +1,21 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/auth-context'
+import { AppIcon } from '../../components/AppIcon'
+import { BrandIcon } from '../../components/BrandIcon'
 
 type Language = 'zh' | 'en'
+const languagePreferenceKey = 'nomo-landing-language'
+
+function initialLanguage(): Language {
+  try {
+    const savedLanguage = window.localStorage.getItem(languagePreferenceKey)
+    if (savedLanguage === 'zh' || savedLanguage === 'en') return savedLanguage
+  } catch {
+    // Storage can be unavailable in privacy-restricted browser contexts.
+  }
+  return document.documentElement.lang.startsWith('en') ? 'en' : 'zh'
+}
 
 const copy = {
   zh: {
@@ -116,7 +129,7 @@ const copy = {
 } as const
 
 function BrandMark() {
-  return <span className="grid size-9 place-items-center rounded-[0.72rem] bg-brand text-lg font-black text-white" aria-hidden="true">N</span>
+  return <BrandIcon className="size-9 rounded-[0.72rem] shadow-soft" />
 }
 
 function Reveal({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -217,7 +230,7 @@ function MemoryTag({ language }: { language: Language }) {
 
 export function LandingPage() {
   const { session } = useAuth()
-  const [language, setLanguage] = useState<Language>(() => document.documentElement.lang.startsWith('en') ? 'en' : 'zh')
+  const [language, setLanguage] = useState<Language>(initialLanguage)
   const t = copy[language]
   const primaryHref = session ? '/app' : '/register'
   const primaryLabel = session ? t.nav.enter : t.nav.start
@@ -225,6 +238,11 @@ export function LandingPage() {
   useEffect(() => {
     document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en'
     document.title = language === 'zh' ? 'Nomo｜收起来，也找得回来' : 'Nomo | Put away. Never lost.'
+    try {
+      window.localStorage.setItem(languagePreferenceKey, language)
+    } catch {
+      // The current page can still switch languages without persistence.
+    }
   }, [language])
 
   return (
@@ -233,28 +251,32 @@ export function LandingPage() {
         {language === 'zh' ? '跳到主要内容' : 'Skip to content'}
       </a>
 
-      <header className="fixed inset-x-0 top-0 z-50">
-        <div className="mx-auto mt-3 flex min-h-14 w-[calc(100%-1.5rem)] max-w-7xl items-center justify-between gap-4 rounded-full border border-white/55 bg-[#f9f5ef]/86 px-3.5 shadow-[0_8px_35px_rgb(49_33_22_/_8%)] backdrop-blur-xl sm:mt-5 sm:w-[calc(100%-3rem)] sm:px-5">
-          <Link className="flex items-center gap-2.5 text-lg font-black tracking-[-0.04em] text-ink no-underline" to="/" aria-label="Nomo">
-            <BrandMark /> Nomo
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-ink/[0.08] bg-[#f7f3ed]/90 backdrop-blur-xl">
+        <nav className="mx-auto flex h-[4.5rem] w-full max-w-7xl items-center px-4 sm:px-6 lg:px-10" aria-label={language === 'zh' ? '落地页导航' : 'Landing page navigation'}>
+          <Link className="flex shrink-0 items-center gap-2 text-lg font-black tracking-[-0.04em] text-ink no-underline" to="/" aria-label="Nomo">
+            <BrandMark /> <span className="hidden min-[360px]:inline">Nomo</span>
           </Link>
-          <nav className="hidden items-center gap-7 text-sm font-semibold text-muted md:flex" aria-label={language === 'zh' ? '官网导航' : 'Website navigation'}>
-            <a className="text-inherit no-underline hover:text-ink" href="#story">{t.nav.story}</a>
-            <a className="text-inherit no-underline hover:text-ink" href="#moments">{t.nav.moments}</a>
-          </nav>
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <button
-              className="inline-flex min-h-10 min-w-12 items-center justify-center rounded-full px-3 text-xs font-bold tracking-[0.08em] text-muted hover:bg-white/70 hover:text-ink"
-              type="button"
-              onClick={() => setLanguage((current) => current === 'zh' ? 'en' : 'zh')}
-              aria-label={language === 'zh' ? 'Switch to English' : '切换到中文'}
-            >
-              {language === 'zh' ? 'EN' : '中文'}
-            </button>
-            {!session ? <Link className="hidden min-h-10 items-center px-3 text-sm font-semibold text-ink no-underline sm:inline-flex" to="/login">{t.nav.login}</Link> : null}
-            <Link className="inline-flex min-h-10 items-center justify-center rounded-full bg-ink px-4 text-xs font-bold text-white no-underline transition hover:bg-brand sm:px-5 sm:text-sm" to={primaryHref}>{primaryLabel}</Link>
+          <div className="ml-auto flex min-w-0 items-center justify-end gap-0.5 sm:gap-1">
+            <div className="hidden items-center md:flex">
+              <a className="rounded-lg px-3.5 py-2 text-sm font-semibold text-muted no-underline transition hover:bg-ink/[0.05] hover:text-ink" href="#story">{t.nav.story}</a>
+              <a className="rounded-lg px-3.5 py-2 text-sm font-semibold text-muted no-underline transition hover:bg-ink/[0.05] hover:text-ink" href="#moments">{t.nav.moments}</a>
+            </div>
+            <label className="relative inline-flex h-10 shrink-0 items-center rounded-lg text-muted transition hover:bg-ink/[0.05] focus-within:bg-ink/[0.05] focus-within:text-ink">
+              <span className="sr-only">{language === 'zh' ? '选择语言' : 'Choose language'}</span>
+              <select
+                className="h-full max-w-[6.6rem] appearance-none border-0 bg-transparent py-0 pr-7 pl-2.5 text-xs font-semibold text-ink outline-none sm:max-w-none sm:px-3 sm:pr-8 sm:text-sm"
+                value={language}
+                onChange={(event) => setLanguage(event.target.value as Language)}
+              >
+                <option value="zh">简体中文</option>
+                <option value="en">English</option>
+              </select>
+              <AppIcon className="pointer-events-none absolute right-2.5 rotate-90" name="chevron-right" size={12} />
+            </label>
+            {!session ? <Link className="hidden min-h-10 items-center rounded-lg px-3 text-sm font-semibold text-ink no-underline transition hover:bg-ink/[0.05] sm:inline-flex" to="/login">{t.nav.login}</Link> : null}
+            <Link className="ml-1 inline-flex min-h-10 shrink-0 items-center justify-center rounded-full bg-ink px-3.5 text-xs font-bold text-white no-underline transition hover:bg-brand sm:ml-2 sm:px-5 sm:text-sm" to={primaryHref}>{primaryLabel}</Link>
           </div>
-        </div>
+        </nav>
       </header>
 
       <main id="main-content">

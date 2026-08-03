@@ -6,6 +6,7 @@ import {
 } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { AppIcon, type AppIconName } from '../components/AppIcon'
+import { BrandIcon } from '../components/BrandIcon'
 import { UserAccountMenu } from '../features/profile/UserAccountMenu'
 
 type NavigationItem = {
@@ -89,7 +90,7 @@ export function AppShell() {
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col gap-10 overflow-y-auto border-r border-line bg-sidebar px-6 py-8 lg:flex">
         <div className="grid gap-0.5">
           <Link className="flex w-fit items-center gap-2 text-2xl font-black tracking-[-0.05em] text-ink no-underline" to="/app">
-            <span className="grid size-10 place-items-center rounded-control bg-brand text-2xl font-black tracking-normal text-white" aria-hidden="true">N</span>
+            <BrandIcon className="size-10 rounded-control shadow-soft" />
             Nomo
           </Link>
         </div>

@@ -79,7 +79,7 @@ test('provides the complete desktop navigation without a scan destination', asyn
   expect(within(navigation).queryByRole('link', { name: '扫码' })).not.toBeInTheDocument()
   const desktopBrand = within(screen.getByRole('complementary')).getByRole('link', { name: 'Nomo' })
   expect(desktopBrand).toHaveAttribute('href', '/app')
-  expect(within(desktopBrand).getByText('N')).toHaveAttribute('aria-hidden', 'true')
+  expect(desktopBrand.querySelector('img')).toHaveAttribute('src', '/brand/nomo-apple-icon-v2-192.png')
   expect(await screen.findByText('林家')).toBeInTheDocument()
   expect(screen.getByText('lin@example.com')).toBeInTheDocument()
   expect(screen.getByRole('complementary')).toHaveClass('lg:flex')
