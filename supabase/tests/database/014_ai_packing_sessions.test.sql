@@ -83,7 +83,7 @@ select throws_ok(
 
 with upload as (
   select * from public.create_packing_photo_upload(
-    (select session_id from packing_test_state), 1, 'image/webp', 1024
+    (select session_id from packing_test_state), 3, 'image/webp', 1024
   )
 )
 update packing_test_state state
@@ -102,7 +102,7 @@ select like(
 );
 select is(
   (select photo_id from public.create_packing_photo_upload(
-    (select session_id from packing_test_state), 1, 'image/webp', 1024
+    (select session_id from packing_test_state), 3, 'image/webp', 1024
   )),
   (select photo_id from packing_test_state),
   'repeating an unfinished upload request is idempotent'
@@ -117,7 +117,7 @@ select is(
 
 with upload as (
   select * from public.create_packing_atlas_upload(
-    (select session_id from packing_test_state), 1, 1, 1, 512, 552, 2048, repeat('a', 64)
+    (select session_id from packing_test_state), 1, 3, 3, 512, 552, 2048, repeat('a', 64)
   )
 )
 update packing_test_state state set atlas_id = upload.atlas_id from upload;
