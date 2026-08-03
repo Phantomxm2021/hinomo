@@ -21,22 +21,34 @@ test('frames authentication forms with the Nomo product identity', () => {
   expect(screen.getByLabelText('Nomo 产品介绍')).toHaveClass('bg-sidebar')
   expect(screen.getByText('认证表单').parentElement).toHaveClass('bg-surface')
   expect(screen.getByText('让每件物品都有迹可循')).toBeInTheDocument()
+  expect(screen.getByText('让每件物品都有迹可循').parentElement).toHaveClass('px-5', 'md:px-7')
   expect(screen.getByText('认证表单')).toBeInTheDocument()
 })
 
-test('keeps authentication titles compact on mobile', () => {
+test('keeps the login page in one viewport and locks document scrolling', () => {
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={['/login']}>
       <Routes>
         <Route element={<AuthLayout />}>
-          <Route path="/" element={<h1>登录</h1>} />
+          <Route path="/login" element={<h1>登录</h1>} />
         </Route>
       </Routes>
     </MemoryRouter>,
   )
 
-  expect(screen.getByRole('heading', { name: '登录' }).parentElement).toHaveClass(
+  const title = screen.getByRole('heading', { name: '登录' })
+  const shell = title.closest('.auth-shell')
+  expect(title.parentElement).toHaveClass(
     '[&_h1]:text-page-title',
     '[&_h1]:font-extrabold',
   )
+  expect(shell).toHaveClass('auth-login-shell', 'h-dvh', 'min-h-0')
+  expect(shell).toHaveClass('md:my-0')
+  expect(shell).toHaveAttribute('lang', 'zh-CN')
+  expect(shell?.parentElement).toHaveClass('auth-login-viewport', 'grid', 'h-dvh', 'place-items-center', 'overflow-hidden')
+  expect(screen.getByLabelText('Nomo 产品介绍')).toHaveClass('hidden', 'md:flex')
+  expect(title.closest('.auth-form-panel')).toHaveClass('grid', 'h-full', 'place-items-center')
+  expect(document.documentElement.style.overflow).toBe('hidden')
+  expect(document.body.style.overflow).toBe('hidden')
+  expect(document.body.style.overscrollBehavior).toBe('none')
 })

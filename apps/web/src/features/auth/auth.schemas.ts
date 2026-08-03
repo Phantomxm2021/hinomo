@@ -7,6 +7,10 @@ export const credentialsSchema = z.object({
 
 export const emailSchema = credentialsSchema.pick({ email: true })
 
+export const registerSchema = credentialsSchema.extend({
+  displayName: z.string().trim().min(1, '请输入昵称').max(40, '昵称不能超过 40 个字符'),
+})
+
 export const resetPasswordSchema = z
   .object({
     password: z.string().min(8, '密码至少 8 位'),
@@ -18,5 +22,6 @@ export const resetPasswordSchema = z
   })
 
 export type Credentials = z.infer<typeof credentialsSchema>
+export type RegisterValues = z.infer<typeof registerSchema>
 export type EmailValues = z.infer<typeof emailSchema>
 export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>

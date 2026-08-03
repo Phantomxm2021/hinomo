@@ -6,6 +6,7 @@ import { ResponsiveOperationError } from '../../components/ResponsiveOperationEr
 import { supabase } from '../../lib/supabase'
 import { getAuthErrorMessage } from './auth-errors'
 import { credentialsSchema, type Credentials } from './auth.schemas'
+import { AuthField, AuthOptions, AuthPageFrame, AuthSubmitButton } from './AuthFormPrimitives'
 
 function safeReturnTo(value: unknown) {
   return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
@@ -40,11 +41,9 @@ export function LoginPage() {
   })
 
   return (
-    <main className="auth-login">
-      <h1>登录</h1>
+    <AuthPageFrame title="欢迎回来" subtitle="登录后继续整理和查找你的物品。">
       <form className="auth-login-form" onSubmit={submit} noValidate>
-        <div className="auth-field">
-          <label htmlFor="login-email">邮箱</label>
+        <AuthField id="login-email" label="邮箱" error={errors.email?.message}>
           <input
             id="login-email"
             type="email"
@@ -54,11 +53,9 @@ export function LoginPage() {
             aria-describedby={errors.email ? 'login-email-error' : undefined}
             {...register('email')}
           />
-          {errors.email ? <p id="login-email-error" role="alert">{errors.email.message}</p> : null}
-        </div>
+        </AuthField>
 
-        <div className="auth-field">
-          <label htmlFor="login-password">密码</label>
+        <AuthField id="login-password" label="密码" error={errors.password?.message}>
           <input
             id="login-password"
             type="password"
@@ -68,19 +65,15 @@ export function LoginPage() {
             aria-describedby={errors.password ? 'login-password-error' : undefined}
             {...register('password')}
           />
-          {errors.password ? <p id="login-password-error" role="alert">{errors.password.message}</p> : null}
-        </div>
+        </AuthField>
 
         {submitError ? <ResponsiveOperationError message={submitError} /> : null}
-        <button type="submit" disabled={isSubmitting}>
-          <span>{isSubmitting ? '登录中…' : '登录'}</span>
-          <span aria-hidden="true">→</span>
-        </button>
+        <AuthSubmitButton pending={isSubmitting} label="登录" pendingLabel="登录中…" />
       </form>
-      <nav aria-label="认证选项">
+      <AuthOptions>
         <Link to="/register">注册账号</Link>
         <Link to="/forgot-password">忘记密码</Link>
-      </nav>
-    </main>
+      </AuthOptions>
+    </AuthPageFrame>
   )
 }

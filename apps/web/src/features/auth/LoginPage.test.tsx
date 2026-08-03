@@ -55,6 +55,14 @@ describe('LoginPage', () => {
 
   afterEach(cleanup)
 
+  it('uses the shared semantic typography classes', () => {
+    renderLogin()
+
+    expect(screen.getByRole('main')).toHaveClass('text-body')
+    expect(screen.getByRole('main')).toHaveAttribute('lang', 'zh-CN')
+    expect(screen.getByRole('heading', { name: '欢迎回来' })).toHaveClass('text-page-title', 'font-extrabold')
+  })
+
   it('signs in and returns to the requested page', async () => {
     renderLogin('/app/boxes')
 
