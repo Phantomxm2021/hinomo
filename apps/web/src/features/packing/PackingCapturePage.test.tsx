@@ -91,7 +91,10 @@ beforeEach(() => {
   mocks.compress.mockImplementation(async (file: File) => new File([file], 'packing.jpg', { type: 'image/jpeg' }))
 })
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 test('starts a zero-form packing session with only capture and finish actions', async () => {
   renderSheet()
@@ -173,6 +176,28 @@ test('stores a compressed draft before upload and completes after confirmation',
   await user.click(finishButton)
   await waitFor(() => expect(mocks.completeSession).toHaveBeenCalledWith('session-1'))
   expect(mocks.onCompleted).toHaveBeenCalledOnce()
+})
+
+test('uploads directly when iPhone IndexedDB cannot persist the compressed draft', async () => {
+  const user = userEvent.setup()
+  vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  mocks.saveDraft.mockRejectedValueOnce(new Error('packing database transaction failed'))
+  renderSheet()
+
+  await user.upload(
+    await screen.findByLabelText('拍摄装箱照片'),
+    new File(['photo'], 'image.jpg', { type: 'image/jpeg' }),
+  )
+
+  await waitFor(() => expect(mocks.uploadPhoto).toHaveBeenCalledWith(expect.objectContaining({
+    sessionId: 'session-1', sequenceNo: 1,
+  })))
+  expect(mocks.deleteDraft).not.toHaveBeenCalled()
+  expect(console.error).toHaveBeenCalledWith(
+    'packing_draft_storage_failed',
+    expect.objectContaining({ event: 'packing_draft_storage_failed' }),
+  )
+  expect(screen.queryByText('照片压缩失败，请重新拍摄。')).not.toBeInTheDocument()
 })
 
 test('retains a local draft when upload fails', async () => {

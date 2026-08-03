@@ -40,16 +40,16 @@ function errorDetails(error: unknown) {
   }
 }
 
-function reportPackingPhotoError(file: File, error: unknown) {
+function reportPackingPhotoError(file: File, error: unknown, event = 'packing_photo_processing_failed') {
   const payload = {
-    event: 'packing_photo_processing_failed',
+    event,
     page: window.location.href,
     userAgent: navigator.userAgent,
     file: { name: file.name, type: file.type || '(empty)', size: file.size },
     code: error instanceof PackingImageConversionError ? error.code : 'unexpected_error',
     error: errorDetails(error),
   }
-  console.error('packing_photo_processing_failed', payload)
+  console.error(event, payload)
   if (import.meta.env.DEV) {
     void fetch('/__nomo/dev-log', {
       method: 'POST',
@@ -83,6 +83,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
   const inputRef = useRef<HTMLInputElement | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const uploadQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const volatileDraftsRef = useRef(new Map<string, PackingDraft>())
   const recoveredSessionRef = useRef<string | null>(null)
   const nextSequenceRef = useRef(1)
   const [uploadState, setUploadState] = useState<UploadState>('idle')
@@ -124,7 +125,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
     await queryClient.invalidateQueries({ queryKey: ['packing-photos', sessionQuery.data?.id] })
   }, [queryClient, sessionQuery.data?.id])
 
-  const uploadDraft = useCallback(async (draft: PackingDraft) => {
+  const uploadDraft = useCallback(async (draft: PackingDraft, persisted = true) => {
     setUploadState('uploading')
     setErrorMessage(null)
     try {
@@ -133,20 +134,31 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
         sequenceNo: draft.sequenceNo,
         blob: draft.blob,
       })
-      await deletePackingDraft(draft.id)
-      setLocalDraftCount((count) => Math.max(0, count - 1))
-      await refreshPhotos()
-      setUploadState('idle')
     } catch {
       setUploadState('error')
       setCanRetryUploads(true)
-      setErrorMessage('照片上传失败，已保存在这台设备上。恢复网络后会继续上传。')
+      setErrorMessage(persisted
+        ? '照片上传失败，已保存在这台设备上。恢复网络后会继续上传。'
+        : '照片上传失败，本机也无法保存。请保持页面打开并点击重试。')
       throw new Error('packing photo upload failed')
+    }
+
+    try {
+      if (persisted) await deletePackingDraft(draft.id)
+      volatileDraftsRef.current.delete(draft.id)
+      setLocalDraftCount((count) => Math.max(0, count - 1))
+      await refreshPhotos()
+      setUploadState('idle')
+    } catch (error) {
+      console.error('packing_draft_cleanup_failed', { draftId: draft.id, error: errorDetails(error) })
+      setLocalDraftCount((count) => Math.max(0, count - 1))
+      await refreshPhotos()
+      setUploadState('idle')
     }
   }, [refreshPhotos])
 
-  const enqueueDraft = useCallback((draft: PackingDraft) => {
-    uploadQueueRef.current = uploadQueueRef.current.catch(() => undefined).then(() => uploadDraft(draft))
+  const enqueueDraft = useCallback((draft: PackingDraft, persisted = true) => {
+    uploadQueueRef.current = uploadQueueRef.current.catch(() => undefined).then(() => uploadDraft(draft, persisted))
     // Keep the rejected queue available to `finish`, while avoiding an unhandled
     // rejection when a background upload fails before the user finishes.
     void uploadQueueRef.current.catch(() => undefined)
@@ -156,11 +168,13 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
   const retryPendingDrafts = useCallback(async () => {
     const session = sessionQuery.data
     if (!session) return
-    const drafts = await listPackingDrafts(session.id)
+    const persistedDrafts = await listPackingDrafts(session.id).catch(() => [])
+    const drafts = [...persistedDrafts, ...volatileDraftsRef.current.values()]
     setLocalDraftCount(drafts.length)
     setErrorMessage(null)
     setCanRetryUploads(false)
-    for (const draft of drafts) void enqueueDraft(draft)
+    for (const draft of persistedDrafts) void enqueueDraft(draft, true)
+    for (const draft of volatileDraftsRef.current.values()) void enqueueDraft(draft, false)
   }, [enqueueDraft, sessionQuery.data])
 
   useEffect(() => {
@@ -201,19 +215,9 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
     setUploadState('compressing')
     setErrorMessage(null)
     setCanRetryUploads(false)
+    let compressed: File
     try {
-      const compressed = await compressPackingPhoto(file)
-      const sequenceNo = nextSequenceRef.current++
-      const draft: PackingDraft = {
-        id: `${session.id}:${sequenceNo}`,
-        sessionId: session.id,
-        sequenceNo,
-        blob: compressed,
-        createdAt: new Date().toISOString(),
-      }
-      await savePackingDraft(draft)
-      setLocalDraftCount((count) => count + 1)
-      void enqueueDraft(draft)
+      compressed = await compressPackingPhoto(file)
     } catch (error) {
       reportPackingPhotoError(file, error)
       setUploadState('error')
@@ -222,7 +226,27 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
         : error instanceof PackingImageConversionError && error.code === 'unsupported_image'
           ? '没有读取到有效照片，请重新拍摄。'
           : '照片压缩失败，请重新拍摄。')
+      return
     }
+
+    const sequenceNo = nextSequenceRef.current++
+    const draft: PackingDraft = {
+      id: `${session.id}:${sequenceNo}`,
+      sessionId: session.id,
+      sequenceNo,
+      blob: new Blob([compressed], { type: 'image/jpeg' }),
+      createdAt: new Date().toISOString(),
+    }
+    let persisted = true
+    try {
+      await savePackingDraft(draft)
+    } catch (error) {
+      persisted = false
+      volatileDraftsRef.current.set(draft.id, draft)
+      reportPackingPhotoError(file, error, 'packing_draft_storage_failed')
+    }
+    setLocalDraftCount((count) => count + 1)
+    void enqueueDraft(draft, persisted)
   }
 
   const removePhoto = async (photoId: string) => {
@@ -247,8 +271,8 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
     setCanRetryUploads(false)
     try {
       await uploadQueueRef.current
-      const drafts = await listPackingDrafts(session.id)
-      if (drafts.length > 0) throw new Error('pending drafts remain')
+      const drafts = await listPackingDrafts(session.id).catch(() => [])
+      if (drafts.length > 0 || volatileDraftsRef.current.size > 0) throw new Error('pending drafts remain')
       const photos = (await listPackingPhotos(session.id)).filter((photo) => photo.upload_status === 'confirmed')
       const atlases = await buildClientPackingAtlases(photos, downloadPackingPhoto)
       for (const atlas of atlases) await uploadPackingAtlas(session.id, atlas)
