@@ -23,6 +23,10 @@ describe('isHeicCandidate', () => {
   test('does not treat regular JPEG as HEIC', () => {
     expect(isHeicCandidate(new File(['image'], 'photo.jpg', { type: 'image/jpeg' }))).toBe(false)
   })
+
+  test('trusts JPEG MIME from iOS even when the filename still uses a HEIC extension', () => {
+    expect(isHeicCandidate(new File(['image'], 'IMG_0001.HEIC', { type: 'image/jpeg' }))).toBe(false)
+  })
 })
 
 test('compresses supported camera and library images directly to JPEG', async () => {

@@ -83,9 +83,9 @@ Nomo 新增“AI 装箱”能力。用户扫描或打开箱子后开始一次装
 
 界面固定提示“每放入一个物件，拍一张”，拍摄完成后提示“继续记录下一件”。不得使用“每批”“一批物品”等可能让用户把多个独立物品合并拍摄的文案。
 
-Web 端不得依赖 iPhone 文件输入对 `accept="image/jpeg"` 的遵循，因为 iOS 仍可能返回 HEIC。在无 hover 且使用粗指针的移动设备上，主操作显示“拍摄这件物品”，并在 Sheet 内通过 `getUserMedia` 打开后置相机；用户按下快门后由 Canvas 直接生成 JPEG，再进入压缩和上传，不经过 HEIC 转换。在桌面或精细指针设备上，主操作显示“选择物品照片”，由浏览器打开只接受 JPEG、PNG、WebP 的文件选择器。任何相机错误只显示权限说明，不提供“重新尝试相机”按钮。
+在无 hover 且使用粗指针的移动设备上，主操作显示“拍摄这件物品”，并点击隐藏的文件输入；该输入使用 `capture="environment"` 和 `accept="image/jpeg"`，由浏览器交给系统后置相机并请求 JPEG。系统相机返回后，客户端再统一压缩为 JPEG 并上传，不在 Sheet 内实现取景器，也不调用 `getUserMedia`。iOS 可能在已返回 JPEG MIME 的同时保留 `.HEIC` 文件名，此时必须以明确的 `image/jpeg` MIME 为准继续处理；只有实际返回 HEIC/HEIF MIME 时才拒绝，并提示用户将 iPhone 相机格式改为“兼容性最佳”。在桌面或精细指针设备上，主操作显示“选择物品照片”，由浏览器打开只接受 JPEG、PNG、WebP 的文件选择器。界面不得提供“重新尝试相机”按钮。
 
-系统 Alert、错误提示和通知必须通过 `document.body` Portal 渲染在独立最高层，层级顺序固定为 Alert > Notice > 全局 Action Sheet > 确认弹窗 > 业务 Sheet。最高提示层不得沿用业务组件的普通 z-index；相机 `<video>` 必须限制在 Sheet 内部的隔离低层 stacking context，确保 iOS 视频合成层不会覆盖提示。
+系统 Alert、错误提示和通知必须通过 `document.body` Portal 渲染在独立最高层，层级顺序固定为 Alert > Notice > 全局 Action Sheet > 确认弹窗 > 业务 Sheet。最高提示层不得沿用业务组件的普通 z-index。系统相机不属于页面 DOM；用户返回页面后，所有提示仍必须显示在业务 Sheet 之上。
 
 已确认上传的照片以扑克牌式叠放展示，当前照片在最上层，前后相邻照片以轻微错位、旋转和缩放提示仍可浏览。默认定位到最新照片，新照片确认上传后自动切到最新一张。移动端支持左右滑动，桌面端同时支持鼠标拖动与上一张/下一张按钮，并始终显示“当前张数 / 总张数”。当前照片提供单一“移除”操作；只允许在会话仍处于 `capturing` 或 `uploading` 时删除，删除数据库记录后由媒体清理队列回收原图对象。前端只渲染当前照片及前后各两张，避免长会话同时申请全部签名地址并解码大量图片。
 
@@ -199,7 +199,7 @@ Atlas 和单项裁剪图都可以从客户端压缩原图重新生成，但第�
 - 自动修正方向；
 - 最长边默认 2560 px；
 - 装箱原图统一上传 JPEG，质量 85～90；
-- 移动端通过应用内相机画面由 Canvas 直接截取 JPEG，再缩放压缩；相册和桌面文件选择器只接受 JPEG、PNG、WebP，并统一编码为 JPEG。客户端不接受 HEIC/HEIF，不下载或执行 HEIC WASM 转换器；
+- 移动端通过 `capture="environment"` 调起系统后置相机，并以 `accept="image/jpeg"` 请求 JPEG；系统返回后再缩放压缩。即使文件名仍为 `.HEIC`，明确的 JPEG MIME 仍按 JPEG 处理。相册和桌面文件选择器只接受 JPEG、PNG、WebP，并统一编码为 JPEG。客户端拒绝实际 HEIC/HEIF MIME，不下载或执行 HEIC WASM 转换器；
 - 单张硬限制 4.5 MB，给后台转为 Base64 data URL 后的体积膨胀留出余量；
 - 不覆盖本地待上传文件，确认上传前保留 IndexedDB 副本；
 - 使用 `session_id + sequence_no` 保证重试幂等。

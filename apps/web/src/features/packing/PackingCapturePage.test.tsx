@@ -19,7 +19,6 @@ const mocks = vi.hoisted(() => ({
   listDrafts: vi.fn(),
   deleteDraft: vi.fn(),
   compress: vi.fn(),
-  captureJpeg: vi.fn(),
   onClose: vi.fn(),
   onCompleted: vi.fn(),
 }))
@@ -35,7 +34,6 @@ vi.mock('./packing.api', () => ({
   completePackingSession: mocks.completeSession,
 }))
 vi.mock('./packing-atlas', () => ({ buildClientPackingAtlases: mocks.buildAtlases }))
-vi.mock('./packing-camera', () => ({ captureVideoFrameAsJpeg: mocks.captureJpeg }))
 vi.mock('./packing-storage', () => ({
   savePackingDraft: mocks.saveDraft,
   listPackingDrafts: mocks.listDrafts,
@@ -91,12 +89,6 @@ beforeEach(() => {
   }])
   mocks.completeSession.mockResolvedValue({ ...session, status: 'queued', photo_count: 1 })
   mocks.compress.mockImplementation(async (file: File) => new File([file], 'packing.jpg', { type: 'image/jpeg' }))
-  mocks.captureJpeg.mockResolvedValue(new File(['camera'], 'camera.jpg', { type: 'image/jpeg' }))
-  Object.defineProperty(navigator, 'mediaDevices', {
-    configurable: true,
-    value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] }) },
-  })
-  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
 })
 
 afterEach(cleanup)
@@ -116,8 +108,7 @@ test('starts a zero-form packing session with only capture and finish actions', 
   expect(screen.queryByLabelText('物品名称')).not.toBeInTheDocument()
 })
 
-test('opens an in-app rear camera that captures JPEG on a coarse pointer device', async () => {
-  const user = userEvent.setup()
+test('launches the system rear camera and requests JPEG on a coarse pointer device', async () => {
   vi.mocked(window.matchMedia).mockReturnValue({
     matches: true,
     addEventListener: vi.fn(),
@@ -127,36 +118,12 @@ test('opens an in-app rear camera that captures JPEG on a coarse pointer device'
 
   const openCamera = await screen.findByRole('button', { name: '拍摄这件物品' })
   const cameraInput = screen.getByLabelText('拍摄装箱照片')
-  expect(cameraInput).not.toHaveAttribute('capture')
-  expect(cameraInput).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp')
-  expect(screen.getByText('照片将直接保存为压缩 JPEG')).toBeInTheDocument()
-
-  await user.click(openCamera)
-
-  expect(await screen.findByLabelText('装箱拍照取景')).toBeInTheDocument()
-  expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
-    audio: false,
-    video: { facingMode: { ideal: 'environment' } },
-  })
+  expect(openCamera).toBeInTheDocument()
+  expect(cameraInput).toHaveAttribute('capture', 'environment')
+  expect(cameraInput).toHaveAttribute('accept', 'image/jpeg')
+  expect(screen.getByText('将启动系统后置相机并压缩为 JPEG')).toBeInTheDocument()
+  expect(screen.queryByLabelText('装箱拍照取景')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '重新尝试相机' })).not.toBeInTheDocument()
-})
-
-test('shows camera permission guidance without any retry-camera action', async () => {
-  const user = userEvent.setup()
-  vi.mocked(window.matchMedia).mockReturnValue({
-    matches: true,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  } as unknown as MediaQueryList)
-  vi.mocked(navigator.mediaDevices.getUserMedia).mockRejectedValueOnce(new DOMException('denied', 'NotAllowedError'))
-  renderSheet()
-
-  await user.click(await screen.findByRole('button', { name: '拍摄这件物品' }))
-
-  const alert = await screen.findByRole('alert')
-  expect(alert).toHaveTextContent('无法使用相机，请在浏览器站点设置中允许相机')
-  expect(screen.queryByRole('button', { name: '重新尝试相机' })).not.toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: '重试' })).not.toBeInTheDocument()
 })
 
 test('removes an uploaded photo from a capturing session', async () => {

@@ -11,7 +11,11 @@ export class PackingImageConversionError extends Error {
 }
 
 export function isHeicCandidate(file: File) {
-  return HEIC_MIME_TYPES.has(file.type.toLowerCase()) || HEIC_FILE_PATTERN.test(file.name)
+  const mimeType = file.type.toLowerCase()
+  // iOS can honor `accept="image/jpeg"` while preserving the original .HEIC
+  // filename. An explicit JPEG MIME type is the authoritative signal here.
+  if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') return false
+  return HEIC_MIME_TYPES.has(mimeType) || HEIC_FILE_PATTERN.test(file.name)
 }
 
 export async function compressPackingPhoto(file: File): Promise<File> {
