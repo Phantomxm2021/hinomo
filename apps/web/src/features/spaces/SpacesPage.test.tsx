@@ -41,14 +41,14 @@ vi.mock('../venues/venues.api', () => ({
   isVenuesSchemaUnavailable: (error: unknown) => Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'VENUES_SCHEMA_UNAVAILABLE'),
 }))
 
-function renderSpaces() {
+function renderSpaces(initialEntry = '/app/spaces') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
 
   function Wrapper({ children }: PropsWithChildren) {
     return (
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <div data-app-shell>
           <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
         </div>
@@ -183,7 +183,8 @@ test('filters by venue and defaults a new space to the selected venue', async ()
   expect(screen.getByLabelText('场地')).toHaveValue('venue-office')
 })
 
-test('shows a plain empty state when the selected venue has no spaces', async () => {
+test('shows an actionable empty state when the selected venue has no spaces', async () => {
+  const user = userEvent.setup()
   mockStorageGetItem.mockImplementation((key: string) => key === 'nomo-selected-venue-id' ? 'venue-office' : null)
   mockListVenues.mockResolvedValue([
     { id: 'venue-home', name: '家里', description: null, is_default: true, space_count: 1 },
@@ -197,10 +198,13 @@ test('shows a plain empty state when the selected venue has no spaces', async ()
   const title = screen.getByRole('heading', { name: '空间', level: 1 })
   expect(await within(title.parentElement!).findByText('公司')).toBeInTheDocument()
   expect(screen.getByText('还没有空间')).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: '创建第一个空间' })).not.toBeInTheDocument()
+  const emptyAction = screen.getByRole('button', { name: '创建第一个空间' })
   expect(screen.queryByRole('button', { name: '卡片视图' })).not.toBeInTheDocument()
   expect(screen.queryByRole('region', { name: '空间平面总览' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: '创建空间' })).toBeInTheDocument()
+
+  await user.click(emptyAction)
+  expect(screen.getByRole('dialog', { name: '创建空间' })).toBeInTheDocument()
 })
 
 test('keeps the mobile create action compact and aligned with the space title', async () => {
@@ -218,12 +222,21 @@ test('keeps the mobile create action compact and aligned with the space title', 
   expect(headerCreate).not.toHaveClass('w-full')
   expect(headerCreate).toHaveTextContent('')
   expect(headerCreate).toHaveAttribute('title', '创建空间')
-  expect(screen.queryByRole('button', { name: '创建第一个空间' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '创建第一个空间' })).toBeInTheDocument()
 
   await user.click(headerCreate)
   const dialog = screen.getByRole('dialog', { name: '创建空间' })
   expect(within(dialog).getByRole('button', { name: '创建空间' })).toHaveClass('min-h-12')
   expect(within(dialog).getByRole('button', { name: '取消' })).toHaveClass('min-h-11')
+})
+
+test('opens the space editor directly for onboarding and explains a box prerequisite', async () => {
+  mockListSpaces.mockResolvedValue([])
+  renderSpaces('/app/spaces?create=1&from=box')
+
+  const dialog = await screen.findByRole('dialog', { name: '创建空间' })
+  expect(within(dialog).getByText('创建箱子前，需要先告诉 Nomo 它放在哪个空间。')).toBeInTheDocument()
+  expect(within(dialog).getByLabelText('场地')).toHaveValue('venue-home')
 })
 
 test('isolates and restores the real application shell around the portalled editor', async () => {

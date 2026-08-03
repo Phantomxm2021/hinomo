@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useBlocker, useSearchParams } from 'react-router-dom'
+import { useBlocker, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
@@ -27,6 +27,7 @@ const EMPTY_BOXES: readonly BoxSummary[] = []
 export function BoxesPage() {
   const queryClient = useQueryClient()
   const feedback = useMobileFeedback()
+  const navigate = useNavigate()
   const createButtonRef = useRef<HTMLButtonElement | null>(null)
   const deleteReturnFocusRef = useRef<HTMLElement | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -103,6 +104,10 @@ export function BoxesPage() {
   }, [])
 
   const openCreate = () => {
+    if (selectedVenue?.space_count === 0) {
+      navigate('/app/spaces?create=1&from=box')
+      return
+    }
     clearCreateSuccessTimer()
     setCreateSucceeded(false)
     setCreateCompletionPending(false)
@@ -120,6 +125,12 @@ export function BoxesPage() {
   useEffect(() => {
     if (createBlocker.state === 'blocked' && !createBusy) createBlocker.reset()
   }, [createBlocker, createBusy])
+
+  useEffect(() => {
+    if (creating && selectedVenue?.space_count === 0) {
+      navigate('/app/spaces?create=1&from=box', { replace: true })
+    }
+  }, [creating, navigate, selectedVenue?.space_count])
 
   useEffect(() => {
     if (createCompletionPending && creating && !createBusy) closeCreate()

@@ -183,14 +183,43 @@ test('shows a structural dashboard skeleton while initial data is pending', () =
   expect(screen.queryByText('正在加载箱子…')).not.toBeInTheDocument()
 })
 
-test('shows a plain empty state when the selected venue has no spaces', async () => {
+test('guides a new user to create the first space on desktop and mobile', async () => {
   mockListSpaces.mockResolvedValue([])
   mockListBoxes.mockResolvedValue([])
   renderDashboard()
 
   expect(await screen.findByRole('heading', { name: '这个场地还没有空间' })).toBeInTheDocument()
+  const onboarding = screen.getByRole('region', { name: '从一个空间开始' })
+  expect(within(onboarding).getByText('开始使用 Nomo')).toHaveClass('hidden', 'lg:inline')
+  expect(within(onboarding).getByText('下一步')).toHaveClass('lg:hidden')
+  expect(within(onboarding).getByText('0/3')).toBeInTheDocument()
+  expect(within(onboarding).getByRole('link', { name: /创建第一个空间/ })).toHaveAttribute('href', '/app/spaces?create=1')
+  expect(screen.getAllByRole('link', { name: '创建第一个空间' })).toHaveLength(2)
+  expect(screen.getAllByRole('link', { name: '创建第一个空间' }).at(-1)).toHaveAttribute('href', '/app/spaces?create=1')
   expect(screen.queryByRole('link', { name: '创建第一个箱子' })).not.toBeInTheDocument()
   expect(screen.queryByRole('region', { name: '最近打开' })).not.toBeInTheDocument()
+})
+
+test('advances onboarding from space to box and item using real catalogue data', async () => {
+  mockListSpaces.mockResolvedValue([
+    { id: 'space-home', venue_id: 'venue-home', venue_name: '默认', name: '储藏室', description: null, box_count: 0, item_count: 0 },
+  ])
+  mockListBoxes.mockResolvedValue([])
+  const view = renderDashboard()
+
+  let onboarding = await screen.findByRole('region', { name: '创建第一个箱子' })
+  expect(within(onboarding).getByText('1/3')).toBeInTheDocument()
+  expect(within(onboarding).getByRole('link', { name: /创建第一个箱子/ })).toHaveAttribute('href', '/app/boxes?create=1')
+
+  view.unmount()
+  mockListBoxes.mockResolvedValue([
+    { id: 'box-1', public_id: 'first-box', box_code: 'BX-1', name: '露营用品', space_id: 'space-home', location: null, visibility: 'private', space_name: '储藏室', cover_object_key: null, item_count: 0, updated_at: '2026-08-03' },
+  ])
+  renderDashboard()
+
+  onboarding = await screen.findByRole('region', { name: '记录箱内物品' })
+  expect(within(onboarding).getByText('2/3')).toBeInTheDocument()
+  expect(within(onboarding).getByRole('link', { name: /记录箱内物品/ })).toHaveAttribute('href', '/b/first-box')
 })
 
 test('keeps finding available when dashboard data fails', async () => {

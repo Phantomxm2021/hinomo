@@ -416,6 +416,22 @@ test('distinguishes a true empty catalogue from filtered no-match results', asyn
   expect(screen.getByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
 })
 
+test('routes creation to the space prerequisite when the selected venue has no spaces', async () => {
+  const user = userEvent.setup()
+  mockListVenues.mockResolvedValue([
+    { id: 'venue-home', name: '家里', description: null, is_default: true, space_count: 0 },
+  ])
+  mockListBoxes.mockResolvedValue([])
+  const { router } = renderBoxes()
+
+  await screen.findByText('还没有箱子')
+  await user.click(screen.getAllByRole('button', { name: '创建箱子' }).at(-1)!)
+
+  await waitFor(() => expect(router.state.location.pathname).toBe('/app/spaces'))
+  expect(router.state.location.search).toBe('?create=1&from=box')
+  expect(screen.queryByRole('dialog', { name: '创建箱子' })).not.toBeInTheDocument()
+})
+
 test('opens creation from the URL and closes it without losing catalogue state', async () => {
   const user = userEvent.setup()
   mockListBoxes.mockResolvedValue(boxes)

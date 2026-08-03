@@ -11,6 +11,7 @@ import { listVenues } from '../venues/venues.api'
 import { VenueSwitcher } from '../venues/VenueSwitcher'
 import { useSelectedVenue } from '../venues/selected-venue'
 import { greetingForHour } from './dashboard-greeting'
+import { OnboardingProgressCard } from './OnboardingProgressCard'
 
 const boxPlaceholderTones = ['bg-[#a98b6e]', 'bg-[#788790]', 'bg-[#b7925c]'] as const
 
@@ -108,6 +109,14 @@ export function DashboardPage() {
         </SkeletonGroup>
       ) : (
         <>
+      {venuesQuery.isSuccess && spacesQuery.isSuccess && boxesQuery.isSuccess ? (
+        <OnboardingProgressCard
+          hasSpace={spaces.length > 0}
+          hasBox={boxes.length > 0}
+          hasItem={itemTotal > 0}
+          firstBoxPublicId={boxes[0]?.public_id}
+        />
+      ) : null}
       <div className="hidden gap-4 sm:grid-cols-3 lg:grid" aria-label="收纳概览">
         <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label="空间统计">
           <span className="text-meta font-medium text-muted">空间</span>
@@ -134,7 +143,13 @@ export function DashboardPage() {
           </Link>
         </div>
         {spacesQuery.isSuccess && spaces.length === 0 ? (
-          <PageState state="empty" icon="space" title="这个场地还没有空间" />
+          <PageState
+            state="empty"
+            icon="space"
+            title="这个场地还没有空间"
+            description="空间可以是客厅、卧室、储藏室，也可以是一组货架。"
+            action={<Link to="/app/spaces?create=1">创建第一个空间</Link>}
+          />
         ) : null}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {spaces.map((space) => (

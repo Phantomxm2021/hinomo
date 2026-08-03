@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useForm } from 'react-hook-form'
+import { useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
@@ -52,6 +53,7 @@ function getEditorControls(dialog: HTMLElement | null) {
 export function SpacesPage() {
   const queryClient = useQueryClient()
   const feedback = useMobileFeedback()
+  const [searchParams, setSearchParams] = useSearchParams()
   const editorOpenerRef = useRef<HTMLElement | null>(null)
   const headerCreateButtonRef = useRef<HTMLButtonElement | null>(null)
   const deleteReturnFocusRef = useRef<HTMLElement | null>(null)
@@ -118,6 +120,14 @@ export function SpacesPage() {
   const resetCreateMutation = createMutation.reset
   const resetUpdateMutation = updateMutation.reset
 
+  const clearCreateRequest = useCallback(() => {
+    if (!searchParams.has('create')) return
+    const next = new URLSearchParams(searchParams)
+    next.delete('create')
+    next.delete('from')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
   const restoreEditorFocus = useCallback(() => {
     const opener = editorOpenerRef.current
     const focusTarget = opener?.isConnected && opener.tabIndex >= 0 && !opener.hasAttribute('disabled')
@@ -134,7 +144,8 @@ export function SpacesPage() {
     reset({ venue_id: '', name: '', description: '' })
     resetCreateMutation()
     resetUpdateMutation()
-  }, [editorPending, reset, resetCreateMutation, resetUpdateMutation])
+    clearCreateRequest()
+  }, [clearCreateRequest, editorPending, reset, resetCreateMutation, resetUpdateMutation])
 
   useEffect(() => {
     if (!editorOpen && editorOpenerRef.current) restoreEditorFocus()
@@ -193,6 +204,7 @@ export function SpacesPage() {
       setEditorOpen(false)
       setEditTarget(null)
       reset({ venue_id: '', name: '', description: '' })
+      clearCreateRequest()
     } catch {
       // Mutation state renders a stable Chinese error without leaking backend text.
     } finally {
@@ -215,12 +227,12 @@ export function SpacesPage() {
     setEditorOpen(true)
   }
 
-  function beginCreate() {
+  const beginCreate = useCallback(() => {
     editorOpenerRef.current = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null
-    createMutation.reset()
-    updateMutation.reset()
+    resetCreateMutation()
+    resetUpdateMutation()
     setEditTarget(null)
     reset({
       venue_id: selectedVenueId ?? venuesQuery.data?.[0]?.id ?? '',
@@ -228,7 +240,12 @@ export function SpacesPage() {
       description: '',
     })
     setEditorOpen(true)
-  }
+  }, [reset, resetCreateMutation, resetUpdateMutation, selectedVenueId, venuesQuery.data])
+
+  useEffect(() => {
+    if (searchParams.get('create') !== '1' || editorOpen || venuesQuery.isPending) return
+    beginCreate()
+  }, [beginCreate, editorOpen, searchParams, venuesQuery.isPending])
 
   function requestDelete(space: SpaceSummary, trigger: HTMLButtonElement) {
     setBlockedMessage(null)
@@ -332,6 +349,11 @@ export function SpacesPage() {
                 <AppIcon name="close" />
               </button>
             </div>
+            {searchParams.get('from') === 'box' ? (
+              <p className="mb-5 rounded-control bg-brand/10 px-4 py-3 text-sm font-medium leading-relaxed text-ink">
+                创建箱子前，需要先告诉 Nomo 它放在哪个空间。
+              </p>
+            ) : null}
             <form className="grid gap-3" onSubmit={submit} noValidate>
               <label className="font-bold text-ink" htmlFor="space-venue">场地</label>
               <select
@@ -436,7 +458,13 @@ export function SpacesPage() {
       ) : null}
       {spacesQuery.isError ? <PageState state="error" message="空间加载失败，请重试" onRetry={() => void spacesQuery.refetch()} /> : null}
       {spacesQuery.data && venuesQuery.isSuccess && visibleSpaces.length === 0 ? (
-        <PageState state="empty" icon="space" title="还没有空间" />
+        <PageState
+          state="empty"
+          icon="space"
+          title="还没有空间"
+          description="空间可以是客厅、卧室、储藏室，也可以是一组货架。"
+          action={<button type="button" onClick={beginCreate}>创建第一个空间</button>}
+        />
       ) : null}
       {spacesQuery.data && venuesQuery.isSuccess && visibleSpaces.length > 0 ? (
         <>
