@@ -105,6 +105,21 @@ function client(services: PackingServices): OpenAI {
   })
 }
 
+export function buildQwenChatRequest(input: {
+  model: string
+  messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]
+}): OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming & { enable_thinking: boolean } {
+  return {
+    model: input.model,
+    messages: input.messages,
+    response_format: { type: 'json_object' },
+    // Qwen's Node.js OpenAI-compatible API requires non-standard parameters
+    // at the top level. Passing this through request options.body replaces the
+    // generated model/messages body and causes an HTTP 400 response.
+    enable_thinking: false,
+  }
+}
+
 async function callQwen<T>(input: {
   services: PackingServices
   system: string
@@ -120,14 +135,24 @@ async function callQwen<T>(input: {
   const started = Date.now()
   let raw: OpenAI.Chat.Completions.ChatCompletion
   try {
-    raw = await client(input.services).chat.completions.create({
+    const request = buildQwenChatRequest({
       model: input.services.qwenModel,
       messages: [{ role: 'system', content: input.system }, { role: 'user', content }],
-      response_format: { type: 'json_object' },
-    }, { body: { enable_thinking: false } })
+    })
+    raw = await client(input.services).chat.completions.create(request)
   } catch (error) {
     if (error instanceof OpenAI.APIConnectionTimeoutError) throw new Error('qwen_timeout')
-    if (error instanceof OpenAI.APIError) throw new Error(`qwen_http_${error.status ?? 'unknown'}`)
+    if (error instanceof OpenAI.APIError) {
+      console.error('qwen_api_error', {
+        status: error.status ?? null,
+        code: error.code ?? null,
+        type: error.type ?? null,
+        param: error.param ?? null,
+        requestId: error.requestID ?? null,
+        message: error.message.slice(0, 500),
+      })
+      throw new Error(`qwen_http_${error.status ?? 'unknown'}_${error.code ?? 'unknown'}`)
+    }
     if (error instanceof OpenAI.APIConnectionError) throw new Error('qwen_connection_error')
     throw error
   }

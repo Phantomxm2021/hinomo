@@ -1,4 +1,16 @@
-import { atlasObservationSchema, localizationSchema } from './qwen.ts'
+import { atlasObservationSchema, buildQwenChatRequest, localizationSchema } from './qwen.ts'
+
+Deno.test('builds Qwen non-thinking JSON requests without replacing the OpenAI body', () => {
+  const request = buildQwenChatRequest({
+    model: 'qwen3-vl-plus',
+    messages: [{ role: 'user', content: 'return json' }],
+  })
+  if (request.model !== 'qwen3-vl-plus') throw new Error('model was omitted')
+  if (request.messages.length !== 1) throw new Error('messages were omitted')
+  if (request.response_format?.type !== 'json_object') throw new Error('JSON mode was omitted')
+  if (request.enable_thinking !== false) throw new Error('thinking mode was not disabled')
+  if ('body' in request) throw new Error('request contains a nested replacement body')
+})
 
 Deno.test('accepts an opaque container without inventing contents', () => {
   const parsed = atlasObservationSchema.parse({
