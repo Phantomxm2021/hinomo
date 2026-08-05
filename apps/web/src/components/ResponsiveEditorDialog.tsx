@@ -41,6 +41,9 @@ export function ResponsiveEditorDialog({
   closeRef.current = close
   initialFocusSelectorRef.current = initialFocusSelector
   returnFocusRefRef.current = returnFocusRef
+  const restoreFocus = useCallback(() => {
+    window.requestAnimationFrame(() => returnFocusRefRef.current?.current?.focus())
+  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -77,9 +80,9 @@ export function ResponsiveEditorDialog({
         else appShell.setAttribute('aria-hidden', previousAriaHidden)
       }
       document.body.style.overflow = previousOverflow
-      window.requestAnimationFrame(() => returnFocusRefRef.current?.current?.focus())
+      restoreFocus()
     }
-  }, [open])
+  }, [open, restoreFocus])
 
   if (!open) return null
 

@@ -139,3 +139,34 @@ test('keeps the dialog isolated when focus configuration changes while open', as
   firstOpener.remove()
   secondOpener.remove()
 })
+
+test('restores the latest return focus target when closed', async () => {
+  const firstOpener = document.createElement('button')
+  const secondOpener = document.createElement('button')
+  document.body.append(firstOpener, secondOpener)
+  const firstReturnFocusRef = { current: firstOpener }
+  const secondReturnFocusRef = { current: secondOpener }
+  const view = render(
+    <ResponsiveEditorDialog open title="编辑" busy={false} onClose={vi.fn()} returnFocusRef={firstReturnFocusRef}>
+      <input aria-label="名称" />
+    </ResponsiveEditorDialog>,
+  )
+
+  await waitFor(() => expect(screen.getByRole('textbox', { name: '名称' })).toHaveFocus())
+  view.rerender(
+    <ResponsiveEditorDialog open title="编辑" busy={false} onClose={vi.fn()} returnFocusRef={secondReturnFocusRef}>
+      <input aria-label="名称" />
+    </ResponsiveEditorDialog>,
+  )
+  view.rerender(
+    <ResponsiveEditorDialog open={false} title="编辑" busy={false} onClose={vi.fn()} returnFocusRef={secondReturnFocusRef}>
+      <input aria-label="名称" />
+    </ResponsiveEditorDialog>,
+  )
+
+  await waitFor(() => expect(secondOpener).toHaveFocus())
+  expect(firstOpener).not.toHaveFocus()
+  view.unmount()
+  firstOpener.remove()
+  secondOpener.remove()
+})
