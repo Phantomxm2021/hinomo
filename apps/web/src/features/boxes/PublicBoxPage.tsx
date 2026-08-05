@@ -14,7 +14,7 @@ import { useAuth } from '../auth/auth-context'
 import { ItemMovementSheet, type ItemMovementCommand } from '../item-movements/ItemMovementSheet'
 import { deriveItemAvailability, formatItemAvailability } from '../item-movements/item-movement-status'
 import { listItemMovements, moveItem, returnItem, takeOutItem } from '../item-movements/item-movements.api'
-import { ItemForm } from '../items/ItemForm'
+import { ItemEditorDialog } from '../items/ItemEditorDialog'
 import { deleteItem, type ItemRecord } from '../items/items.api'
 import { AuthorizedImage } from '../media/AuthorizedImage'
 import { buildLabels, describePdfGenerationFailure, renderLabelsPdf, type PdfGenerationFailure } from '../qr-print/pdf'
@@ -35,6 +35,7 @@ export function PublicBoxPage() {
   const mobileActionsButtonRef = useRef<HTMLButtonElement | null>(null)
   const deleteReturnFocusRef = useRef<HTMLElement | null>(null)
   const itemInteractionTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const itemEditorReturnFocusRef = useRef<HTMLElement | null>(null)
   const [showItemForm, setShowItemForm] = useState(false)
   const [showPackingCapture, setShowPackingCapture] = useState(false)
   const [creditGate, setCreditGate] = useState<{
@@ -153,6 +154,9 @@ export function PublicBoxPage() {
     year: 'numeric', month: 'short', day: 'numeric',
   }).format(new Date(box.updated_at))
   const openNewItem = () => {
+    itemEditorReturnFocusRef.current = window.matchMedia('(min-width: 48rem)').matches
+      ? desktopAddItemButtonRef.current
+      : mobileActionsButtonRef.current
     setEditingItem(null)
     setShowItemForm(true)
   }
@@ -169,6 +173,7 @@ export function PublicBoxPage() {
     else setShowPackingCapture(true)
   }
   const openEditItem = (item: ItemRecord) => {
+    itemEditorReturnFocusRef.current = itemInteractionTriggerRef.current
     setEditingItem(item)
     setShowItemForm(true)
   }
@@ -300,27 +305,21 @@ export function PublicBoxPage() {
         onSubmit={async (command) => { await movementMutation.mutateAsync(command) }}
       />
 
-      {isOwner && (showItemForm || editingItem) ? (
-        <div className="fixed inset-0 z-40 flex items-end bg-ink/30 lg:static lg:block lg:bg-transparent" role="dialog" aria-modal="true" aria-labelledby="item-form-title">
-          <div className="max-h-[calc(100dvh-var(--safe-area-top))] w-full overflow-y-auto rounded-t-[1.5rem] bg-canvas pb-[max(1rem,var(--safe-area-bottom))] shadow-float lg:max-h-none lg:overflow-visible lg:rounded-none lg:bg-transparent lg:p-0 lg:shadow-none">
-            <div className="mx-auto w-full max-w-6xl lg:px-0">
-              <div className="mx-auto mt-3 h-1.5 w-10 rounded-full bg-line lg:hidden" aria-hidden="true" />
-              <ItemForm
-                key={editingItem ? `edit-${editingItem.id}` : 'new'}
-                boxId={box.id}
-                item={editingItem}
-                onSaved={() => void refreshItems()}
-                onCancel={() => { setShowItemForm(false); setEditingItem(null) }}
-                onDelete={editingItem ? () => {
-                  deleteReturnFocusRef.current = itemInteractionTriggerRef.current ?? mobileActionsButtonRef.current
-                  setShowItemForm(false)
-                  setEditingItem(null)
-                  setDeleteTarget(editingItem)
-                } : undefined}
-              />
-            </div>
-          </div>
-        </div>
+      {isOwner ? (
+        <ItemEditorDialog
+          open={showItemForm || Boolean(editingItem)}
+          boxId={box.id}
+          item={editingItem}
+          returnFocusRef={itemEditorReturnFocusRef}
+          onSaved={() => void refreshItems()}
+          onClose={() => { setShowItemForm(false); setEditingItem(null) }}
+          onDelete={editingItem ? () => {
+            deleteReturnFocusRef.current = itemInteractionTriggerRef.current ?? mobileActionsButtonRef.current
+            setShowItemForm(false)
+            setEditingItem(null)
+            setDeleteTarget(editingItem)
+          } : undefined}
+        />
       ) : null}
 
       {isOwner && showPackingCapture ? (

@@ -382,6 +382,30 @@ test('opens the item form from the mobile action menu', async () => {
   expect(screen.getByRole('button', { name: '打开箱子操作菜单' })).toBeInTheDocument()
 })
 
+test('opens new and edited items in desktop modal overlays', async () => {
+  const user = userEvent.setup()
+  mockMatchMedia.mockReturnValue({ matches: true } as MediaQueryList)
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    space_id: 'space-1', name: '工具', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z',
+    items: [{ id: 'i1', name: '锤子', category: null, quantity: 1, description: null }],
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session)
+
+  await user.click(await screen.findByRole('button', { name: '新增物品' }))
+  const createDialog = screen.getByRole('dialog', { name: '新增物品' })
+  expect(createDialog.parentElement).toHaveClass('fixed', 'inset-0')
+  expect(createDialog).toHaveClass('lg:rounded-shell')
+  expect(screen.getByLabelText('物品名称').closest('form')?.parentElement).not.toHaveClass('lg:static')
+  await user.click(screen.getByRole('button', { name: '关闭新增物品' }))
+
+  await user.click(screen.getByRole('button', { name: '打开锤子操作' }))
+  await user.click(screen.getByRole('button', { name: '编辑物品信息' }))
+  expect(screen.getByRole('dialog', { name: '编辑物品' })).toBeInTheDocument()
+})
+
 test('offers direct AI and manual next steps for an owner empty box', async () => {
   const user = userEvent.setup()
   mockGetBoxByPublicId.mockResolvedValue({

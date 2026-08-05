@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { ItemForm } from './ItemForm'
@@ -23,6 +23,37 @@ beforeEach(() => {
   vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:item-preview'), revokeObjectURL: vi.fn() })
 })
 afterEach(cleanup)
+
+test('reports busy while a new item is being created and clears it after saving', async () => {
+  const user = userEvent.setup()
+  const client = new QueryClient()
+  const onBusyChange = vi.fn()
+  let resolveCreate: (item: { id: string }) => void = () => undefined
+  mockCreateItem.mockImplementation(() => new Promise((resolve) => { resolveCreate = resolve }))
+  render(
+    <QueryClientProvider client={client}>
+      <ItemForm boxId="box-1" onSaved={vi.fn()} onBusyChange={onBusyChange} />
+    </QueryClientProvider>,
+  )
+
+  await user.type(screen.getByLabelText('物品名称'), '围巾')
+  await user.click(screen.getByRole('button', { name: '保存' }))
+
+  await waitFor(() => expect(onBusyChange).toHaveBeenLastCalledWith(true))
+  resolveCreate({ id: 'item-1' })
+  await waitFor(() => expect(onBusyChange).toHaveBeenLastCalledWith(false))
+})
+
+test('omits the form heading when it is rendered inside an editor dialog', () => {
+  const client = new QueryClient()
+  render(
+    <QueryClientProvider client={client}>
+      <ItemForm boxId="box-1" onSaved={vi.fn()} showHeading={false} />
+    </QueryClientProvider>,
+  )
+
+  expect(screen.queryByRole('heading', { name: '新增物品' })).not.toBeInTheDocument()
+})
 
 test('rejects zero quantity before submit', async () => {
   const user = userEvent.setup()

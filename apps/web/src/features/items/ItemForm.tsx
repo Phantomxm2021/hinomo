@@ -11,15 +11,17 @@ import { useMediaUpload } from '../media/useMediaUpload'
 import { itemSchema, type ItemFormValues } from './item.schema'
 import { createItem, type ItemRecord, updateItem } from './items.api'
 
-type ItemFormProps = {
+export type ItemFormProps = {
   boxId: string
   item?: ItemRecord | null
   onSaved: () => void
   onCancel?: () => void
   onDelete?: () => void
+  onBusyChange?: (busy: boolean) => void
+  showHeading?: boolean
 }
 
-export function ItemForm({ boxId, item, onSaved, onCancel, onDelete }: ItemFormProps) {
+export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChange, showHeading = true }: ItemFormProps) {
   const feedback = useMobileFeedback()
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
@@ -54,6 +56,11 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete }: ItemFormP
       return created.id
     },
   })
+  const busy = mutation.isPending || isUploadPending(mediaUpload.stage)
+  useEffect(() => {
+    onBusyChange?.(busy)
+  }, [busy, onBusyChange])
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange])
   const {
     register,
     handleSubmit,
@@ -146,9 +153,11 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete }: ItemFormP
       onSubmit={handleSubmit(submit)}
       noValidate
     >
-      <h2 className="m-0 text-section-title font-bold text-ink" id="item-form-title">
-        {item ? '编辑物品' : '新增物品'}
-      </h2>
+      {showHeading ? (
+        <h2 className="m-0 text-section-title font-bold text-ink" id="item-form-title">
+          {item ? '编辑物品' : '新增物品'}
+        </h2>
+      ) : null}
       <div className="relative overflow-hidden rounded-control bg-placeholder">
         <button className="group relative block aspect-[4/3] w-full overflow-hidden text-left" type="button" aria-label={imagePreviewUrl || (item?.image_object_key && !existingImageRemoved) ? '更换物品图片' : '添加物品图片'} onClick={() => imageInputRef.current?.click()}>
           {imagePreviewUrl ? <img className="h-full w-full object-cover" src={imagePreviewUrl} alt="待上传物品图片预览" /> : null}
@@ -232,7 +241,7 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete }: ItemFormP
       <div className="fixed inset-x-4 bottom-[max(1rem,var(--safe-area-bottom))] z-20 flex flex-wrap justify-end gap-2 rounded-control border border-line bg-surface/95 p-2 shadow-float backdrop-blur min-[360px]:inset-x-5 lg:static lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
         {item && onDelete ? <button className="mr-auto min-h-11 rounded-control border border-danger/30 bg-danger/5 px-4 font-bold text-danger" type="button" onClick={onDelete}>删除物品</button> : null}
         {onCancel ? <button className="min-h-11 rounded-control border border-line bg-canvas px-4 font-bold text-ink" type="button" onClick={onCancel}>取消</button> : null}
-        <button className="min-h-12 rounded-control border border-brand bg-brand px-5 font-bold text-white" type="submit" disabled={mutation.isPending || isUploadPending(mediaUpload.stage)}>保存</button>
+        <button className="min-h-12 rounded-control border border-brand bg-brand px-5 font-bold text-white" type="submit" disabled={busy}>保存</button>
       </div>
     </form>
   )
