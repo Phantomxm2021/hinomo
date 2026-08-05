@@ -1,4 +1,5 @@
 import imageCompression from 'browser-image-compression'
+import { reportDevLog, serializeDevLogError } from '../../lib/dev-log'
 import { useCallback, useState } from 'react'
 import {
   assertPhotoUploadSize,
@@ -63,11 +64,11 @@ export function useMediaUpload() {
       setStage('complete')
       return session.object_key
     } catch (error) {
-      console.error('media_upload_failed', {
+      reportDevLog('media_upload_failed', {
         boxId: input.boxId,
         itemId: input.itemId,
         kind: input.kind,
-        error,
+        error: serializeDevLogError(error),
       })
       setStage('error')
       throw error

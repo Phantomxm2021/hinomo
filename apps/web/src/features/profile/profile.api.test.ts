@@ -90,11 +90,14 @@ test('logs avatar upload failures before rethrowing the original error', async (
     data: [{ upload_id: 'upload-1', upload_url: 'https://r2.example/avatar' }],
     error: null,
   })
-  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(uploadError))
-  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  const fetchMock = vi.fn().mockImplementation((url: string) =>
+    url === '/__nomo/dev-log' ? Promise.resolve({ ok: true }) : Promise.reject(uploadError))
+  vi.stubGlobal('fetch', fetchMock)
 
   await expect(uploadAvatar(original)).rejects.toBe(uploadError)
 
-  expect(consoleError).toHaveBeenCalledWith('avatar_upload_failed', uploadError)
-  consoleError.mockRestore()
+  expect(fetchMock).toHaveBeenCalledWith('/__nomo/dev-log', expect.objectContaining({
+    method: 'POST',
+    body: expect.stringContaining('avatar network'),
+  }))
 })

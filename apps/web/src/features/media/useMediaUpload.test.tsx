@@ -71,8 +71,9 @@ test('compresses, uploads, and confirms a media session in order', async () => {
 
 test('does not confirm when R2 PUT fails', async () => {
   const uploadError = new Error('network')
-  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(uploadError))
-  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  const fetchMock = vi.fn().mockImplementation((url: string) =>
+    url === '/__nomo/dev-log' ? Promise.resolve({ ok: true }) : Promise.reject(uploadError))
+  vi.stubGlobal('fetch', fetchMock)
   const { result } = renderHook(() => useMediaUpload())
 
   await act(async () => {
@@ -83,11 +84,8 @@ test('does not confirm when R2 PUT fails', async () => {
 
   expect(mockConfirmUpload).not.toHaveBeenCalled()
   expect(result.current.stage).toBe('error')
-  expect(consoleError).toHaveBeenCalledWith('media_upload_failed', {
-    boxId: 'b1',
-    itemId: null,
-    kind: 'cover',
-    error: uploadError,
-  })
-  consoleError.mockRestore()
+  expect(fetchMock).toHaveBeenCalledWith('/__nomo/dev-log', expect.objectContaining({
+    method: 'POST',
+    body: expect.stringContaining('network'),
+  }))
 })

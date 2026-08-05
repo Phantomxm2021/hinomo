@@ -1,5 +1,6 @@
 import imageCompression from 'browser-image-compression'
 import type { Database } from '../../lib/database.types'
+import { reportDevLog, serializeDevLogError } from '../../lib/dev-log'
 import {
   assertPhotoUploadSize,
   PHOTO_UPLOAD_INITIAL_QUALITY,
@@ -64,7 +65,7 @@ export async function uploadAvatar(file: File) {
     await confirmAvatarUpload(session.upload_id)
     return getAvatarDownload()
   } catch (error) {
-    console.error('avatar_upload_failed', error)
+    reportDevLog('avatar_upload_failed', { error: serializeDevLogError(error) })
     throw error
   }
 }
