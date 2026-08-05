@@ -1,5 +1,5 @@
 begin;
-select plan(13);
+select plan(15);
 
 create extension if not exists "basejump-supabase_test_helpers" with schema tests;
 select tests.create_supabase_user('search-owner');
@@ -23,6 +23,13 @@ values
   ('43000000-0000-0000-0000-000000000004', '23000000-0000-0000-0000-000000000001', 'Needle Older', 'Tools', null, 1, '2026-07-30 08:00:00+00'),
   ('43000000-0000-0000-0000-000000000005', '23000000-0000-0000-0000-000000000001', 'Rate 100% complete', 'Labels', null, 1, '2026-07-30 07:00:00+00'),
   ('43000000-0000-0000-0000-000000000006', '23000000-0000-0000-0000-000000000001', 'Shelf_A marker', 'Labels', null, 1, '2026-07-30 06:00:00+00');
+
+select tests.clear_authentication();
+set local role postgres;
+update public.items
+set search_aliases = array['键盘', 'computer keyboard']::text[]
+where id = '43000000-0000-0000-0000-000000000001';
+select tests.authenticate_as('search-owner');
 
 select tests.authenticate_as('search-other');
 
@@ -58,6 +65,16 @@ select is(
    from public.boxes
    where id = '23000000-0000-0000-0000-000000000001'),
   'owner search returns all item, box, space, location, and quantity fields'
+);
+select is(
+  (select item_id from public.search_my_items('键盘')),
+  '43000000-0000-0000-0000-000000000001'::uuid,
+  'Chinese alias finds an English-named formal item'
+);
+select is(
+  (select item_id from public.search_my_items('computer keyboard')),
+  '43000000-0000-0000-0000-000000000001'::uuid,
+  'English alias finds the same formal item'
 );
 select ok(
   not exists (

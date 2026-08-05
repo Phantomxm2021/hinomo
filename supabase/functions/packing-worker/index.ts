@@ -1,27 +1,47 @@
-import { claimPackingJobs, processPackingJob } from './pipeline.ts'
+import {
+  claimPackingJobs,
+  claimPackingSearchAliasJobs,
+  processPackingJob,
+  processPackingSearchAliasJob,
+} from './pipeline.ts'
 import { createPackingServices } from './services.ts'
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void }
 
+async function wakeSelf(): Promise<void> {
+  const baseUrl = Deno.env.get('SUPABASE_URL')
+  const secret = Deno.env.get('PACKING_FUNCTION_SECRET')
+  if (!baseUrl || !secret) return
+  await fetch(`${baseUrl}/functions/v1/packing-worker`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-packing-secret': secret },
+    body: '{}',
+  })
+}
+
 async function runOnce(): Promise<void> {
   const services = createPackingServices()
-  const jobs = await claimPackingJobs(services)
-  await Promise.all(jobs.map(async (job) => {
-    try {
-      await processPackingJob(services, job)
-    } catch (error) {
-      console.error('packing_job_failed', { jobId: job.job_id, code: error instanceof Error ? error.message : 'unknown_error' })
-    }
-  }))
-  if (jobs.length > 0) {
-    const baseUrl = Deno.env.get('SUPABASE_URL')
-    const secret = Deno.env.get('PACKING_FUNCTION_SECRET')
-    if (baseUrl && secret) {
-      await fetch(`${baseUrl}/functions/v1/packing-worker`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-packing-secret': secret }, body: '{}',
-      })
-    }
-  }
+  const [jobs, aliasJobs] = await Promise.all([
+    claimPackingJobs(services),
+    claimPackingSearchAliasJobs(services),
+  ])
+  await Promise.all([
+    ...jobs.map(async (job) => {
+      try {
+        await processPackingJob(services, job)
+      } catch (error) {
+        console.error('packing_job_failed', { jobId: job.job_id, code: error instanceof Error ? error.message : 'unknown_error' })
+      }
+    }),
+    ...aliasJobs.map(async (job) => {
+      try {
+        await processPackingSearchAliasJob(services, job)
+      } catch (error) {
+        console.error('packing_alias_job_failed', { jobId: job.job_id, code: error instanceof Error ? error.message : 'unknown_error' })
+      }
+    }),
+  ])
+  if (jobs.length > 0 || aliasJobs.length > 0) await wakeSelf()
 }
 
 Deno.serve((request) => {

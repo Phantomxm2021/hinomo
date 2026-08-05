@@ -52,6 +52,9 @@ order by version;
 若本次同时发布所有新功能，按下面顺序执行；每一步成功后再做下一步：
 
 ```text
+AI 装箱语言一致性（必须在 202608030006 之后执行）：
+   202608050001_localized_ai_inventory_search.sql
+
 A. 箱子权益兼容窗口：
    202608080002_box_entitlements.sql
    202608080004_box_entitlements_service_read.sql
@@ -139,6 +142,7 @@ supabase functions deploy packing-worker --no-verify-jwt
 - 延迟付款期间只显示“正在确认”，不提前显示已解锁；`async_payment_failed` 不发放权益或 Credits。
 - 重放同一 Stripe Event/Checkout Session 不重复发放；全额退款撤销未来新增权限并收回未使用的 20 promotional bonus Credits，但已有箱子不删除、不锁定；部分退款人工审核。
 - 创建一个场所所有者和成员：邀请过期/撤销/复用、最后席位并发、成员共享内容、成员 AI Credits、撤权后的缓存清理均符合预期。
+- 将受控账号语言切换为 English，新建一次 AI 装箱会话，确认识别清单使用英文显示名；使用 `keyboard` 和 `键盘` 均能检索到同一物品。已存在的会话不会改写，需新建会话或重新分析。
 
 运行仓库检查：
 

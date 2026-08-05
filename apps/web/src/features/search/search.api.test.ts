@@ -25,8 +25,10 @@ describe('search api', () => {
     }
     mockRpc.mockResolvedValue({ data: [result], error: null })
 
-    await expect(searchItems('充电器')).resolves.toEqual([result])
-    expect(mockRpc).toHaveBeenCalledWith('search_my_inventory', { p_query: '充电器' })
+    await expect(searchItems('键盘')).resolves.toEqual([result])
+    // Aliases are expanded inside the database; the browser sends one plain query.
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+    expect(mockRpc).toHaveBeenCalledWith('search_my_inventory', { p_query: '键盘' })
   })
 
   it('returns an empty list for a successful RPC without rows', async () => {

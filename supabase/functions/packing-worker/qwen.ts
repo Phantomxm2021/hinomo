@@ -1,7 +1,7 @@
 import OpenAI from 'openai'
 import { z } from 'zod'
 import type { PackingServices } from './services.ts'
-import type { PackingImageMimeType } from './types.ts'
+import type { PackingImageMimeType, PackingLocale } from './types.ts'
 import { PACKING_MODEL_SCHEMA_VERSION, PACKING_PROMPT_VERSION } from './types.ts'
 
 const quantitySchema = z.object({
@@ -21,6 +21,20 @@ const schemaVersionSchema = z.union([
 const conciseReasonSchema = z.string().transform((value) =>
   Array.from(value.trim()).slice(0, 240).join('')
 ).nullable()
+
+/**
+ * The model occasionally emits a non-string alias or omits a locale value.
+ * Keep parsing tolerant here; deterministic normalization and validation happen
+ * in localization.ts before values are persisted or used for display.
+ */
+const aliasListSchema = z.preprocess((value) => value === undefined ? value : (Array.isArray(value) ? value : []),
+  z.array(z.unknown()).transform((values) =>
+    values.filter((value): value is string => typeof value === 'string')))
+
+export const localizedAliasesSchema = z.object({
+  'zh-CN': aliasListSchema,
+  'en-US': aliasListSchema,
+})
 
 export const atlasObservationSchema = z.object({
   schema_version: schemaVersionSchema,
@@ -49,6 +63,7 @@ export const consolidationSchema = z.object({
     name: z.string().min(1).max(120),
     category: z.string().max(80).nullable(),
     description: z.string().max(500).nullable(),
+    search_aliases: localizedAliasesSchema,
     quantity: quantitySchema,
     visibility: z.enum(['clear', 'partial', 'occluded', 'reflective', 'opaque_container', 'unknown']),
     needs_review: z.boolean(),
@@ -91,6 +106,14 @@ export const originalReviewSchema = z.object({
   review_reason: conciseReasonSchema,
 })
 
+export const searchAliasesSchema = z.object({
+  schema_version: schemaVersionSchema,
+  search_aliases: localizedAliasesSchema,
+})
+
+export type ConsolidationOutput = z.output<typeof consolidationSchema>
+export type SearchAliasesOutput = z.output<typeof searchAliasesSchema>
+
 export type QwenResult<T> = {
   data: T
   inputTokens: number
@@ -101,7 +124,7 @@ export type QwenResult<T> = {
 export type QwenUsageContext = {
   sessionId: string
   jobId: string
-  operation: 'observe' | 'original_review' | 'track_instances' | 'localize' | 'crop_validation'
+  operation: 'observe' | 'original_review' | 'track_instances' | 'localize' | 'crop_validation' | 'language_repair' | 'alias_backfill'
 }
 
 function imageBase64(bytes: Uint8Array): string {
@@ -222,36 +245,66 @@ async function callQwen<S extends z.ZodTypeAny>(input: {
   }
 }
 
-const rules = `你是 Nomo 的装箱视觉分析器。只陈述照片中可见的事实。不得猜测不透明容器内部内容；只能将其记录为容器。相同物体在连续照片中出现时不得重复计数。数量无法精确确认时必须使用 at_least、approximate 或 unknown。reason 和 review_reason 只写一句简短结论，不得超过 120 个汉字。只返回严格 JSON。Schema 版本为 ${PACKING_MODEL_SCHEMA_VERSION}，提示词版本为 ${PACKING_PROMPT_VERSION}。`
+const schemaVersionLiteral = JSON.stringify(PACKING_MODEL_SCHEMA_VERSION)
+
+/** Natural-language constraints shared by every vision and text-only call. */
+export function packingLanguageRules(locale: PackingLocale): string {
+  return locale === 'zh-CN'
+    ? '所有自然语言字段必须使用简体中文；品牌、型号和行业缩写保留原文，并与中文通用名组合。'
+    : 'All natural-language fields must use English; preserve brands, model numbers, and industry abbreviations.'
+}
+
+function rulesForLocale(locale: PackingLocale): string {
+  return `${packingLanguageRules(locale)} 你是 Nomo 的装箱视觉分析器。只陈述照片中可见的事实。不得猜测不透明容器内部内容；只能将其记录为容器。相同物体在连续照片中出现时不得重复计数。数量无法精确确认时必须使用 at_least、approximate 或 unknown。reason 和 review_reason 只写一句简短结论，不得超过 240 个字符。只返回严格 JSON。Schema 版本为 ${PACKING_MODEL_SCHEMA_VERSION}，提示词版本为 ${PACKING_PROMPT_VERSION}。`
+}
 
 const quantityContract = `quantity 必须是 {"kind":"exact|at_least|approximate|unknown","value":正整数或null}；仅 kind=unknown 时 value=null。`
-const observationContract = `JSON 结构必须严格为 {"schema_version":"1","atlas_id":string,"observations":[{"observation_id":string,"photo_id":"PNNN","object_local_id":string,"action":"appeared|persisted|disappeared|uncertain","label":string,"category":string|null,"quantity":{"kind":string,"value":number|null},"visibility":"clear|partial|occluded|reflective|opaque_container|unknown","container_label":string|null,"evidence_photo_ids":["PNNN"],"best_crop_candidate_photo_id":"PNNN","requires_original_review":boolean,"review_reason":string|null}]}。${quantityContract}`
-const consolidationContract = `JSON 结构必须严格为 {"schema_version":"1","items":[{"client_id":string,"name":string,"category":string|null,"description":string|null,"quantity":{"kind":string,"value":number|null},"visibility":"clear|partial|occluded|reflective|opaque_container|unknown","needs_review":boolean,"instances":[{"client_id":string,"provisional_name":string,"first_seen_photo_id":"PNNN","last_seen_photo_id":"PNNN","representative_photo_id":"PNNN","evidence_photo_ids":["PNNN"],"tracking_status":"tracked|ambiguous"}]}]}。每个 items[].instances 至少一项。${quantityContract}`
-const reviewContract = `JSON 结构必须严格为 {"schema_version":"1","photo_id":"PNNN","evidence_confirmed":boolean,"label":string,"category":string|null,"quantity":{"kind":string,"value":number|null},"visibility":"clear|partial|occluded|reflective|opaque_container|unknown","review_reason":string|null}。${quantityContract}`
-const localizationContract = `JSON 结构必须严格为 {"schema_version":"1","photo_id":"PNNN","instance_id":string,"bbox":[number,number,number,number],"visible_fraction":"fully_visible|mostly_visible|partially_visible","crop_suitable":boolean,"reason":string|null}。bbox 使用 Qwen 原生 1000×1000 相对坐标系，四个值均在 0～1000。`
-const cropValidationContract = `JSON 结构必须严格为 {"schema_version":"1","valid":boolean,"reason":string|null}。`
+const observationContract = `JSON 结构必须严格为 {"schema_version":${schemaVersionLiteral},"atlas_id":string,"observations":[{"observation_id":string,"photo_id":"PNNN","object_local_id":string,"action":"appeared|persisted|disappeared|uncertain","label":string,"category":string|null,"quantity":{"kind":string,"value":number|null},"visibility":"clear|partial|occluded|reflective|opaque_container|unknown","container_label":string|null,"evidence_photo_ids":["PNNN"],"best_crop_candidate_photo_id":"PNNN","requires_original_review":boolean,"review_reason":string|null}]}。${quantityContract}`
+const consolidationContract = `JSON 结构必须严格为 {"schema_version":${schemaVersionLiteral},"items":[{"client_id":string,"name":string,"category":string|null,"description":string|null,"search_aliases":{"zh-CN":[string],"en-US":[string]},"quantity":{"kind":"exact|at_least|approximate|unknown","value":number|null},"visibility":"clear|partial|occluded|reflective|opaque_container|unknown","needs_review":boolean,"instances":[{"client_id":string,"provisional_name":string,"first_seen_photo_id":"PNNN","last_seen_photo_id":"PNNN","representative_photo_id":"PNNN","evidence_photo_ids":["PNNN"],"tracking_status":"tracked|ambiguous"}]}]}。每个 items[].instances 至少一项。search_aliases 只能是照片已支持的同义词、翻译或品牌/型号表达，不得添加照片中不存在的事实。${quantityContract}`
+const reviewContract = `JSON 结构必须严格为 {"schema_version":${schemaVersionLiteral},"photo_id":"PNNN","evidence_confirmed":boolean,"label":string,"category":string|null,"quantity":{"kind":string,"value":number|null},"visibility":"clear|partial|occluded|reflective|opaque_container|unknown","review_reason":string|null}。${quantityContract}`
+const localizationContract = `JSON 结构必须严格为 {"schema_version":${schemaVersionLiteral},"photo_id":"PNNN","instance_id":string,"bbox":[number,number,number,number],"visible_fraction":"fully_visible|mostly_visible|partially_visible","crop_suitable":boolean,"reason":string|null}。bbox 使用 Qwen 原生 1000×1000 相对坐标系，四个值均在 0～1000。`
+const cropValidationContract = `JSON 结构必须严格为 {"schema_version":${schemaVersionLiteral},"valid":boolean,"reason":string|null}。`
+const searchAliasesContract = `JSON 结构必须严格为 {"schema_version":${schemaVersionLiteral},"search_aliases":{"zh-CN":[string],"en-US":[string]}}。每个数组最多 8 项；只输出当前名称、类别的可验证同义词、翻译、品牌或型号表达，不得添加照片或输入中不存在的新事实。`
 
-export function observeAtlas(services: PackingServices, usage: QwenUsageContext, atlasId: string, image: Uint8Array, imageMimeType: PackingImageMimeType = 'image/jpeg') {
-  return callQwen({ services, usage, system: rules, image, imageMimeType, schema: atlasObservationSchema,
+export function buildLanguageRepairPrompt(consolidation: unknown, locale: PackingLocale): string {
+  return `以下是已经通过结构校验的装箱清单 JSON。仅将自然语言字段改为${locale === 'zh-CN' ? '简体中文' : 'English'}并补齐 bilingual search_aliases；只修改自然语言字段和别名。必须原样保留 schema_version、所有 item/instance 的 client_id、所有 evidence_photo_ids、数量、visibility、needs_review、tracking_status 以及其它结构字段，不得改变事实、合并或拆分项目，也不得添加任何新事实。只返回严格 JSON，且必须满足以下结构：${consolidationContract}\n已校验清单：${JSON.stringify(consolidation)}`
+}
+
+export function buildSearchAliasesPrompt(input: { name: string; category: string | null }, locale: PackingLocale): string {
+  return `只根据输入的物品名称和类别生成中英文搜索别名。这是纯文本任务，不需要图片。目标显示语言为${locale === 'zh-CN' ? '简体中文' : 'English'}。不要改变名称，不要添加照片中不存在的事实（不添加照片中不存在的事实），不要猜测品牌、型号或数量；只输出严格 JSON，并且只能包含 schema_version 和 search_aliases 两个字段。${searchAliasesContract}\n名称：${JSON.stringify(input.name)}\n类别：${JSON.stringify(input.category)}`
+}
+
+export function observeAtlas(services: PackingServices, usage: QwenUsageContext, atlasId: string, image: Uint8Array, imageMimeType: PackingImageMimeType = 'image/jpeg', locale: PackingLocale = 'zh-CN') {
+  return callQwen({ services, usage, system: rulesForLocale(locale), image, imageMimeType, schema: atlasObservationSchema,
     text: `分析这张按拍摄时间从左到右、从上到下排列的装箱 Atlas。每格标题 PNNN 是原始照片编号。输出物体的出现、持续、消失或不确定观察。atlas_id 必须为 ${JSON.stringify(atlasId)}。给出最佳裁剪候选照片，但不要在 Atlas 上输出 bbox。${observationContract}` })
 }
 
-export function consolidateObservations(services: PackingServices, usage: QwenUsageContext, observations: unknown[]) {
-  return callQwen({ services, usage, system: rules, schema: consolidationSchema,
-    text: `根据以下按时间排列且已经过校验的观察构建物理实例。同一个真实物体跨照片只能生成一个实例；后来新增的同款物体必须生成另一个实例。聚合清单和数量。无法确认时 needs_review=true。${consolidationContract}\n观察数据：${JSON.stringify(observations)}` })
+export function consolidateObservations(services: PackingServices, usage: QwenUsageContext, observations: unknown[], locale: PackingLocale = 'zh-CN') {
+  return callQwen({ services, usage, system: rulesForLocale(locale), schema: consolidationSchema,
+    text: `根据以下按时间排列且已经过校验的观察构建物理实例。同一个真实物体跨照片只能生成一个实例；后来新增的同款物体必须生成另一个实例。聚合清单和数量。名称、类别、描述及实例临时名称使用目标语言；同时输出 zh-CN 和 en-US 两组搜索别名。无法确认时 needs_review=true。${consolidationContract}\n观察数据：${JSON.stringify(observations)}` })
 }
 
-export function reviewOriginalObservation(services: PackingServices, usage: QwenUsageContext, input: { photoId: string; proposedLabel: string; image: Uint8Array; imageMimeType: PackingImageMimeType }) {
-  return callQwen({ services, usage, system: rules, image: input.image, imageMimeType: input.imageMimeType, schema: originalReviewSchema,
-    text: `用高清原图复核 ${JSON.stringify(input.proposedLabel)}。photo_id 必须为 ${JSON.stringify(input.photoId)}。只保留原图明确支持的事实。${reviewContract}` })
+export function reviewOriginalObservation(services: PackingServices, usage: QwenUsageContext, input: { photoId: string; proposedLabel: string; image: Uint8Array; imageMimeType: PackingImageMimeType }, locale: PackingLocale = 'zh-CN') {
+  return callQwen({ services, usage, system: rulesForLocale(locale), image: input.image, imageMimeType: input.imageMimeType, schema: originalReviewSchema,
+    text: `用高清原图复核 ${JSON.stringify(input.proposedLabel)}。photo_id 必须为 ${JSON.stringify(input.photoId)}。只保留原图明确支持的事实，并使用目标语言输出自然语言字段。${reviewContract}` })
 }
 
-export function localizeInstance(services: PackingServices, usage: QwenUsageContext, input: { photoId: string; instanceId: string; itemName: string; image: Uint8Array; imageMimeType: PackingImageMimeType }) {
-  return callQwen({ services, usage, system: rules, image: input.image, imageMimeType: input.imageMimeType, schema: localizationSchema,
+export function localizeInstance(services: PackingServices, usage: QwenUsageContext, input: { photoId: string; instanceId: string; itemName: string; image: Uint8Array; imageMimeType: PackingImageMimeType }, locale: PackingLocale = 'zh-CN') {
+  return callQwen({ services, usage, system: rulesForLocale(locale), image: input.image, imageMimeType: input.imageMimeType, schema: localizationSchema,
     text: `定位 ${JSON.stringify(input.itemName)}。photo_id=${JSON.stringify(input.photoId)}，instance_id=${JSON.stringify(input.instanceId)}。bbox 为 [x_min,y_min,x_max,y_max]，完整包围目标，不能框整个箱子。${localizationContract}` })
 }
 
-export function validateItemCrop(services: PackingServices, usage: QwenUsageContext, input: { itemName: string; image: Uint8Array }) {
-  return callQwen({ services, usage, system: rules, image: input.image, schema: cropValidationSchema,
+export function validateItemCrop(services: PackingServices, usage: QwenUsageContext, input: { itemName: string; image: Uint8Array }, locale: PackingLocale = 'zh-CN') {
+  return callQwen({ services, usage, system: rulesForLocale(locale), image: input.image, schema: cropValidationSchema,
     text: `验证裁剪图主体是否确实是 ${JSON.stringify(input.itemName)}，且没有明显截断。无法确认时 valid=false。${cropValidationContract}` })
+}
+
+export function repairConsolidationLanguage(services: PackingServices, usage: QwenUsageContext, input: { consolidation: ConsolidationOutput; locale: PackingLocale }) {
+  return callQwen({ services, usage, system: rulesForLocale(input.locale), schema: consolidationSchema,
+    text: buildLanguageRepairPrompt(input.consolidation, input.locale) })
+}
+
+export function generateSearchAliases(services: PackingServices, usage: QwenUsageContext, input: { name: string; category: string | null; locale: PackingLocale }) {
+  return callQwen({ services, usage, system: rulesForLocale(input.locale), schema: searchAliasesSchema,
+    text: buildSearchAliasesPrompt({ name: input.name, category: input.category }, input.locale) })
 }

@@ -1,5 +1,5 @@
 begin;
-select plan(30);
+select plan(33);
 
 create extension if not exists "basejump-supabase_test_helpers" with schema tests;
 
@@ -39,7 +39,8 @@ create temporary table packing_test_state (
   atlas_id uuid,
   object_key text,
   upload_url text,
-  disposable_session_id uuid
+  disposable_session_id uuid,
+  detected_item_id uuid
 ) on commit drop;
 
 grant select, update on packing_test_state to authenticated;
@@ -83,6 +84,7 @@ select ok(not has_table_privilege('authenticated', 'public.packing_analysis_jobs
 select ok(not has_table_privilege('authenticated', 'public.packing_detected_items', 'update'), 'clients edit AI items only through controlled RPCs');
 
 select tests.authenticate_as('packing-owner');
+select public.update_profile_locale('en-US');
 update packing_test_state
 set session_id = (public.create_packing_session(box_id)).id;
 
@@ -91,6 +93,21 @@ select is(
   'capturing',
   'owner creates a capturing session'
 );
+
+select is(
+  (select output_locale from public.packing_sessions where id = (select session_id from packing_test_state)),
+  'en-US',
+  'packing session snapshots the owner locale'
+);
+select tests.clear_authentication();
+set local role postgres;
+select throws_ok(
+  $$update public.packing_sessions set output_locale = 'zh-CN'
+    where id = (select session_id from packing_test_state)$$,
+  '22023', 'packing session output locale is immutable',
+  'session locale cannot change after creation'
+);
+select tests.authenticate_as('packing-owner');
 
 select throws_ok(
   $$select public.complete_packing_session((select session_id from packing_test_state))$$,
@@ -177,6 +194,48 @@ select is(
   1,
   'idempotent completion does not duplicate jobs'
 );
+
+-- Seed one published AI item so promotion can prove bilingual aliases are copied
+-- to the formal item. The fixture runs as postgres because worker-owned columns
+-- are intentionally not writable by authenticated clients.
+select tests.clear_authentication();
+set local role postgres;
+update public.packing_sessions
+set status = 'ready'::public.packing_session_status,
+    current_revision = 1
+where id = (select session_id from packing_test_state);
+update packing_test_state
+set detected_item_id = 'ad000000-0000-4000-8000-000000000001';
+insert into public.packing_detected_items (
+  id, session_id, box_id, analysis_revision, name, category, description,
+  quantity_kind, quantity_value, visibility, crop_status,
+  cover_object_key, cover_mime_type, cover_size_bytes, cover_width, cover_height,
+  model_id, prompt_version, published_at, search_aliases
+)
+select detected_item_id, session_id, box_id, 1, 'Keyboard', 'Tools', null,
+  'exact'::public.packing_quantity_kind, 1, 'clear'::public.packing_visibility,
+  'ready'::public.packing_crop_status,
+  'users/' || owner_id || '/boxes/' || box_id || '/packing/test-cover.webp',
+  'image/webp', 512, 64, 64, 'qwen-test', 'prompt-test', pg_catalog.now(),
+  array['键盘', 'keyboard']::text[]
+from packing_test_state;
+select tests.authenticate_as('packing-owner');
+select public.request_packing_item_promotion((select detected_item_id from packing_test_state));
+select tests.clear_authentication();
+set local role postgres;
+select public.finalize_packing_item_promotion(
+  (select id from public.packing_item_promotions
+   where detected_item_id = (select detected_item_id from packing_test_state)),
+  'image/webp', 512
+);
+select is(
+  (select search_aliases from public.items
+   where id = (select target_item_id from public.packing_item_promotions
+               where detected_item_id = (select detected_item_id from packing_test_state))),
+  array['键盘','keyboard']::text[],
+  'promotion copies bilingual aliases to the formal item'
+);
+select tests.authenticate_as('packing-owner');
 
 update packing_test_state
 set disposable_session_id = (public.create_packing_session(box_id)).id;

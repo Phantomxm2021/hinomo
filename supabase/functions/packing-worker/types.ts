@@ -1,6 +1,9 @@
-export const PACKING_MODEL_SCHEMA_VERSION = '1'
-export const PACKING_PROMPT_VERSION = 'packing-atlas-v4'
+export const PACKING_MODEL_SCHEMA_VERSION = '2'
+export const PACKING_PROMPT_VERSION = 'packing-atlas-v5-localized'
+export const PACKING_ALIAS_VERSION = 'packing-alias-v1'
 export const PACKING_LAYOUT_VERSION = 'client-grid-4x4-v1'
+
+export type PackingLocale = 'zh-CN' | 'en-US'
 
 export type PackingJobStage = 'observe' | 'track_instances' | 'consolidate' | 'localize' | 'publish'
 export type ClaimedJob = {
@@ -10,6 +13,16 @@ export type ClaimedJob = {
   scope_key: string
   attempts: number
   input_fingerprint: string
+}
+export type PackingSearchAliasJob = {
+  job_id: string
+  detected_item_id: string
+  session_id: string
+  name: string
+  category: string | null
+  output_locale: PackingLocale
+  attempts: number
+  alias_version: string
 }
 export type PackingPhoto = {
   id: string
@@ -32,4 +45,5 @@ export type PackingSession = {
   box_id: string
   owner_id: string
   current_revision: number
+  output_locale: PackingLocale
 }
