@@ -11,6 +11,7 @@ export type ItemEditorDialogProps = {
   onClose: () => void
   onSaved: () => void
   onDelete?: () => void
+  onBusyChange?: (busy: boolean) => void
 }
 
 export function ItemEditorDialog({
@@ -21,8 +22,13 @@ export function ItemEditorDialog({
   onClose,
   onSaved,
   onDelete,
+  onBusyChange,
 }: ItemEditorDialogProps) {
   const [busy, setBusy] = useState(false)
+  const changeBusy = (nextBusy: boolean) => {
+    setBusy(nextBusy)
+    onBusyChange?.(nextBusy)
+  }
   const close = () => {
     if (!busy) onClose()
   }
@@ -45,7 +51,7 @@ export function ItemEditorDialog({
         boxId={boxId}
         item={item}
         showHeading={false}
-        onBusyChange={setBusy}
+        onBusyChange={changeBusy}
         onSaved={onSaved}
         onCancel={close}
         onDelete={onDelete ? deleteItem : undefined}

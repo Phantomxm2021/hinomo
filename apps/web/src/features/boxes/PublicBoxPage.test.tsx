@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { createMemoryRouter, RouterProvider, useLocation, useNavigate } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { Session } from '@supabase/supabase-js'
 import { AuthProvider } from '../auth/AuthProvider'
@@ -45,10 +45,20 @@ vi.mock('../packing/PackingCapturePage', () => ({
 }))
 vi.mock('../credits/credits.api', () => ({ getCreditSummary: mockGetCreditSummary }))
 vi.mock('./EditBoxModal', () => ({
-  EditBoxModal: ({ open, onClose }: { open: boolean; onClose: () => void }) => open ? (
-    <section role="dialog" aria-label="编辑箱子"><button type="button" onClick={onClose}>关闭编辑箱子</button></section>
+  EditBoxModal: ({ open, onClose, onBusyChange }: { open: boolean; onClose: () => void; onBusyChange?: (busy: boolean) => void }) => open ? (
+    <section role="dialog" aria-label="编辑箱子">
+      <button type="button" onClick={() => onBusyChange?.(true)}>开始忙碌</button>
+      <button type="button" onClick={() => onBusyChange?.(false)}>结束忙碌</button>
+      <button type="button" onClick={onClose}>关闭编辑箱子</button>
+    </section>
   ) : null,
 }))
+
+function NavigationProbe() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  return <><output data-testid="public-location">{`${location.pathname}${location.search}`}</output><button type="button" onClick={() => navigate(-1)}>后退测试</button></>
+}
 
 function renderPublicBox(
   session: Session | null = null,
@@ -56,17 +66,13 @@ function renderPublicBox(
   entry = '/b/public-1',
 ) {
   return render(
-    <MemoryRouter initialEntries={['/previous', entry]}>
-      <QueryClientProvider client={client}>
-        <AuthProvider session={session}>
-          <Routes>
-            <Route path="/b/:publicId" element={<PublicBoxPage />} />
-            <Route path="/previous" element={<h1>上一页</h1>} />
-            <Route path="/app/scan" element={<h1>扫码查看</h1>} />
-          </Routes>
-        </AuthProvider>
-      </QueryClientProvider>
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <RouterProvider router={createMemoryRouter([
+        { path: '/b/:publicId', element: <AuthProvider session={session}><PublicBoxPage /><NavigationProbe /></AuthProvider> },
+        { path: '/previous', element: <h1>上一页</h1> },
+        { path: '/app/scan', element: <h1>扫码查看</h1> },
+      ], { initialEntries: ['/previous', entry], initialIndex: 1 })} />
+    </QueryClientProvider>,
   )
 }
 
@@ -251,6 +257,68 @@ test('opens the mobile plus menu with the owner box actions', async () => {
   await user.click(within(menu).getByRole('button', { name: '编辑箱子' }))
   expect(screen.getByRole('dialog', { name: '编辑箱子' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: '工具' })).toBeInTheDocument()
+})
+
+test('restores focus to the mobile action trigger between 48rem and the desktop 64rem breakpoint', async () => {
+  const user = userEvent.setup()
+  mockMatchMedia.mockReturnValue({ matches: true } as MediaQueryList)
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    name: '工具', category: null, description: null, location: null, visibility: 'private',
+    space_name: '车库', updated_at: '2026-07-29T00:00:00Z', items: [],
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session)
+
+  const mobileTrigger = await screen.findByRole('button', { name: '打开箱子操作菜单' })
+  await user.click(mobileTrigger)
+  await user.click(within(screen.getByRole('dialog', { name: '箱子操作' })).getByRole('button', { name: '新增物品' }))
+  await user.click(screen.getByRole('button', { name: '关闭新增物品' }))
+
+  await waitFor(() => expect(mobileTrigger).toHaveFocus())
+})
+
+test('blocks browser back while public-box editing is busy, then resumes after save work ends', async () => {
+  const user = userEvent.setup()
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    name: '工具', category: null, description: null, location: null, visibility: 'private',
+    space_name: '车库', updated_at: '2026-07-29T00:00:00Z', items: [],
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session)
+
+  await user.click(await screen.findByRole('button', { name: '打开箱子操作菜单' }))
+  await user.click(within(screen.getByRole('dialog', { name: '箱子操作' })).getByRole('button', { name: '编辑箱子' }))
+  await user.click(screen.getByRole('button', { name: '开始忙碌' }))
+  await user.click(screen.getByRole('button', { name: '后退测试' }))
+
+  expect(screen.getByRole('dialog', { name: '编辑箱子' })).toBeInTheDocument()
+  expect(screen.getByTestId('public-location')).toHaveTextContent('/b/public-1')
+  await user.click(screen.getByRole('button', { name: '结束忙碌' }))
+  await user.click(screen.getByRole('button', { name: '后退测试' }))
+  expect(await screen.findByRole('heading', { name: '上一页' })).toBeInTheDocument()
+})
+
+test('blocks browser back while the item editor is saving', async () => {
+  const user = userEvent.setup()
+  let resolveUpdate!: () => void
+  mockUpdateItem.mockReturnValue(new Promise<void>((resolve) => { resolveUpdate = resolve }))
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'public-1', box_code: 'BX-00001',
+    name: '工具', category: null, description: null, location: null, visibility: 'private',
+    space_name: '车库', updated_at: '2026-07-29T00:00:00Z',
+    items: [{ id: 'item-1', name: '锤子', category: null, quantity: 1, description: null }],
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session)
+
+  await user.click(await screen.findByRole('button', { name: '打开锤子操作' }))
+  await user.click(screen.getByRole('button', { name: '编辑物品信息' }))
+  await user.click(screen.getByRole('button', { name: '保存' }))
+  await waitFor(() => expect(mockUpdateItem).toHaveBeenCalled())
+  await user.click(screen.getByRole('button', { name: '后退测试' }))
+
+  expect(screen.getByRole('dialog', { name: '编辑物品' })).toBeInTheDocument()
+  expect(screen.getByTestId('public-location')).toHaveTextContent('/b/public-1')
+  resolveUpdate()
 })
 
 test('opens AI packing as a sheet while keeping the box route visible', async () => {

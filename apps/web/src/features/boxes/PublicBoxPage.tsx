@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { MobileActionSheet } from '../../components/MobileActionSheet'
@@ -46,11 +46,13 @@ export function PublicBoxPage() {
   } | null>(null)
   const [showMobileActions, setShowMobileActions] = useState(false)
   const [showBoxEditor, setShowBoxEditor] = useState(false)
+  const [editorBusy, setEditorBusy] = useState(false)
   const [editingItem, setEditingItem] = useState<ItemRecord | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ItemRecord | null>(null)
   const [movementItem, setMovementItem] = useState<ItemRecord | null>(null)
   const [printError, setPrintError] = useState<PdfGenerationFailure | null>(null)
   const [printing, setPrinting] = useState(false)
+  const editorBlocker = useBlocker(editorBusy)
   const boxQuery = useQuery({
     queryKey: ['box', publicId],
     queryFn: () => getBoxByPublicId(publicId),
@@ -69,6 +71,9 @@ export function PublicBoxPage() {
     next.delete('capture')
     setSearchParams(next, { replace: true })
   }, [boxQuery.data, creditQuery.data, searchParams, session?.user.id, setSearchParams])
+  useEffect(() => {
+    if (editorBlocker.state === 'blocked' && !editorBusy) editorBlocker.reset()
+  }, [editorBlocker, editorBusy])
   const targetBoxesQuery = useQuery({
     queryKey: ['boxes'],
     queryFn: listBoxes,
@@ -157,17 +162,13 @@ export function PublicBoxPage() {
   const updatedAt = new Intl.DateTimeFormat('zh-CN', {
     year: 'numeric', month: 'short', day: 'numeric',
   }).format(new Date(box.updated_at))
-  const openNewItem = () => {
-    itemEditorReturnFocusRef.current = window.matchMedia('(min-width: 48rem)').matches
-      ? desktopAddItemButtonRef.current
-      : mobileActionsButtonRef.current
+  const openNewItem = (trigger?: HTMLElement | null) => {
+    itemEditorReturnFocusRef.current = trigger ?? mobileActionsButtonRef.current
     setEditingItem(null)
     setShowItemForm(true)
   }
-  const openBoxEditor = () => {
-    boxEditorReturnFocusRef.current = window.matchMedia('(min-width: 48rem)').matches
-      ? desktopBoxEditButtonRef.current
-      : mobileActionsButtonRef.current
+  const openBoxEditor = (trigger?: HTMLElement | null) => {
+    boxEditorReturnFocusRef.current = trigger ?? mobileActionsButtonRef.current
     setShowBoxEditor(true)
   }
   const refreshBox = async () => {
@@ -271,13 +272,13 @@ export function PublicBoxPage() {
           </div>
           {isOwner ? (
             <div data-testid="desktop-box-actions" className="hidden lg:flex lg:flex-wrap lg:gap-2">
-              <button ref={desktopBoxEditButtonRef} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[0.9rem] border-0 bg-surface px-4 font-bold text-ink no-underline shadow-[inset_0_0_0_1px_rgba(79,64,48,0.08)] active:opacity-70 lg:min-h-11 lg:justify-start lg:rounded-control lg:border lg:border-line lg:bg-canvas lg:shadow-none" type="button" onClick={openBoxEditor}>
+              <button ref={desktopBoxEditButtonRef} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[0.9rem] border-0 bg-surface px-4 font-bold text-ink no-underline shadow-[inset_0_0_0_1px_rgba(79,64,48,0.08)] active:opacity-70 lg:min-h-11 lg:justify-start lg:rounded-control lg:border lg:border-line lg:bg-canvas lg:shadow-none" type="button" onClick={(event) => openBoxEditor(event.currentTarget)}>
                 <AppIcon name="edit" />编辑箱子
               </button>
               <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[0.9rem] border-0 bg-surface px-4 font-bold text-ink shadow-[inset_0_0_0_1px_rgba(79,64,48,0.08)] active:opacity-70 lg:min-h-11 lg:justify-start lg:rounded-control lg:border lg:border-line lg:bg-canvas lg:shadow-none" type="button" disabled={printing} onClick={() => void printLabel()}>
                 <AppIcon name="print" />{printing ? '生成中…' : '打印标签'}
               </button>
-              <button ref={desktopAddItemButtonRef} className="hidden min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white lg:inline-flex" type="button" onClick={openNewItem}>
+              <button ref={desktopAddItemButtonRef} className="hidden min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white lg:inline-flex" type="button" onClick={(event) => openNewItem(event.currentTarget)}>
                 <AppIcon name="plus" />新增物品
               </button>
               <button className="inline-flex min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white" type="button" onClick={openPackingCapture}>
@@ -328,6 +329,7 @@ export function PublicBoxPage() {
           open={showBoxEditor}
           boxId={box.id}
           returnFocusRef={boxEditorReturnFocusRef}
+          onBusyChange={setEditorBusy}
           onClose={() => setShowBoxEditor(false)}
           onSaved={() => void refreshBox()}
         />
@@ -339,6 +341,7 @@ export function PublicBoxPage() {
           boxId={box.id}
           item={editingItem}
           returnFocusRef={itemEditorReturnFocusRef}
+          onBusyChange={setEditorBusy}
           onSaved={() => void refreshItems()}
           onClose={() => { setShowItemForm(false); setEditingItem(null) }}
           onDelete={editingItem ? () => {
@@ -424,7 +427,7 @@ export function PublicBoxPage() {
             action={isOwner ? (
               <div className="flex flex-col gap-2 sm:flex-row">
                 <button className="border-brand! bg-brand! text-white!" type="button" onClick={openPackingCapture}>拍照识别物品</button>
-                <button type="button" onClick={openNewItem}>手动记录</button>
+                <button type="button" onClick={(event) => openNewItem(event.currentTarget)}>手动记录</button>
               </div>
             ) : undefined}
           />

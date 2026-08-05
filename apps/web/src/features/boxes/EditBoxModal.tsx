@@ -8,15 +8,25 @@ export function EditBoxModal({
   returnFocusRef,
   onClose,
   onSaved,
+  onBusyChange,
 }: {
   open: boolean
   boxId: string
   returnFocusRef?: RefObject<HTMLElement | null>
   onClose: () => void
   onSaved: () => void
+  onBusyChange?: (busy: boolean) => void
 }) {
   const [busy, setBusy] = useState(false)
-  const changeBusy = useCallback((nextBusy: boolean) => setBusy(nextBusy), [])
+  const changeBusy = useCallback((nextBusy: boolean) => {
+    setBusy(nextBusy)
+    onBusyChange?.(nextBusy)
+  }, [onBusyChange])
+
+  useEffect(() => {
+    if (!open) return
+    return () => onBusyChange?.(false)
+  }, [onBusyChange, open])
 
   useEffect(() => {
     if (open) return

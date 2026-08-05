@@ -72,8 +72,12 @@ vi.mock('./CreateBoxModal', async () => {
 })
 
 vi.mock('./EditBoxModal', () => ({
-  EditBoxModal: ({ open, onClose }: { open: boolean; onClose: () => void }) => open ? (
-    <section role="dialog" aria-label="编辑箱子"><button type="button" onClick={onClose}>关闭编辑箱子</button></section>
+  EditBoxModal: ({ open, onClose, onBusyChange }: { open: boolean; onClose: () => void; onBusyChange?: (busy: boolean) => void }) => open ? (
+    <section role="dialog" aria-label="编辑箱子">
+      <button type="button" onClick={() => onBusyChange?.(true)}>开始忙碌</button>
+      <button type="button" onClick={() => onBusyChange?.(false)}>结束忙碌</button>
+      <button type="button" onClick={onClose}>关闭编辑箱子</button>
+    </section>
   ) : null,
 }))
 
@@ -329,6 +333,26 @@ test('keeps only one catalogue card menu open', async () => {
   await user.click(screen.getByRole('button', { name: '管理露营用品' }))
   expect(screen.queryByRole('button', { name: '编辑冬季衣物' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: '编辑露营用品' })).toBeInTheDocument()
+})
+
+test('blocks browser back while box editing is busy, then resumes after save work ends', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  const { router } = renderBoxes()
+
+  await screen.findByRole('link', { name: '打开冬季衣物' })
+  await user.click(screen.getByRole('button', { name: '管理冬季衣物' }))
+  await user.click(screen.getByRole('button', { name: '编辑冬季衣物' }))
+  await user.click(screen.getByRole('button', { name: '开始忙碌' }))
+  await act(async () => { await router.navigate(-1) })
+
+  expect(screen.getByRole('dialog', { name: '编辑箱子' })).toBeInTheDocument()
+  expect(screen.getByTestId('location')).toHaveTextContent('?edit=box-1')
+
+  await user.click(screen.getByRole('button', { name: '结束忙碌' }))
+  await act(async () => { await router.navigate(-1) })
+  expect(screen.queryByRole('dialog', { name: '编辑箱子' })).not.toBeInTheDocument()
+  expect(screen.getByTestId('location')).toHaveTextContent('')
 })
 
 test('does not recompute catalogue derivations for menu and mutation rerenders', async () => {

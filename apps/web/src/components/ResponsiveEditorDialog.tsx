@@ -52,7 +52,10 @@ export function ResponsiveEditorDialog({
   initialFocusSelectorRef.current = initialFocusSelector
   returnFocusRefRef.current = returnFocusRef
   const restoreFocus = useCallback(() => {
-    window.requestAnimationFrame(() => returnFocusRefRef.current?.current?.focus())
+    window.requestAnimationFrame(() => {
+      const target = returnFocusRefRef.current?.current
+      if (target && typeof target.focus === 'function') target.focus()
+    })
   }, [])
 
   useEffect(() => {

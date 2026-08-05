@@ -36,6 +36,7 @@ export function BoxesPage() {
   const [deleteTarget, setDeleteTarget] = useState<BoxSummary | null>(null)
   const [openMenuBoxId, setOpenMenuBoxId] = useState<string | null>(null)
   const [createBusy, setCreateBusy] = useState(false)
+  const [editBusy, setEditBusy] = useState(false)
   const [createCompletionPending, setCreateCompletionPending] = useState(false)
   const [createSucceeded, setCreateSucceeded] = useState(false)
   const [createdBox, setCreatedBox] = useState<CreatedBox | null>(null)
@@ -70,7 +71,7 @@ export function BoxesPage() {
   const creating = searchParams.get('create') === '1'
   const editingBoxId = searchParams.get('edit')
   const wasCreating = useRef(creating)
-  const createBlocker = useBlocker(creating && createBusy)
+  const createBlocker = useBlocker((creating && createBusy) || (Boolean(editingBoxId) && editBusy))
   const spaces = useMemo(() => catalogueSpaces(boxes), [boxes])
   const summary = useMemo(() => catalogueSummary(boxes), [boxes])
   const visibleBoxes = useMemo(() => filterBoxes(boxes, {
@@ -140,8 +141,8 @@ export function BoxesPage() {
   }, [searchParams, setSearchParams])
 
   useEffect(() => {
-    if (createBlocker.state === 'blocked' && !createBusy) createBlocker.reset()
-  }, [createBlocker, createBusy])
+    if (createBlocker.state === 'blocked' && !createBusy && !editBusy) createBlocker.reset()
+  }, [createBlocker, createBusy, editBusy])
 
   useEffect(() => {
     if (creating && selectedVenue?.space_count === 0) {
@@ -331,6 +332,7 @@ export function BoxesPage() {
         boxId={editingBoxId ?? ''}
         returnFocusRef={editReturnFocusRef}
         onClose={closeEdit}
+        onBusyChange={setEditBusy}
         onSaved={() => {
           void queryClient.invalidateQueries({ queryKey: ['boxes'] })
           feedback.notify('修改已保存')
