@@ -15,13 +15,14 @@ vi.mock('./media.api', () => ({
   createMediaUpload: mockCreateUpload,
 }))
 
-const file = new File(['image'], 'cover.webp', { type: 'image/webp' })
+const file = new File(['image'], 'cover.png', { type: 'image/png' })
+const compressed = new File(['small'], 'cover.jpg', { type: 'image/jpeg' })
 
 beforeEach(() => {
-  mockCompress.mockReset().mockResolvedValue(file)
+  mockCompress.mockReset().mockResolvedValue(compressed)
   mockCreateUpload.mockReset().mockResolvedValue({
     upload_id: 'upload-1',
-    object_key: 'users/u/cover.webp',
+    object_key: 'users/u/cover.jpg',
     upload_url: 'https://r2.example/upload',
   })
   mockConfirmUpload.mockReset().mockResolvedValue(undefined)
@@ -49,13 +50,23 @@ test('compresses, uploads, and confirms a media session in order', async () => {
   )
   expect(result.current.stage).toBe('complete')
   expect(mockCompress).toHaveBeenCalledWith(file, {
-    fileType: 'image/webp',
+    fileType: 'image/jpeg',
     initialQuality: 0.8,
     maxSizeMB: PHOTO_UPLOAD_MAX_SIZE_MB,
     maxWidthOrHeight: 1920,
     maxIteration: 15,
     useWebWorker: true,
   })
+  expect(mockCreateUpload).toHaveBeenCalledWith(
+    expect.objectContaining({ mimeType: 'image/jpeg' }),
+  )
+  expect(fetch).toHaveBeenCalledWith(
+    expect.any(String),
+    expect.objectContaining({
+      headers: { 'Content-Type': 'image/jpeg' },
+      body: compressed,
+    }),
+  )
 })
 
 test('does not confirm when R2 PUT fails', async () => {

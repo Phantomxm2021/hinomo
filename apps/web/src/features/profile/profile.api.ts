@@ -45,7 +45,7 @@ export async function getAvatarDownload() {
 
 export async function uploadAvatar(file: File) {
   const compressed = await imageCompression(file, {
-    fileType: 'image/webp',
+    fileType: 'image/jpeg',
     initialQuality: PHOTO_UPLOAD_INITIAL_QUALITY,
     maxSizeMB: PHOTO_UPLOAD_MAX_SIZE_MB,
     maxWidthOrHeight: 512,

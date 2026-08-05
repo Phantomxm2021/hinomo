@@ -32,7 +32,7 @@ export function useMediaUpload() {
     try {
       setStage('compressing')
       const compressed = await imageCompression(input.file, {
-        fileType: 'image/webp',
+        fileType: 'image/jpeg',
         initialQuality: PHOTO_UPLOAD_INITIAL_QUALITY,
         maxSizeMB: PHOTO_UPLOAD_MAX_SIZE_MB,
         maxWidthOrHeight: PHOTO_UPLOAD_MAX_DIMENSION,

@@ -45,7 +45,7 @@ test('updates locale through the authenticated RPC', async () => {
 
 test('compresses an avatar before signing and uploading it', async () => {
   const original = new File(['large avatar'], 'avatar.png', { type: 'image/png' })
-  const compressed = new File(['small'], 'avatar.webp', { type: 'image/webp' })
+  const compressed = new File(['small'], 'avatar.jpg', { type: 'image/jpeg' })
   mockCompress.mockResolvedValue(compressed)
   mockRpc.mockImplementation((name: string) => {
     if (name === 'create_profile_avatar_upload') {
@@ -63,7 +63,7 @@ test('compresses an avatar before signing and uploading it', async () => {
   await uploadAvatar(original)
 
   expect(mockCompress).toHaveBeenCalledWith(original, {
-    fileType: 'image/webp',
+    fileType: 'image/jpeg',
     initialQuality: 0.8,
     maxSizeMB: PHOTO_UPLOAD_MAX_SIZE_MB,
     maxWidthOrHeight: 512,
@@ -71,12 +71,12 @@ test('compresses an avatar before signing and uploading it', async () => {
     useWebWorker: true,
   })
   expect(mockRpc).toHaveBeenCalledWith('create_profile_avatar_upload', {
-    p_mime_type: 'image/webp',
+    p_mime_type: 'image/jpeg',
     p_size_bytes: compressed.size,
   })
   expect(fetch).toHaveBeenCalledWith('https://r2.example/avatar', {
     method: 'PUT',
-    headers: { 'Content-Type': 'image/webp' },
+    headers: { 'Content-Type': 'image/jpeg' },
     body: compressed,
   })
 })
