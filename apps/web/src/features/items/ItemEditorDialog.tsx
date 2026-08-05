@@ -26,6 +26,9 @@ export function ItemEditorDialog({
   const close = () => {
     if (!busy) onClose()
   }
+  const deleteItem = () => {
+    if (!busy) onDelete?.()
+  }
 
   return (
     <ResponsiveEditorDialog
@@ -44,7 +47,7 @@ export function ItemEditorDialog({
         onBusyChange={setBusy}
         onSaved={onSaved}
         onCancel={close}
-        onDelete={onDelete}
+        onDelete={onDelete ? deleteItem : undefined}
       />
     </ResponsiveEditorDialog>
   )

@@ -44,6 +44,31 @@ test('reports busy while a new item is being created and clears it after saving'
   await waitFor(() => expect(onBusyChange).toHaveBeenLastCalledWith(false))
 })
 
+test('keeps delete and cancel unavailable while saving an existing item', async () => {
+  const user = userEvent.setup()
+  const client = new QueryClient()
+  const onDelete = vi.fn()
+  mockUpdateItem.mockImplementation(() => new Promise(() => undefined))
+  render(
+    <QueryClientProvider client={client}>
+      <ItemForm
+        boxId="box-1"
+        item={{ id: 'item-1', name: '锤子', category: null, quantity: 1, description: null }}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={onDelete}
+      />
+    </QueryClientProvider>,
+  )
+
+  await user.click(screen.getByRole('button', { name: '保存' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: '删除物品' })).toBeDisabled())
+  expect(screen.getByRole('button', { name: '取消' })).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: '删除物品' }))
+
+  expect(onDelete).not.toHaveBeenCalled()
+})
+
 test('omits the form heading when it is rendered inside an editor dialog', () => {
   const client = new QueryClient()
   render(

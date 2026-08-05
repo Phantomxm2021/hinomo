@@ -5,10 +5,11 @@ import type { ItemFormProps } from './ItemForm'
 import { ItemEditorDialog } from './ItemEditorDialog'
 
 vi.mock('./ItemForm', () => ({
-  ItemForm: ({ onBusyChange, onCancel, onSaved }: ItemFormProps) => (
+  ItemForm: ({ onBusyChange, onCancel, onDelete, onSaved }: ItemFormProps) => (
     <div>
       <button type="button" onClick={() => onBusyChange?.(true)}>开始保存</button>
       <button type="button" onClick={onCancel}>取消编辑</button>
+      <button type="button" onClick={onDelete}>删除物品</button>
       <button type="button" onClick={onSaved}>完成保存</button>
     </div>
   ),
@@ -67,7 +68,8 @@ test('forwards form cancellation and saved callbacks', async () => {
 test('blocks editor dismissal while the item form is busy', async () => {
   const user = userEvent.setup()
   const onClose = vi.fn()
-  renderDialog({ onClose })
+  const onDelete = vi.fn()
+  renderDialog({ onClose, onDelete })
 
   await user.click(screen.getByRole('button', { name: '开始保存' }))
   expect(screen.getByRole('dialog', { name: '新增物品' })).toHaveAttribute('aria-busy', 'true')
@@ -75,6 +77,8 @@ test('blocks editor dismissal while the item form is busy', async () => {
   await user.keyboard('{Escape}')
   fireEvent.mouseDown(screen.getByTestId('editor-dialog-backdrop'))
   await user.click(screen.getByRole('button', { name: '取消编辑' }))
+  await user.click(screen.getByRole('button', { name: '删除物品' }))
 
   expect(onClose).not.toHaveBeenCalled()
+  expect(onDelete).not.toHaveBeenCalled()
 })
