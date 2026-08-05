@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import type { BoxSummary } from './boxes.api'
 
@@ -8,10 +7,11 @@ type BoxCardMenuProps = {
   open: boolean
   triggerRef: React.RefObject<HTMLButtonElement | null>
   onClose: (restoreFocus: boolean) => void
+  onEdit: (box: BoxSummary, trigger: HTMLButtonElement | null) => void
   onDelete: (box: BoxSummary, trigger: HTMLButtonElement | null) => void
 }
 
-export function BoxCardMenu({ box, open, triggerRef, onClose, onDelete }: BoxCardMenuProps) {
+export function BoxCardMenu({ box, open, triggerRef, onClose, onEdit, onDelete }: BoxCardMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -38,15 +38,18 @@ export function BoxCardMenu({ box, open, triggerRef, onClose, onDelete }: BoxCar
 
   return (
     <div ref={menuRef} className="absolute top-14 right-3 z-30 grid min-w-36 gap-1 rounded-control border border-line bg-surface p-1 shadow-float">
-      <Link
+      <button
         className="inline-flex min-h-11 items-center gap-2 rounded-control px-3 text-sm font-bold text-ink no-underline hover:bg-canvas"
-        to={`/app/boxes/${box.id}/edit`}
+        type="button"
         aria-label={`编辑${box.name}`}
-        onClick={() => onClose(false)}
+        onClick={() => {
+          onEdit(box, triggerRef.current)
+          onClose(false)
+        }}
       >
         <AppIcon name="edit" size={16} />
         编辑箱子
-      </Link>
+      </button>
       <button
         className="inline-flex min-h-11 items-center gap-2 rounded-control px-3 text-left text-sm font-bold text-danger hover:bg-danger/5"
         type="button"

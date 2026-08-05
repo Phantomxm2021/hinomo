@@ -44,6 +44,11 @@ vi.mock('../packing/PackingCapturePage', () => ({
   ),
 }))
 vi.mock('../credits/credits.api', () => ({ getCreditSummary: mockGetCreditSummary }))
+vi.mock('./EditBoxModal', () => ({
+  EditBoxModal: ({ open, onClose }: { open: boolean; onClose: () => void }) => open ? (
+    <section role="dialog" aria-label="编辑箱子"><button type="button" onClick={onClose}>关闭编辑箱子</button></section>
+  ) : null,
+}))
 
 function renderPublicBox(
   session: Session | null = null,
@@ -210,7 +215,7 @@ test('shows item controls only to the box owner', async () => {
   expect(within(navigation).getByRole('button', { name: '打开箱子操作菜单' })).toBeInTheDocument()
   const desktopActions = screen.getByTestId('desktop-box-actions')
   expect(desktopActions).toHaveClass('hidden', 'lg:flex')
-  expect(within(desktopActions).getByRole('link', { name: '编辑箱子' })).toHaveAttribute('href', '/app/boxes/box-1/edit')
+  expect(within(desktopActions).getByRole('button', { name: '编辑箱子' })).toBeInTheDocument()
   expect(within(desktopActions).getByRole('button', { name: '打印标签' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '打开锤子操作' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '编辑锤子' })).not.toBeInTheDocument()
@@ -243,6 +248,9 @@ test('opens the mobile plus menu with the owner box actions', async () => {
   expect(within(menu).getByRole('button', { name: '新增物品' })).toBeInTheDocument()
   expect(within(menu).getByRole('button', { name: '编辑箱子' })).toBeInTheDocument()
   expect(within(menu).getByRole('button', { name: '打印标签' })).toBeInTheDocument()
+  await user.click(within(menu).getByRole('button', { name: '编辑箱子' }))
+  expect(screen.getByRole('dialog', { name: '编辑箱子' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: '工具' })).toBeInTheDocument()
 })
 
 test('opens AI packing as a sheet while keeping the box route visible', async () => {

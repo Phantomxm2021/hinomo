@@ -1,26 +1,22 @@
 import { render, screen } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { expect, test, vi } from 'vitest'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { expect, test } from 'vitest'
 import { BoxFormPage } from './BoxFormPage'
 
-const { mockBoxForm } = vi.hoisted(() => ({ mockBoxForm: vi.fn() }))
+function LocationProbe() {
+  const location = useLocation()
+  return <output data-testid="location">{`${location.pathname}${location.search}`}</output>
+}
 
-vi.mock('./BoxForm', () => ({
-  BoxForm: (props: unknown) => {
-    mockBoxForm(props)
-    return <div>box form</div>
-  },
-}))
-
-test('passes the edit route id to the reusable page form', () => {
+test('redirects the legacy edit route to the catalogue edit dialog state', () => {
   render(
     <MemoryRouter initialEntries={['/app/boxes/box-1/edit']}>
       <Routes>
         <Route path="/app/boxes/:boxId/edit" element={<BoxFormPage />} />
+        <Route path="/app/boxes" element={<LocationProbe />} />
       </Routes>
     </MemoryRouter>,
   )
 
-  expect(screen.getByText('box form')).toBeInTheDocument()
-  expect(mockBoxForm).toHaveBeenCalledWith({ boxId: 'box-1', presentation: 'page' })
+  expect(screen.getByTestId('location')).toHaveTextContent('/app/boxes?edit=box-1')
 })

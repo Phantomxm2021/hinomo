@@ -39,6 +39,7 @@ function renderCard(overrides: Partial<React.ComponentProps<typeof BoxCatalogueC
     onMenuToggle: vi.fn(),
     onMenuClose: vi.fn(),
     onDelete: vi.fn(),
+    onEdit: vi.fn(),
     ...overrides,
   }
 
@@ -48,7 +49,7 @@ function renderCard(overrides: Partial<React.ComponentProps<typeof BoxCatalogueC
   }
 }
 
-function StatefulCardHarness({ onClose, onDelete = vi.fn() }: { onClose: () => void; onDelete?: (box: BoxSummary, trigger: HTMLButtonElement | null) => void }) {
+function StatefulCardHarness({ onClose, onDelete = vi.fn(), onEdit = vi.fn() }: { onClose: () => void; onDelete?: (box: BoxSummary, trigger: HTMLButtonElement | null) => void; onEdit?: (box: BoxSummary, trigger: HTMLButtonElement | null) => void }) {
   const [menuOpen, setMenuOpen] = useState(true)
   return (
     <MemoryRouter>
@@ -61,6 +62,7 @@ function StatefulCardHarness({ onClose, onDelete = vi.fn() }: { onClose: () => v
           setMenuOpen(false)
         }}
         onDelete={onDelete}
+        onEdit={onEdit}
       />
       <button type="button">外部操作</button>
     </MemoryRouter>
@@ -117,11 +119,12 @@ test('reports management trigger clicks and its expanded state', async () => {
   openView.unmount()
 })
 
-test('provides edit and delete menu actions for the supplied box', async () => {
+test('provides button edit and delete menu actions for the supplied box', async () => {
   const user = userEvent.setup()
   const { props } = renderCard({ menuOpen: true })
 
-  expect(screen.getByRole('link', { name: '编辑冬季衣物' })).toHaveAttribute('href', '/app/boxes/box-1/edit')
+  await user.click(screen.getByRole('button', { name: '编辑冬季衣物' }))
+  expect(props.onEdit).toHaveBeenCalledWith(fallbackBox, screen.getByRole('button', { name: '管理冬季衣物' }))
   await user.click(screen.getByRole('button', { name: '删除冬季衣物' }))
   expect(props.onDelete).toHaveBeenCalledWith(fallbackBox, screen.getByRole('button', { name: '管理冬季衣物' }))
 })
@@ -130,12 +133,12 @@ test('closes on Escape and restores focus to the management trigger', async () =
   const onClose = vi.fn()
   render(<StatefulCardHarness onClose={onClose} />)
   const trigger = screen.getByRole('button', { name: '管理冬季衣物' })
-  screen.getByRole('link', { name: '编辑冬季衣物' }).focus()
+  screen.getByRole('button', { name: '编辑冬季衣物' }).focus()
 
   fireEvent.keyDown(document, { key: 'Escape' })
 
   expect(onClose).toHaveBeenCalledTimes(1)
-  expect(screen.queryByRole('link', { name: '编辑冬季衣物' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '编辑冬季衣物' })).not.toBeInTheDocument()
   await waitFor(() => expect(trigger).toHaveFocus())
 })
 
@@ -147,7 +150,7 @@ test('outside interaction closes once and preserves focus on the outside control
 
   await user.click(outsideButton)
   expect(onClose).toHaveBeenCalledTimes(1)
-  expect(screen.queryByRole('link', { name: '编辑冬季衣物' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '编辑冬季衣物' })).not.toBeInTheDocument()
   await nextAnimationFrame()
   expect(outsideButton).toHaveFocus()
 
@@ -183,7 +186,7 @@ test('closes the menu after editing or deleting', async () => {
   const user = userEvent.setup()
   const edit = renderCard({ menuOpen: true })
 
-  await user.click(screen.getByRole('link', { name: '编辑冬季衣物' }))
+  await user.click(screen.getByRole('button', { name: '编辑冬季衣物' }))
   expect(edit.props.onMenuClose).toHaveBeenCalledTimes(1)
   edit.unmount()
 

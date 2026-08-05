@@ -17,9 +17,10 @@ export type BoxFormProps = {
   presentation: 'page' | 'modal'
   onBusyChange?: (busy: boolean) => void
   onCompleted?: (box: CreatedBox) => void
+  onSaved?: () => void
 }
 
-export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxFormProps) {
+export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onSaved }: BoxFormProps) {
   const editing = Boolean(boxId)
   const feedback = useMobileFeedback()
   const initializedBoxId = useRef<string | undefined>(undefined)
@@ -113,6 +114,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
       if (editing && boxId) {
         await mediaUpload.upload({ file: coverFile, boxId, itemId: null, kind: 'cover' })
         setSaved(true)
+        onSaved?.()
         return
       }
       if (pendingBox) {
@@ -131,9 +133,9 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
   finishWithoutCoverRef.current = finishWithoutCover
 
   useEffect(() => {
-    if (!saved) return
+    if (!saved || onSaved) return
     feedback.notify('修改已保存')
-  }, [feedback, saved])
+  }, [feedback, onSaved, saved])
 
   useEffect(() => {
     if (!mediaError) return
@@ -168,6 +170,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted }: BoxF
           await mediaUpload.upload({ file: coverFile, boxId, itemId: null, kind: 'cover' })
         }
         setSaved(true)
+        onSaved?.()
         return
       }
       const box = await createMutation.mutateAsync(input)

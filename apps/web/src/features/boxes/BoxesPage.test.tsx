@@ -71,6 +71,12 @@ vi.mock('./CreateBoxModal', async () => {
   return { CreateBoxModal: MockCreateBoxModal }
 })
 
+vi.mock('./EditBoxModal', () => ({
+  EditBoxModal: ({ open, onClose }: { open: boolean; onClose: () => void }) => open ? (
+    <section role="dialog" aria-label="编辑箱子"><button type="button" onClick={onClose}>关闭编辑箱子</button></section>
+  ) : null,
+}))
+
 const boxes = [
   {
     id: 'box-1',
@@ -314,11 +320,15 @@ test('keeps only one catalogue card menu open', async () => {
 
   await screen.findByRole('link', { name: '打开冬季衣物' })
   await user.click(screen.getByRole('button', { name: '管理冬季衣物' }))
-  expect(screen.getByRole('link', { name: '编辑冬季衣物' })).toHaveAttribute('href', '/app/boxes/box-1/edit')
+  await user.click(screen.getByRole('button', { name: '编辑冬季衣物' }))
+  expect(screen.getByRole('dialog', { name: '编辑箱子' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: '全部箱子' })).toBeInTheDocument()
+  expect(screen.getByTestId('location')).toHaveTextContent('?edit=box-1')
+  await user.click(screen.getByRole('button', { name: '关闭编辑箱子' }))
 
   await user.click(screen.getByRole('button', { name: '管理露营用品' }))
-  expect(screen.queryByRole('link', { name: '编辑冬季衣物' })).not.toBeInTheDocument()
-  expect(screen.getByRole('link', { name: '编辑露营用品' })).toHaveAttribute('href', '/app/boxes/box-2/edit')
+  expect(screen.queryByRole('button', { name: '编辑冬季衣物' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '编辑露营用品' })).toBeInTheDocument()
 })
 
 test('does not recompute catalogue derivations for menu and mutation rerenders', async () => {
@@ -351,11 +361,11 @@ test('does not close an open card menu when only a legacy sort parameter changes
 
   await screen.findByRole('link', { name: '打开冬季衣物' })
   await user.click(screen.getByRole('button', { name: '管理冬季衣物' }))
-  expect(screen.getByRole('link', { name: '编辑冬季衣物' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '编辑冬季衣物' })).toBeInTheDocument()
 
   await act(async () => { await router.navigate('/app/boxes?sort=items') })
   await waitFor(() => expect(screen.getByTestId('location')).not.toHaveTextContent('sort='))
-  expect(screen.getByRole('link', { name: '编辑冬季衣物' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '编辑冬季衣物' })).toBeInTheDocument()
 })
 
 test('keeps a restored card menu closed after the space filter changes through history', async () => {
@@ -365,7 +375,7 @@ test('keeps a restored card menu closed after the space filter changes through h
 
   await screen.findByRole('link', { name: '打开冬季衣物' })
   await user.click(screen.getByRole('button', { name: '管理冬季衣物' }))
-  expect(screen.getByRole('link', { name: '编辑冬季衣物' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '编辑冬季衣物' })).toBeInTheDocument()
 
   await act(async () => { await router.navigate('/app/boxes?space=space-2') })
   expect(await screen.findByRole('link', { name: '打开露营用品' })).toBeInTheDocument()
@@ -373,7 +383,7 @@ test('keeps a restored card menu closed after the space filter changes through h
   await act(async () => { await router.navigate(-1) })
 
   expect(await screen.findByRole('link', { name: '打开冬季衣物' })).toBeInTheDocument()
-  expect(screen.queryByRole('link', { name: '编辑冬季衣物' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '编辑冬季衣物' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: '管理冬季衣物' })).toHaveAttribute('aria-expanded', 'false')
 })
 
@@ -558,9 +568,9 @@ test('removes a deleted box and closes the dialog before catalogue revalidation 
   expect(await screen.findByRole('link', { name: '打开冬季衣物' })).toHaveAttribute('href', '/b/public-1')
   const stableCreateAction = screen.getByRole('button', { name: '创建箱子' })
   await user.click(screen.getByRole('button', { name: '管理冬季衣物' }))
-  expect(screen.getByRole('link', { name: '编辑冬季衣物' })).toHaveAttribute('href', '/app/boxes/box-1/edit')
+  expect(screen.getByRole('button', { name: '编辑冬季衣物' })).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '删除冬季衣物' }))
-  expect(screen.queryByRole('link', { name: '编辑冬季衣物' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '编辑冬季衣物' })).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '确认删除' }))
 
   expect(mockDeleteBox).toHaveBeenCalledWith('box-1')

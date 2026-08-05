@@ -11,10 +11,11 @@ type BoxCatalogueCardProps = {
   menuOpen: boolean
   onMenuToggle: () => void
   onMenuClose: () => void
+  onEdit: (box: BoxSummary, trigger: HTMLButtonElement | null) => void
   onDelete: (box: BoxSummary, trigger: HTMLButtonElement | null) => void
 }
 
-export function BoxCatalogueCard({ box, menuOpen, onMenuToggle, onMenuClose, onDelete }: BoxCatalogueCardProps) {
+export function BoxCatalogueCard({ box, menuOpen, onMenuToggle, onMenuClose, onEdit, onDelete }: BoxCatalogueCardProps) {
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const visibilityLabel = box.visibility === 'public' ? '公开' : '私有'
   const closeMenu = (restoreFocus: boolean) => {
@@ -60,7 +61,7 @@ export function BoxCatalogueCard({ box, menuOpen, onMenuToggle, onMenuClose, onD
       >
         <AppIcon name="more" size={20} />
       </button>
-      <BoxCardMenu box={box} open={menuOpen} triggerRef={triggerRef} onClose={closeMenu} onDelete={onDelete} />
+      <BoxCardMenu box={box} open={menuOpen} triggerRef={triggerRef} onClose={closeMenu} onEdit={onEdit} onDelete={onDelete} />
     </article>
   )
 }

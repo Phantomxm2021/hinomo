@@ -1,7 +1,6 @@
-import { useParams } from 'react-router-dom'
-import { BoxForm } from './BoxForm'
+import { Navigate, useParams } from 'react-router-dom'
 
 export function BoxFormPage() {
-  const { boxId } = useParams<{ boxId: string }>()
-  return <BoxForm boxId={boxId} presentation="page" />
+  const { boxId = '' } = useParams<{ boxId: string }>()
+  return <Navigate replace to={`/app/boxes?edit=${encodeURIComponent(boxId)}`} />
 }

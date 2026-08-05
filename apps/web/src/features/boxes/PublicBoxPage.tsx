@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { MobileActionSheet } from '../../components/MobileActionSheet'
@@ -23,6 +23,7 @@ import { PackingCaptureSheet } from '../packing/PackingCapturePage'
 import { CreditGateSheet } from '../credits/CreditGateSheet'
 import { getCreditSummary } from '../credits/credits.api'
 import { getBoxByPublicId, listBoxes } from './boxes.api'
+import { EditBoxModal } from './EditBoxModal'
 
 export function PublicBoxPage() {
   const { publicId = '' } = useParams<{ publicId: string }>()
@@ -33,6 +34,8 @@ export function PublicBoxPage() {
   const queryClient = useQueryClient()
   const desktopAddItemButtonRef = useRef<HTMLButtonElement | null>(null)
   const mobileActionsButtonRef = useRef<HTMLButtonElement | null>(null)
+  const desktopBoxEditButtonRef = useRef<HTMLButtonElement | null>(null)
+  const boxEditorReturnFocusRef = useRef<HTMLElement | null>(null)
   const deleteReturnFocusRef = useRef<HTMLElement | null>(null)
   const itemInteractionTriggerRef = useRef<HTMLButtonElement | null>(null)
   const itemEditorReturnFocusRef = useRef<HTMLElement | null>(null)
@@ -42,6 +45,7 @@ export function PublicBoxPage() {
     requiredCredits?: number
   } | null>(null)
   const [showMobileActions, setShowMobileActions] = useState(false)
+  const [showBoxEditor, setShowBoxEditor] = useState(false)
   const [editingItem, setEditingItem] = useState<ItemRecord | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ItemRecord | null>(null)
   const [movementItem, setMovementItem] = useState<ItemRecord | null>(null)
@@ -160,6 +164,20 @@ export function PublicBoxPage() {
     setEditingItem(null)
     setShowItemForm(true)
   }
+  const openBoxEditor = () => {
+    boxEditorReturnFocusRef.current = window.matchMedia('(min-width: 48rem)').matches
+      ? desktopBoxEditButtonRef.current
+      : mobileActionsButtonRef.current
+    setShowBoxEditor(true)
+  }
+  const refreshBox = async () => {
+    setShowBoxEditor(false)
+    feedback.notify('修改已保存')
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['box', publicId] }),
+      queryClient.invalidateQueries({ queryKey: ['boxes'] }),
+    ])
+  }
   const openPackingCapture = () => {
     const credit = creditQuery.data
     if (!credit) {
@@ -253,9 +271,9 @@ export function PublicBoxPage() {
           </div>
           {isOwner ? (
             <div data-testid="desktop-box-actions" className="hidden lg:flex lg:flex-wrap lg:gap-2">
-              <Link className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[0.9rem] border-0 bg-surface px-4 font-bold text-ink no-underline shadow-[inset_0_0_0_1px_rgba(79,64,48,0.08)] active:opacity-70 lg:min-h-11 lg:justify-start lg:rounded-control lg:border lg:border-line lg:bg-canvas lg:shadow-none" to={`/app/boxes/${box.id}/edit`}>
+              <button ref={desktopBoxEditButtonRef} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[0.9rem] border-0 bg-surface px-4 font-bold text-ink no-underline shadow-[inset_0_0_0_1px_rgba(79,64,48,0.08)] active:opacity-70 lg:min-h-11 lg:justify-start lg:rounded-control lg:border lg:border-line lg:bg-canvas lg:shadow-none" type="button" onClick={openBoxEditor}>
                 <AppIcon name="edit" />编辑箱子
-              </Link>
+              </button>
               <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[0.9rem] border-0 bg-surface px-4 font-bold text-ink shadow-[inset_0_0_0_1px_rgba(79,64,48,0.08)] active:opacity-70 lg:min-h-11 lg:justify-start lg:rounded-control lg:border lg:border-line lg:bg-canvas lg:shadow-none" type="button" disabled={printing} onClick={() => void printLabel()}>
                 <AppIcon name="print" />{printing ? '生成中…' : '打印标签'}
               </button>
@@ -287,7 +305,7 @@ export function PublicBoxPage() {
         actions={[
           { label: 'AI 装箱', onSelect: openPackingCapture },
           { label: '新增物品', onSelect: openNewItem },
-          { label: '编辑箱子', onSelect: () => navigate(`/app/boxes/${box.id}/edit`) },
+          { label: '编辑箱子', onSelect: openBoxEditor },
           { label: printing ? '正在生成标签…' : '打印标签', disabled: printing, onSelect: () => void printLabel() },
         ]}
       />
@@ -304,6 +322,16 @@ export function PublicBoxPage() {
         onEdit={(item) => { setMovementItem(null); openEditItem(item) }}
         onSubmit={async (command) => { await movementMutation.mutateAsync(command) }}
       />
+
+      {isOwner ? (
+        <EditBoxModal
+          open={showBoxEditor}
+          boxId={box.id}
+          returnFocusRef={boxEditorReturnFocusRef}
+          onClose={() => setShowBoxEditor(false)}
+          onSaved={() => void refreshBox()}
+        />
+      ) : null}
 
       {isOwner ? (
         <ItemEditorDialog

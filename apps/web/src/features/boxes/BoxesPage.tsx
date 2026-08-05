@@ -18,6 +18,7 @@ import {
 } from './box-catalogue'
 import { deleteBox, listBoxesForVenue, type BoxSummary, type CreatedBox } from './boxes.api'
 import { CreateBoxModal } from './CreateBoxModal'
+import { EditBoxModal } from './EditBoxModal'
 import { SpaceFilterChips } from './SpaceFilterChips'
 
 type CatalogueParam = 'space'
@@ -30,6 +31,7 @@ export function BoxesPage() {
   const navigate = useNavigate()
   const createButtonRef = useRef<HTMLButtonElement | null>(null)
   const deleteReturnFocusRef = useRef<HTMLElement | null>(null)
+  const editReturnFocusRef = useRef<HTMLElement | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const [deleteTarget, setDeleteTarget] = useState<BoxSummary | null>(null)
   const [openMenuBoxId, setOpenMenuBoxId] = useState<string | null>(null)
@@ -66,6 +68,7 @@ export function BoxesPage() {
   const catalogueError = boxesQuery.isError || venuesQuery.isError
   const selectedSpace = searchParams.get('space') ?? ''
   const creating = searchParams.get('create') === '1'
+  const editingBoxId = searchParams.get('edit')
   const wasCreating = useRef(creating)
   const createBlocker = useBlocker(creating && createBusy)
   const spaces = useMemo(() => catalogueSpaces(boxes), [boxes])
@@ -119,6 +122,20 @@ export function BoxesPage() {
   const closeCreate = useCallback(() => {
     const next = new URLSearchParams(searchParams)
     next.delete('create')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  const openEdit = (box: BoxSummary, trigger: HTMLButtonElement | null) => {
+    editReturnFocusRef.current = trigger
+    setOpenMenuBoxId(null)
+    const next = new URLSearchParams(searchParams)
+    next.set('edit', box.id)
+    setSearchParams(next)
+  }
+
+  const closeEdit = useCallback(() => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('edit')
     setSearchParams(next, { replace: true })
   }, [searchParams, setSearchParams])
 
@@ -270,6 +287,7 @@ export function BoxesPage() {
               menuOpen={openMenuBoxId === box.id}
               onMenuToggle={() => setOpenMenuBoxId((current) => current === box.id ? null : box.id)}
               onMenuClose={() => setOpenMenuBoxId(null)}
+              onEdit={openEdit}
               onDelete={(target, trigger) => {
                 deleteMutation.reset()
                 deleteReturnFocusRef.current = trigger
@@ -307,6 +325,17 @@ export function BoxesPage() {
           void queryClient.invalidateQueries({ queryKey: ['boxes'] })
         }}
         onBusyChange={setCreateBusy}
+      />
+      <EditBoxModal
+        open={Boolean(editingBoxId)}
+        boxId={editingBoxId ?? ''}
+        returnFocusRef={editReturnFocusRef}
+        onClose={closeEdit}
+        onSaved={() => {
+          void queryClient.invalidateQueries({ queryKey: ['boxes'] })
+          feedback.notify('修改已保存')
+          closeEdit()
+        }}
       />
     </section>
   )

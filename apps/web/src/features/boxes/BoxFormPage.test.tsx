@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
+import { MemoryRouter } from 'react-router-dom'
+import { useState } from 'react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { BoxFormPage } from './BoxFormPage'
 import { BoxForm } from './BoxForm'
 
 const { mockCreateBox, mockGetBox, mockListSpaces, mockBoxQrPng, mockUpdateBox, mockUpload, mockUploadReset } = vi.hoisted(() => ({
@@ -36,27 +36,28 @@ function renderBoxForm(initialEntry = '/app/boxes/new', client = new QueryClient
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <QueryClientProvider client={client}>
-        <Routes>
-          <Route path="/app/boxes/new" element={<BoxFormPage />} />
-          <Route path="/app/boxes/:boxId/edit" element={<BoxFormPage />} />
-        </Routes>
-        <BoxNavigationControls />
+        <BoxFormTestHarness initialEntry={initialEntry} />
       </QueryClientProvider>
     </MemoryRouter>,
   )
 }
 
-function BoxNavigationControls() {
-  const navigate = useNavigate()
-  return <button type="button" onClick={() => navigate('/app/boxes/box-2/edit')}>切换箱子</button>
+function BoxFormTestHarness({ initialEntry }: { initialEntry: string }) {
+  const [boxId, setBoxId] = useState(() => initialEntry.match(/boxes\/([^/]+)\/edit/)?.[1])
+  return (
+    <>
+      <BoxForm boxId={boxId} presentation="page" />
+      <button type="button" onClick={() => setBoxId('box-2')}>切换箱子</button>
+    </>
+  )
 }
 
-function renderModalBoxForm(onCompleted = vi.fn(), onBusyChange?: (busy: boolean) => void) {
+function renderModalBoxForm(onCompleted = vi.fn(), onBusyChange?: (busy: boolean) => void, boxId?: string, onSaved?: () => void) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <MemoryRouter>
       <QueryClientProvider client={client}>
-        <BoxForm presentation="modal" onCompleted={onCompleted} onBusyChange={onBusyChange} />
+        <BoxForm boxId={boxId} presentation="modal" onCompleted={onCompleted} onBusyChange={onBusyChange} onSaved={onSaved} />
       </QueryClientProvider>
     </MemoryRouter>,
   )
@@ -407,6 +408,50 @@ test('edits mutable fields without sending database identifiers', async () => {
     visibility: 'private',
   })
   expect(await screen.findByRole('status')).toHaveTextContent('修改已保存')
+})
+
+test('notifies edit completion only after the record and selected cover upload succeed', async () => {
+  const user = userEvent.setup()
+  const onSaved = vi.fn()
+  mockListSpaces.mockResolvedValue([{ id: 'space-home', name: '家', description: null, box_count: 1 }])
+  mockGetBox.mockResolvedValue({
+    id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', space_id: 'space-home',
+    name: '工具箱', category: null, location: null, description: null, visibility: 'private',
+  })
+  mockUpdateBox.mockResolvedValue(undefined)
+  mockUpload.mockResolvedValue('boxes/box-1/cover.jpg')
+  renderModalBoxForm(vi.fn(), undefined, 'box-1', onSaved)
+
+  await screen.findByDisplayValue('工具箱')
+  const cover = new File(['cover'], 'cover.jpg', { type: 'image/jpeg' })
+  await user.upload(screen.getByLabelText('箱子封面（可选）'), cover)
+  await user.click(screen.getByRole('button', { name: '保存修改' }))
+
+  await waitFor(() => expect(mockUpdateBox).toHaveBeenCalled())
+  expect(onSaved).toHaveBeenCalledTimes(1)
+  expect(mockUpload).toHaveBeenCalledWith({ file: cover, boxId: 'box-1', itemId: null, kind: 'cover' })
+})
+
+test('waits for a failed replacement-cover retry before notifying edit completion', async () => {
+  const user = userEvent.setup()
+  const onSaved = vi.fn()
+  mockListSpaces.mockResolvedValue([{ id: 'space-home', name: '家', description: null, box_count: 1 }])
+  mockGetBox.mockResolvedValue({
+    id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', space_id: 'space-home',
+    name: '工具箱', category: null, location: null, description: null, visibility: 'private',
+  })
+  mockUpdateBox.mockResolvedValue(undefined)
+  mockUpload.mockRejectedValueOnce(new Error('upload failed')).mockResolvedValueOnce('boxes/box-1/cover.jpg')
+  renderModalBoxForm(vi.fn(), undefined, 'box-1', onSaved)
+
+  await screen.findByDisplayValue('工具箱')
+  await user.upload(screen.getByLabelText('箱子封面（可选）'), new File(['cover'], 'cover.jpg', { type: 'image/jpeg' }))
+  await user.click(screen.getByRole('button', { name: '保存修改' }))
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('图片上传失败')
+  expect(onSaved).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: '重试上传' }))
+  await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
 })
 
 afterEach(cleanup)
