@@ -38,6 +38,7 @@ export function BoxesPage() {
   const [createBusy, setCreateBusy] = useState(false)
   const [editBusy, setEditBusy] = useState(false)
   const [createCompletionPending, setCreateCompletionPending] = useState(false)
+  const [editCompletionPending, setEditCompletionPending] = useState(false)
   const [createSucceeded, setCreateSucceeded] = useState(false)
   const [createdBox, setCreatedBox] = useState<CreatedBox | null>(null)
   const createSuccessTimerRef = useRef<number | null>(null)
@@ -129,6 +130,7 @@ export function BoxesPage() {
   const openEdit = (box: BoxSummary, trigger: HTMLButtonElement | null) => {
     editReturnFocusRef.current = trigger
     setOpenMenuBoxId(null)
+    setEditCompletionPending(false)
     const next = new URLSearchParams(searchParams)
     next.set('edit', box.id)
     setSearchParams(next)
@@ -153,6 +155,13 @@ export function BoxesPage() {
   useEffect(() => {
     if (createCompletionPending && creating && !createBusy) closeCreate()
   }, [closeCreate, createBusy, createCompletionPending, creating])
+
+  useEffect(() => {
+    if (editCompletionPending && editingBoxId && !editBusy) {
+      setEditCompletionPending(false)
+      closeEdit()
+    }
+  }, [closeEdit, editBusy, editCompletionPending, editingBoxId])
 
   useEffect(() => {
     if (!createCompletionPending || creating) return
@@ -334,9 +343,9 @@ export function BoxesPage() {
         onClose={closeEdit}
         onBusyChange={setEditBusy}
         onSaved={() => {
+          setEditCompletionPending(true)
           void queryClient.invalidateQueries({ queryKey: ['boxes'] })
           feedback.notify('修改已保存')
-          closeEdit()
         }}
       />
     </section>

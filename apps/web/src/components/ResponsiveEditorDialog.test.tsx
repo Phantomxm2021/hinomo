@@ -69,6 +69,22 @@ test('lets a topmost action sheet consume Escape before the editor', async () =>
   view.unmount()
 })
 
+test('ignores hidden system overlays when deciding which layer receives Escape', async () => {
+  const user = userEvent.setup()
+  const onClose = vi.fn()
+  render(
+    <>
+      <div data-overlay-layer="action-sheet" style={{ display: 'none' }} />
+      <ResponsiveEditorDialog open title="编辑" busy={false} onClose={onClose}>
+        <input aria-label="名称" />
+      </ResponsiveEditorDialog>
+    </>,
+  )
+
+  await user.keyboard('{Escape}')
+  expect(onClose).toHaveBeenCalledTimes(1)
+})
+
 test('falls back to the close button when the initial selector has no match', async () => {
   render(
     <ResponsiveEditorDialog open title="编辑" busy={false} onClose={vi.fn()} initialFocusSelector="#missing-field">

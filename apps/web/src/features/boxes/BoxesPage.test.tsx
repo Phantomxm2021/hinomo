@@ -72,10 +72,11 @@ vi.mock('./CreateBoxModal', async () => {
 })
 
 vi.mock('./EditBoxModal', () => ({
-  EditBoxModal: ({ open, onClose, onBusyChange }: { open: boolean; onClose: () => void; onBusyChange?: (busy: boolean) => void }) => open ? (
+  EditBoxModal: ({ open, onClose, onBusyChange, onSaved }: { open: boolean; onClose: () => void; onBusyChange?: (busy: boolean) => void; onSaved?: () => void }) => open ? (
     <section role="dialog" aria-label="编辑箱子">
       <button type="button" onClick={() => onBusyChange?.(true)}>开始忙碌</button>
       <button type="button" onClick={() => onBusyChange?.(false)}>结束忙碌</button>
+      <button type="button" onClick={() => onSaved?.()}>保存成功</button>
       <button type="button" onClick={onClose}>关闭编辑箱子</button>
     </section>
   ) : null,
@@ -352,6 +353,25 @@ test('blocks browser back while box editing is busy, then resumes after save wor
   await user.click(screen.getByRole('button', { name: '结束忙碌' }))
   await act(async () => { await router.navigate(-1) })
   expect(screen.queryByRole('dialog', { name: '编辑箱子' })).not.toBeInTheDocument()
+  expect(screen.getByTestId('location')).toHaveTextContent('')
+})
+
+test('closes the edit dialog after save completion waits for busy state to clear', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes()
+
+  await screen.findByRole('link', { name: '打开冬季衣物' })
+  await user.click(screen.getByRole('button', { name: '管理冬季衣物' }))
+  await user.click(screen.getByRole('button', { name: '编辑冬季衣物' }))
+  await user.click(screen.getByRole('button', { name: '开始忙碌' }))
+  await user.click(screen.getByRole('button', { name: '保存成功' }))
+
+  expect(screen.getByRole('dialog', { name: '编辑箱子' })).toBeInTheDocument()
+  expect(screen.getByTestId('location')).toHaveTextContent('?edit=box-1')
+  await user.click(screen.getByRole('button', { name: '结束忙碌' }))
+
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: '编辑箱子' })).not.toBeInTheDocument())
   expect(screen.getByTestId('location')).toHaveTextContent('')
 })
 

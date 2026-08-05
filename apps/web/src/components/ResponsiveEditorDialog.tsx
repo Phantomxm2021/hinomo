@@ -22,6 +22,11 @@ function getControls(dialog: HTMLElement | null) {
 
 function getTopmostSystemOverlay() {
   return Array.from(document.querySelectorAll<HTMLElement>('[data-overlay-layer]'))
+    .filter((overlay) => {
+      if (overlay.hidden || overlay.getAttribute('aria-hidden') === 'true') return false
+      const style = window.getComputedStyle(overlay)
+      return style.display !== 'none' && style.visibility !== 'hidden'
+    })
     .reduce<HTMLElement | null>((topmost, overlay) => {
       if (!topmost) return overlay
       const topmostZIndex = Number.parseInt(window.getComputedStyle(topmost).zIndex, 10) || 0
