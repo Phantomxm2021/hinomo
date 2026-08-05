@@ -21,6 +21,7 @@ Nomo 新增“AI 装箱”能力。用户扫描或打开箱子后开始一次装
 - 每个标记为清晰且进入 `ready` 的 AI 清单项必须拥有可追溯到原图的单项裁剪图片；无法可靠裁剪的项目只能进入 `needs_review`。
 - 不透明袋、严重遮挡和不可见内容不得由模型猜测。
 - AI 输出先进入独立的“检测清单”，不直接成为可取出、归还或移动的正式 `items` 库存。
+- AI 显示内容严格跟随会话创建时冻结的用户语言，并保存中英文隐藏别名以支持跨语言检索；用户搜索时不得实时调用模型。
 - 所有处理必须异步、幂等、可重试，并允许用户关闭页面后继续运行。
 
 ## 2. 目标与非目标
@@ -317,7 +318,7 @@ qwen3-vl-plus-2025-12-19
 - 区分新增第二件物品与同一件物品再次出现；
 - 聚合数量证据；
 - 将多个同类物理实例聚合为一个带数量的清单项；
-- 生成保守、可搜索的中文名称；
+- 按会话冻结的用户语言生成保守、可搜索的显示名称；
 - 保留所有证据照片 ID；
 - 将不可见袋子记录为外部容器，不生成袋内物品。
 
@@ -341,7 +342,7 @@ qwen3-vl-plus-2025-12-19
 
 ```json
 {
-  "schema_version": "1",
+  "schema_version": "2",
   "photo_id": "P012",
   "instance_id": "instance-003",
   "bbox": [0.18, 0.32, 0.62, 0.81],
@@ -368,13 +369,28 @@ qwen3-vl-plus-2025-12-19
 - Edge Function 中断或超过平台时限时不确认任务完成；390 秒 lease 到期后由下一次触发安全回收。
 - 单个任务必须控制在 Supabase Edge Function 的 400 秒墙钟、2 秒 CPU 和 256 MB 内存限制内；默认批量为 1，Atlas 观察最多回查一张原图，单项定位每次只处理一张代表原图。
 
+### 9.7 用户语言与多语言检索词
+
+AI 展示语言必须来自会话所有者的 `profiles.locale`，当前只支持 `zh-CN` 和 `en-US`。`create_packing_session` 在创建会话时把该值快照到不可变的 `packing_sessions.output_locale`，后续所有模型阶段读取同一快照；资料缺失时使用数据库默认值 `zh-CN`，不得依据照片文字、模型猜测或 Edge Function 部署区域选择语言。用户稍后修改账户语言只影响新会话，不改写已发布结果。
+
+- `zh-CN`：`label / container_label / name / category / description / provisional_name / review_reason / reason` 使用简体中文；品牌、型号和行业通用缩写可以保留原文。
+- `en-US`：上述自然语言字段使用英文；品牌、型号保持原文。
+- JSON 键名和既有枚举继续使用英文，不随用户语言变化。
+- 汇总阶段为每个最终项目额外生成 `search_aliases`，分别提供简体中文和英文的常用、保守名称；别名只能描述照片已经支持的同一物品，不得加入品牌、型号、用途或材质等新事实。
+- 每种语言最多 8 个别名，每个别名去除首尾空白后为 1～80 个 Unicode 字符；Worker 做 Unicode 规范化、大小写无关去重，并排除与显示名称完全相同的值。
+- 别名生成或校验失败不得阻塞清单发布。Worker 保存合法子集并记录脱敏错误码；没有合法别名时保存空数组，显示名称仍可正常搜索。
+
+语言正确性不能只靠模型自觉。Worker 对最终 `name` 执行确定性检查：`zh-CN` 名称必须包含汉字，`en-US` 名称必须包含拉丁字母；品牌和型号应与目标语言的通用名组合，例如 `Apple Magic Keyboard 键盘`。若名称不符合目标语言但目标语言别名合法，Worker 使用第一个目标语言别名作为显示名称，并把原名称保留为搜索别名；两者都不可用时只重试一次汇总语言修复，仍失败则该汇总任务按既有重试和 `partial_failed` 规则处理，不发布语言错误的新 revision。
+
+仅在提示词中写“请用中文”不足以保证产品正确性；数据库别名是跨语言搜索的稳定契约，模型语言约束是用户界面的显示契约，两者必须同时存在。
+
 ## 10. 输出 Schema
 
 模型输出的最小结构如下，生产代码使用 JSON Schema 或 Zod/Ajv 进行严格校验：
 
 ```json
 {
-  "schema_version": "1",
+  "schema_version": "2",
   "atlas_id": "atlas-01",
   "observations": [
     {
@@ -425,6 +441,24 @@ qwen3-vl-plus-2025-12-19
 
 模型不得输出主观的 `0.93` 概率作为产品置信度。产品确定性由可验证规则派生，例如是否清晰可见、是否有多张证据、是否回查原图、数量是否可逐个数清，以及多次推理是否一致。
 
+汇总阶段每个 `items[]` 还必须接受以下可降级字段：
+
+```json
+{
+  "name": "键盘",
+  "category": "电脑配件",
+  "description": "黑色键盘",
+  "search_aliases": {
+    "zh-CN": ["电脑键盘"],
+    "en-US": ["keyboard", "computer keyboard"]
+  }
+}
+```
+
+`name / category / description` 必须遵循会话输出语言；`search_aliases` 的两个语言键固定存在但数组可以为空。Schema 校验会丢弃单个非法别名，而不是因一个别名让整个装箱会话失败。
+
+加入 `search_aliases` 时将 `PACKING_MODEL_SCHEMA_VERSION` 从 `1` 提升到 `2`，同时提升提示词版本和历史回填的 `alias_version`。旧 revision 保留原版本，不在原地重写；新分析和重新分析只发布通过 v2 校验的结果。实现采用“宽松接收别名数组、逐项规范化、严格校验其余业务字段”的解析方式，确保单个坏别名可以局部丢弃，而不是被普通数组 Schema 连带判整份响应无效。
+
 ## 11. 数据模型
 
 以下为逻辑模型；实施时通过增量迁移创建枚举、表、索引、RLS、RPC 和清理触发器。
@@ -438,6 +472,7 @@ qwen3-vl-plus-2025-12-19
 | `owner_id` | 冗余所有者，用于 RLS 和任务索引 |
 | `status` | `capturing / uploading / queued / processing / ready / partial_failed / failed / canceled` |
 | `photo_count` | 冻结后的照片数量 |
+| `output_locale` | 创建会话时从 `profiles.locale` 冻结的输出语言：`zh-CN / en-US` |
 | `model_id` | 实际模型快照 |
 | `prompt_version` | 提示词版本 |
 | `schema_version` | 输出 Schema 版本 |
@@ -520,7 +555,8 @@ qwen3-vl-plus-2025-12-19
 | --- | --- |
 | `id` | 检测项 ID |
 | `session_id / box_id` | 来源会话和箱子 |
-| `name / category / description` | 自动生成的可搜索内容 |
+| `name / category / description` | 按会话所有者 `profiles.locale` 自动生成的显示内容 |
+| `search_aliases` | 规范化后的中英文隐藏搜索别名，`text[] not null default '{}'`，最多 16 项 |
 | `quantity_kind` | `exact / at_least / approximate / unknown` |
 | `quantity_value` | 可为空 |
 | `visibility` | 可见性枚举 |
@@ -559,7 +595,24 @@ qwen3-vl-plus-2025-12-19
 - 预先生成稳定的 `target_item_id` 和正式物品 `target_object_key`，重复请求返回同一个 promotion；
 - Worker 把会话裁剪图复制到 `users/{owner_id}/boxes/{box_id}/item/{target_item_id}.webp`；
 - service-role RPC 在一个数据库事务内创建正式 `items`、写入独立媒体元数据、标记检测项 `promoted` 并完成 promotion；
+- promotion 在同一事务中把检测项的 `search_aliases` 复制到正式 `items`；
 - 复制或事务失败可以重试；未完成 promotion 的目标对象在删除会话时进入媒体清理，已完成的正式图片不随会话删除。
+
+### 11.9 `packing_search_alias_jobs`
+
+历史别名回填使用独立任务表，不复用会改变装箱会话状态的 `packing_analysis_jobs`：
+
+| 字段 | 说明 |
+| --- | --- |
+| `id` | 任务 ID |
+| `detected_item_id` | 需要补别名的历史 AI 检测项 |
+| `alias_version` | 别名提示词和规范化规则版本 |
+| `status` | `pending / processing / completed / failed` |
+| `attempts / next_attempt_at / lease_expires_at` | 断点续跑、退避和崩溃回收 |
+| `last_error_code` | 脱敏错误码 |
+| `created_at / updated_at` | 时间 |
+
+唯一约束为 `(detected_item_id, alias_version)`。该表只允许 service role 读写；增量迁移以 `insert ... on conflict do nothing` 批量创建待处理项，并在批量插入后只唤醒一次 Edge Function，避免逐行触发请求风暴。packing-worker 每次被唤醒时在正常分析任务之外领取最多一个别名任务，使用纯文本 Qwen 请求生成别名，完成后继续自唤醒直到队列清空；分钟级 cron 仍作为漏唤醒恢复机制。别名任务失败不得修改 `packing_sessions.status` 或已有 AI 清单内容。
 
 ## 12. AI 清单与正式物品的边界
 
@@ -591,6 +644,28 @@ qwen3-vl-plus-2025-12-19
 3. 清晰且有多张证据的 AI 检测项；
 4. 需要确认的模糊结果；
 5. 未知容器。
+
+搜索匹配字段为显示名称、分类、描述和 `search_aliases`。数据库 RPC 继续执行普通、可转义的大小写不敏感子串匹配，不在每次搜索时调用 LLM 或翻译服务。因此中文用户输入“键盘”可以命中显示名为 `keyboard` 但别名含“键盘”的历史 AI 物品，英文输入 `keyboard` 也可以命中显示名为“键盘”的新物品。
+
+正式 `items` 与 `packing_detected_items` 都使用相同别名语义：
+
+- 用户编辑显示名称时保留已有别名，除非未来提供明确的“管理搜索别名”功能；
+- 手动创建且没有别名的正式物品保持现有行为；
+- 搜索响应仍只返回显示名称，不把隐藏别名暴露为另一个物品或重复结果；
+- 别名只影响召回，不高于显示名称完全匹配的排序权重。
+
+### 13.1 历史 AI 数据回填
+
+增量迁移只增加字段、约束和搜索能力，不在 SQL 中猜测翻译。部署后由幂等的后台回填任务处理历史 AI 检测项：
+
+1. 只选择 `search_aliases` 为空且仍能关联所有者与来源会话的 AI 检测项；
+2. 使用当前名称、分类和所有者 `profiles.locale` 生成中英文别名；不需要重新发送照片；
+3. 只写 `search_aliases`，不修改任何历史显示名称、数量、描述或审核状态；
+4. 若该检测项已经 promotion，使用 `packing_item_promotions.target_item_id` 把同一合法别名集合并入正式 `items`；
+5. 任务以检测项 ID 和别名版本作为幂等键，支持 lease、退避、最多 5 次尝试和断点续跑；失败项不影响正常搜索与装箱；
+6. 用户后来手动编辑的正式物品名称也不被回填任务覆盖。
+
+回填期间新数据已经按新契约写入；历史数据逐步增强召回，不要求停机，也不在用户搜索请求中增加模型延迟。
 
 原始装箱照片默认只允许箱子所有者访问，即使箱子是公开的也不直接公开整套家庭照片。公开箱子是否展示 AI 清单应作为单独产品开关；默认仅展示已确认或已转为正式物品的项目。
 
@@ -694,11 +769,15 @@ capturing / uploading ──→ canceled
 - 非所有者不能创建、完成、读取或删除会话。
 - 照片顺序唯一，完成后不可追加。
 - 重复完成请求不创建重复任务。
+- 会话创建后 `output_locale` 不可修改，用户更改账户语言只影响新会话。
 - 任务 lease、回收、退避和最大尝试正确。
 - 会话/箱子删除能级联元数据并排队清理所有对象。
 - AI 检测项不能直接调用物品流转 RPC。
 - 转正式物品事务不会产生重复项目。
 - 删除装箱会话不会删除已提升正式物品的独立图片。
+- `search_my_inventory` 对正式物品和 AI 检测项同时匹配中英文 `search_aliases`，并正确转义 `%`、`_` 和反斜杠。
+- promotion 原子复制 `search_aliases`，重复 promotion 不产生重复别名。
+- 用户修改正式物品显示名称不会清空已有别名。
 
 ### 18.3 Supabase Edge Function 测试
 
@@ -716,6 +795,9 @@ capturing / uploading ──→ canceled
 - 会话删除会清理未提升裁剪图，正式物品图片继续可访问。
 - Deno check、Schema 单元测试和 Supabase Edge Runtime 本地启动通过。
 - Atlas Canvas 生成覆盖横竖图、最后一组最小网格、7 MB 限制和标签映射；真实移动浏览器至少完成一次 50 张冒烟测试。
+- `zh-CN` 用户的显示字段为简体中文，`en-US` 用户的显示字段为英文，品牌和型号不被错误翻译。
+- 中文项目保存英文别名，英文项目保存中文别名；非法、重复或超长别名被局部丢弃且不阻塞清单发布。
+- 历史回填只更新别名，支持断点续跑，绝不覆盖用户显示名称或审核内容。
 
 ### 18.4 前端测试
 
@@ -782,6 +864,8 @@ capturing / uploading ──→ canceled
 - AI 项目与正式物品使用统一清单行，并显示单项裁剪图和 AI 状态。
 - 支持修改、合并、驳回和重新分析。
 - 搜索同时覆盖正式物品和 AI 清单。
+- AI 显示字段严格跟随 `profiles.locale`，正式物品和 AI 清单均支持中英文隐藏别名检索。
+- 以后台幂等任务为历史 AI 数据补充别名，不覆盖显示名称。
 - 实现检测项转正式物品事务。
 - 为公开箱子落实默认不暴露原始装箱照片的策略。
 
@@ -811,6 +895,7 @@ capturing / uploading ──→ canceled
 - 删除箱子或会话后所有派生对象进入清理流程。
 - 单箱成本和 P95 处理时间有监控和预算上限。
 - AI 清单不能绕过确认进入现有精确流转操作。
+- 中文和英文账户的 AI 显示语言分别正确，输入“键盘”或 `keyboard` 均能召回同一对应物品；搜索请求本身不调用模型。
 - 隐私政策明确说明照片会发送给第三方视觉模型处理。
 
 ## 21. 建议的首版范围
