@@ -88,4 +88,10 @@ test('does not confirm when R2 PUT fails', async () => {
     method: 'POST',
     body: expect.stringContaining('network'),
   }))
+  const devLogCall = fetchMock.mock.calls.find(([url]) => url === '/__nomo/dev-log')
+  expect(devLogCall).toBeDefined()
+  expect(JSON.parse(devLogCall?.[1].body as string)).toMatchObject({
+    stage: 'uploading',
+    file: { name: 'cover.png', type: 'image/png', size: file.size },
+  })
 })

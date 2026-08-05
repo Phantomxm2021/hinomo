@@ -30,8 +30,13 @@ export function useMediaUpload() {
   const [stage, setStage] = useState<UploadStage>('idle')
 
   const upload = useCallback(async (input: UploadInput) => {
+    let currentStage: UploadStage = 'idle'
+    const advance = (nextStage: UploadStage) => {
+      currentStage = nextStage
+      setStage(nextStage)
+    }
     try {
-      setStage('compressing')
+      advance('compressing')
       const compressed = await imageCompression(input.file, {
         fileType: 'image/jpeg',
         initialQuality: PHOTO_UPLOAD_INITIAL_QUALITY,
@@ -42,7 +47,7 @@ export function useMediaUpload() {
       })
       assertPhotoUploadSize(compressed)
 
-      setStage('signing')
+      advance('signing')
       const session = await createMediaUpload({
         boxId: input.boxId,
         itemId: input.itemId,
@@ -51,7 +56,7 @@ export function useMediaUpload() {
         sizeBytes: compressed.size,
       })
 
-      setStage('uploading')
+      advance('uploading')
       const response = await fetch(session.upload_url, {
         method: 'PUT',
         headers: { 'Content-Type': compressed.type },
@@ -59,12 +64,18 @@ export function useMediaUpload() {
       })
       if (!response.ok) throw new Error('R2 upload failed')
 
-      setStage('confirming')
+      advance('confirming')
       await confirmMediaUpload(session.upload_id)
-      setStage('complete')
+      advance('complete')
       return session.object_key
     } catch (error) {
       reportDevLog('media_upload_failed', {
+        stage: currentStage,
+        file: {
+          name: input.file.name,
+          type: input.file.type || '(empty)',
+          size: input.file.size,
+        },
         boxId: input.boxId,
         itemId: input.itemId,
         kind: input.kind,
