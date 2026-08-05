@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { ItemFormProps } from './ItemForm'
@@ -7,6 +7,7 @@ import { ItemEditorDialog } from './ItemEditorDialog'
 vi.mock('./ItemForm', () => ({
   ItemForm: ({ onBusyChange, onCancel, onDelete, onSaved }: ItemFormProps) => (
     <div>
+      <input id="item-name" aria-label="物品名称" />
       <button type="button" onClick={() => onBusyChange?.(true)}>开始保存</button>
       <button type="button" onClick={onCancel}>取消编辑</button>
       <button type="button" onClick={onDelete}>删除物品</button>
@@ -50,6 +51,12 @@ test('selects a create or edit title and uses the responsive modal overlay', () 
     />,
   )
   expect(screen.getByRole('dialog', { name: '编辑物品' })).toBeInTheDocument()
+})
+
+test('focuses the item name instead of the hidden image input', async () => {
+  renderDialog()
+
+  await waitFor(() => expect(screen.getByRole('textbox', { name: '物品名称' })).toHaveFocus())
 })
 
 test('forwards form cancellation and saved callbacks', async () => {

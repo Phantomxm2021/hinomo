@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { afterEach, expect, test, vi } from 'vitest'
+import { MobileActionSheet } from './MobileActionSheet'
 import { ResponsiveEditorDialog } from './ResponsiveEditorDialog'
 
 afterEach(() => {
@@ -42,6 +44,39 @@ test('blocks every dismissal path while busy', async () => {
 
   expect(screen.getByRole('dialog', { name: '编辑' })).toHaveAttribute('aria-busy', 'true')
   expect(onClose).not.toHaveBeenCalled()
+})
+
+test('lets a topmost action sheet consume Escape before the editor', async () => {
+  const user = userEvent.setup()
+  const onClose = vi.fn()
+  function OverlayHarness() {
+    const [sheetOpen, setSheetOpen] = useState(true)
+    return (
+      <>
+        <ResponsiveEditorDialog open title="编辑" busy={false} onClose={onClose}>
+          <input aria-label="名称" />
+        </ResponsiveEditorDialog>
+        <MobileActionSheet open={sheetOpen} title="图片上传失败" actions={[{ label: '重试上传', onSelect: vi.fn() }]} onClose={() => setSheetOpen(false)} />
+      </>
+    )
+  }
+  const view = render(<OverlayHarness />)
+
+  await user.keyboard('{Escape}')
+  expect(screen.queryByRole('dialog', { name: '图片上传失败' })).not.toBeInTheDocument()
+  expect(screen.getByRole('dialog', { name: '编辑' })).toBeInTheDocument()
+  expect(onClose).not.toHaveBeenCalled()
+  view.unmount()
+})
+
+test('falls back to the close button when the initial selector has no match', async () => {
+  render(
+    <ResponsiveEditorDialog open title="编辑" busy={false} onClose={vi.fn()} initialFocusSelector="#missing-field">
+      <p>暂无可编辑字段</p>
+    </ResponsiveEditorDialog>,
+  )
+
+  await waitFor(() => expect(screen.getByRole('button', { name: '关闭编辑' })).toHaveFocus())
 })
 
 test('focuses the requested control, wraps focus, and restores focus after close', async () => {

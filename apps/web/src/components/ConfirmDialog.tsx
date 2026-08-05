@@ -103,7 +103,7 @@ export function ConfirmDialog({
   if (!open) return null
 
   return createPortal(
-    <div className="fixed inset-0 isolate grid place-items-center bg-black/45 p-5 backdrop-blur-sm" style={{ zIndex: SYSTEM_DIALOG_Z_INDEX }} role="presentation">
+    <div className="fixed inset-0 isolate grid place-items-center bg-black/45 p-5 backdrop-blur-sm" data-overlay-layer="dialog" style={{ zIndex: SYSTEM_DIALOG_Z_INDEX }} role="presentation">
       <section
         ref={dialogRef}
         className="w-full max-w-sm rounded-shell border border-line bg-surface p-6 shadow-float"

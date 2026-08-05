@@ -37,6 +37,7 @@ export function ItemEditorDialog({
       busy={busy}
       onClose={close}
       returnFocusRef={returnFocusRef}
+      initialFocusSelector="#item-name"
       maxWidthClassName="max-w-2xl"
     >
       <ItemForm

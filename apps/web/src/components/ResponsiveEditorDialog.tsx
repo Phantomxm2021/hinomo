@@ -20,6 +20,16 @@ function getControls(dialog: HTMLElement | null) {
   ))
 }
 
+function getTopmostSystemOverlay() {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-overlay-layer]'))
+    .reduce<HTMLElement | null>((topmost, overlay) => {
+      if (!topmost) return overlay
+      const topmostZIndex = Number.parseInt(window.getComputedStyle(topmost).zIndex, 10) || 0
+      const overlayZIndex = Number.parseInt(window.getComputedStyle(overlay).zIndex, 10) || 0
+      return overlayZIndex > topmostZIndex ? overlay : topmost
+    }, null)
+}
+
 export function ResponsiveEditorDialog({
   open,
   title,
@@ -57,16 +67,23 @@ export function ResponsiveEditorDialog({
     document.body.style.overflow = 'hidden'
 
     const focusInitialControl = () => {
-      if (dialogRef.current?.contains(document.activeElement)) return
       const target = dialogRef.current?.querySelector<HTMLElement>(initialFocusSelectorRef.current)
-      target?.focus()
+      const activeElement = document.activeElement
+      const firstControl = getControls(dialogRef.current)[0]
+      if (target && dialogRef.current?.contains(activeElement) && activeElement !== firstControl) return
+      if (!target && dialogRef.current?.contains(activeElement)) return
+      const fallback = target ?? getControls(dialogRef.current)[0] ?? dialogRef.current
+      fallback?.focus()
     }
     const focusFrame = window.requestAnimationFrame(focusInitialControl)
     const focusObserver = new MutationObserver(focusInitialControl)
     if (dialogRef.current) focusObserver.observe(dialogRef.current, { childList: true, subtree: true })
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeRef.current()
+      if (event.key !== 'Escape') return
+      const activeSystemOverlay = getTopmostSystemOverlay()
+      if (activeSystemOverlay && !activeSystemOverlay.contains(dialogRef.current)) return
+      closeRef.current()
     }
     document.addEventListener('keydown', onKeyDown)
 
@@ -102,6 +119,7 @@ export function ResponsiveEditorDialog({
         aria-modal="true"
         aria-busy={busy}
         aria-labelledby={titleId}
+        tabIndex={-1}
       >
         <span className="pointer-events-none fixed size-px overflow-hidden opacity-0" data-editor-focus-sentinel tabIndex={0} onFocus={() => getControls(dialogRef.current).at(-1)?.focus()} />
         <div className="mb-5 flex items-center justify-between gap-4">
