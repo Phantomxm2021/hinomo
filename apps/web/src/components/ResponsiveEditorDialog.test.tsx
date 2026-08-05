@@ -95,3 +95,47 @@ test('does not restore focus when only busy state changes', async () => {
   view.unmount()
   opener.remove()
 })
+
+test('keeps the dialog isolated when focus configuration changes while open', async () => {
+  const firstOpener = document.createElement('button')
+  const secondOpener = document.createElement('button')
+  document.body.append(firstOpener, secondOpener)
+  const firstReturnFocusRef = { current: firstOpener }
+  const secondReturnFocusRef = { current: secondOpener }
+  const view = render(
+    <>
+      <main data-app-shell>App</main>
+      <ResponsiveEditorDialog open title="编辑" busy={false} onClose={vi.fn()} initialFocusSelector="[name=first]" returnFocusRef={firstReturnFocusRef}>
+        <input name="first" aria-label="第一个字段" />
+        <input name="second" aria-label="第二个字段" />
+      </ResponsiveEditorDialog>
+    </>,
+  )
+
+  const firstField = screen.getByRole('textbox', { name: '第一个字段' })
+  await waitFor(() => expect(firstField).toHaveFocus())
+  const firstFocus = vi.spyOn(firstOpener, 'focus')
+  const secondFocus = vi.spyOn(secondOpener, 'focus')
+
+  view.rerender(
+    <>
+      <main data-app-shell>App</main>
+      <ResponsiveEditorDialog open title="编辑" busy={false} onClose={vi.fn()} initialFocusSelector="[name=second]" returnFocusRef={secondReturnFocusRef}>
+        <input name="first" aria-label="第一个字段" />
+        <input name="second" aria-label="第二个字段" />
+      </ResponsiveEditorDialog>
+    </>,
+  )
+
+  await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
+  expect(firstField).toHaveFocus()
+  expect(document.querySelector('[data-app-shell]')).toHaveAttribute('inert')
+  expect(document.body.style.overflow).toBe('hidden')
+  expect(firstFocus).not.toHaveBeenCalled()
+  expect(secondFocus).not.toHaveBeenCalled()
+  firstFocus.mockRestore()
+  secondFocus.mockRestore()
+  view.unmount()
+  firstOpener.remove()
+  secondOpener.remove()
+})

@@ -36,7 +36,11 @@ export function ResponsiveEditorDialog({
     if (!busy) onClose()
   }, [busy, onClose])
   const closeRef = useRef(close)
+  const initialFocusSelectorRef = useRef(initialFocusSelector)
+  const returnFocusRefRef = useRef(returnFocusRef)
   closeRef.current = close
+  initialFocusSelectorRef.current = initialFocusSelector
+  returnFocusRefRef.current = returnFocusRef
 
   useEffect(() => {
     if (!open) return
@@ -51,7 +55,7 @@ export function ResponsiveEditorDialog({
 
     const focusInitialControl = () => {
       if (dialogRef.current?.contains(document.activeElement)) return
-      const target = dialogRef.current?.querySelector<HTMLElement>(initialFocusSelector)
+      const target = dialogRef.current?.querySelector<HTMLElement>(initialFocusSelectorRef.current)
       target?.focus()
     }
     const focusFrame = window.requestAnimationFrame(focusInitialControl)
@@ -73,9 +77,9 @@ export function ResponsiveEditorDialog({
         else appShell.setAttribute('aria-hidden', previousAriaHidden)
       }
       document.body.style.overflow = previousOverflow
-      window.requestAnimationFrame(() => returnFocusRef?.current?.focus())
+      window.requestAnimationFrame(() => returnFocusRefRef.current?.current?.focus())
     }
-  }, [initialFocusSelector, open, returnFocusRef])
+  }, [open])
 
   if (!open) return null
 
