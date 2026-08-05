@@ -51,7 +51,8 @@ test('supports normal dismissal but blocks every dismissal path while busy', asy
   )
 
   const dialog = screen.getByRole('dialog', { name: '创建箱子' })
-  const backdrop = dialog.parentElement!
+  const backdrop = screen.getByTestId('editor-dialog-backdrop')
+  expect(dialog).toHaveClass('lg:rounded-shell')
   await user.keyboard('{Escape}')
   expect(onClose).toHaveBeenCalledTimes(1)
   fireEvent.mouseDown(backdrop)
