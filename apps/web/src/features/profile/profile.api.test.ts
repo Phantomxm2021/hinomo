@@ -80,3 +80,21 @@ test('compresses an avatar before signing and uploading it', async () => {
     body: compressed,
   })
 })
+
+test('logs avatar upload failures before rethrowing the original error', async () => {
+  const original = new File(['large avatar'], 'avatar.png', { type: 'image/png' })
+  const compressed = new File(['small'], 'avatar.jpg', { type: 'image/jpeg' })
+  const uploadError = new Error('avatar network')
+  mockCompress.mockResolvedValue(compressed)
+  mockRpc.mockResolvedValue({
+    data: [{ upload_id: 'upload-1', upload_url: 'https://r2.example/avatar' }],
+    error: null,
+  })
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(uploadError))
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+  await expect(uploadAvatar(original)).rejects.toBe(uploadError)
+
+  expect(consoleError).toHaveBeenCalledWith('avatar_upload_failed', uploadError)
+  consoleError.mockRestore()
+})

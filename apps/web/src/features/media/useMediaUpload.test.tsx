@@ -70,7 +70,9 @@ test('compresses, uploads, and confirms a media session in order', async () => {
 })
 
 test('does not confirm when R2 PUT fails', async () => {
-  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network')))
+  const uploadError = new Error('network')
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(uploadError))
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
   const { result } = renderHook(() => useMediaUpload())
 
   await act(async () => {
@@ -81,4 +83,11 @@ test('does not confirm when R2 PUT fails', async () => {
 
   expect(mockConfirmUpload).not.toHaveBeenCalled()
   expect(result.current.stage).toBe('error')
+  expect(consoleError).toHaveBeenCalledWith('media_upload_failed', {
+    boxId: 'b1',
+    itemId: null,
+    kind: 'cover',
+    error: uploadError,
+  })
+  consoleError.mockRestore()
 })

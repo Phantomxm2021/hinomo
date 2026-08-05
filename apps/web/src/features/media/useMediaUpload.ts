@@ -63,6 +63,12 @@ export function useMediaUpload() {
       setStage('complete')
       return session.object_key
     } catch (error) {
+      console.error('media_upload_failed', {
+        boxId: input.boxId,
+        itemId: input.itemId,
+        kind: input.kind,
+        error,
+      })
       setStage('error')
       throw error
     }

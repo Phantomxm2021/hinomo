@@ -44,22 +44,27 @@ export async function getAvatarDownload() {
 }
 
 export async function uploadAvatar(file: File) {
-  const compressed = await imageCompression(file, {
-    fileType: 'image/jpeg',
-    initialQuality: PHOTO_UPLOAD_INITIAL_QUALITY,
-    maxSizeMB: PHOTO_UPLOAD_MAX_SIZE_MB,
-    maxWidthOrHeight: 512,
-    maxIteration: PHOTO_UPLOAD_MAX_ITERATIONS,
-    useWebWorker: true,
-  })
-  assertPhotoUploadSize(compressed)
-  const session = await createAvatarUpload({ mimeType: compressed.type, sizeBytes: compressed.size })
-  const response = await fetch(session.upload_url, {
-    method: 'PUT',
-    headers: { 'Content-Type': compressed.type },
-    body: compressed,
-  })
-  if (!response.ok) throw new Error('R2 avatar upload failed')
-  await confirmAvatarUpload(session.upload_id)
-  return getAvatarDownload()
+  try {
+    const compressed = await imageCompression(file, {
+      fileType: 'image/jpeg',
+      initialQuality: PHOTO_UPLOAD_INITIAL_QUALITY,
+      maxSizeMB: PHOTO_UPLOAD_MAX_SIZE_MB,
+      maxWidthOrHeight: 512,
+      maxIteration: PHOTO_UPLOAD_MAX_ITERATIONS,
+      useWebWorker: true,
+    })
+    assertPhotoUploadSize(compressed)
+    const session = await createAvatarUpload({ mimeType: compressed.type, sizeBytes: compressed.size })
+    const response = await fetch(session.upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': compressed.type },
+      body: compressed,
+    })
+    if (!response.ok) throw new Error('R2 avatar upload failed')
+    await confirmAvatarUpload(session.upload_id)
+    return getAvatarDownload()
+  } catch (error) {
+    console.error('avatar_upload_failed', error)
+    throw error
+  }
 }
