@@ -5,6 +5,7 @@ import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
+import { useI18n } from '../../i18n/I18nProvider'
 import { publicAppOrigin } from '../../lib/env'
 import { listBoxes, type BoxSummary } from '../boxes/boxes.api'
 import { buildLabels, describePdfGenerationFailure, renderLabelsPdf, type PdfGenerationFailure } from './pdf'
@@ -30,6 +31,7 @@ function getServerDesktopViewportSnapshot() {
 }
 
 export function PrintPage() {
+  const { t } = useI18n()
   const boxesQuery = useQuery({ queryKey: ['boxes'], queryFn: listBoxes })
   const mounted = useRef(false)
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
@@ -104,7 +106,7 @@ export function PrintPage() {
   }
 
   const content = boxesQuery.isPending && boxesQuery.data === undefined ? (
-    <SkeletonGroup className="grid min-w-0 gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]" label="正在加载打印工作台">
+    <SkeletonGroup className="grid min-w-0 gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]" label={t('print.loading')}>
       <div className="grid content-start gap-4 rounded-card border border-line bg-surface p-4">
         <Skeleton className="h-7 w-1/2" />
         <Skeleton className="h-11 w-full" />
@@ -118,15 +120,15 @@ export function PrintPage() {
       </div>
     </SkeletonGroup>
   ) : boxesQuery.isError && boxesQuery.data === undefined ? (
-    <PageState state="error" message="箱子加载失败，请重试" onRetry={() => void boxesQuery.refetch()} />
+    <PageState state="error" message={t('print.boxLoadError')} onRetry={() => void boxesQuery.refetch()} />
   ) : allBoxes.length === 0 ? (
     <PageState
       state="empty"
       icon="print"
-      title="请先创建箱子"
+      title={t('print.createFirst')}
       action={(
         <Link className="min-h-11 rounded-control bg-brand px-4 py-2 font-bold text-white hover:bg-brand-strong" to="/app/boxes">
-          查看全部箱子
+          {t('print.viewAllBoxes')}
         </Link>
       )}
     />
@@ -134,7 +136,7 @@ export function PrintPage() {
     <>
       <section
         className="hidden min-w-0 gap-6 lg:grid lg:grid-cols-[22rem_minmax(0,1fr)]"
-        aria-label="批量标签工作台"
+        aria-label={t('print.batchWorkspace')}
       >
         <div className="min-w-0">
           <PrintBoxSelector
@@ -157,12 +159,12 @@ export function PrintPage() {
         </div>
       </section>
 
-      <section className="flex min-w-0 flex-col gap-4 lg:hidden" aria-label="单个标签下载">
-        <h2 className="m-0 text-section-title font-bold text-ink">选择一个箱子</h2>
+      <section className="flex min-w-0 flex-col gap-4 lg:hidden" aria-label={t('print.singleDownload')}>
+        <h2 className="m-0 text-section-title font-bold text-ink">{t('print.chooseBox')}</h2>
         <div className="grid min-w-0 gap-2">
           {allBoxes.map((box) => {
             const checked = mobileSelectedId === box.id
-            const location = box.location || '未填写位置'
+            const location = box.location || t('boxes.locationUnset')
             return (
               <label
                 className={`grid min-h-14 min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-control border px-3 py-2 ${checked ? 'border-brand bg-brand/10' : 'border-line bg-surface'}`}
@@ -186,7 +188,7 @@ export function PrintPage() {
         {!isDesktopViewport && mobileBox ? (
           <PrintSheetPreview boxes={[mobileBox]} mode="single" />
         ) : !mobileBox ? (
-          <PageState state="empty" icon="print" title="选择一个箱子查看标签预览" />
+          <PageState state="empty" icon="print" title={t('print.previewSingle')} />
         ) : null}
         <button
           className="inline-flex min-h-12 items-center justify-center gap-2 rounded-control bg-brand px-4 py-2 font-bold text-white hover:bg-brand-strong disabled:cursor-not-allowed disabled:bg-muted focus-visible:ring-2 focus-visible:ring-brand/30"
@@ -195,7 +197,7 @@ export function PrintPage() {
           onClick={() => mobileBox ? void generate([mobileBox]) : undefined}
         >
           <AppIcon name="print" />
-          {generating ? '生成中…' : '下载单个标签'}
+          {generating ? t('print.generating') : t('print.downloadSingle')}
         </button>
       </section>
     </>
@@ -205,34 +207,33 @@ export function PrintPage() {
     <section className="mx-auto flex min-w-0 w-full max-w-7xl flex-col gap-5 lg:gap-8" aria-labelledby="print-title">
       <header className="flex flex-col gap-2 py-3 lg:flex-row lg:items-end lg:justify-between lg:gap-6">
         <div className="min-w-0">
-          <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">打印中心</p>
+          <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">{t('print.center')}</p>
           <h1 className="m-0 text-page-title font-extrabold text-ink" id="print-title">
-            <span className="lg:hidden">下载箱子标签</span>
-            <span className="hidden lg:inline">打印二维码标签</span>
+            <span className="lg:hidden">{t('print.mobileTitle')}</span>
+            <span className="hidden lg:inline">{t('print.desktopTitle')}</span>
           </h1>
           <p className="mt-2 text-sm text-muted">
-            <span className="lg:hidden">移动设备每次处理一张标签</span>
-            <span className="hidden lg:block">选择箱子，预览 A4 排版并下载可打印 PDF</span>
+            <span className="lg:hidden">{t('print.mobileDescription')}</span>
+            <span className="hidden lg:block">{t('print.desktopDescription')}</span>
           </p>
         </div>
         <p className="hidden shrink-0 text-sm font-semibold text-muted lg:block">
-          A4 · 双列 · 已选 {selectedBoxes.length} 张
+          {t('print.selectedCount', { count: selectedBoxes.length })}
         </p>
       </header>
 
       {boxesQuery.isError && boxesQuery.data !== undefined ? (
-        <ResponsiveOperationError message="箱子列表刷新失败，正在显示上次结果" busy={boxesQuery.isFetching} onRetry={() => void boxesQuery.refetch()} />
+        <ResponsiveOperationError message={t('print.refreshError')} busy={boxesQuery.isFetching} onRetry={() => void boxesQuery.refetch()} />
       ) : null}
       {content}
       {progress ? (
-        <p className="hidden text-sm text-muted lg:block" role="status" aria-label={`二维码渲染进度：${progress.completed}/${progress.total}`}>
-          二维码渲染进度：{progress.completed}/{progress.total}
+        <p className="hidden text-sm text-muted lg:block" role="status" aria-label={t('print.progress', progress)}>
+          {t('print.progress', progress)}
         </p>
       ) : null}
       {error ? (
         <ResponsiveOperationError
-          message={error.message}
-          retryLabel={error.requiresReload ? '刷新页面' : '重试'}
+          message={t(error.key)}
           onRetry={error.requiresReload
             ? () => window.location.reload()
             : () => void generate(isDesktopViewport ? selectedBoxes : mobileBox ? [mobileBox] : [])}

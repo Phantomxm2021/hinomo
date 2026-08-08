@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { AppIcon } from '../../components/AppIcon'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
+import { useI18n } from '../../i18n/I18nProvider'
 import { useMobileFeedback } from '../../components/mobile-feedback'
 import { AuthorizedImage } from '../media/AuthorizedImage'
 import { isUploadPending, uploadStageLabel } from '../media/media-ui'
@@ -22,6 +23,7 @@ export type ItemFormProps = {
 }
 
 export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChange, showHeading = true }: ItemFormProps) {
+  const { t } = useI18n()
   const feedback = useMobileFeedback()
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
@@ -231,7 +233,7 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChang
         <textarea className="w-full rounded-control border border-line bg-canvas px-3 py-3 text-ink focus:border-brand" id="item-description" rows={3} {...register('description')} />
       </div>
       {mutation.isError ? <ResponsiveOperationError message="保存失败，请稍后重试" /> : null}
-      {mediaStatus ? <p className="hidden lg:block" role="status">图片处理中：{mediaStatus}</p> : null}
+      {mediaStatus ? <p className="hidden lg:block" role="status">{t('boxes.mediaProcessing', { status: t(mediaStatus) })}</p> : null}
       {mediaError ? (
         <div className="hidden gap-3 rounded-control border border-danger/30 bg-danger/5 p-4 lg:grid" role="alert">
           <p>图片上传失败，已保留填写内容。</p>

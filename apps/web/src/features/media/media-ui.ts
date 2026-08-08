@@ -1,11 +1,11 @@
 import type { UploadStage } from './useMediaUpload'
 
 const uploadStageLabels: Partial<Record<UploadStage, string>> = {
-  compressing: '正在压缩',
-  signing: '正在获取上传凭证',
-  uploading: '正在上传',
-  confirming: '正在确认',
-  complete: '上传完成',
+  compressing: 'media.upload.compressing',
+  signing: 'media.upload.signing',
+  uploading: 'media.upload.uploading',
+  confirming: 'media.upload.confirming',
+  complete: 'media.upload.complete',
 }
 
 export function uploadStageLabel(stage: UploadStage) {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Skeleton } from '../../components/Skeleton'
+import { useI18n } from '../../i18n/I18nProvider'
 import { publicAppOrigin } from '../../lib/env'
 import type { BoxSummary } from '../boxes/boxes.api'
 import { paginatePrintBoxes } from './print-model'
@@ -26,7 +27,8 @@ function PrintLabel({ box, density, qr, placement }: {
   qr: QrState
   placement?: ReturnType<typeof labelPlacementPercent>
 }) {
-  const location = box.location || '未填写'
+  const { t } = useI18n()
+  const location = box.location || t('print.locationUnset')
   const compact = density === 'compact'
 
   return (
@@ -40,7 +42,7 @@ function PrintLabel({ box, density, qr, placement }: {
         borderColor: PRINT_LABEL_COLORS.line,
       }}
       role="group"
-      aria-label={`${box.name}标签`}
+      aria-label={`${box.name}${t('print.labelSuffix')}`}
     >
       <div className={compact
         ? 'grid min-w-0 grid-cols-[minmax(2.75rem,0.65fr)_minmax(0,1.35fr)] items-center gap-1.5 xl:grid-cols-[minmax(4.5rem,0.8fr)_minmax(0,1.2fr)] xl:gap-3'
@@ -51,7 +53,7 @@ function PrintLabel({ box, density, qr, placement }: {
           {qr.status === 'ready' ? (
             <img className="size-full object-contain" src={qr.image} alt={`${box.name}二维码`} />
           ) : qr.status === 'error' ? (
-            <span>二维码预览生成失败</span>
+            <span>{t('print.qrPreviewError')}</span>
           ) : (
             <Skeleton className="aspect-square size-full rounded-none" />
           )}
@@ -65,13 +67,13 @@ function PrintLabel({ box, density, qr, placement }: {
             : 'mt-1 truncate text-sm font-semibold tracking-wide'} style={{ color: PRINT_LABEL_COLORS.brand }}>{box.box_code}</p>
           <p className={compact
             ? 'mt-0.5 truncate text-[0.5rem] leading-tight xl:mt-1 xl:text-xs xl:leading-normal'
-            : 'mt-1 truncate text-xs'} style={{ color: PRINT_LABEL_COLORS.ink }}>空间：{box.space_name}</p>
+            : 'mt-1 truncate text-xs'} style={{ color: PRINT_LABEL_COLORS.ink }}>{t('print.spaceLabel', { space: box.space_name })}</p>
           <p className={compact
             ? 'truncate text-[0.5rem] leading-tight xl:mt-1 xl:text-xs xl:leading-normal'
-            : 'mt-1 truncate text-xs'} style={{ color: PRINT_LABEL_COLORS.ink }}>位置：{location}</p>
+            : 'mt-1 truncate text-xs'} style={{ color: PRINT_LABEL_COLORS.ink }}>{t('print.locationLabel', { location })}</p>
           <p className={compact
             ? 'truncate text-[0.4375rem] leading-tight font-semibold xl:mt-2 xl:text-xs'
-            : 'mt-2 truncate text-xs font-semibold'} style={{ color: PRINT_LABEL_COLORS.muted }}>扫码查看箱内物品</p>
+            : 'mt-2 truncate text-xs font-semibold'} style={{ color: PRINT_LABEL_COLORS.muted }}>{t('print.scanToView')}</p>
         </div>
       </div>
     </article>
@@ -79,6 +81,7 @@ function PrintLabel({ box, density, qr, placement }: {
 }
 
 export function PrintSheetPreview({ boxes, mode }: Props) {
+  const { t } = useI18n()
   const qrCache = useRef(new Map<string, QrState>())
   const visibleIdentities = useRef(new Set<string>())
   const mounted = useRef(false)
@@ -94,7 +97,7 @@ export function PrintSheetPreview({ boxes, mode }: Props) {
   const loadingQrCount = visibleBoxes.filter((box) => (
     (qrCache.current.get(qrIdentity(box)) ?? { status: 'loading' }).status === 'loading'
   )).length
-  const loadingLabel = `正在生成 ${loadingQrCount} 个二维码`
+  const loadingLabel = t('print.qrGenerating', { count: loadingQrCount })
   const loadingStatus = loadingQrCount > 0 ? (
     <p className="sr-only" role="status" aria-label={loadingLabel} aria-live="polite">{loadingLabel}</p>
   ) : null
@@ -140,10 +143,10 @@ export function PrintSheetPreview({ boxes, mode }: Props) {
     if (!box) return null
 
     return (
-      <section className="min-w-0 overflow-hidden rounded-card border border-line bg-surface" aria-label="单个标签预览">
+      <section className="min-w-0 overflow-hidden rounded-card border border-line bg-surface" aria-label={t('print.singlePreview')}>
         {loadingStatus}
         <header className="border-b border-line px-4 py-3">
-          <h2 className="text-lg font-bold text-ink">单个标签预览</h2>
+          <h2 className="text-lg font-bold text-ink">{t('print.singlePreview')}</h2>
         </header>
         <div className="min-w-0 overflow-auto bg-canvas p-4">
           <PrintLabel box={box} density="comfortable" qr={qrCache.current.get(qrIdentity(box)) ?? { status: 'loading' }} />
@@ -155,11 +158,11 @@ export function PrintSheetPreview({ boxes, mode }: Props) {
   const pages = paginatePrintBoxes(boxes)
 
   return (
-    <section className="flex min-w-0 flex-col overflow-hidden rounded-card border border-line bg-surface" aria-label="A4 标签预览">
+    <section className="flex min-w-0 flex-col overflow-hidden rounded-card border border-line bg-surface" aria-label={t('print.a4Preview')}>
       {loadingStatus}
       <header className="flex min-w-0 items-center justify-between gap-3 border-b border-line px-4 py-3">
-        <h2 className="min-w-0 truncate text-lg font-bold text-ink">A4 标签预览</h2>
-        <p className="shrink-0 text-sm text-muted">共 {pages.length} 页 · {boxes.length} 张标签</p>
+        <h2 className="min-w-0 truncate text-lg font-bold text-ink">{t('print.a4Preview')}</h2>
+        <p className="shrink-0 text-sm text-muted">{t('print.pageSummary', { pages: pages.length, labels: boxes.length })}</p>
       </header>
       <div className="max-h-[70dvh] min-h-0 overflow-auto bg-canvas p-3 sm:p-5">
         {pages.length === 0 ? (
@@ -168,7 +171,7 @@ export function PrintSheetPreview({ boxes, mode }: Props) {
             data-testid="a4-sheet"
             style={{ aspectRatio: `${PRINT_SHEET_MM.width}/${PRINT_SHEET_MM.height}` }}
           >
-            选择箱子后将在这里生成 A4 预览
+            {t('print.emptyPreview')}
           </div>
         ) : (
           <div className="grid w-full gap-5">

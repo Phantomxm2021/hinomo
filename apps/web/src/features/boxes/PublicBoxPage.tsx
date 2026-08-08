@@ -292,7 +292,7 @@ export function PublicBoxPage() {
       </section>
       {printError ? (
         <ResponsiveOperationError
-          message={printError.message}
+          message={t(printError.key)}
           retryLabel={printError.requiresReload ? t('boxes.printRefresh') : t('boxes.printRetry')}
           onRetry={printError.requiresReload ? () => window.location.reload() : () => void printLabel()}
         />
@@ -397,7 +397,7 @@ export function PublicBoxPage() {
                         <span className="hidden shrink-0 rounded-full bg-placeholder/70 px-2.5 py-1 text-xs font-bold text-ink lg:inline-flex">{item.category || t('boxes.uncategorized')}</span>
                       </div>
                       <p className="mt-0.5 truncate text-sm text-muted lg:mt-1 lg:leading-6">{item.description || item.category || t('boxes.noDescription')}</p>
-                      <p className="mt-1 flex min-w-0 items-center gap-2 text-xs font-bold lg:mt-2 lg:text-sm"><span className="shrink-0 text-muted">{t('boxes.quantity', { count: item.quantity })}</span><span className="truncate text-brand">{formatItemAvailability(deriveItemAvailability(item.quantity, item.stored_quantity), locale === 'en-US' ? 'en' : 'zh-CN')}</span></p>
+                      <p className="mt-1 flex min-w-0 items-center gap-2 text-xs font-bold lg:mt-2 lg:text-sm"><span className="shrink-0 text-muted">{t('boxes.quantity', { count: item.quantity })}</span><span className="truncate text-brand">{(() => { const copy = formatItemAvailability(deriveItemAvailability(item.quantity, item.stored_quantity)); return t(copy.key, copy.params) })()}</span></p>
                     </div>
                     <AppIcon className="text-muted" name="chevron-right" />
                   </button>
@@ -412,7 +412,7 @@ export function PublicBoxPage() {
                         <span className="hidden shrink-0 rounded-full bg-placeholder/70 px-2.5 py-1 text-xs font-bold text-ink lg:inline-flex">{item.category || t('boxes.uncategorized')}</span>
                       </div>
                       <p className="mt-0.5 truncate text-sm text-muted lg:mt-1 lg:leading-6">{item.description || item.category || t('boxes.noDescription')}</p>
-                      <p className="mt-1 truncate text-xs font-bold text-brand lg:mt-2 lg:text-sm"><span className="mr-2 text-muted">{t('boxes.quantity', { count: item.quantity })}</span>{formatItemAvailability(deriveItemAvailability(item.quantity, item.stored_quantity), locale === 'en-US' ? 'en' : 'zh-CN')}</p>
+                      <p className="mt-1 truncate text-xs font-bold text-brand lg:mt-2 lg:text-sm"><span className="mr-2 text-muted">{t('boxes.quantity', { count: item.quantity })}</span>{(() => { const copy = formatItemAvailability(deriveItemAvailability(item.quantity, item.stored_quantity)); return t(copy.key, copy.params) })()}</p>
                     </div>
                   </div>
                 )}

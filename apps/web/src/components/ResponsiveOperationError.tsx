@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useI18n } from '../i18n/I18nProvider'
 import { useMobileFeedback } from './mobile-feedback'
 import { SYSTEM_ALERT_Z_INDEX } from './overlay-layers'
 
@@ -10,7 +11,9 @@ type ResponsiveOperationErrorProps = {
   retryLabel?: string
 }
 
-export function ResponsiveOperationError({ message, onRetry, busy = false, retryLabel = '重试' }: ResponsiveOperationErrorProps) {
+export function ResponsiveOperationError({ message, onRetry, busy = false, retryLabel }: ResponsiveOperationErrorProps) {
+  const { t } = useI18n()
+  const resolvedRetryLabel = retryLabel ?? t('common.retry')
   const feedback = useMobileFeedback()
   const retryRef = useRef(onRetry)
   const hasRetry = Boolean(onRetry)
@@ -24,11 +27,11 @@ export function ResponsiveOperationError({ message, onRetry, busy = false, retry
   useEffect(() => {
     feedback.showAlert({
       title: message,
-      primaryLabel: hasRetry ? retryLabel : '好',
+      primaryLabel: hasRetry ? resolvedRetryLabel : t('common.ok'),
       onPrimary: hasRetry ? () => retryRef.current?.() : undefined,
-      cancelLabel: hasRetry ? '取消' : undefined,
+      cancelLabel: hasRetry ? t('common.cancel') : undefined,
     })
-  }, [feedback, hasRetry, message, retryLabel])
+  }, [feedback, hasRetry, message, resolvedRetryLabel, t])
 
   if (dismissedMessage === message) return null
 
@@ -48,7 +51,7 @@ export function ResponsiveOperationError({ message, onRetry, busy = false, retry
         </div>
         <div className={`grid border-t border-line/80 ${hasRetry ? 'grid-cols-2' : 'grid-cols-1'}`}>
           {hasRetry ? (
-            <button className="min-h-13 border-0 border-r border-line/80 bg-transparent px-4 font-bold text-muted hover:bg-canvas" type="button" disabled={busy} onClick={dismiss}>取消</button>
+            <button className="min-h-13 border-0 border-r border-line/80 bg-transparent px-4 font-bold text-muted hover:bg-canvas" type="button" disabled={busy} onClick={dismiss}>{t('common.cancel')}</button>
           ) : null}
           <button
             className="min-h-13 border-0 bg-transparent px-4 font-bold text-brand-strong hover:bg-brand/5"
@@ -60,7 +63,7 @@ export function ResponsiveOperationError({ message, onRetry, busy = false, retry
               else dismiss()
             }}
           >
-            {hasRetry ? (busy ? '重试中…' : retryLabel) : '好'}
+            {hasRetry ? (busy ? t('common.retrying') : resolvedRetryLabel) : t('common.ok')}
           </button>
         </div>
       </section>

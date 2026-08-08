@@ -129,14 +129,7 @@ export function DashboardPage() {
     }
   }, [])
 
-  const greetingKey = greeting === '早上好'
-    ? 'dashboard.greetings.morning'
-    : greeting === '中午好'
-      ? 'dashboard.greetings.noon'
-      : greeting === '下午好'
-        ? 'dashboard.greetings.afternoon'
-        : 'dashboard.greetings.evening'
-  const dashboardTitle = `${t(greetingKey)}${t('dashboard.titleSuffix')}`
+  const dashboardTitle = `${t(`dashboard.greetings.${greeting}`)}${t('dashboard.titleSuffix')}`
 
   return (
     <>

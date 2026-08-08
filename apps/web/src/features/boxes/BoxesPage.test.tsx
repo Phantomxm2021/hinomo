@@ -126,7 +126,13 @@ function LocationProbe() {
   )
 }
 
-function renderBoxes(initialEntry = '/app/boxes') {
+function EnglishProvider({ children }: PropsWithChildren) {
+  const { setLocale } = useI18n()
+  useEffect(() => setLocale('en-US'), [setLocale])
+  return <>{children}</>
+}
+
+function renderBoxes(initialEntry = '/app/boxes', locale: 'zh-CN' | 'en-US' = 'zh-CN') {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -140,14 +146,15 @@ function renderBoxes(initialEntry = '/app/boxes') {
       </>
     ),
   }], { initialEntries: [initialEntry] })
+  const app = (
+    <QueryClientProvider client={client}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
+  )
   return {
     client,
     router,
-    ...render(
-      <QueryClientProvider client={client}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>,
-    ),
+    ...render(locale === 'en-US' ? <I18nProvider><EnglishProvider>{app}</EnglishProvider></I18nProvider> : app),
   }
 }
 
@@ -751,11 +758,6 @@ test('retries a failed inline deletion', async () => {
 
 test('renders the boxes empty state and create CTA in English', async () => {
   mockListBoxes.mockResolvedValue([])
-  function EnglishProvider({ children }: PropsWithChildren) {
-    const { setLocale } = useI18n()
-    useEffect(() => setLocale('en-US'), [setLocale])
-    return <>{children}</>
-  }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const router = createMemoryRouter([{
     path: '/app/boxes',
@@ -765,4 +767,21 @@ test('renders the boxes empty state and create CTA in English', async () => {
 
   expect(await screen.findByRole('heading', { name: 'No boxes yet' })).toBeInTheDocument()
   expect(screen.getAllByRole('button', { name: 'Create box' }).length).toBeGreaterThan(0)
+})
+
+test('localizes box deletion confirmation and errors in English', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  mockDeleteBox.mockRejectedValue(new Error('delete failed'))
+  renderBoxes('/app/boxes', 'en-US')
+
+  await screen.findByRole('link', { name: 'Open 冬季衣物' })
+  await user.click(screen.getByRole('button', { name: 'Manage 冬季衣物' }))
+  await user.click(screen.getByRole('button', { name: 'Delete 冬季衣物' }))
+
+  const dialog = screen.getByRole('alertdialog', { name: 'Delete “冬季衣物”?' })
+  expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+  await user.click(within(dialog).getByRole('button', { name: 'Confirm delete' }))
+
+  expect(await within(dialog).findByRole('alert')).toHaveTextContent('Could not delete. Please try again later.')
 })

@@ -10,7 +10,7 @@ import { useI18n } from '../../i18n/I18nProvider'
 import { isUploadPending, uploadStageLabel } from '../media/media-ui'
 import { useMediaUpload } from '../media/useMediaUpload'
 import { listSpaces } from '../spaces/spaces.api'
-import { boxSchema, type BoxFormValues } from './box.schema'
+import { createBoxSchema, type BoxFormValues } from './box.schema'
 import { createBox, getBox, type CreatedBox, updateBox } from './boxes.api'
 
 export type BoxFormProps = {
@@ -22,7 +22,7 @@ export type BoxFormProps = {
 }
 
 export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onSaved }: BoxFormProps) {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
   const editing = Boolean(boxId)
   const feedback = useMobileFeedback()
   const initializedBoxId = useRef<string | undefined>(undefined)
@@ -54,9 +54,10 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onSave
     register,
     handleSubmit,
     reset,
+    trigger,
     formState: { errors },
   } = useForm<BoxFormValues>({
-    resolver: zodResolver(boxSchema),
+    resolver: zodResolver(createBoxSchema(t)),
     defaultValues: {
       space_id: '',
       name: '',
@@ -66,6 +67,11 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onSave
       visibility: 'private',
     },
   })
+  const previousLocaleRef = useRef(locale)
+  useEffect(() => {
+    if (previousLocaleRef.current !== locale && Object.keys(errors).length > 0) void trigger()
+    previousLocaleRef.current = locale
+  }, [errors, locale, trigger])
   const busy = createMutation.isPending || updateMutation.isPending || isUploadPending(mediaUpload.stage)
   const dismissalBlocked = busy || (!editing && Boolean(pendingBox))
   const advancedVisible = editing || showAdvanced
@@ -289,7 +295,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onSave
           <ResponsiveOperationError message={t('boxes.saveError')} />
         ) : null}
         {saved ? <p className="hidden lg:block" role="status">{t('boxes.saved')}</p> : null}
-        {mediaStatus ? <p className="hidden lg:block" role="status">{t('boxes.mediaProcessing', { status: mediaStatus })}</p> : null}
+        {mediaStatus ? <p className="hidden lg:block" role="status">{t('boxes.mediaProcessing', { status: t(mediaStatus) })}</p> : null}
         {!editing && pendingBox ? (
           <div className="hidden gap-3 rounded-control border border-danger/30 bg-danger/5 p-4 lg:grid" role={mediaError ? 'alert' : 'status'}>
             <p>{t('boxes.coverIncomplete')}</p>

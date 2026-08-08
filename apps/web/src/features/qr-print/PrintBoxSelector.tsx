@@ -1,5 +1,6 @@
 import type { ChangeEvent } from 'react'
 import { AppIcon } from '../../components/AppIcon'
+import { useI18n } from '../../i18n/I18nProvider'
 import type { BoxSummary } from '../boxes/boxes.api'
 
 export type PrintBoxSelectorProps = {
@@ -25,19 +26,20 @@ export function PrintBoxSelector({
   onToggleVisible,
   onDownload,
 }: PrintBoxSelectorProps) {
+  const { t } = useI18n()
   const allVisibleSelected = boxes.length > 0 && boxes.every((box) => selected.has(box.id))
-  const selectVisibleLabel = allVisibleSelected ? '取消选择当前结果' : '全选当前结果'
+  const selectVisibleLabel = allVisibleSelected ? t('print.clearVisible') : t('print.selectVisible')
 
   return (
-    <section className="overflow-hidden rounded-card border border-line bg-surface" aria-label="选择要打印的箱子">
+    <section className="overflow-hidden rounded-card border border-line bg-surface" aria-label={t('print.selectorAria')}>
       <header className="border-b border-line px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-ink">选择箱子</h2>
-            <p className="mt-1 text-sm text-muted">显示 {boxes.length} / 共 {totalCount} 个箱子</p>
+            <h2 className="text-lg font-bold text-ink">{t('print.selectorTitle')}</h2>
+            <p className="mt-1 text-sm text-muted">{t('print.selectorSummary', { visible: boxes.length, total: totalCount })}</p>
           </div>
-          <span className="text-sm font-medium text-brand" role="status" aria-label={`已选择 ${selected.size} 个箱子`}>
-            已选择 {selected.size} 个
+          <span className="text-sm font-medium text-brand" role="status" aria-label={t('print.selectedCountAria', { count: selected.size })}>
+            {t('print.selectedCountText', { count: selected.size })}
           </span>
         </div>
         <div className="relative mt-4">
@@ -45,8 +47,8 @@ export function PrintBoxSelector({
           <input
             className="min-h-11 w-full rounded-control border border-line bg-canvas py-2 pr-3 pl-10 text-ink placeholder:text-muted focus:border-brand focus-visible:ring-2 focus-visible:ring-brand/30"
             type="search"
-            aria-label="搜索箱子"
-            placeholder="搜索箱子名称、编号或空间"
+            aria-label={t('print.searchBoxes')}
+            placeholder={t('print.searchPlaceholder')}
             value={query}
             onChange={(event: ChangeEvent<HTMLInputElement>) => onQueryChange(event.target.value)}
           />
@@ -66,7 +68,7 @@ export function PrintBoxSelector({
       <div className="max-h-[32rem] overflow-y-auto overscroll-contain">
         {boxes.map((box) => {
           const isSelected = selected.has(box.id)
-          const location = box.location || '未填写位置'
+          const location = box.location || t('boxes.locationUnset')
 
           return (
             <label
@@ -97,7 +99,7 @@ export function PrintBoxSelector({
           onClick={onDownload}
         >
           <AppIcon name="print" size={18} />
-          {generating ? '生成中…' : '下载 PDF'}
+          {generating ? t('print.generating') : t('print.downloadPdf')}
         </button>
       </footer>
     </section>

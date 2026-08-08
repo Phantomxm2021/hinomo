@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
+import { useI18n } from '../i18n/I18nProvider'
 import { SYSTEM_DIALOG_Z_INDEX } from './overlay-layers'
 
 type ConfirmDialogProps = {
@@ -20,15 +21,19 @@ export function ConfirmDialog({
   open,
   title,
   description,
-  confirmLabel = '确认删除',
-  cancelLabel = '取消',
-  busyLabel = '处理中…',
+  confirmLabel,
+  cancelLabel,
+  busyLabel,
   busy = false,
   error,
   returnFocusRef,
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
+  const { t } = useI18n()
+  const resolvedConfirmLabel = confirmLabel ?? t('common.confirmDelete')
+  const resolvedCancelLabel = cancelLabel ?? t('common.cancel')
+  const resolvedBusyLabel = busyLabel ?? t('common.processing')
   const dialogId = useId()
   const titleId = `${dialogId}-title`
   const descriptionId = `${dialogId}-description`
@@ -124,10 +129,10 @@ export function ConfirmDialog({
         ) : null}
         <div className="mt-5 flex justify-end gap-2.5">
           <button ref={cancelRef} className="min-h-11 rounded-control border border-line bg-canvas px-4 py-2 font-bold text-ink" type="button" onClick={onCancel} disabled={busy}>
-            {cancelLabel}
+            {resolvedCancelLabel}
           </button>
           <button ref={confirmRef} className="min-h-11 rounded-control border border-danger bg-danger px-4 py-2 font-bold text-white" type="button" onClick={onConfirm} disabled={busy}>
-            {busy ? busyLabel : confirmLabel}
+            {busy ? resolvedBusyLabel : resolvedConfirmLabel}
           </button>
         </div>
       </section>

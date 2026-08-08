@@ -1,9 +1,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useState } from 'react'
+import { useEffect, useState, type PropsWithChildren } from 'react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { MobileActionSheet } from './MobileActionSheet'
 import { ResponsiveEditorDialog } from './ResponsiveEditorDialog'
+import { I18nProvider, useI18n } from '../i18n/I18nProvider'
 
 afterEach(() => {
   cleanup()
@@ -145,6 +146,25 @@ test('does not restore focus when only busy state changes', async () => {
   focus.mockRestore()
   view.unmount()
   opener.remove()
+})
+
+test('localizes the close button aria label in English', async () => {
+  function EnglishProvider({ children }: PropsWithChildren) {
+    const { setLocale } = useI18n()
+    useEffect(() => setLocale('en-US'), [setLocale])
+    return <>{children}</>
+  }
+  render(
+    <I18nProvider>
+      <EnglishProvider>
+        <ResponsiveEditorDialog open title="Edit box" busy={false} onClose={vi.fn()}>
+          <input aria-label="Name" />
+        </ResponsiveEditorDialog>
+      </EnglishProvider>
+    </I18nProvider>,
+  )
+
+  expect(await screen.findByRole('button', { name: 'Close Edit box' })).toBeInTheDocument()
 })
 
 test('keeps the dialog isolated when focus configuration changes while open', async () => {

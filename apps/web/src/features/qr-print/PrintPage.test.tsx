@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useEffect, type PropsWithChildren } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 import type { BoxSummary } from '../boxes/boxes.api'
 import { PrintPage } from './PrintPage'
 
@@ -53,12 +55,21 @@ function deferred<T>() {
   return { promise, resolve, reject }
 }
 
-function renderPrint() {
+function EnglishProvider({ children }: PropsWithChildren) {
+  const { setLocale } = useI18n()
+  useEffect(() => setLocale('en-US'), [setLocale])
+  return <>{children}</>
+}
+
+function renderPrint(locale: 'zh-CN' | 'en-US' = 'zh-CN') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  const view = render(
+  const app = (
     <MemoryRouter>
       <QueryClientProvider client={client}><PrintPage /></QueryClientProvider>
-    </MemoryRouter>,
+    </MemoryRouter>
+  )
+  const view = render(
+    locale === 'en-US' ? <I18nProvider><EnglishProvider>{app}</EnglishProvider></I18nProvider> : app,
   )
   return { ...view, client }
 }
@@ -108,6 +119,19 @@ test('uses the warm print-center header with one accessible page heading', async
   expect(within(desktop).queryByText('批量打印')).not.toBeInTheDocument()
   expect(within(desktop).queryByText('勾选多个箱子并检查分页效果')).not.toBeInTheDocument()
   expect(screen.getAllByText('移动设备每次处理一张标签')).toHaveLength(1)
+})
+
+test('localizes the print workspace and PDF errors in English', async () => {
+  const user = userEvent.setup()
+  mockRenderLabelsPdf.mockRejectedValueOnce(new Error('failed'))
+  renderPrint('en-US')
+
+  const desktop = await screen.findByRole('region', { name: 'Batch label workspace' })
+  expect(screen.getByText('Print QR labels')).toBeInTheDocument()
+  await user.click(within(desktop).getByRole('checkbox', { name: /露营装备/ }))
+  await user.click(within(desktop).getByRole('button', { name: 'Download PDF' }))
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('Could not generate the PDF. Please try again.')
 })
 
 test('connects desktop selection to the summary and A4 preview', async () => {

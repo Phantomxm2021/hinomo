@@ -1,6 +1,8 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useEffect, type PropsWithChildren } from 'react'
 import { afterEach, expect, test, vi } from 'vitest'
+import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 import { ItemMovementSheet } from './ItemMovementSheet'
 
 afterEach(cleanup)
@@ -27,6 +29,12 @@ const targetBox = {
   cover_object_key: null,
   item_count: 0,
   updated_at: '2026-08-02T00:00:00Z',
+}
+
+function EnglishProvider({ children }: PropsWithChildren) {
+  const { setLocale } = useI18n()
+  useEffect(() => setLocale('en-US'), [setLocale])
+  return <>{children}</>
 }
 
 test('takes out a quantity with optional handler context', async () => {
@@ -92,4 +100,20 @@ test('opens the private movement history without exposing it in the item row', a
   await user.click(screen.getByRole('button', { name: '查看流转记录' }))
   expect(screen.getByRole('dialog', { name: '流转记录' })).toHaveTextContent('从 工具箱 取出')
   expect(screen.getByText('取出 1 件')).toBeInTheDocument()
+})
+
+test('localizes item movement actions and availability in English', async () => {
+  const user = userEvent.setup()
+  render(
+    <I18nProvider>
+      <EnglishProvider>
+        <ItemMovementSheet open item={item} currentBoxId="box-1" boxes={[targetBox]} pending={false} onClose={vi.fn()} onEdit={vi.fn()} onSubmit={vi.fn().mockResolvedValue(undefined)} />
+      </EnglishProvider>
+    </I18nProvider>,
+  )
+
+  expect(screen.getByText('Partially out · 2/3 stored')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: /^Take out/ }))
+  expect(screen.getByLabelText('Handler or purpose (optional)')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Confirm take out' })).toBeInTheDocument()
 })

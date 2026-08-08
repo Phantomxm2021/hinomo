@@ -7,6 +7,11 @@ export type ItemAvailabilityStatus = {
   totalQuantity: number
 }
 
+export type ItemAvailabilityCopy = {
+  key: `itemMovement.availability.${ItemAvailability}`
+  params: { stored: number; total: number }
+}
+
 export function deriveItemAvailability(
   totalQuantity: number,
   storedQuantity = totalQuantity,
@@ -28,16 +33,9 @@ export function deriveItemAvailability(
 
 export function formatItemAvailability(
   status: ItemAvailabilityStatus,
-  locale: 'zh-CN' | 'en' = 'zh-CN',
-) {
-  const count = `${status.storedQuantity}/${status.totalQuantity}`
-  if (locale === 'en') {
-    if (status.availability === 'stored') return `Stored · ${count}`
-    if (status.availability === 'partial') return `Partially out · ${count} stored`
-    return `Out · ${count} stored`
+): ItemAvailabilityCopy {
+  return {
+    key: `itemMovement.availability.${status.availability}`,
+    params: { stored: status.storedQuantity, total: status.totalQuantity },
   }
-
-  if (status.availability === 'stored') return `在位 · ${count}`
-  if (status.availability === 'partial') return `部分取出 · ${count} 在箱中`
-  return `已取出 · ${count} 在箱中`
 }

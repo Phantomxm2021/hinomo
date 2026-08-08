@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { AppIcon } from '../../components/AppIcon'
+import { useI18n } from '../../i18n/I18nProvider'
 import type { BoxSummary } from '../boxes/boxes.api'
 import type { ItemRecord } from '../items/items.api'
 import { ItemMovementHistory } from './ItemMovementHistory'
@@ -26,6 +27,7 @@ export function ItemMovementSheet({ open, item, currentBoxId, boxes, movements =
   onEdit: (item: ItemRecord) => void
   onSubmit: (command: ItemMovementCommand) => Promise<void>
 }) {
+  const { t } = useI18n()
   const [action, setAction] = useState<MovementAction | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [handlerLabel, setHandlerLabel] = useState('')
@@ -37,11 +39,11 @@ export function ItemMovementSheet({ open, item, currentBoxId, boxes, movements =
   const targetBoxGroups = useMemo(() => {
     const groups = new Map<string, BoxSummary[]>()
     for (const box of targetBoxes) {
-      const path = [box.venue_name, box.space_name].filter(Boolean).join(' · ') || '未分组'
+      const path = [box.venue_name, box.space_name].filter(Boolean).join(' · ') || t('common.empty')
       groups.set(path, [...(groups.get(path) ?? []), box])
     }
     return [...groups.entries()]
-  }, [targetBoxes])
+  }, [t, targetBoxes])
 
   useEffect(() => {
     if (!open || !item) return
@@ -89,7 +91,8 @@ export function ItemMovementSheet({ open, item, currentBoxId, boxes, movements =
     }
   }
 
-  const title = action === 'take_out' ? '取出物品' : action === 'return' ? '放回物品' : action === 'move' ? '移动物品' : action === 'history' ? '流转记录' : item.name
+  const title = action === 'take_out' ? t('itemMovement.titleTakeOut') : action === 'return' ? t('itemMovement.titleReturn') : action === 'move' ? t('itemMovement.titleMove') : action === 'history' ? t('itemMovement.titleHistory') : item.name
+  const availability = formatItemAvailability(status)
 
   return createPortal(
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-ink/30 backdrop-blur-[2px] lg:items-center lg:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !pending) onClose() }}>
@@ -98,60 +101,60 @@ export function ItemMovementSheet({ open, item, currentBoxId, boxes, movements =
         <div className="mb-5 flex items-center justify-between gap-4">
           <div className="min-w-0">
             <h2 className="m-0 truncate text-section-title font-bold" id="item-movement-title">{title}</h2>
-            <p className="mt-1 text-sm font-semibold text-muted">{formatItemAvailability(status)}</p>
+            <p className="mt-1 text-sm font-semibold text-muted">{t(availability.key, availability.params)}</p>
           </div>
-          <button className="grid size-11 shrink-0 place-items-center rounded-control border border-line bg-canvas" type="button" aria-label="关闭物品操作" disabled={pending} onClick={onClose}><AppIcon name="close" /></button>
+          <button className="grid size-11 shrink-0 place-items-center rounded-control border border-line bg-canvas" type="button" aria-label={t('itemMovement.close')} disabled={pending} onClick={onClose}><AppIcon name="close" /></button>
         </div>
 
         {!action ? (
           <div className="grid gap-2">
-            <button ref={status.storedQuantity > 0 ? firstActionRef : undefined} className="flex min-h-14 items-center justify-between rounded-control bg-canvas px-4 text-left font-bold disabled:opacity-40" type="button" disabled={status.storedQuantity === 0} onClick={() => setAction('take_out')}><span>取出</span><span className="text-sm text-muted">最多 {status.storedQuantity} 件</span></button>
-            <button ref={status.storedQuantity === 0 ? firstActionRef : undefined} className="flex min-h-14 items-center justify-between rounded-control bg-canvas px-4 text-left font-bold disabled:opacity-40" type="button" disabled={status.outQuantity === 0} onClick={() => setAction('return')}><span>放回</span><span className="text-sm text-muted">待归还 {status.outQuantity} 件</span></button>
-            <button className="flex min-h-14 items-center justify-between rounded-control bg-canvas px-4 text-left font-bold disabled:opacity-40" type="button" disabled={status.outQuantity > 0 || targetBoxes.length === 0} onClick={() => setAction('move')}><span>移动到其他箱子</span><AppIcon className="text-muted" name="chevron-right" /></button>
-            <button className="flex min-h-14 items-center justify-between rounded-control bg-canvas px-4 text-left font-bold" type="button" onClick={() => setAction('history')}><span>查看流转记录</span><AppIcon className="text-muted" name="chevron-right" /></button>
-            <button className="mt-2 min-h-12 rounded-control border border-line bg-surface px-4 font-bold" type="button" onClick={() => onEdit(item)}>编辑物品信息</button>
+            <button ref={status.storedQuantity > 0 ? firstActionRef : undefined} className="flex min-h-14 items-center justify-between rounded-control bg-canvas px-4 text-left font-bold disabled:opacity-40" type="button" disabled={status.storedQuantity === 0} onClick={() => setAction('take_out')}><span>{t('itemMovement.takeOut')}</span><span className="text-sm text-muted">{t('itemMovement.max', { count: status.storedQuantity })}</span></button>
+            <button ref={status.storedQuantity === 0 ? firstActionRef : undefined} className="flex min-h-14 items-center justify-between rounded-control bg-canvas px-4 text-left font-bold disabled:opacity-40" type="button" disabled={status.outQuantity === 0} onClick={() => setAction('return')}><span>{t('itemMovement.return')}</span><span className="text-sm text-muted">{t('itemMovement.pendingReturn', { count: status.outQuantity })}</span></button>
+            <button className="flex min-h-14 items-center justify-between rounded-control bg-canvas px-4 text-left font-bold disabled:opacity-40" type="button" disabled={status.outQuantity > 0 || targetBoxes.length === 0} onClick={() => setAction('move')}><span>{t('itemMovement.move')}</span><AppIcon className="text-muted" name="chevron-right" /></button>
+            <button className="flex min-h-14 items-center justify-between rounded-control bg-canvas px-4 text-left font-bold" type="button" onClick={() => setAction('history')}><span>{t('itemMovement.history')}</span><AppIcon className="text-muted" name="chevron-right" /></button>
+            <button className="mt-2 min-h-12 rounded-control border border-line bg-surface px-4 font-bold" type="button" onClick={() => onEdit(item)}>{t('itemMovement.edit')}</button>
           </div>
         ) : action === 'history' ? (
           <div className="grid gap-3">
             <ItemMovementHistory movements={movements} loading={historyLoading} />
-            <button className="min-h-12 rounded-control border border-line font-bold" type="button" onClick={() => setAction(null)}>返回</button>
+            <button className="min-h-12 rounded-control border border-line font-bold" type="button" onClick={() => setAction(null)}>{t('itemMovement.back')}</button>
           </div>
         ) : (
           <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
             {action === 'move' ? (
               <>
-                <label className="font-bold" htmlFor="movement-target-box">目标箱子</label>
+                <label className="font-bold" htmlFor="movement-target-box">{t('itemMovement.targetBox')}</label>
                 <select className="min-h-12 rounded-control border border-line bg-surface px-3" id="movement-target-box" value={targetBoxId} required disabled={pending} onChange={(event) => setTargetBoxId(event.target.value)}>
-                  <option value="">选择目标箱子</option>
+                  <option value="">{t('itemMovement.selectTarget')}</option>
                   {targetBoxGroups.map(([path, groupedBoxes]) => (
                     <optgroup label={path} key={path}>
                       {groupedBoxes.map((box) => <option value={box.id} key={box.id}>{path} · {box.name}</option>)}
                     </optgroup>
                   ))}
                 </select>
-                <p className="text-sm text-muted">将移动该物品的全部 {item.quantity} 件。</p>
+                <p className="text-sm text-muted">{t('itemMovement.moveAll', { count: item.quantity })}</p>
               </>
             ) : (
               <>
-                <label className="font-bold" htmlFor="movement-quantity">数量</label>
+                <label className="font-bold" htmlFor="movement-quantity">{t('itemMovement.quantity')}</label>
                 <div className="grid grid-cols-[3rem_minmax(0,1fr)_3rem] items-center overflow-hidden rounded-control border border-line bg-surface">
-                  <button className="grid min-h-12 place-items-center" type="button" aria-label="减少操作数量" disabled={pending || quantity <= 1} onClick={() => setQuantity((value) => Math.max(1, value - 1))}><AppIcon name="minus" /></button>
+                  <button className="grid min-h-12 place-items-center" type="button" aria-label={t('itemMovement.decrease')} disabled={pending || quantity <= 1} onClick={() => setQuantity((value) => Math.max(1, value - 1))}><AppIcon name="minus" /></button>
                   <input className="h-12 min-w-0 border-x border-y-0 border-line bg-transparent text-center font-bold" id="movement-quantity" inputMode="numeric" type="number" min="1" max={maxQuantity} value={quantity} required readOnly={pending} onChange={(event) => setQuantity(Math.min(maxQuantity, Math.max(1, Number(event.target.value) || 1)))} />
-                  <button className="grid min-h-12 place-items-center" type="button" aria-label="增加操作数量" disabled={pending || quantity >= maxQuantity} onClick={() => setQuantity((value) => Math.min(maxQuantity, value + 1))}><AppIcon name="plus" /></button>
+                  <button className="grid min-h-12 place-items-center" type="button" aria-label={t('itemMovement.increase')} disabled={pending || quantity >= maxQuantity} onClick={() => setQuantity((value) => Math.min(maxQuantity, value + 1))}><AppIcon name="plus" /></button>
                 </div>
               </>
             )}
             {action === 'take_out' ? (
               <>
-                <label className="font-bold" htmlFor="movement-handler">经手人或用途（可选）</label>
+                <label className="font-bold" htmlFor="movement-handler">{t('itemMovement.handlerLabel')}</label>
                 <input className="min-h-12 rounded-control border border-line bg-surface px-3" id="movement-handler" maxLength={120} value={handlerLabel} readOnly={pending} onChange={(event) => setHandlerLabel(event.target.value)} />
               </>
             ) : null}
-            <label className="font-bold" htmlFor="movement-note">备注（可选）</label>
+            <label className="font-bold" htmlFor="movement-note">{t('itemMovement.note')}</label>
             <textarea className="min-h-20 resize-y rounded-control border border-line bg-surface px-3 py-2" id="movement-note" maxLength={500} value={note} readOnly={pending} onChange={(event) => setNote(event.target.value)} />
             <div className="mt-2 grid grid-cols-2 gap-2">
-              <button className="min-h-12 rounded-control border border-line font-bold" type="button" disabled={pending} onClick={() => setAction(null)}>返回</button>
-              <button className="min-h-12 rounded-control bg-brand px-4 font-bold text-white disabled:opacity-50" type="submit" disabled={pending || (action === 'move' && !targetBoxId)}>{pending ? '处理中…' : action === 'take_out' ? '确认取出' : action === 'return' ? '确认放回' : '确认移动'}</button>
+              <button className="min-h-12 rounded-control border border-line font-bold" type="button" disabled={pending} onClick={() => setAction(null)}>{t('itemMovement.back')}</button>
+              <button className="min-h-12 rounded-control bg-brand px-4 font-bold text-white disabled:opacity-50" type="submit" disabled={pending || (action === 'move' && !targetBoxId)}>{pending ? t('common.processing') : action === 'take_out' ? t('itemMovement.confirmTakeOut') : action === 'return' ? t('itemMovement.confirmReturn') : t('itemMovement.confirmMove')}</button>
             </div>
           </form>
         )}

@@ -1,6 +1,8 @@
-export function greetingForHour(hour: number) {
-  if (hour >= 5 && hour < 11) return '早上好'
-  if (hour >= 11 && hour < 14) return '中午好'
-  if (hour >= 14 && hour < 18) return '下午好'
-  return '晚上好'
+export type GreetingKey = 'morning' | 'noon' | 'afternoon' | 'evening'
+
+export function greetingForHour(hour: number): GreetingKey {
+  if (hour >= 5 && hour < 11) return 'morning'
+  if (hour >= 11 && hour < 14) return 'noon'
+  if (hour >= 14 && hour < 18) return 'afternoon'
+  return 'evening'
 }

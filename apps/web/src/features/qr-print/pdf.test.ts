@@ -41,11 +41,11 @@ test('asks for a page refresh when a deployed PDF chunk is stale', () => {
   expect(describePdfGenerationFailure(new TypeError(
     'Failed to fetch dynamically imported module: https://nomo.example/assets/jspdf.js',
   ))).toEqual({
-    message: '应用资源刚刚更新，请刷新页面后重新打印',
+    key: 'print.errors.staleAssets',
     requiresReload: true,
   })
   expect(describePdfGenerationFailure(new Error('Canvas is unavailable'))).toEqual({
-    message: 'PDF 生成失败，请重试',
+    key: 'print.errors.generationFailed',
     requiresReload: false,
   })
 })

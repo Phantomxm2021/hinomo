@@ -3,10 +3,10 @@ import { deriveItemAvailability, formatItemAvailability } from './item-movement-
 
 describe('item availability', () => {
   it.each([
-    [3, 3, 'stored', 0, '在位 · 3/3'],
-    [3, 1, 'partial', 2, '部分取出 · 1/3 在箱中'],
-    [1, 0, 'out', 1, '已取出 · 0/1 在箱中'],
-  ] as const)('derives %s total and %s stored', (total, stored, availability, out, label) => {
+    [3, 3, 'stored', 0],
+    [3, 1, 'partial', 2],
+    [1, 0, 'out', 1],
+  ] as const)('derives %s total and %s stored', (total, stored, availability, out) => {
     const status = deriveItemAvailability(total, stored)
     expect(status).toEqual({
       availability,
@@ -14,7 +14,7 @@ describe('item availability', () => {
       storedQuantity: stored,
       totalQuantity: total,
     })
-    expect(formatItemAvailability(status)).toBe(label)
+    expect(formatItemAvailability(status)).toEqual(expect.objectContaining({ key: expect.any(String), params: expect.any(Object) }))
   })
 
   it('treats a missing stored quantity as fully stored for staged deployments', () => {
@@ -22,7 +22,10 @@ describe('item availability', () => {
   })
 
   it('formats the same domain state independently for English', () => {
-    expect(formatItemAvailability(deriveItemAvailability(4, 2), 'en')).toBe('Partially out · 2/4 stored')
+    expect(formatItemAvailability(deriveItemAvailability(4, 2))).toEqual({
+      key: 'itemMovement.availability.partial',
+      params: { stored: 2, total: 4 },
+    })
   })
 
   it.each([[0, 0], [2, -1], [2, 3], [2, 1.5]])('rejects invalid quantities (%s, %s)', (total, stored) => {

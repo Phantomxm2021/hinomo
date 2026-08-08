@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useI18n } from '../i18n/I18nProvider'
 import { SYSTEM_ACTION_SHEET_Z_INDEX } from './overlay-layers'
 
 export type MobileSheetAction = {
@@ -9,7 +10,7 @@ export type MobileSheetAction = {
   disabled?: boolean
 }
 
-export function MobileActionSheet({ open, title, message, actions, cancelLabel = '取消', onClose }: {
+export function MobileActionSheet({ open, title, message, actions, cancelLabel, onClose }: {
   open: boolean
   title: string
   message?: string
@@ -17,6 +18,8 @@ export function MobileActionSheet({ open, title, message, actions, cancelLabel =
   cancelLabel?: string
   onClose: () => void
 }) {
+  const { t } = useI18n()
+  const resolvedCancelLabel = cancelLabel ?? t('common.cancel')
   const firstActionRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => {
@@ -57,7 +60,7 @@ export function MobileActionSheet({ open, title, message, actions, cancelLabel =
             >{action.label}</button>
           ))}
         </div>
-        <button className="mt-2 min-h-14 w-full rounded-[0.875rem] bg-surface text-[1.25rem] font-semibold text-brand shadow-float" type="button" onClick={onClose}>{cancelLabel}</button>
+        <button className="mt-2 min-h-14 w-full rounded-[0.875rem] bg-surface text-[1.25rem] font-semibold text-brand shadow-float" type="button" onClick={onClose}>{resolvedCancelLabel}</button>
       </section>
     </div>,
     document.body,

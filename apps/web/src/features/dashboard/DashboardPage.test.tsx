@@ -82,14 +82,14 @@ function renderDashboardWithNavigation(initialEntry = '/app') {
 }
 
 test.each([
-  [5, '早上好'],
-  [10, '早上好'],
-  [11, '中午好'],
-  [13, '中午好'],
-  [14, '下午好'],
-  [17, '下午好'],
-  [18, '晚上好'],
-  [0, '晚上好'],
+  [5, 'morning'],
+  [10, 'morning'],
+  [11, 'noon'],
+  [13, 'noon'],
+  [14, 'afternoon'],
+  [17, 'afternoon'],
+  [18, 'evening'],
+  [0, 'evening'],
 ])('uses the local hour %i for the dashboard greeting', (hour, expected) => {
   expect(greetingForHour(hour)).toBe(expected)
 })

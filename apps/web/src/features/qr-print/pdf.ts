@@ -18,7 +18,7 @@ export type PrintableLabel = {
 }
 
 export type PdfGenerationFailure = {
-  message: string
+  key: 'print.errors.staleAssets' | 'print.errors.generationFailed'
   requiresReload: boolean
 }
 
@@ -26,8 +26,8 @@ export function describePdfGenerationFailure(error: unknown): PdfGenerationFailu
   const detail = error instanceof Error ? error.message : String(error)
   const requiresReload = /dynamically imported module|importing a module script failed|error loading dynamically imported module/i.test(detail)
   return requiresReload
-    ? { message: '应用资源刚刚更新，请刷新页面后重新打印', requiresReload: true }
-    : { message: 'PDF 生成失败，请重试', requiresReload: false }
+    ? { key: 'print.errors.staleAssets', requiresReload: true }
+    : { key: 'print.errors.generationFailed', requiresReload: false }
 }
 
 type LabelSource = Pick<BoxSummary, 'public_id' | 'box_code' | 'name' | 'venue_name' | 'space_name' | 'location'>

@@ -20,7 +20,7 @@ function searchQuantityLabel(result: { quantity: number | null; quantity_kind: s
 }
 
 export function SearchPage() {
-  const { locale, t } = useI18n()
+  const { t } = useI18n()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const urlQuery = searchParams.get('q') ?? ''
@@ -202,7 +202,7 @@ export function SearchPage() {
                 <span className="grid size-12 shrink-0 place-items-center rounded-control bg-brand/10 text-brand"><AppIcon name="search" /></span>
                 <span className="min-w-0 flex-1">
                   <strong className="block truncate">{result.item_name} × {searchQuantityLabel(result, t)} {result.source === 'ai' ? <span className="ml-1 rounded-full bg-brand/10 px-2 py-0.5 text-[0.6875rem] text-brand">{t('search.aiRecognized')}</span> : null}</strong>
-                  {result.source !== 'ai' && result.quantity !== null && result.stored_quantity !== null ? <span className="mt-0.5 block truncate text-xs font-bold text-brand">{formatItemAvailability(deriveItemAvailability(result.quantity, result.stored_quantity), locale === 'en-US' ? 'en' : 'zh-CN')}</span> : null}
+                  {result.source !== 'ai' && result.quantity !== null && result.stored_quantity !== null ? (() => { const copy = formatItemAvailability(deriveItemAvailability(result.quantity, result.stored_quantity)); return <span className="mt-0.5 block truncate text-xs font-bold text-brand">{t(copy.key, copy.params)}</span> })() : null}
                   <span className="block truncate text-sm text-muted">{formatStoragePath([result.venue_name, result.space_name, result.box_name, result.location || t('boxes.locationUnset')])}</span>
                 </span>
                 <AppIcon className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5" name="chevron-right" />

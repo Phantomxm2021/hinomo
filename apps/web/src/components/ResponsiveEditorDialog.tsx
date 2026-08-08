@@ -1,6 +1,7 @@
 import { type ReactNode, type RefObject, useCallback, useEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { AppIcon } from './AppIcon'
+import { useI18n } from '../i18n/I18nProvider'
 
 export type ResponsiveEditorDialogProps = {
   open: boolean
@@ -45,6 +46,7 @@ export function ResponsiveEditorDialog({
   maxWidthClassName = 'max-w-lg',
   returnFocusRef,
 }: ResponsiveEditorDialogProps) {
+  const { t } = useI18n()
   const dialogRef = useRef<HTMLElement | null>(null)
   const titleId = useId()
   const close = useCallback(() => {
@@ -132,7 +134,7 @@ export function ResponsiveEditorDialog({
         <span className="pointer-events-none fixed size-px overflow-hidden opacity-0" data-editor-focus-sentinel tabIndex={0} onFocus={() => getControls(dialogRef.current).at(-1)?.focus()} />
         <div className="mb-5 flex items-center justify-between gap-4">
           <h2 className="m-0 text-section-title font-bold" id={titleId}>{title}</h2>
-          <button className="grid size-11 flex-none place-items-center rounded-control border border-line bg-surface text-ink" type="button" aria-label={`关闭${title}`} disabled={busy} onClick={close}>
+          <button className="grid size-11 flex-none place-items-center rounded-control border border-line bg-surface text-ink" type="button" aria-label={t('common.closeWithTitle', { title })} disabled={busy} onClick={close}>
             <AppIcon name="close" />
           </button>
         </div>

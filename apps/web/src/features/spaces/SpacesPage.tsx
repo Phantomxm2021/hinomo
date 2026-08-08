@@ -18,7 +18,7 @@ import {
 import { useSelectedVenue } from '../venues/selected-venue'
 import { SpaceCard } from './SpaceCard'
 import { SpaceMap } from './SpaceMap'
-import { spaceSchema, type SpaceFormValues } from './space.schema'
+import { createSpaceSchema, type SpaceFormValues } from './space.schema'
 import {
   createSpace,
   deleteSpace,
@@ -54,7 +54,7 @@ function getEditorControls(dialog: HTMLElement | null) {
 }
 
 export function SpacesPage() {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
   const queryClient = useQueryClient()
   const feedback = useMobileFeedback()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -115,11 +115,17 @@ export function SpacesPage() {
     handleSubmit,
     reset,
     setValue,
+    trigger,
     formState: { errors },
   } = useForm<SpaceFormValues>({
-    resolver: zodResolver(spaceSchema),
+    resolver: zodResolver(createSpaceSchema(t)),
     defaultValues: { venue_id: '', name: '', description: '' },
   })
+  const previousLocaleRef = useRef(locale)
+  useEffect(() => {
+    if (previousLocaleRef.current !== locale && Object.keys(errors).length > 0) void trigger()
+    previousLocaleRef.current = locale
+  }, [errors, locale, trigger])
   const editorPending = createMutation.isPending || updateMutation.isPending
   const layoutStorageUnavailable = isLayoutStorageUnavailable(layoutsQuery.error)
   const resetCreateMutation = createMutation.reset
