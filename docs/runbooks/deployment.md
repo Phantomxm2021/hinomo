@@ -117,6 +117,44 @@ supabase functions deploy stripe-webhook --no-verify-jwt
 9. 验证 Webhook 重放不会重复发放；并发完成两个会话不能透支；没有任何识别结果的终态失败会释放 reservation。
 10. 确认前端空余额入口显示 Apple 风格 credit Sheet，credit 页只进入一次性 Checkout，移动端安全区、焦点恢复和 Escape 行为正常后再灰度开启。
 
+## 无限箱子权益与 Stripe 发布顺序
+
+无限箱子权益必须按兼容顺序发布。`202608080002_box_entitlements.sql` 暂时保留旧前端直接创建箱子的能力，`202608080003_box_entitlements_enforce.sql` 才会撤销该权限；在旧静态资源和缓存版本退出前，不得提前执行收口迁移。
+
+1. 在 Stripe **test mode** 先创建 `HKD 38.00` 的 one-time Product/Price，不创建 recurring Price。复制以 `price_` 开头的 **Price ID**，不要使用以 `prod_` 开头的 Product ID。
+2. 在 Supabase Function Secrets 配置：
+   - `STRIPE_BOXES_UNLIMITED_PRICE_ID`：上一步创建的 `HKD 38.00` one-time Price；
+   - `PUBLIC_APP_ORIGIN`：前端生产站点的精确 Origin，不带路径，不接受客户端提供的 return URL；
+   - `STRIPE_WEBHOOK_SECRET`：当前环境 Stripe Webhook Endpoint 的签名 Secret；
+   - `STRIPE_SECRET_KEY`：与当前 Stripe 模式匹配的服务端 Secret Key。
+3. 确认托管 Edge Function 运行时可用 `SUPABASE_SERVICE_ROLE_KEY`。上述 Stripe 配置、Price ID 和 service role key 都只能放在服务端配置中：不得写入 `apps/web/.env`，不得创建 `VITE_STRIPE_BOXES_UNLIMITED_PRICE_ID`、`VITE_STRIPE_SECRET_KEY`、`VITE_STRIPE_WEBHOOK_SECRET` 或 `VITE_SUPABASE_SERVICE_ROLE_KEY`，也不得以其他 `VITE_` 名称暴露这些值。
+4. 在目标 Supabase 项目执行加法迁移 `supabase/migrations/202608080002_box_entitlements.sql`。运行 `018_box_entitlements.test.sql`，确认摘要、原子创建、发放、撤销和重新激活契约通过后再继续。
+5. 类型检查并部署 `billing-checkout` 与 `stripe-webhook` Edge Functions：
+
+```bash
+npm run typecheck:billing
+supabase functions deploy billing-checkout --no-verify-jwt
+supabase functions deploy stripe-webhook --no-verify-jwt
+```
+
+6. 确认 Stripe Webhook Endpoint 指向 `https://<project-ref>.supabase.co/functions/v1/stripe-webhook`，且至少订阅 `checkout.session.completed` 与 `charge.refunded`。
+7. 发布包含 `create_box` RPC、箱子额度摘要、付费墙和支付确认流程的前端版本。
+8. 等待旧前端静态资源和缓存版本退出。至少确认当前 CDN/浏览器缓存窗口已经过去、监控中不再出现旧版本的箱子直接 `INSERT` 请求，并使用全新会话验证创建请求已统一调用 `create_box` RPC。记录确认时间和执行人。
+9. 最后执行权限收口迁移 `supabase/migrations/202608080003_box_entitlements_enforce.sql`，并运行 `007_api_privileges.test.sql`，确认 authenticated 客户端不能直接 `INSERT public.boxes`，但 `create_box`、读取、更新和删除仍可用。此步骤完成前，免费箱子上限不视为已正式强制生效。
+
+### Stripe test mode 验收清单
+
+- [ ] 免费账号创建并同时保有 3 个箱子后，再点击“创建箱子”会打开 HK$38 付费墙；已有三个箱子均可正常使用。
+- [ ] 从 Checkout 取消返回后，账号箱子数、权益状态和 AI Credits 余额均不变化，并且可以再次发起购买。
+- [ ] 使用 Stripe 测试卡完成付款后，`checkout.session.completed` 发放一条 active 的 `boxes_unlimited_lifetime` 权益；前端确认到账后允许创建第 4 个箱子。
+- [ ] 人为延迟 Webhook 时，success return 只显示“正在确认”，不会提前声称已解锁，也不会展示可重复购买按钮；Webhook 到达后自动恢复创建流程。
+- [ ] 重放同一个 Stripe event 或 Checkout Session 不会重复发放权益；事件幂等完成且账号最多只有一条同类 active 权益。
+- [ ] 对无限箱子订单执行全额退款后，权益变为 revoked，免费上限重新生效；退款前已有的超额箱子仍可查看、编辑、删除和管理物品，不被删除或锁定。
+- [ ] 退款后通过新的 Checkout Session 重新购买，会新增可审计的 entitlement 记录并恢复一条 active 权益，历史 revoked 记录保留。
+- [ ] 记录购买前 AI Credits 余额；完成无限箱子购买、Webhook 重放、全额退款和重新购买后余额都保持不变。另行购买 Credits 的既有发放与退款流程仍按原规则工作。
+
+验收完成后记录 Stripe mode、测试账号、Checkout Session/Event ID、各步骤时间和结果；不要记录卡号、支付方式详情、Secret 或 service role key。
+
 ## Cloudflare R2
 
 - Bucket 必须保持 private。

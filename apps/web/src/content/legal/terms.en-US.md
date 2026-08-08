@@ -1,6 +1,6 @@
 # Nomo Terms of Service
 
-**Effective date: August 3, 2026**
+**Effective date: August 9, 2026**
 
 Welcome to Nomo. These terms are an agreement between you and the operator of the Nomo service ("we," "us," or "our") governing your use of Nomo websites, applications, and related services. By registering for, accessing, or using the service, you acknowledge that you have read and agree to these terms and the Nomo Privacy Policy.
 
@@ -46,6 +46,14 @@ Image recognition, automatic naming, and other intelligent features may produce 
 ## 8. Paid features and credits
 
 Some features may require payment or consume service credits. Before purchase, the checkout page will present applicable pricing, taxes, credits, and principal conditions. Except where applicable law or the checkout terms require otherwise, consumed digital credits are not refundable or transferable.
+
+“Unlimited Boxes” is a one-time digital entitlement tied to the Nomo account used for the purchase. Its currently displayed price is HK$38; the amount, currency, taxes, and other transaction terms shown on the final Stripe Checkout page before you confirm payment are the terms that apply. This entitlement is not a subscription and does not auto-renew. After payment succeeds and we confirm the entitlement, you may create boxes without the free box limit while the entitlement remains active.
+
+The Unlimited Boxes entitlement does not include AI Credits. Image recognition and other features that require AI Credits remain separately charged and are subject to their own prices, balances, and consumption rules.
+
+In these terms, “lifetime” means that the entitlement has no preset expiration date while the Nomo account to which it is tied remains active and Nomo continues to provide the relevant service. It is not a promise that Nomo will operate forever or that any feature will never change. The entitlement cannot continue to be used if the account is terminated under these terms or the relevant service lawfully ceases to be available, without limiting any mandatory consumer rights.
+
+If an Unlimited Boxes order receives a full refund, we may revoke the entitlement and the corresponding future permission to create boxes above the free limit. Revocation will not delete, lock, or downgrade boxes created before revocation; you may continue to view, edit, delete, and manage those boxes and their items. Whether you may create more boxes after revocation depends on the then-current free limit and the number of boxes held by your account. Refund eligibility, procedure, and other effects remain subject to applicable law and the conditions shown at Checkout.
 
 ## 9. Third-party services
 
