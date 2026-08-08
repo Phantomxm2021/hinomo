@@ -1,20 +1,25 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { DashboardPage } from './DashboardPage'
 import { greetingForHour } from './dashboard-greeting'
 
-const { mockListBoxes, mockListSpaces, mockListVenues } = vi.hoisted(() => ({
+const { mockGetProfile, mockListBoxes, mockListSpaces, mockListVenues, mockMarkOnboardingWelcomeSeen, mockUseAuth } = vi.hoisted(() => ({
+  mockGetProfile: vi.fn(),
   mockListBoxes: vi.fn(),
   mockListSpaces: vi.fn(),
   mockListVenues: vi.fn(),
+  mockMarkOnboardingWelcomeSeen: vi.fn(),
+  mockUseAuth: vi.fn(),
 }))
 
 vi.mock('../boxes/boxes.api', () => ({ listBoxes: mockListBoxes }))
 vi.mock('../spaces/spaces.api', () => ({ listSpaces: mockListSpaces }))
 vi.mock('../venues/venues.api', () => ({ listVenues: mockListVenues }))
+vi.mock('../profile/profile.api', () => ({ getProfile: mockGetProfile, markOnboardingWelcomeSeen: mockMarkOnboardingWelcomeSeen }))
+vi.mock('../auth/auth-context', () => ({ useAuth: mockUseAuth }))
 vi.mock('../media/AuthorizedImage', () => ({
   AuthorizedImage: ({ objectKey, alt, className }: { objectKey: string; alt: string; className?: string }) => (
     <span><img src={`signed:${objectKey}`} alt={alt} className={className} /><button type="button" aria-label={`重试${alt}`}>重试</button></span>
@@ -36,17 +41,40 @@ beforeEach(() => {
   mockListBoxes.mockReset()
   mockListSpaces.mockReset()
   mockListVenues.mockReset()
+  mockGetProfile.mockReset()
+  mockMarkOnboardingWelcomeSeen.mockReset()
+  mockUseAuth.mockReset()
+  mockUseAuth.mockReturnValue({ session: { user: { id: 'user-1' } } })
+  mockGetProfile.mockResolvedValue({ id: 'user-1', onboarding_welcome_seen_at: null })
+  mockMarkOnboardingWelcomeSeen.mockResolvedValue(undefined)
   mockListVenues.mockResolvedValue([
     { id: 'venue-home', name: '默认', description: null, is_default: true, space_count: 2 },
   ])
 })
 afterEach(cleanup)
 
-function renderDashboard() {
+function renderDashboard(initialEntry = '/app') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <QueryClientProvider client={client}><DashboardPage /></QueryClientProvider>
+    </MemoryRouter>,
+  )
+}
+
+function NavigationProbe() {
+  const location = useLocation()
+  return <output data-testid="location">{location.pathname}{location.search}</output>
+}
+
+function renderDashboardWithNavigation(initialEntry = '/app') {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <QueryClientProvider client={client}>
+        <DashboardPage />
+        <NavigationProbe />
+      </QueryClientProvider>
     </MemoryRouter>,
   )
 }
@@ -186,18 +214,71 @@ test('shows a structural dashboard skeleton while initial data is pending', () =
 test('guides a new user to create the first space on desktop and mobile', async () => {
   mockListSpaces.mockResolvedValue([])
   mockListBoxes.mockResolvedValue([])
-  renderDashboard()
+  renderDashboardWithNavigation()
 
   expect(await screen.findByRole('heading', { name: '这个场地还没有空间' })).toBeInTheDocument()
-  const onboarding = screen.getByRole('region', { name: '从一个空间开始' })
-  expect(within(onboarding).getByText('开始使用 Nomo')).toHaveClass('hidden', 'lg:inline')
-  expect(within(onboarding).getByText('下一步')).toHaveClass('lg:hidden')
-  expect(within(onboarding).getByText('0/3')).toBeInTheDocument()
-  expect(within(onboarding).getByRole('link', { name: /创建第一个空间/ })).toHaveAttribute('href', '/app/spaces?create=1')
-  expect(screen.getAllByRole('link', { name: '创建第一个空间' })).toHaveLength(2)
-  expect(screen.getAllByRole('link', { name: '创建第一个空间' }).at(-1)).toHaveAttribute('href', '/app/spaces?create=1')
-  expect(screen.queryByRole('link', { name: '创建第一个箱子' })).not.toBeInTheDocument()
+  const dialog = await screen.findByRole('dialog', { name: '开始使用 Nomo' })
+  expect(within(dialog).getByText('0/3')).toBeInTheDocument()
+  expect(within(dialog).getByRole('button', { name: '创建第一个空间' })).toBeInTheDocument()
+  expect(screen.queryByRole('region', { name: '从一个空间开始' })).not.toBeInTheDocument()
   expect(screen.queryByRole('region', { name: '最近打开' })).not.toBeInTheDocument()
+})
+
+test('automatically opens the welcome dialog once and keeps a manual guide entry after closing', async () => {
+  mockListSpaces.mockResolvedValue([])
+  mockListBoxes.mockResolvedValue([])
+  const user = userEvent.setup()
+  renderDashboard()
+
+  const dialog = await screen.findByRole('dialog', { name: '开始使用 Nomo' })
+  expect(mockMarkOnboardingWelcomeSeen).toHaveBeenCalledTimes(1)
+
+  await user.click(within(dialog).getByRole('button', { name: '关闭开始使用 Nomo' }))
+  expect(screen.queryByRole('dialog', { name: '开始使用 Nomo' })).not.toBeInTheDocument()
+  const guideButton = screen.getByRole('button', { name: '新手指南' })
+
+  await user.click(guideButton)
+  expect(await screen.findByRole('dialog', { name: '开始使用 Nomo' })).toBeInTheDocument()
+  expect(mockMarkOnboardingWelcomeSeen).toHaveBeenCalledTimes(1)
+})
+
+test('navigates to the current onboarding action after the welcome CTA closes the dialog', async () => {
+  mockListSpaces.mockResolvedValue([])
+  mockListBoxes.mockResolvedValue([])
+  const user = userEvent.setup()
+  renderDashboardWithNavigation()
+
+  const dialog = await screen.findByRole('dialog', { name: '开始使用 Nomo' })
+  await user.click(within(dialog).getByRole('button', { name: '创建第一个空间' }))
+
+  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/app/spaces?create=1'))
+  expect(screen.queryByRole('dialog', { name: '开始使用 Nomo' })).not.toBeInTheDocument()
+})
+
+test('does not show onboarding for an account that already has items', async () => {
+  mockListSpaces.mockResolvedValue([
+    { id: 'space-home', venue_id: 'venue-home', venue_name: '默认', name: '客厅', description: null, box_count: 1, item_count: 1 },
+  ])
+  mockListBoxes.mockResolvedValue([
+    { id: 'box-1', public_id: 'box-1', box_code: 'BX-1', name: '日用品', space_id: 'space-home', location: null, visibility: 'private', space_name: '客厅', cover_object_key: null, item_count: 1, updated_at: '2026-08-03' },
+  ])
+  renderDashboard()
+
+  expect(await screen.findByRole('heading', { name: '按空间查看' })).toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: '开始使用 Nomo' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '新手指南' })).not.toBeInTheDocument()
+  expect(mockMarkOnboardingWelcomeSeen).not.toHaveBeenCalled()
+})
+
+test('keeps the dashboard usable when recording the welcome view fails', async () => {
+  mockListSpaces.mockResolvedValue([])
+  mockListBoxes.mockResolvedValue([])
+  mockMarkOnboardingWelcomeSeen.mockRejectedValueOnce(new Error('offline'))
+  renderDashboard()
+
+  expect(await screen.findByRole('dialog', { name: '开始使用 Nomo' })).toBeInTheDocument()
+  expect(await screen.findByRole('status', { name: '新手指南状态' })).toHaveTextContent('下次打开时会重试')
+  expect(screen.getByRole('button', { name: '关闭开始使用 Nomo' })).toBeEnabled()
 })
 
 test('advances onboarding from space to box and item using real catalogue data', async () => {
@@ -207,9 +288,9 @@ test('advances onboarding from space to box and item using real catalogue data',
   mockListBoxes.mockResolvedValue([])
   const view = renderDashboard()
 
-  let onboarding = await screen.findByRole('region', { name: '创建第一个箱子' })
+  let onboarding = await screen.findByRole('dialog', { name: '开始使用 Nomo' })
   expect(within(onboarding).getByText('1/3')).toBeInTheDocument()
-  expect(within(onboarding).getByRole('link', { name: /创建第一个箱子/ })).toHaveAttribute('href', '/app/boxes?create=1')
+  expect(within(onboarding).getByRole('button', { name: '创建第一个箱子' })).toBeInTheDocument()
 
   view.unmount()
   mockListBoxes.mockResolvedValue([
@@ -217,9 +298,9 @@ test('advances onboarding from space to box and item using real catalogue data',
   ])
   renderDashboard()
 
-  onboarding = await screen.findByRole('region', { name: '记录箱内物品' })
+  onboarding = await screen.findByRole('dialog', { name: '开始使用 Nomo' })
   expect(within(onboarding).getByText('2/3')).toBeInTheDocument()
-  expect(within(onboarding).getByRole('link', { name: /记录箱内物品/ })).toHaveAttribute('href', '/b/first-box')
+  expect(within(onboarding).getByRole('button', { name: '记录箱内物品' })).toBeInTheDocument()
 })
 
 test('keeps finding available when dashboard data fails', async () => {

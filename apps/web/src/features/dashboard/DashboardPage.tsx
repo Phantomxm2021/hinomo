@@ -1,17 +1,20 @@
-import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { GlobalFindBar } from '../../components/GlobalFindBar'
 import { PageState } from '../../components/PageState'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
+import { useAuth } from '../auth/auth-context'
 import { listBoxes } from '../boxes/boxes.api'
 import { AuthorizedImage } from '../media/AuthorizedImage'
+import { getProfile, markOnboardingWelcomeSeen } from '../profile/profile.api'
 import { listSpaces } from '../spaces/spaces.api'
 import { listVenues } from '../venues/venues.api'
 import { VenueSwitcher } from '../venues/VenueSwitcher'
 import { useSelectedVenue } from '../venues/selected-venue'
 import { greetingForHour } from './dashboard-greeting'
-import { OnboardingProgressCard } from './OnboardingProgressCard'
+import { OnboardingWelcomeDialog } from './OnboardingWelcomeDialog'
+import { getOnboardingProgress } from './onboarding-progress'
 
 const boxPlaceholderTones = ['bg-[#a98b6e]', 'bg-[#788790]', 'bg-[#b7925c]'] as const
 
@@ -27,10 +30,20 @@ function spaceEmoji(name: string) {
 }
 
 export function DashboardPage() {
+  const { session } = useAuth()
+  const user = session?.user
+  const location = useLocation()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [greeting, setGreeting] = useState(() => greetingForHour(new Date().getHours()))
   const venuesQuery = useQuery({ queryKey: ['venues'], queryFn: listVenues })
   const spacesQuery = useQuery({ queryKey: ['spaces'], queryFn: listSpaces })
   const boxesQuery = useQuery({ queryKey: ['boxes'], queryFn: listBoxes })
+  const profileQuery = useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: () => getProfile(user!.id),
+    enabled: Boolean(user),
+  })
   const venues = venuesQuery.data ?? []
   const [activeVenueId, setActiveVenueId] = useSelectedVenue(venues)
   const spaces = activeVenueId
@@ -39,11 +52,65 @@ export function DashboardPage() {
   const visibleSpaceIds = new Set(spaces.map((space) => space.id))
   const boxes = (boxesQuery.data ?? []).filter((box) => visibleSpaceIds.has(box.space_id))
   const itemTotal = boxes.reduce((sum, box) => sum + box.item_count, 0)
+  const dashboardDataReady = venuesQuery.isSuccess && spacesQuery.isSuccess && boxesQuery.isSuccess
+  const currentDashboardRoute = location.pathname === '/app'
+  const onboardingAvailable = currentDashboardRoute && dashboardDataReady && itemTotal === 0
+  const onboardingProgress = getOnboardingProgress({
+    hasSpace: spaces.length > 0,
+    hasBox: boxes.length > 0,
+    hasItem: itemTotal > 0,
+    firstBoxPublicId: boxes[0]?.public_id,
+  })
+  const [onboardingOpen, setOnboardingOpen] = useState(false)
+  const [welcomeSeenPending, setWelcomeSeenPending] = useState(false)
+  const [welcomeSeenError, setWelcomeSeenError] = useState(false)
+  const autoOpenedRef = useRef(false)
+  const autoOpenedUserIdRef = useRef<string | null>(null)
+  const returnFocusRef = useRef<HTMLButtonElement | null>(null)
+  const recordWelcomeSeen = useCallback(() => {
+    if (!user) return
+    setWelcomeSeenError(false)
+    setWelcomeSeenPending(true)
+    void markOnboardingWelcomeSeen()
+      .then(() => {
+        queryClient.setQueryData(['profile', user.id], (profile: typeof profileQuery.data) => (
+          profile ? { ...profile, onboarding_welcome_seen_at: new Date().toISOString() } : profile
+        ))
+      })
+      .catch(() => setWelcomeSeenError(true))
+      .finally(() => setWelcomeSeenPending(false))
+  }, [queryClient, user])
+
+  const openOnboarding = useCallback(() => {
+    setOnboardingOpen(true)
+    if (welcomeSeenError) recordWelcomeSeen()
+  }, [recordWelcomeSeen, welcomeSeenError])
+
+  useEffect(() => {
+    if (!user?.id) return
+    if (autoOpenedUserIdRef.current !== user.id) {
+      autoOpenedUserIdRef.current = user.id
+      autoOpenedRef.current = false
+    }
+    const profileReady = profileQuery.isSuccess
+    const shouldAutoOpen = currentDashboardRoute
+      && dashboardDataReady
+      && profileReady
+      && itemTotal === 0
+      && !profileQuery.data?.onboarding_welcome_seen_at
+    if (!shouldAutoOpen || autoOpenedRef.current) return
+
+    autoOpenedRef.current = true
+    setOnboardingOpen(true)
+    recordWelcomeSeen()
+  }, [currentDashboardRoute, dashboardDataReady, itemTotal, profileQuery.data?.onboarding_welcome_seen_at, profileQuery.isSuccess, recordWelcomeSeen, user?.id])
+
   const initiallyLoading = (
     (venuesQuery.isPending && venuesQuery.data === undefined)
     ||
     (spacesQuery.isPending && spacesQuery.data === undefined)
     || (boxesQuery.isPending && boxesQuery.data === undefined)
+    || (Boolean(user) && profileQuery.isPending && profileQuery.data === undefined)
   )
 
   useEffect(() => {
@@ -61,13 +128,26 @@ export function DashboardPage() {
   const dashboardTitle = `${greeting}，今天找什么？`
 
   return (
+    <>
     <section className="mx-auto flex min-w-0 w-full max-w-7xl flex-col gap-6 lg:gap-10" aria-labelledby="dashboard-title">
       <header className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 py-3 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(26rem,auto)] lg:items-center lg:gap-x-6">
         <div className="col-span-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
           <p className="mb-0 text-meta font-medium tracking-eyebrow text-muted">空间总览</p>
-          {venuesQuery.isPending && venuesQuery.data === undefined ? (
-            <Skeleton className="h-11 w-32 rounded-control lg:w-48" />
-          ) : <VenueSwitcher venues={venues} selectedId={activeVenueId} onSelect={setActiveVenueId} />}
+          <div className="flex items-center gap-2">
+            {onboardingAvailable ? (
+              <button
+                className="inline-flex min-h-11 items-center rounded-control px-3 text-meta font-semibold text-brand-strong hover:bg-brand/10"
+                type="button"
+                ref={returnFocusRef}
+                onClick={openOnboarding}
+              >
+                新手指南
+              </button>
+            ) : null}
+            {venuesQuery.isPending && venuesQuery.data === undefined ? (
+              <Skeleton className="h-11 w-32 rounded-control lg:w-48" />
+            ) : <VenueSwitcher venues={venues} selectedId={activeVenueId} onSelect={setActiveVenueId} />}
+          </div>
         </div>
         <h1 className="col-span-2 mb-2 max-w-3xl text-display font-extrabold lg:col-span-1 lg:row-start-2 lg:mb-4" id="dashboard-title">{dashboardTitle}</h1>
         <div className="col-span-2 flex min-w-0 items-stretch lg:col-span-1 lg:col-start-2 lg:row-start-2 lg:justify-end">
@@ -75,8 +155,8 @@ export function DashboardPage() {
         </div>
       </header>
 
-      {venuesQuery.isError || spacesQuery.isError || boxesQuery.isError ? (
-        <PageState state="error" message="部分数据加载失败，请稍后重试" onRetry={() => void Promise.all([venuesQuery.refetch(), spacesQuery.refetch(), boxesQuery.refetch()])} />
+      {venuesQuery.isError || spacesQuery.isError || boxesQuery.isError || profileQuery.isError ? (
+        <PageState state="error" message="部分数据加载失败，请稍后重试" onRetry={() => void Promise.all([venuesQuery.refetch(), spacesQuery.refetch(), boxesQuery.refetch(), profileQuery.refetch()])} />
       ) : null}
 
       {initiallyLoading ? (
@@ -109,14 +189,6 @@ export function DashboardPage() {
         </SkeletonGroup>
       ) : (
         <>
-      {venuesQuery.isSuccess && spacesQuery.isSuccess && boxesQuery.isSuccess ? (
-        <OnboardingProgressCard
-          hasSpace={spaces.length > 0}
-          hasBox={boxes.length > 0}
-          hasItem={itemTotal > 0}
-          firstBoxPublicId={boxes[0]?.public_id}
-        />
-      ) : null}
       <div className="hidden gap-4 sm:grid-cols-3 lg:grid" aria-label="收纳概览">
         <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label="空间统计">
           <span className="text-meta font-medium text-muted">空间</span>
@@ -220,5 +292,19 @@ export function DashboardPage() {
         </>
       )}
     </section>
+    {welcomeSeenError ? (
+      <p className="mx-auto mt-3 w-full max-w-7xl text-meta text-muted" role="status" aria-label="新手指南状态" aria-live="polite">
+        新手指南记录失败，下次打开时会重试。
+      </p>
+    ) : null}
+    <OnboardingWelcomeDialog
+      open={onboardingOpen && onboardingAvailable}
+      busy={welcomeSeenPending}
+      progress={onboardingProgress}
+      onClose={() => setOnboardingOpen(false)}
+      onStart={(actionHref) => navigate(actionHref)}
+      returnFocusRef={returnFocusRef}
+    />
+    </>
   )
 }
