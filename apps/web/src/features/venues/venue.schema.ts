@@ -4,7 +4,7 @@ type Translate = (key: string, params?: Record<string, string | number | boolean
 
 export function createVenueSchema(t: Translate) {
   return z.object({
-    name: z.string().trim().min(1, t('validation.required', { field: t('venues.name') })).max(80, t('validation.venueNameMax')),
+    name: z.string().trim().min(1, t('venues.nameRequired')).max(80, t('validation.venueNameMax')),
     description: z.string().trim().max(500, t('validation.descriptionMax')).optional(),
   })
 }

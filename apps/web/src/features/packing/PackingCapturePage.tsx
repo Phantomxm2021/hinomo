@@ -204,7 +204,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
       await refreshPhotos()
       setUploadState('idle')
     }
-  }, [refreshPhotos, t])
+  }, [refreshPhotos])
 
   const enqueueDraft = useCallback((draft: PackingDraft, persisted = true) => {
     uploadQueueRef.current = uploadQueueRef.current.catch(() => undefined).then(() => uploadDraft(draft, persisted))

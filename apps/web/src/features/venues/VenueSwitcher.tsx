@@ -39,7 +39,7 @@ export function VenueSwitcher({ venues, selectedId, onSelect }: {
         ref={triggerRef}
         className="inline-flex h-11 max-w-48 items-center justify-end gap-2 rounded-control border border-transparent bg-transparent pr-0 pl-3 text-right text-meta font-semibold tracking-eyebrow text-muted transition hover:border-line hover:bg-surface focus-visible:border-brand lg:min-w-36"
         type="button"
-        aria-label={`${t('venues.select')}, ${selectedVenue?.name ?? t('venues.noVenue')}`}
+        aria-label={t('venues.selectNamed', { name: selectedVenue?.name ?? t('venues.noVenue') })}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
@@ -61,7 +61,7 @@ export function VenueSwitcher({ venues, selectedId, onSelect }: {
                   type="button"
                   role="menuitemradio"
                   aria-checked={selected}
-                  aria-label={`${venue.name}, ${t('venues.spaces', { count: venue.space_count })}`}
+                  aria-label={t('venues.spaceCount', { name: venue.name, count: venue.space_count })}
                   key={venue.id}
                   onClick={() => {
                     onSelect(venue.id)

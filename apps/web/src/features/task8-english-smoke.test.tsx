@@ -1,5 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, expect, test } from 'vitest'
+import { useEffect, type ReactNode } from 'react'
+import { afterEach, expect, test } from 'vitest'
 import { I18nProvider, useI18n } from '../i18n/I18nProvider'
 
 function FeatureCopyProbe() {
@@ -16,16 +17,23 @@ function FeatureCopyProbe() {
   )
 }
 
-beforeEach(() => {
-  window.localStorage.setItem('nomo-locale', 'en-US')
-})
+function EnglishLocale({ children }: { children: ReactNode }) {
+  const { setLocale } = useI18n()
+  useEffect(() => setLocale('en-US'), [setLocale])
+  return <>{children}</>
+}
+
 afterEach(() => {
   cleanup()
-  window.localStorage.clear()
+  try {
+    window.localStorage?.clear()
+  } catch {
+    // jsdom may expose a window without a usable storage backend.
+  }
 })
 
 test('renders Task 8 feature copy in English from the global locale', () => {
-  render(<I18nProvider><FeatureCopyProbe /></I18nProvider>)
+  render(<I18nProvider><EnglishLocale><FeatureCopyProbe /></EnglishLocale></I18nProvider>)
 
   expect(screen.getByRole('heading', { name: 'Scan to view' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'AI packing' })).toBeInTheDocument()

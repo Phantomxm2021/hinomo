@@ -18,7 +18,7 @@ export function VenueFilterBar({ venues, selectedId, onSelect, onCreate, onEdit 
         </button>
         {venues.map((venue) => (
           <span className={`inline-flex shrink-0 items-center rounded-full ${selectedId === venue.id ? 'bg-brand text-white' : 'bg-surface text-muted shadow-[inset_0_0_0_1px_var(--color-line)]'}`} key={venue.id}>
-            <button className="min-h-11 rounded-l-full px-4 text-sm font-semibold text-inherit" type="button" aria-label={`${venue.name}, ${t('venues.spaces', { count: venue.space_count })}`} aria-pressed={selectedId === venue.id} onClick={() => onSelect(venue.id)}>
+            <button className="min-h-11 rounded-l-full px-4 text-sm font-semibold text-inherit" type="button" aria-label={t('venues.spaceCount', { name: venue.name, count: venue.space_count })} aria-pressed={selectedId === venue.id} onClick={() => onSelect(venue.id)}>
               {venue.name}<span className="ml-1 opacity-70">{venue.space_count}</span>
             </button>
             <button className="grid size-11 place-items-center rounded-r-full text-inherit opacity-75 hover:bg-black/5 hover:opacity-100" type="button" aria-label={t('venues.rename', { name: venue.name })} title={t('venues.renameTitle', { name: venue.name })} onClick={() => onEdit(venue)}>

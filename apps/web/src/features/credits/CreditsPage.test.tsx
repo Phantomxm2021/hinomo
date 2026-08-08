@@ -52,6 +52,6 @@ test('does not send desktop users back to the mobile-only profile page', async (
   mocks.summary.mockResolvedValue({ credits_available: 20, credits_reserved: 0 })
   renderPage()
 
-  expect(await screen.findByRole('heading', { name: 'AI Credits' })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: 'AI 点数' })).toBeInTheDocument()
   expect(screen.queryByRole('link', { name: '返回我的' })).not.toBeInTheDocument()
 })

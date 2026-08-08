@@ -17,7 +17,7 @@ export function VenueEditorDialog({ open, venue, pending, error, onClose, onSubm
   const { t } = useI18n()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [validationError, setValidationError] = useState<string | null>(null)
+  const [validationError, setValidationError] = useState<{ key: string; params?: Record<string, string | number | boolean> } | null>(null)
   const defaultVenue = Boolean(venue?.is_default)
 
   useEffect(() => {
@@ -42,7 +42,13 @@ export function VenueEditorDialog({ open, venue, pending, error, onClose, onSubm
     event.preventDefault()
     const result = createVenueSchema(t).safeParse({ name, description })
     if (!result.success) {
-      setValidationError(result.error.issues[0]?.message ?? t('venues.validationFallback'))
+      const issue = result.error.issues[0]
+      const field = issue?.path[0] === 'description' ? 'description' : 'name'
+      setValidationError(issue?.code === 'too_big'
+        ? { key: field === 'name' ? 'validation.venueNameMax' : 'validation.descriptionMax' }
+        : field === 'name'
+          ? { key: 'venues.nameRequired' }
+          : { key: 'validation.descriptionMax' })
       return
     }
     setValidationError(null)
@@ -61,7 +67,7 @@ export function VenueEditorDialog({ open, venue, pending, error, onClose, onSubm
           <input className="min-h-12 rounded-control border border-line bg-surface px-3" id="venue-name" value={name} autoFocus readOnly={pending} onChange={(event) => setName(event.target.value)} />
           <label className="font-bold" htmlFor="venue-description">{t('venues.descriptionOptional')}</label>
           <textarea className="min-h-24 resize-y rounded-control border border-line bg-surface px-3 py-2" id="venue-description" value={description} readOnly={pending} onChange={(event) => setDescription(event.target.value)} />
-          {validationError ? <p className="text-danger" role="alert">{validationError}</p> : null}
+          {validationError ? <p className="text-danger" role="alert">{t(validationError.key, validationError.params)}</p> : null}
           {error ? <p className="text-danger" role="alert">{t('venues.saveError')}</p> : null}
           {defaultVenue ? <p className="text-sm text-muted">{t('venues.defaultHint')}</p> : null}
           {venue && venue.space_count > 0 ? <p className="text-sm text-muted">{t('venues.deleteBlocked', { count: venue.space_count })}</p> : null}
