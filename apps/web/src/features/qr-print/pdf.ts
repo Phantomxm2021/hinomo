@@ -29,6 +29,13 @@ export type PdfLabelCopy = {
   locationUnset: string
 }
 
+const DEFAULT_PDF_LABEL_COPY: PdfLabelCopy = {
+  spacePrefix: '空间：',
+  locationPrefix: '位置：',
+  scanToView: '扫码查看箱内物品',
+  locationUnset: '未填写',
+}
+
 export function describePdfGenerationFailure(error: unknown): PdfGenerationFailure {
   const detail = error instanceof Error ? error.message : String(error)
   const requiresReload = /dynamically imported module|importing a module script failed|error loading dynamically imported module/i.test(detail)
@@ -107,11 +114,17 @@ async function renderLabelPng(label: PrintableLabel, copy: PdfLabelCopy) {
   return canvas.toDataURL('image/png')
 }
 
+type PdfProgress = (completed: number, total: number) => void
+
+export function renderLabelsPdf(labels: PrintableLabel[], onProgress?: PdfProgress): Promise<void>
+export function renderLabelsPdf(labels: PrintableLabel[], copy: PdfLabelCopy, onProgress?: PdfProgress): Promise<void>
 export async function renderLabelsPdf(
   labels: PrintableLabel[],
-  copy: PdfLabelCopy,
-  onProgress?: (completed: number, total: number) => void,
+  copyOrProgress: PdfLabelCopy | PdfProgress = DEFAULT_PDF_LABEL_COPY,
+  maybeProgress?: PdfProgress,
 ) {
+  const copy = typeof copyOrProgress === 'function' ? DEFAULT_PDF_LABEL_COPY : copyOrProgress
+  const onProgress = typeof copyOrProgress === 'function' ? copyOrProgress : maybeProgress
   if (labels.length === 0) throw new Error('Select at least one box')
   const { jsPDF } = await import('jspdf')
   const documentPdf = new jsPDF({
