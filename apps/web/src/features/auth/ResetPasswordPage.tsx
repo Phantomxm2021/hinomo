@@ -1,45 +1,61 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { useI18n } from '../../i18n/I18nProvider'
 import { supabase } from '../../lib/supabase'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
-import { getAuthErrorMessage } from './auth-errors'
+import { getAuthErrorKey, type AuthErrorKey } from './auth-errors'
 import { useAuth } from './auth-context'
 import { completePasswordRecovery } from './auth-session-store'
 import { createResetPasswordSchema, type ResetPasswordValues } from './auth.schemas'
 import { AuthField, AuthOptions, AuthPageFrame, AuthSubmitButton } from './AuthFormPrimitives'
+import { useLocalizedFormValidation } from './useLocalizedFormValidation'
 
 export function ResetPasswordPage() {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
   const { session, loading, isPasswordRecovery } = useAuth()
   const navigate = useNavigate()
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitErrorKey, setSubmitErrorKey] = useState<AuthErrorKey | null>(null)
+  const [submitAttempted, setSubmitAttempted] = useState(false)
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting, isValid },
+    trigger,
+    formState: { errors, isSubmitting, isValid, touchedFields },
   } = useForm<ResetPasswordValues>({
     resolver: zodResolver(createResetPasswordSchema(t)),
     mode: 'onChange',
   })
 
+  useLocalizedFormValidation({
+    locale,
+    trigger,
+    touchedFields,
+    errorFields: errors,
+    submitAttempted,
+  })
+
   const submit = handleSubmit(async ({ password }) => {
-    setSubmitError(null)
+    setSubmitErrorKey(null)
     try {
       const { error } = await supabase.auth.updateUser({ password })
       if (error) {
-        setSubmitError(getAuthErrorMessage(error, t))
+        setSubmitErrorKey(getAuthErrorKey(error))
         return
       }
       completePasswordRecovery()
       navigate('/app', { replace: true })
     } catch (error) {
-      setSubmitError(getAuthErrorMessage(error, t))
+      setSubmitErrorKey(getAuthErrorKey(error))
     }
   })
+
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    setSubmitAttempted(true)
+    void submit(event)
+  }
 
   if (loading) {
     return (
@@ -70,7 +86,7 @@ export function ResetPasswordPage() {
 
   return (
     <AuthPageFrame title={t('auth.resetPassword.title')} subtitle={t('auth.resetPasswordDescription')}>
-      <form className="auth-reset-form" onSubmit={submit} noValidate>
+      <form className="auth-reset-form" onSubmit={onSubmit} noValidate>
         <AuthField id="reset-password" label={t('auth.newPassword')} error={errors.password?.message}>
           <input
             id="reset-password"
@@ -95,7 +111,7 @@ export function ResetPasswordPage() {
           />
         </AuthField>
 
-        {submitError ? <ResponsiveOperationError message={submitError} /> : null}
+        {submitErrorKey ? <ResponsiveOperationError message={t(submitErrorKey)} /> : null}
         <AuthSubmitButton
           disabled={!isValid}
           pending={isSubmitting}

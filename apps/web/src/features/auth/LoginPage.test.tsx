@@ -6,7 +6,7 @@ import {
   type InitialEntry,
 } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { I18nProvider } from '../../i18n/I18nProvider'
+import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 import { LoginPage } from './LoginPage'
 
 const { mockSignInWithPassword } = vi.hoisted(() => ({
@@ -20,6 +20,11 @@ vi.mock('../../lib/supabase', () => ({
     },
   },
 }))
+
+function LocaleControls() {
+  const { setLocale } = useI18n()
+  return <button type="button" onClick={() => setLocale('en-US')}>English</button>
+}
 
 function renderLogin(returnTo?: string) {
   const entry: InitialEntry = returnTo
@@ -36,6 +41,7 @@ function renderLogin(returnTo?: string) {
 
   render(
     <I18nProvider>
+      <LocaleControls />
       <RouterProvider router={router} />
     </I18nProvider>,
   )
@@ -99,6 +105,17 @@ describe('LoginPage', () => {
     expect(await screen.findByRole('heading', { name: '箱子' })).toBeInTheDocument()
   })
 
+  it('refreshes touched field validation when the global locale changes', async () => {
+    const user = userEvent.setup()
+    renderLogin()
+
+    await user.type(screen.getByLabelText('邮箱'), 'not-an-email')
+    expect(await screen.findByText('请输入有效的邮箱地址')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'English' }))
+    expect(await screen.findByText('Enter a valid email address')).toBeInTheDocument()
+  })
+
   it('shows a Chinese error without leaking the raw auth error', async () => {
     mockSignInWithPassword.mockResolvedValue({
       data: { session: null },
@@ -111,6 +128,20 @@ describe('LoginPage', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('邮箱或密码不正确')
     expect(alert).not.toHaveTextContent('Invalid login credentials')
+  })
+
+  it('refreshes a submitted auth error when the global locale changes', async () => {
+    mockSignInWithPassword.mockResolvedValue({
+      data: { session: null },
+      error: new Error('Invalid login credentials'),
+    })
+    renderLogin()
+
+    await submitValidCredentials()
+    expect(await screen.findByRole('alert')).toHaveTextContent('邮箱或密码不正确')
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'English' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('The email or password is incorrect.')
   })
 
   it('rejects a protocol-relative return target', async () => {

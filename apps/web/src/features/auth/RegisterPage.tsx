@@ -1,32 +1,43 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { useI18n } from '../../i18n/I18nProvider'
 import { supabase } from '../../lib/supabase'
 import { LEGAL_POLICY_VERSION } from '../legal/legal-policy'
-import { getAuthErrorMessage } from './auth-errors'
+import { getAuthErrorKey, type AuthErrorKey } from './auth-errors'
 import { createRegisterSchema, type RegisterValues } from './auth.schemas'
 import { AuthField, AuthOptions, AuthPageFrame, AuthSubmitButton } from './AuthFormPrimitives'
+import { useLocalizedFormValidation } from './useLocalizedFormValidation'
 
 export function RegisterPage() {
   const { locale, t } = useI18n()
   const navigate = useNavigate()
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitErrorKey, setSubmitErrorKey] = useState<AuthErrorKey | null>(null)
   const [success, setSuccess] = useState(false)
+  const [submitAttempted, setSubmitAttempted] = useState(false)
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting, isValid },
+    trigger,
+    formState: { errors, isSubmitting, isValid, touchedFields },
   } = useForm<RegisterValues>({
     resolver: zodResolver(createRegisterSchema(t)),
     mode: 'onChange',
     defaultValues: { acceptLegal: false },
   })
 
+  useLocalizedFormValidation({
+    locale,
+    trigger,
+    touchedFields,
+    errorFields: errors,
+    submitAttempted,
+  })
+
   const submit = handleSubmit(async ({ displayName, email, password }) => {
-    setSubmitError(null)
+    setSubmitErrorKey(null)
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -43,7 +54,7 @@ export function RegisterPage() {
         },
       })
       if (error) {
-        setSubmitError(getAuthErrorMessage(error, t))
+        setSubmitErrorKey(getAuthErrorKey(error))
         return
       }
       if (data.session) {
@@ -52,9 +63,14 @@ export function RegisterPage() {
       }
       setSuccess(true)
     } catch (error) {
-      setSubmitError(getAuthErrorMessage(error, t))
+      setSubmitErrorKey(getAuthErrorKey(error))
     }
   })
+
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    setSubmitAttempted(true)
+    void submit(event)
+  }
 
   return (
     <AuthPageFrame title={t('auth.register.title')} subtitle={t('auth.register.subtitle')}>
@@ -65,7 +81,7 @@ export function RegisterPage() {
         </div>
       ) : (
         <>
-          <form className="auth-register-form" onSubmit={submit} noValidate>
+          <form className="auth-register-form" onSubmit={onSubmit} noValidate>
           <AuthField id="register-display-name" label={t('auth.fields.nickname')} error={errors.displayName?.message}>
             <input
               id="register-display-name"
@@ -127,7 +143,7 @@ export function RegisterPage() {
             ) : null}
           </div>
 
-          {submitError ? <ResponsiveOperationError message={submitError} /> : null}
+          {submitErrorKey ? <ResponsiveOperationError message={t(submitErrorKey)} /> : null}
           <AuthSubmitButton
             disabled={!isValid}
             pending={isSubmitting}

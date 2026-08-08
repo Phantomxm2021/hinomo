@@ -1,44 +1,60 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { useI18n } from '../../i18n/I18nProvider'
 import { publicAppOrigin } from '../../lib/env'
 import { supabase } from '../../lib/supabase'
-import { getAuthErrorMessage } from './auth-errors'
+import { getAuthErrorKey, type AuthErrorKey } from './auth-errors'
 import { createEmailSchema, type EmailValues } from './auth.schemas'
 import { AuthField, AuthOptions, AuthPageFrame, AuthSubmitButton } from './AuthFormPrimitives'
+import { useLocalizedFormValidation } from './useLocalizedFormValidation'
 
 export function ForgotPasswordPage() {
-  const { t } = useI18n()
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const { locale, t } = useI18n()
+  const [submitErrorKey, setSubmitErrorKey] = useState<AuthErrorKey | null>(null)
   const [success, setSuccess] = useState(false)
+  const [submitAttempted, setSubmitAttempted] = useState(false)
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting, isValid },
+    trigger,
+    formState: { errors, isSubmitting, isValid, touchedFields },
   } = useForm<EmailValues>({
     resolver: zodResolver(createEmailSchema(t)),
     mode: 'onChange',
   })
 
+  useLocalizedFormValidation({
+    locale,
+    trigger,
+    touchedFields,
+    errorFields: errors,
+    submitAttempted,
+  })
+
   const submit = handleSubmit(async ({ email }) => {
-    setSubmitError(null)
+    setSubmitErrorKey(null)
     try {
       const origin = publicAppOrigin()
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${origin}/reset-password`,
       })
       if (error) {
-        setSubmitError(getAuthErrorMessage(error, t))
+        setSubmitErrorKey(getAuthErrorKey(error))
         return
       }
       setSuccess(true)
     } catch (error) {
-      setSubmitError(getAuthErrorMessage(error, t))
+      setSubmitErrorKey(getAuthErrorKey(error))
     }
   })
+
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    setSubmitAttempted(true)
+    void submit(event)
+  }
 
   return (
     <AuthPageFrame title={t('auth.forgotPassword.title')} subtitle={t('auth.forgotPassword.subtitle')}>
@@ -49,7 +65,7 @@ export function ForgotPasswordPage() {
         </div>
       ) : (
         <>
-          <form className="auth-forgot-form" onSubmit={submit} noValidate>
+          <form className="auth-forgot-form" onSubmit={onSubmit} noValidate>
             <AuthField id="forgot-email" label={t('auth.fields.email')} error={errors.email?.message}>
               <input
                 id="forgot-email"
@@ -61,7 +77,7 @@ export function ForgotPasswordPage() {
                 {...register('email')}
               />
             </AuthField>
-            {submitError ? <ResponsiveOperationError message={submitError} /> : null}
+            {submitErrorKey ? <ResponsiveOperationError message={t(submitErrorKey)} /> : null}
             <AuthSubmitButton
               disabled={!isValid}
               pending={isSubmitting}

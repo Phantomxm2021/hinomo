@@ -1,13 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { useI18n } from '../../i18n/I18nProvider'
 import { supabase } from '../../lib/supabase'
-import { getAuthErrorMessage } from './auth-errors'
+import { getAuthErrorKey, type AuthErrorKey } from './auth-errors'
 import { createCredentialsSchema, type Credentials } from './auth.schemas'
 import { AuthField, AuthOptions, AuthPageFrame, AuthSubmitButton } from './AuthFormPrimitives'
+import { useLocalizedFormValidation } from './useLocalizedFormValidation'
 
 function safeReturnTo(value: unknown) {
   return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
@@ -16,38 +17,53 @@ function safeReturnTo(value: unknown) {
 }
 
 export function LoginPage() {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
   const location = useLocation()
   const navigate = useNavigate()
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitErrorKey, setSubmitErrorKey] = useState<AuthErrorKey | null>(null)
+  const [submitAttempted, setSubmitAttempted] = useState(false)
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting, isValid },
+    trigger,
+    formState: { errors, isSubmitting, isValid, touchedFields },
   } = useForm<Credentials>({
     resolver: zodResolver(createCredentialsSchema(t)),
     mode: 'onChange',
   })
 
+  useLocalizedFormValidation({
+    locale,
+    trigger,
+    touchedFields,
+    errorFields: errors,
+    submitAttempted,
+  })
+
   const submit = handleSubmit(async (credentials) => {
-    setSubmitError(null)
+    setSubmitErrorKey(null)
     try {
       const { error } = await supabase.auth.signInWithPassword(credentials)
       if (error) {
-        setSubmitError(getAuthErrorMessage(error, t))
+        setSubmitErrorKey(getAuthErrorKey(error))
         return
       }
 
       const state = location.state as { returnTo?: unknown } | null
       navigate(safeReturnTo(state?.returnTo), { replace: true })
     } catch (error) {
-      setSubmitError(getAuthErrorMessage(error, t))
+      setSubmitErrorKey(getAuthErrorKey(error))
     }
   })
 
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    setSubmitAttempted(true)
+    void submit(event)
+  }
+
   return (
     <AuthPageFrame title={t('auth.login.title')} subtitle={t('auth.login.subtitle')}>
-      <form className="auth-login-form" onSubmit={submit} noValidate>
+      <form className="auth-login-form" onSubmit={onSubmit} noValidate>
         <AuthField id="login-email" label={t('auth.fields.email')} error={errors.email?.message}>
           <input
             id="login-email"
@@ -72,7 +88,7 @@ export function LoginPage() {
           />
         </AuthField>
 
-        {submitError ? <ResponsiveOperationError message={submitError} /> : null}
+        {submitErrorKey ? <ResponsiveOperationError message={t(submitErrorKey)} /> : null}
         <AuthSubmitButton
           disabled={!isValid}
           pending={isSubmitting}

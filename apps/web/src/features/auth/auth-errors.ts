@@ -1,6 +1,15 @@
 type Translate = (key: string) => string
 
-const AUTH_ERROR_MESSAGES: Array<[RegExp, string]> = [
+export type AuthErrorKey =
+  | 'auth.errors.invalidCredentials'
+  | 'auth.errors.emailNotConfirmed'
+  | 'auth.errors.emailAlreadyRegistered'
+  | 'auth.errors.passwordWeak'
+  | 'auth.errors.samePassword'
+  | 'auth.errors.rateLimit'
+  | 'auth.errors.requestFailed'
+
+const AUTH_ERROR_MESSAGES: Array<[RegExp, AuthErrorKey]> = [
   [/invalid login credentials/i, 'auth.errors.invalidCredentials'],
   [/email not confirmed/i, 'auth.errors.emailNotConfirmed'],
   [/user already registered/i, 'auth.errors.emailAlreadyRegistered'],
@@ -9,18 +18,12 @@ const AUTH_ERROR_MESSAGES: Array<[RegExp, string]> = [
   [/rate limit|too many requests/i, 'auth.errors.rateLimit'],
 ]
 
-const fallbackMessages: Record<string, string> = {
-  'auth.errors.invalidCredentials': '邮箱或密码不正确',
-  'auth.errors.emailNotConfirmed': '请先完成邮箱验证',
-  'auth.errors.emailAlreadyRegistered': '该邮箱已注册',
-  'auth.errors.passwordWeak': '密码强度不足，请换一个密码',
-  'auth.errors.samePassword': '新密码不能与原密码相同',
-  'auth.errors.rateLimit': '操作过于频繁，请稍后重试',
-  'auth.errors.requestFailed': '操作失败，请稍后重试',
+export function getAuthErrorKey(error: unknown): AuthErrorKey {
+  const rawMessage = error instanceof Error ? error.message : String(error ?? '')
+  return AUTH_ERROR_MESSAGES.find(([pattern]) => pattern.test(rawMessage))?.[1] ?? 'auth.errors.requestFailed'
 }
 
 export function getAuthErrorMessage(error: unknown, translate?: Translate) {
-  const rawMessage = error instanceof Error ? error.message : String(error ?? '')
-  const key = AUTH_ERROR_MESSAGES.find(([pattern]) => pattern.test(rawMessage))?.[1] ?? 'auth.errors.requestFailed'
-  return translate?.(key) ?? fallbackMessages[key] ?? fallbackMessages['auth.errors.requestFailed']
+  const key = getAuthErrorKey(error)
+  return translate?.(key) ?? key
 }
