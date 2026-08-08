@@ -68,7 +68,7 @@ Deno.serve(async (request) => {
       line_items: [{ price: requiredStripePriceId(action.env), quantity: 1 }],
       success_url: appUrl(boxPurchase ? '/app/boxes?purchase=success' : '/app/me/credits?checkout=success'),
       cancel_url: appUrl(boxPurchase ? '/app/boxes?purchase=canceled' : '/app/me/credits?checkout=canceled'),
-      allow_promotion_codes: true,
+      allow_promotion_codes: !boxPurchase,
       billing_address_collection: 'auto',
       metadata,
     })

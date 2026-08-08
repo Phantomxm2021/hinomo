@@ -43,6 +43,7 @@ testSource('unlimited boxes carries controlled metadata and returns to the boxes
   assertContains(source, 'supabase_user_id:', 'Checkout metadata must identify the authenticated user')
   assertContains(source, "/app/boxes?purchase=success", 'Successful box purchases must return to boxes')
   assertContains(source, "/app/boxes?purchase=canceled", 'Canceled box purchases must return to boxes')
+  assertContains(source, 'allow_promotion_codes: !boxPurchase', 'Box purchases must not permit 100% promotions')
 })
 
 testSource('owned unlimited-box entitlement is rejected before creating Checkout', async () => {
