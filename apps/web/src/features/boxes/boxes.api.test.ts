@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getBoxByPublicId, listBoxes, listBoxesForVenue } from './boxes.api'
+import { isBoxLimitReached } from './box-entitlements.api'
+import { createBox, getBoxByPublicId, listBoxes, listBoxesForVenue } from './boxes.api'
 
 const { mockEq, mockFrom, mockGetSession, mockOrder, mockRpc, mockSelect, mockSingle } = vi.hoisted(() => ({
   mockEq: vi.fn(),
@@ -144,6 +145,46 @@ describe('boxes api', () => {
 
     await expect(listBoxes()).rejects.toThrow('authentication is required')
     expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('creates a box through the entitlement RPC', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{ id: 'box-1', public_id: 'public-1', box_code: 'B001', name: '换季衣物' }],
+      error: null,
+    })
+
+    await expect(createBox({
+      space_id: 'space-1',
+      name: '换季衣物',
+      category: '衣物',
+      location: '衣柜顶层',
+      description: '冬季用品',
+      visibility: 'private',
+    })).resolves.toEqual({ id: 'box-1', public_id: 'public-1', box_code: 'B001', name: '换季衣物' })
+
+    expect(mockRpc).toHaveBeenCalledWith('create_box', {
+      p_space_id: 'space-1',
+      p_name: '换季衣物',
+      p_category: '衣物',
+      p_location: '衣柜顶层',
+      p_description: '冬季用品',
+      p_visibility: 'private',
+    })
+  })
+
+  it('propagates box creation RPC errors', async () => {
+    const error = new Error('box_limit_reached')
+    mockRpc.mockResolvedValue({ data: null, error })
+
+    await expect(createBox({
+      space_id: 'space-1', name: '换季衣物', category: null, location: null, description: null, visibility: 'private',
+    })).rejects.toBe(error)
+  })
+
+  it('recognizes only the stable box-limit error code', () => {
+    expect(isBoxLimitReached({ message: 'box_limit_reached' })).toBe(true)
+    expect(isBoxLimitReached({ message: 'database error', details: 'P0001: box_limit_reached' })).toBe(true)
+    expect(isBoxLimitReached(new Error('network interrupted'))).toBe(false)
   })
 
   it('loads public box details through the safe RPC', async () => {

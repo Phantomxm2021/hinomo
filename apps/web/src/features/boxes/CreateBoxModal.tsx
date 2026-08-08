@@ -9,11 +9,13 @@ export function CreateBoxModal({
   onClose,
   onCompleted,
   onBusyChange,
+  onLimitReached,
 }: {
   open: boolean
   onClose: () => void
   onCompleted: (box: CreatedBox) => void
   onBusyChange?: (busy: boolean) => void
+  onLimitReached?: () => void
 }) {
   const { t } = useI18n()
   const [busy, setBusy] = useState(false)
@@ -30,7 +32,7 @@ export function CreateBoxModal({
 
   return (
     <ResponsiveEditorDialog open={open} title={t('boxes.create')} busy={busy} onClose={onClose} maxWidthClassName="max-w-3xl">
-      <BoxForm presentation="modal" onBusyChange={changeBusy} onCompleted={onCompleted} />
+      <BoxForm presentation="modal" onBusyChange={changeBusy} onCompleted={onCompleted} onLimitReached={onLimitReached} />
     </ResponsiveEditorDialog>
   )
 }

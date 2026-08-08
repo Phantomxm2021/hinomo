@@ -19,6 +19,11 @@ function readPath(value: unknown, path: string): unknown {
 }
 
 describe('message catalog', () => {
+  test('uses neutral copy while a box purchase is still being confirmed', () => {
+    expect(messages['zh-CN'].boxes.purchaseDelayed).toBe('付款状态仍在确认中，请稍后再检查。')
+    expect(messages['en-US'].boxes.purchaseDelayed).toBe('Payment status is still being confirmed. Please check again later.')
+  })
+
   test('keeps Simplified Chinese and English leaf keys in sync', () => {
     const chineseKeys = leafPaths(messages['zh-CN']).sort()
     const englishKeys = leafPaths(messages['en-US']).sort()

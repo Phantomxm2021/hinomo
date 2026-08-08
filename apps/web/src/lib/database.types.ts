@@ -54,6 +54,45 @@ export type Database = {
           },
         ]
       }
+      account_entitlements: {
+        Row: {
+          created_at: string
+          entitlement_code: string
+          granted_at: string
+          id: string
+          revoked_at: string | null
+          source_provider: string
+          source_reference: string
+          status: Database['public']['Enums']['account_entitlement_status']
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          entitlement_code: string
+          granted_at?: string
+          id?: string
+          revoked_at?: string | null
+          source_provider: string
+          source_reference: string
+          status?: Database['public']['Enums']['account_entitlement_status']
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          entitlement_code?: string
+          granted_at?: string
+          id?: string
+          revoked_at?: string | null
+          source_provider?: string
+          source_reference?: string
+          status?: Database['public']['Enums']['account_entitlement_status']
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       boxes: {
         Row: {
           box_code: string
@@ -650,6 +689,22 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: unknown
       }
+      create_box: {
+        Args: {
+          p_category: string | null
+          p_description: string | null
+          p_location: string | null
+          p_name: string
+          p_space_id: string
+          p_visibility: Database['public']['Enums']['box_visibility']
+        }
+        Returns: {
+          box_code: string
+          id: string
+          name: string
+          public_id: string
+        }[]
+      }
       collect_media_cleanup_results: {
         Args: Record<PropertyKey, never>
         Returns: number
@@ -671,6 +726,15 @@ export type Database = {
         Returns: {
           credits_available: number
           credits_reserved: number
+        }[]
+      }
+      get_box_plan_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          box_count: number
+          can_create: boolean
+          free_limit: number
+          unlimited_boxes: boolean
         }[]
       }
       list_credit_transactions: {
@@ -731,6 +795,13 @@ export type Database = {
       request_packing_reanalysis: {
         Args: { p_session_id: string }
         Returns: Database['public']['Tables']['packing_sessions']['Row']
+      }
+      revoke_account_entitlement: {
+        Args: {
+          p_source_provider: string
+          p_source_reference: string
+        }
+        Returns: number
       }
       update_packing_detected_item: {
         Args: {
@@ -817,6 +888,20 @@ export type Database = {
           visibility: Database['public']['Enums']['box_visibility']
         }[]
       }
+      grant_account_entitlement: {
+        Args: {
+          p_entitlement_code: string
+          p_granted_at: string | null
+          p_source_provider: string
+          p_source_reference: string
+          p_user_id: string
+        }
+        Returns: {
+          created: boolean
+          duplicate_active: boolean
+          entitlement_id: string | null
+        }[]
+      }
       move_item: {
         Args: { p_item_id: string; p_note?: string | null; p_target_box_id: string }
         Returns: {
@@ -899,6 +984,7 @@ export type Database = {
       }
     }
     Enums: {
+      account_entitlement_status: 'active' | 'revoked'
       audit_action: 'create' | 'update' | 'delete'
       audit_entity: 'space' | 'box' | 'item'
       box_visibility: 'public' | 'private'

@@ -8,6 +8,9 @@
 
 1. 审核 `supabase/migrations/` 中尚未执行的 SQL，确认目标项目与环境正确。
 2. 按文件名时间顺序复制完整 SQL 到 Dashboard SQL Editor，并逐个执行；每个文件成功后再执行下一个。
+
+**箱子权益迁移例外（必须遵守）：** 通用的文件名顺序不适用于 `202608080002`～`202608080005` 这组需要兼容窗口的迁移。不要重命名或重编号迁移，也不要因为 003 的文件名较早就提前执行；箱子权益必须按本手册专用章节的 `002 → 004 → 005 → Edge Functions → 前端 → 等待旧缓存退出 → 003` 顺序发布。其他迁移仍按其各自依赖和文件名顺序执行。
+
 3. 按时间顺序执行当前尚未部署的迁移。本轮场地、公开访问与物品流转功能的顺序为：
    - `202608010001_public_box_rpc.sql`
    - `202608010002_venues.sql`
@@ -112,10 +115,139 @@ supabase functions deploy stripe-webhook --no-verify-jwt
 
 7. 在 Stripe Webhook Endpoint 指向 `https://<project-ref>.supabase.co/functions/v1/stripe-webhook`，订阅：
    - `checkout.session.completed`；
-   - `charge.refunded`；全额退款会幂等收回对应 credit 包中尚未使用的额度，已经消费的额度不生成负余额。
+   - `checkout.session.async_payment_succeeded`；
+   - `checkout.session.async_payment_failed`；
+   - `charge.refunded`；同一端点同时处理 AI Credits 与无限箱子权益的付款完成、延迟付款完成、延迟付款失败和退款事件。全额退款会幂等收回对应 credit 包中尚未使用的额度，已经消费的额度不生成负余额。
 8. 使用 Stripe 测试卡依次验证：一次性购买 20 credits → Webhook 发放 → 1 张照片预留 1 credit → 发布结算 → 全额退款收回剩余额度。
 9. 验证 Webhook 重放不会重复发放；并发完成两个会话不能透支；没有任何识别结果的终态失败会释放 reservation。
 10. 确认前端空余额入口显示 Apple 风格 credit Sheet，credit 页只进入一次性 Checkout，移动端安全区、焦点恢复和 Escape 行为正常后再灰度开启。
+
+## 无限箱子权益与 Stripe 发布顺序
+
+无限箱子权益必须按兼容顺序发布。`202608080002_box_entitlements.sql` 暂时保留旧前端直接创建箱子的能力，`202608080004_box_entitlements_service_read.sql` 为 Checkout 的有效权益检查授予 service role 只读权限，`202608080005_account_entitlement_revocation_tombstones.sql` 保证退款事件早于付款完成事件时不会稍后重新发放权益。`202608080003_box_entitlements_enforce.sql` 最后才撤销旧创建权限；在旧静态资源和缓存版本退出前，不得提前执行该收口迁移。
+
+1. 在 Stripe **Test Mode** 先创建 `HKD 38.00` 的 one-time Product/Price，不创建 recurring Price。复制 Test Mode 中以 `price_` 开头的 **Price ID**，不要使用以 `prod_` 开头的 Product ID，也不要使用 Live Mode Price ID。
+2. 在测试 Supabase 项目的 Function Secrets 配置同一 Stripe Test Mode 的值：
+   - `STRIPE_BOXES_UNLIMITED_PRICE_ID`：上一步创建的 `HKD 38.00` one-time Price；
+   - `PUBLIC_APP_ORIGIN`：当前测试前端站点的精确 Origin，不带路径，不接受客户端提供的 return URL；
+   - `STRIPE_WEBHOOK_SECRET`：Test Mode Webhook Endpoint 的签名 Secret；
+   - `STRIPE_SECRET_KEY`：对应 Test Mode 的 `sk_test_...` 服务端 Secret Key。
+3. 确认托管 Edge Function 运行时可用 `SUPABASE_SERVICE_ROLE_KEY`。上述 Stripe 配置、Price ID 和 service role key 都只能放在服务端配置中：不得写入 `apps/web/.env`，不得创建 `VITE_STRIPE_BOXES_UNLIMITED_PRICE_ID`、`VITE_STRIPE_SECRET_KEY`、`VITE_STRIPE_WEBHOOK_SECRET` 或 `VITE_SUPABASE_SERVICE_ROLE_KEY`，也不得以其他 `VITE_` 名称暴露这些值。
+4. 在测试 Supabase 项目执行加法迁移 `supabase/migrations/202608080002_box_entitlements.sql`，创建权益表以及摘要、原子创建、发放和撤销 RPC；此时不要执行 003。
+5. 接着执行 `supabase/migrations/202608080004_box_entitlements_service_read.sql`，让 `billing-checkout` 的 service role 能够只读检查 active 权益，同时保持客户端无权读取权益表、service role 无权直接写表。
+6. 再执行 `supabase/migrations/202608080005_account_entitlement_revocation_tombstones.sql`，为退款先到、付款完成后到的乱序事件建立终止记录。此时只运行 `018_box_entitlements.test.sql`，确认摘要、原子创建、发放、退款先到、重复事件、撤销和重新激活契约通过后再继续；不要提前运行 `007_api_privileges.test.sql`，因为它对箱子直接 `INSERT` 已被撤销的断言要到 003 执行后才成立。
+7. 类型检查并部署 `billing-checkout` 与 `stripe-webhook` Edge Functions：
+
+```bash
+npm run typecheck:billing
+supabase functions deploy billing-checkout --no-verify-jwt
+supabase functions deploy stripe-webhook --no-verify-jwt
+```
+
+8. 确认 Test Mode Webhook Endpoint 指向测试项目的 `https://<project-ref>.supabase.co/functions/v1/stripe-webhook`，且订阅 `checkout.session.completed`、`checkout.session.async_payment_succeeded`、`checkout.session.async_payment_failed` 与 `charge.refunded`；该端点由 AI Credits 与无限箱子权益共用。
+9. 发布包含 `create_box` RPC、箱子额度摘要、付费墙和支付确认流程的前端版本。
+10. 等待旧前端静态资源和缓存版本退出。至少确认当前 CDN/浏览器缓存窗口已经过去、监控中不再出现旧版本的箱子直接 `INSERT` 请求，并使用全新会话验证创建请求已统一调用 `create_box` RPC。记录确认时间和执行人。
+11. 最后执行权限收口迁移 `supabase/migrations/202608080003_box_entitlements_enforce.sql`，并重新运行 `007_api_privileges.test.sql`，确认 authenticated 客户端不能直接 `INSERT public.boxes`，但 `create_box`、读取、更新和删除仍可用。此步骤完成前，免费箱子上限不视为已正式强制生效。
+
+### Stripe test mode 验收清单
+
+- [ ] 免费账号创建并同时保有 3 个箱子后，再点击“创建箱子”会打开 HK$38 付费墙；已有三个箱子均可正常使用。
+- [ ] 从 Checkout 取消返回后，账号箱子数、权益状态和 AI Credits 余额均不变化，并且可以再次发起购买。
+- [ ] 使用 Stripe 测试卡完成付款后，`checkout.session.completed` 发放一条 active 的 `boxes_unlimited_lifetime` 权益；前端确认到账后允许创建第 4 个箱子。
+- [ ] 人为延迟 Webhook 时，success return 只显示“正在确认”，不会提前声称已解锁，也不会展示可重复购买按钮；Webhook 到达后自动恢复创建流程。
+- [ ] 模拟延迟付款失败时，`checkout.session.async_payment_failed` 以 `async_payment_failed` 结果记录为已完成事件，不发放箱子权益或 AI Credits；支持人员使用返回 URL 的 `session_id`（如有）和 Stripe Event 中的 Checkout Session ID 定位订单。
+- [ ] 重放同一个 Stripe event 或 Checkout Session 不会重复发放权益；事件幂等完成且账号最多只有一条同类 active 权益。
+- [ ] 对无限箱子订单执行全额退款后，权益变为 revoked，免费上限重新生效；退款前已有的超额箱子仍可查看、编辑、删除和管理物品，不被删除或锁定。
+- [ ] 退款后通过新的 Checkout Session 重新购买，会新增可审计的 entitlement 记录并恢复一条 active 权益，历史 revoked 记录保留。
+- [ ] 记录购买前 AI Credits 余额；完成无限箱子购买、Webhook 重放、全额退款和重新购买后余额都保持不变。另行购买 Credits 的既有发放与退款流程仍按原规则工作。
+
+验收完成后记录 Stripe mode、测试账号、Checkout Session/Event ID、各步骤时间和结果；不要记录卡号、支付方式详情、Secret 或 service role key。
+
+### Live Mode 上线切换
+
+只有上面的 Stripe Test Mode 验收全部通过后，才配置生产环境。Test Mode 与 Live Mode 的 Product、Price、Secret Key、Webhook Endpoint 和 Webhook Secret 相互独立，不能跨模式复用。
+
+1. 切换到 Stripe **Live Mode**，另行创建 `HKD 38.00` 的 one-time Product/Price，不创建 recurring Price。记录 Live Mode 中以 `price_` 开头的 Price ID，并由另一位发布人员复核金额、币种和 one-time 类型。
+2. 在生产 Supabase Function Secrets 写入同一 Live Mode 的配置：
+   - `STRIPE_BOXES_UNLIMITED_PRICE_ID`：Live Mode 的 `HKD 38.00` one-time Price ID；
+   - `STRIPE_SECRET_KEY`：对应 Live Mode 的 `sk_live_...` 服务端 Secret Key；
+   - `PUBLIC_APP_ORIGIN`：生产前端站点的精确 Origin；
+   - `STRIPE_WEBHOOK_SECRET`：下一步生产 Live Mode Webhook Endpoint 独有的签名 Secret。
+3. 在 Stripe Live Mode 新建指向生产 Supabase 项目 `stripe-webhook` 的 Endpoint，订阅 `checkout.session.completed`、`checkout.session.async_payment_succeeded`、`checkout.session.async_payment_failed` 与 `charge.refunded`；该端点由 AI Credits 与无限箱子权益共用。将该 Endpoint 的 `whsec_...` 写入生产 `STRIPE_WEBHOOK_SECRET`，不得复制 Test Mode 的 Webhook Secret。
+4. 在生产项目按同一兼容顺序发布：002 → 004 → 005 → Edge Functions → 前端 → 等待旧缓存退出 → 003。发布前再次确认 Price ID、Secret Key、Webhook Secret 属于 Live Mode 且彼此匹配；发现任何 Test Mode 值时立即停止上线。
+5. 使用受控生产账号进行不暴露支付资料的最小冒烟验证，确认 Checkout 显示 HKD 38.00、返回 Origin 正确、Webhook 发放单条 active 权益且 AI Credits 不变化；按运营流程处置或退款该验证订单。
+
+## 可观测性边界、Webhook 监控与回滚
+
+### 产品漏斗埋点边界
+
+当前仓库没有接入 PostHog、Mixpanel、Segment 或其他 analytics provider，也没有发出以下产品事件：`box_limit_paywall_viewed`、`box_unlimited_checkout_started`、`box_unlimited_purchase_confirmed`、`box_unlimited_purchase_confirmation_delayed`、`box_created_after_unlock`。发布记录、仪表盘和对外材料不得声称这些漏斗事件已采集或转化率可用；本期只能用 Stripe Webhook 收件箱、Stripe Dashboard 和人工验收记录做支付运营观测。以后接入 analytics provider 需单独设计、隐私评估和发布。
+
+### Stripe Webhook 查询与告警阈值
+
+以下查询只允许由受控 Supabase SQL Editor／service role 执行；`stripe_webhook_events` 不向客户端开放。查询结果只记录 `evt_...`、事件类型、错误码和时间，不复制卡号、支付方式或家庭内容。
+
+```sql
+-- 失败事件：付款发放、退款撤销和 Credits 处理都可能受影响
+select stripe_event_id, event_type, last_error_code, created_at, processed_at
+from public.stripe_webhook_events
+where status = 'failed'
+  and created_at >= pg_catalog.now() - interval '24 hours'
+order by created_at desc;
+
+-- 超过 10 分钟仍未完成的事件：可能卡在 processing 或函数没有回写
+select stripe_event_id, event_type, created_at,
+       floor(extract(epoch from (pg_catalog.now() - created_at)) / 60)::integer as age_minutes
+from public.stripe_webhook_events
+where status = 'processing'
+  and created_at < pg_catalog.now() - interval '10 minutes'
+order by created_at asc;
+
+-- 已完成但需要人工跟进的业务结果
+select stripe_event_id, event_type, last_error_code, created_at, processed_at
+from public.stripe_webhook_events
+where status = 'completed'
+  and last_error_code in (
+    'duplicate_paid_entitlement',
+    'partial_refund_manual_review',
+    'refunded_paid_entitlement',
+    'async_payment_failed'
+  )
+  and processed_at >= pg_catalog.now() - interval '24 hours'
+order by processed_at desc;
+```
+
+生产阈值：任意付款或退款事件进入 `failed` 即创建高优先级工单；超过 10 分钟的 `processing` 任意一条立即告警；`duplicate_paid_entitlement`、`partial_refund_manual_review`、`refunded_paid_entitlement` 或 `async_payment_failed` 任意一条都必须在 1 小时内人工确认。15 分钟内出现 5 条以上任意 Webhook 失败时升级为发布事故，暂停继续灰度；同一事件修复后才允许重放。查询中的 `evt_...` 用于在 Stripe Dashboard 找到对应 Checkout Session／Charge 和 metadata。
+
+### 重复付款与退款人工处置
+
+1. 先从查询记录取得 `stripe_event_id`，在 Stripe Dashboard 打开 Event 并核对 Checkout Session、Charge、账号 metadata 和付款状态；不要只凭用户截图或金额判断。
+2. `duplicate_paid_entitlement`：确定一笔是 canonical active 权益后保留该来源对应的权益；在 Stripe 对另一笔已付款的 Checkout Session 执行退款。不要撤销 canonical 来源，也不要直接写 `account_entitlements`。若确实需要撤销某个来源，只能由 service role 调用：
+
+   ```sql
+   select public.revoke_account_entitlement(
+     'stripe', 'checkout:cs_...'
+   ) as revoked_count;
+   ```
+
+   对重复来源调用该 RPC 可能只写入退款 tombstone，不应影响 canonical active 权益；随后确认已有箱子仍可查看、编辑、删除和管理物品。
+3. `async_payment_failed`：该事件只记录失败结果，不授予箱子权益或 Credits。支持人员使用返回 URL 的 `session_id`（若存在）或 Stripe Event 查找 Checkout Session，确认没有成功付款；若用户需要重新购买，使用新的 Checkout Session，不重放失败事件。
+4. `partial_refund_manual_review`：部分退款不会自动撤销箱子权益。核对退款金额、Session/Event ID 和用户意图；若决定全额退款，先在 Stripe 完成全额退款并等待／重放 Webhook。只有经授权的全额撤销才调用上面的 `revoke_account_entitlement` RPC，记录 `revoked_count`、Session ID 和 Event ID。
+5. `refunded_paid_entitlement` 或全额退款事件失败／超时：核对该 Checkout Session 确已全额退款，然后通过同一 RPC 确保来源被撤销或写入 tombstone；修复后重放原 Event。撤销只影响未来超出免费上限的新增权限，绝不删除、锁定或降级已有箱子。
+6. 所有人工处理必须保留 Stripe Event/Session ID、操作人、退款结果和 RPC 结果。禁止直接 `update`／`delete` 权益表、删除 Webhook 历史或删除任何已有箱子。
+
+### 003 收口后的回滚（只前进迁移）
+
+迁移回滚采用 forward-only 原则：不要删除或反向执行 002、004、005、003，也不要丢弃 `account_entitlements`、退款 tombstone、Stripe Webhook 历史或已有箱子。
+
+如果 003 已执行而前端必须回退，不能直接部署仍依赖旧版直接 `INSERT` 的客户端并让其失败。先暂停流量，提交并审核一份临时 forward migration，恢复兼容窗口中 authenticated 所需的列级创建权限（仅恢复原 002 的授权范围）：
+
+```sql
+grant insert (owner_id, space_id, name, category, location, description, visibility)
+on table public.boxes to authenticated;
+```
+
+该授权只用于短时救援窗口，期间记录绕过 `create_box` 的风险和所有新建箱子；不得恢复无关角色权限。修复前端并确认新缓存已退出后，再提交另一份 forward migration 重新撤销上述列级权限，运行 `007_api_privileges.test.sql`，并确认所有权益、tombstone、Webhook 历史和箱子数据仍然存在。任何回滚方案都不得通过删除数据或 `DROP` 表／函数完成。
 
 ## Cloudflare R2
 

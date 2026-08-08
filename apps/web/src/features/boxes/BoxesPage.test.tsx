@@ -1,17 +1,28 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useEffect, type PropsWithChildren } from 'react'
+import { StrictMode, useEffect, type PropsWithChildren } from 'react'
 import { createMemoryRouter, RouterProvider, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { BoxesPage } from './BoxesPage'
 import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 
-const { mockDeleteBox, mockListBoxes, mockListVenues, mockModalCleanupSawStatus } = vi.hoisted(() => ({
+const {
+  mockDeleteBox,
+  mockGetBoxPlanSummary,
+  mockListBoxes,
+  mockListVenues,
+  mockModalCleanupSawStatus,
+  mockNotify,
+  mockStartBoxUnlimitedCheckout,
+} = vi.hoisted(() => ({
   mockDeleteBox: vi.fn(),
+  mockGetBoxPlanSummary: vi.fn(),
   mockListBoxes: vi.fn(),
   mockListVenues: vi.fn(),
   mockModalCleanupSawStatus: vi.fn(),
+  mockNotify: vi.fn(),
+  mockStartBoxUnlimitedCheckout: vi.fn(),
 }))
 
 const catalogueSpies = vi.hoisted(() => ({
@@ -26,6 +37,20 @@ vi.mock('./boxes.api', () => ({
 }))
 
 vi.mock('../venues/venues.api', () => ({ listVenues: mockListVenues }))
+
+vi.mock('./box-entitlements.api', () => ({
+  getBoxPlanSummary: mockGetBoxPlanSummary,
+  startBoxUnlimitedCheckout: mockStartBoxUnlimitedCheckout,
+}))
+
+vi.mock('../../components/mobile-feedback', () => ({
+  useMobileFeedback: () => ({
+    notify: mockNotify,
+    showAlert: vi.fn(),
+    showActionSheet: vi.fn(),
+    dismiss: vi.fn(),
+  }),
+}))
 
 vi.mock('./box-catalogue', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./box-catalogue')>()
@@ -43,11 +68,12 @@ vi.mock('../media/AuthorizedImage', () => ({
 
 vi.mock('./CreateBoxModal', async () => {
   const { useEffect } = await import('react')
-  function MockCreateBoxModal({ open, onClose, onCompleted, onBusyChange }: {
+  function MockCreateBoxModal({ open, onClose, onCompleted, onBusyChange, onLimitReached }: {
     open: boolean
     onClose: () => void
     onCompleted: (box: unknown) => void
     onBusyChange?: (busy: boolean) => void
+    onLimitReached?: () => void
   }) {
     useEffect(() => {
       if (!open) return
@@ -67,6 +93,7 @@ vi.mock('./CreateBoxModal', async () => {
         <button type="button" onClick={() => onCompleted({ id: 'box-new', public_id: 'public-new', name: '待补封面' })}>暂不上传封面</button>
         <button type="button" onClick={() => onBusyChange?.(true)}>开始忙碌</button>
         <button type="button" onClick={() => onBusyChange?.(false)}>结束忙碌</button>
+        <button type="button" onClick={() => onLimitReached?.()}>模拟额度竞态</button>
       </div>
     ) : null
   }
@@ -132,7 +159,7 @@ function EnglishProvider({ children }: PropsWithChildren) {
   return <>{children}</>
 }
 
-function renderBoxes(initialEntry = '/app/boxes', locale: 'zh-CN' | 'en-US' = 'zh-CN') {
+function renderBoxes(initialEntry = '/app/boxes', locale: 'zh-CN' | 'en-US' = 'zh-CN', strict = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -151,10 +178,13 @@ function renderBoxes(initialEntry = '/app/boxes', locale: 'zh-CN' | 'en-US' = 'z
       <RouterProvider router={router} />
     </QueryClientProvider>
   )
+  const localizedApp = locale === 'en-US'
+    ? <I18nProvider><EnglishProvider>{app}</EnglishProvider></I18nProvider>
+    : app
   return {
     client,
     router,
-    ...render(locale === 'en-US' ? <I18nProvider><EnglishProvider>{app}</EnglishProvider></I18nProvider> : app),
+    ...render(strict ? <StrictMode>{localizedApp}</StrictMode> : localizedApp),
   }
 }
 
@@ -182,8 +212,17 @@ beforeEach(() => {
     },
   })
   mockDeleteBox.mockReset()
+  mockGetBoxPlanSummary.mockReset()
   mockListBoxes.mockReset()
   mockListVenues.mockReset()
+  mockNotify.mockReset()
+  mockStartBoxUnlimitedCheckout.mockReset()
+  mockGetBoxPlanSummary.mockResolvedValue({
+    box_count: 2,
+    free_limit: 3,
+    unlimited_boxes: false,
+    can_create: true,
+  })
   mockListVenues.mockResolvedValue([
     { id: 'venue-home', name: '家里', description: null, is_default: true, space_count: 2 },
   ])
@@ -224,7 +263,7 @@ test.each(['recent', 'items', 'unsupported'])('removes legacy sort=%s while pres
   expect(screen.getByTestId('location')).not.toHaveTextContent('sort=')
   expect(screen.getByTestId('navigation-type')).toHaveTextContent('REPLACE')
 
-  await user.click(screen.getByRole('button', { name: '卧室 1' }))
+  await user.click(await screen.findByRole('button', { name: '卧室 1' }))
   expect(screen.getByTestId('location')).toHaveTextContent('space=space-1')
   expect(screen.getByTestId('location')).toHaveTextContent('panel=keep')
   expect(screen.getByTestId('location')).not.toHaveTextContent('sort=')
@@ -261,6 +300,88 @@ test('shows the global catalogue summary after loading', async () => {
   const title = screen.getByRole('heading', { name: '全部箱子', level: 1 })
   expect(within(title.parentElement!).getByText('家里')).toBeInTheDocument()
   expect(screen.getByText('收纳目录')).toBeInTheDocument()
+})
+
+test.each([
+  [
+    { box_count: 2, free_limit: 3, unlimited_boxes: false, can_create: true },
+    '2 / 3 个免费箱子',
+  ],
+  [
+    { box_count: 3, free_limit: 3, unlimited_boxes: false, can_create: false },
+    '3 / 3 · 已达免费上限',
+  ],
+  [
+    { box_count: 5, free_limit: 3, unlimited_boxes: false, can_create: false },
+    '已有 5 个箱子 · 免费上限 3 个',
+  ],
+  [
+    { box_count: 5, free_limit: 3, unlimited_boxes: true, can_create: true },
+    '无限箱子 · 已永久解锁',
+  ],
+])('shows the account box-plan status %#', async (plan, expectedStatus) => {
+  mockGetBoxPlanSummary.mockResolvedValue(plan)
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes()
+
+  expect(await screen.findByText(expectedStatus)).toBeInTheDocument()
+})
+
+test('pre-blocks a known full free account without changing the URL', async () => {
+  const user = userEvent.setup()
+  mockGetBoxPlanSummary.mockResolvedValue({
+    box_count: 3, free_limit: 3, unlimited_boxes: false, can_create: false,
+  })
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes('/app/boxes?space=space-1')
+
+  await screen.findByText('3 / 3 · 已达免费上限')
+  await user.click(screen.getByRole('button', { name: '创建箱子' }))
+
+  expect(screen.getByRole('dialog', { name: '免费版最多可保有 3 个箱子' })).toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: '创建箱子' })).not.toBeInTheDocument()
+  expect(screen.getByTestId('location')).toHaveTextContent('?space=space-1')
+})
+
+test('opens creation directly for an unlimited account', async () => {
+  const user = userEvent.setup()
+  mockGetBoxPlanSummary.mockResolvedValue({
+    box_count: 5, free_limit: 3, unlimited_boxes: true, can_create: true,
+  })
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes()
+
+  await screen.findByText('无限箱子 · 已永久解锁')
+  await user.click(screen.getByRole('button', { name: '创建箱子' }))
+
+  expect(screen.getByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: '免费版最多可保有 3 个箱子' })).not.toBeInTheDocument()
+})
+
+test('allows creation while the plan summary is pending and relies on the create RPC', async () => {
+  const user = userEvent.setup()
+  mockGetBoxPlanSummary.mockReturnValue(new Promise(() => undefined))
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes()
+
+  await screen.findByRole('link', { name: '打开冬季衣物' })
+  await user.click(screen.getByRole('button', { name: '创建箱子' }))
+
+  expect(screen.getByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
+})
+
+test('layers the paywall over a preserved create form after a stale-summary limit rejection', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes()
+
+  await screen.findByText('2 / 3 个免费箱子')
+  await user.click(screen.getByRole('button', { name: '创建箱子' }))
+  await user.click(screen.getByRole('button', { name: '模拟额度竞态' }))
+
+  expect(screen.getByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
+  expect(screen.getByRole('dialog', { name: '免费版最多可保有 3 个箱子' })).toBeInTheDocument()
+  expect(screen.getByTestId('location')).toHaveTextContent('?create=1')
 })
 
 test('shows only boxes from the venue restored from the dashboard selection', async () => {
@@ -528,6 +649,7 @@ test('closes, refreshes, announces success, renders the new card, and restores f
   expect(document.querySelector('[data-app-shell]')).not.toHaveAttribute('aria-hidden')
   await waitFor(() => expect(createButton).toHaveFocus())
   expect(mockListBoxes).toHaveBeenCalledTimes(2)
+  await waitFor(() => expect(mockGetBoxPlanSummary).toHaveBeenCalledTimes(2))
 })
 
 test('keeps the creation next step visible long enough to act on it', async () => {
@@ -609,6 +731,127 @@ test('blocks browser back while creation is busy', async () => {
   expect(screen.queryByRole('dialog', { name: '创建箱子' })).not.toBeInTheDocument()
 })
 
+test('cleans a canceled purchase return and announces the cancellation', async () => {
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes('/app/boxes?purchase=canceled&session_id=cs_cancel_123&space=space-1')
+
+  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?space=space-1'))
+  expect(screen.getByTestId('location')).not.toHaveTextContent('purchase=')
+  expect(screen.getByTestId('location')).not.toHaveTextContent('session_id=')
+  expect(mockNotify).toHaveBeenCalledWith('已取消购买无限箱子')
+})
+
+test('opens creation after a successful purchase return confirms the entitlement', async () => {
+  mockGetBoxPlanSummary.mockResolvedValue({
+    box_count: 3, free_limit: 3, unlimited_boxes: true, can_create: true,
+  })
+  mockListBoxes.mockResolvedValue(boxes)
+  const { client } = renderBoxes('/app/boxes?purchase=success&session_id=cs_success_123&space=space-1')
+  const invalidateQueries = vi.spyOn(client, 'invalidateQueries')
+
+  expect(await screen.findByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
+  expect(screen.getByTestId('location')).toHaveTextContent('space=space-1')
+  expect(screen.getByTestId('location')).toHaveTextContent('create=1')
+  expect(screen.getByTestId('location')).not.toHaveTextContent('purchase=')
+  expect(screen.getByTestId('location')).not.toHaveTextContent('session_id=')
+  expect(mockNotify).toHaveBeenCalledWith('无限箱子已永久解锁')
+  expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['boxes'] })
+  expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['box-plan'] })
+})
+
+test('restarts purchase confirmation after the StrictMode effect cleanup', async () => {
+  const freePlan = { box_count: 3, free_limit: 3, unlimited_boxes: false, can_create: false }
+  const unlimitedPlan = { ...freePlan, unlimited_boxes: true, can_create: true }
+  const initialPlan = deferred<typeof freePlan>()
+  mockGetBoxPlanSummary.mockReturnValueOnce(initialPlan.promise).mockResolvedValue(unlimitedPlan)
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes('/app/boxes?purchase=success', 'zh-CN', true)
+
+  expect(mockGetBoxPlanSummary).toHaveBeenCalledTimes(1)
+  vi.useFakeTimers()
+  await act(async () => { initialPlan.resolve(freePlan) })
+  await act(async () => { await vi.advanceTimersByTimeAsync(1_500) })
+
+  expect(mockGetBoxPlanSummary.mock.calls.length).toBeGreaterThanOrEqual(2)
+  expect(screen.getByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
+})
+
+test('bounds purchase confirmation to eight refetches and offers a manual recheck', async () => {
+  const freePlan = { box_count: 3, free_limit: 3, unlimited_boxes: false, can_create: false }
+  const initialPlan = deferred<typeof freePlan>()
+  mockGetBoxPlanSummary
+    .mockReturnValueOnce(initialPlan.promise)
+    .mockResolvedValue(freePlan)
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes('/app/boxes?purchase=success&session_id=cs_pending_123')
+
+  expect(mockGetBoxPlanSummary).toHaveBeenCalledTimes(1)
+  vi.useFakeTimers()
+  await act(async () => { initialPlan.resolve(freePlan) })
+  expect(screen.getByRole('status', { name: '正在确认付款，请稍候' })).toHaveTextContent('正在确认付款，请稍候')
+  expect(screen.getByRole('status', { name: '正在确认付款，请稍候' })).not.toHaveTextContent('支付已完成')
+  for (let attempt = 1; attempt < 8; attempt += 1) {
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_500) })
+  }
+
+  expect(mockGetBoxPlanSummary).toHaveBeenCalledTimes(8)
+  expect(screen.getByRole('status', { name: '付款正在确认' })).toHaveTextContent('付款正在确认')
+  expect(screen.getByRole('status', { name: '付款正在确认' })).toHaveTextContent('付款状态仍在确认中，请稍后再检查。')
+  expect(screen.getByRole('status', { name: '付款正在确认' })).toHaveTextContent('Checkout Session ID：cs_pending_123')
+  const createButton = screen.getByRole('button', { name: '创建箱子' })
+  expect(createButton).toBeDisabled()
+  fireEvent.click(createButton)
+  expect(screen.queryByRole('dialog', { name: '免费版最多可保有 3 个箱子' })).not.toBeInTheDocument()
+  const recheck = screen.getByRole('button', { name: '重新检查' })
+  fireEvent.click(recheck)
+  await act(async () => { await Promise.resolve() })
+  expect(mockGetBoxPlanSummary).toHaveBeenCalledTimes(9)
+  expect(screen.getByTestId('location')).toHaveTextContent('purchase=success')
+  expect(screen.queryByRole('dialog', { name: '免费版最多可保有 3 个箱子' })).not.toBeInTheDocument()
+})
+
+test('keeps checkout busy until navigation and shows a retryable billing error without closing the form', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  mockStartBoxUnlimitedCheckout
+    .mockRejectedValueOnce(new Error('billing_unavailable'))
+    .mockReturnValueOnce(new Promise(() => undefined))
+  renderBoxes('/app/boxes?create=1')
+
+  await user.click(await screen.findByRole('button', { name: '模拟额度竞态' }))
+  await user.click(screen.getByRole('button', { name: 'HK$38 永久解锁' }))
+
+  const error = await screen.findByRole('alert')
+  expect(error).toHaveTextContent('暂时无法连接支付服务，请稍后重试')
+  expect(mockNotify).not.toHaveBeenCalled()
+  expect(screen.getByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
+  expect(screen.getByRole('dialog', { name: '免费版最多可保有 3 个箱子' })).toBeInTheDocument()
+
+  await user.click(within(error).getByRole('button', { name: '重试' }))
+  expect(await screen.findByRole('button', { name: '购买中…' })).toBeDisabled()
+  expect(mockStartBoxUnlimitedCheckout).toHaveBeenCalledTimes(2)
+  expect(screen.getByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
+})
+
+test('refreshes an already-owned entitlement and resumes creation instead of showing a billing error', async () => {
+  const user = userEvent.setup()
+  const fullPlan = { box_count: 3, free_limit: 3, unlimited_boxes: false, can_create: false }
+  const unlimitedPlan = { box_count: 3, free_limit: 3, unlimited_boxes: true, can_create: true }
+  mockGetBoxPlanSummary.mockResolvedValueOnce(fullPlan).mockResolvedValue(unlimitedPlan)
+  mockStartBoxUnlimitedCheckout.mockRejectedValue(new Error('entitlement_already_owned'))
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes()
+
+  await screen.findByText('3 / 3 · 已达免费上限')
+  await user.click(screen.getByRole('button', { name: '创建箱子' }))
+  await user.click(screen.getByRole('button', { name: 'HK$38 永久解锁' }))
+
+  expect(await screen.findByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: '免费版最多可保有 3 个箱子' })).not.toBeInTheDocument()
+  expect(screen.queryByText('暂时无法连接支付服务，请稍后重试')).not.toBeInTheDocument()
+  expect(mockNotify).toHaveBeenCalledWith('你已拥有无限箱子权益')
+})
+
 test('removes a deleted box and closes the dialog before catalogue revalidation finishes', async () => {
   const user = userEvent.setup()
   let resolveRefetch!: (value: typeof boxes) => void
@@ -633,6 +876,7 @@ test('removes a deleted box and closes the dialog before catalogue revalidation 
   expect(client.getQueryData(['boxes', 'venue-home'])).toEqual([boxes[1]])
   await waitFor(() => expect(stableCreateAction).toHaveFocus())
   expect(mockListBoxes).toHaveBeenCalledTimes(2)
+  await waitFor(() => expect(mockGetBoxPlanSummary).toHaveBeenCalledTimes(2))
 
   await act(async () => { resolveRefetch([boxes[1]]) })
 })

@@ -11,6 +11,7 @@ import { isUploadPending, uploadStageLabel } from '../media/media-ui'
 import { useMediaUpload } from '../media/useMediaUpload'
 import { listSpaces } from '../spaces/spaces.api'
 import { createBoxSchema, type BoxFormValues } from './box.schema'
+import { isBoxLimitReached } from './box-entitlements.api'
 import { createBox, getBox, type CreatedBox, updateBox } from './boxes.api'
 
 export type BoxFormProps = {
@@ -18,10 +19,11 @@ export type BoxFormProps = {
   presentation: 'page' | 'modal'
   onBusyChange?: (busy: boolean) => void
   onCompleted?: (box: CreatedBox) => void
+  onLimitReached?: () => void
   onSaved?: () => void
 }
 
-export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onSaved }: BoxFormProps) {
+export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimitReached, onSaved }: BoxFormProps) {
   const { locale, t } = useI18n()
   const editing = Boolean(boxId)
   const feedback = useMobileFeedback()
@@ -186,7 +188,11 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onSave
       setPendingBox(box)
       await uploadCover(box)
       onCompleted?.(box)
-    } catch {
+    } catch (error) {
+      if (!editing && isBoxLimitReached(error)) {
+        onLimitReached?.()
+        return
+      }
       if (recordSaved) setMediaError(true)
     }
   })
@@ -291,7 +297,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onSave
           </select>
         </div>
 
-        {createMutation.isError || updateMutation.isError ? (
+        {(createMutation.isError && !isBoxLimitReached(createMutation.error)) || updateMutation.isError ? (
           <ResponsiveOperationError message={t('boxes.saveError')} />
         ) : null}
         {saved ? <p className="hidden lg:block" role="status">{t('boxes.saved')}</p> : null}
