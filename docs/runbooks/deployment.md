@@ -119,17 +119,19 @@ supabase functions deploy stripe-webhook --no-verify-jwt
 
 ## 无限箱子权益与 Stripe 发布顺序
 
-无限箱子权益必须按兼容顺序发布。`202608080002_box_entitlements.sql` 暂时保留旧前端直接创建箱子的能力，`202608080003_box_entitlements_enforce.sql` 才会撤销该权限；在旧静态资源和缓存版本退出前，不得提前执行收口迁移。
+无限箱子权益必须按兼容顺序发布。`202608080002_box_entitlements.sql` 暂时保留旧前端直接创建箱子的能力，`202608080004_box_entitlements_service_read.sql` 为 Checkout 的有效权益检查授予 service role 只读权限，`202608080005_account_entitlement_revocation_tombstones.sql` 保证退款事件早于付款完成事件时不会稍后重新发放权益。`202608080003_box_entitlements_enforce.sql` 最后才撤销旧创建权限；在旧静态资源和缓存版本退出前，不得提前执行该收口迁移。
 
-1. 在 Stripe **test mode** 先创建 `HKD 38.00` 的 one-time Product/Price，不创建 recurring Price。复制以 `price_` 开头的 **Price ID**，不要使用以 `prod_` 开头的 Product ID。
-2. 在 Supabase Function Secrets 配置：
+1. 在 Stripe **Test Mode** 先创建 `HKD 38.00` 的 one-time Product/Price，不创建 recurring Price。复制 Test Mode 中以 `price_` 开头的 **Price ID**，不要使用以 `prod_` 开头的 Product ID，也不要使用 Live Mode Price ID。
+2. 在测试 Supabase 项目的 Function Secrets 配置同一 Stripe Test Mode 的值：
    - `STRIPE_BOXES_UNLIMITED_PRICE_ID`：上一步创建的 `HKD 38.00` one-time Price；
-   - `PUBLIC_APP_ORIGIN`：前端生产站点的精确 Origin，不带路径，不接受客户端提供的 return URL；
-   - `STRIPE_WEBHOOK_SECRET`：当前环境 Stripe Webhook Endpoint 的签名 Secret；
-   - `STRIPE_SECRET_KEY`：与当前 Stripe 模式匹配的服务端 Secret Key。
+   - `PUBLIC_APP_ORIGIN`：当前测试前端站点的精确 Origin，不带路径，不接受客户端提供的 return URL；
+   - `STRIPE_WEBHOOK_SECRET`：Test Mode Webhook Endpoint 的签名 Secret；
+   - `STRIPE_SECRET_KEY`：对应 Test Mode 的 `sk_test_...` 服务端 Secret Key。
 3. 确认托管 Edge Function 运行时可用 `SUPABASE_SERVICE_ROLE_KEY`。上述 Stripe 配置、Price ID 和 service role key 都只能放在服务端配置中：不得写入 `apps/web/.env`，不得创建 `VITE_STRIPE_BOXES_UNLIMITED_PRICE_ID`、`VITE_STRIPE_SECRET_KEY`、`VITE_STRIPE_WEBHOOK_SECRET` 或 `VITE_SUPABASE_SERVICE_ROLE_KEY`，也不得以其他 `VITE_` 名称暴露这些值。
-4. 在目标 Supabase 项目执行加法迁移 `supabase/migrations/202608080002_box_entitlements.sql`。运行 `018_box_entitlements.test.sql`，确认摘要、原子创建、发放、撤销和重新激活契约通过后再继续。
-5. 类型检查并部署 `billing-checkout` 与 `stripe-webhook` Edge Functions：
+4. 在测试 Supabase 项目执行加法迁移 `supabase/migrations/202608080002_box_entitlements.sql`，创建权益表以及摘要、原子创建、发放和撤销 RPC；此时不要执行 003。
+5. 接着执行 `supabase/migrations/202608080004_box_entitlements_service_read.sql`，让 `billing-checkout` 的 service role 能够只读检查 active 权益，同时保持客户端无权读取权益表、service role 无权直接写表。
+6. 再执行 `supabase/migrations/202608080005_account_entitlement_revocation_tombstones.sql`，为退款先到、付款完成后到的乱序事件建立终止记录。运行 `007_api_privileges.test.sql` 与 `018_box_entitlements.test.sql`，确认权限、摘要、原子创建、发放、退款先到、重复事件、撤销和重新激活契约通过后再继续。
+7. 类型检查并部署 `billing-checkout` 与 `stripe-webhook` Edge Functions：
 
 ```bash
 npm run typecheck:billing
@@ -137,10 +139,10 @@ supabase functions deploy billing-checkout --no-verify-jwt
 supabase functions deploy stripe-webhook --no-verify-jwt
 ```
 
-6. 确认 Stripe Webhook Endpoint 指向 `https://<project-ref>.supabase.co/functions/v1/stripe-webhook`，且至少订阅 `checkout.session.completed` 与 `charge.refunded`。
-7. 发布包含 `create_box` RPC、箱子额度摘要、付费墙和支付确认流程的前端版本。
-8. 等待旧前端静态资源和缓存版本退出。至少确认当前 CDN/浏览器缓存窗口已经过去、监控中不再出现旧版本的箱子直接 `INSERT` 请求，并使用全新会话验证创建请求已统一调用 `create_box` RPC。记录确认时间和执行人。
-9. 最后执行权限收口迁移 `supabase/migrations/202608080003_box_entitlements_enforce.sql`，并运行 `007_api_privileges.test.sql`，确认 authenticated 客户端不能直接 `INSERT public.boxes`，但 `create_box`、读取、更新和删除仍可用。此步骤完成前，免费箱子上限不视为已正式强制生效。
+8. 确认 Test Mode Webhook Endpoint 指向测试项目的 `https://<project-ref>.supabase.co/functions/v1/stripe-webhook`，且至少订阅 `checkout.session.completed` 与 `charge.refunded`。
+9. 发布包含 `create_box` RPC、箱子额度摘要、付费墙和支付确认流程的前端版本。
+10. 等待旧前端静态资源和缓存版本退出。至少确认当前 CDN/浏览器缓存窗口已经过去、监控中不再出现旧版本的箱子直接 `INSERT` 请求，并使用全新会话验证创建请求已统一调用 `create_box` RPC。记录确认时间和执行人。
+11. 最后执行权限收口迁移 `supabase/migrations/202608080003_box_entitlements_enforce.sql`，并重新运行 `007_api_privileges.test.sql`，确认 authenticated 客户端不能直接 `INSERT public.boxes`，但 `create_box`、读取、更新和删除仍可用。此步骤完成前，免费箱子上限不视为已正式强制生效。
 
 ### Stripe test mode 验收清单
 
@@ -154,6 +156,20 @@ supabase functions deploy stripe-webhook --no-verify-jwt
 - [ ] 记录购买前 AI Credits 余额；完成无限箱子购买、Webhook 重放、全额退款和重新购买后余额都保持不变。另行购买 Credits 的既有发放与退款流程仍按原规则工作。
 
 验收完成后记录 Stripe mode、测试账号、Checkout Session/Event ID、各步骤时间和结果；不要记录卡号、支付方式详情、Secret 或 service role key。
+
+### Live Mode 上线切换
+
+只有上面的 Stripe Test Mode 验收全部通过后，才配置生产环境。Test Mode 与 Live Mode 的 Product、Price、Secret Key、Webhook Endpoint 和 Webhook Secret 相互独立，不能跨模式复用。
+
+1. 切换到 Stripe **Live Mode**，另行创建 `HKD 38.00` 的 one-time Product/Price，不创建 recurring Price。记录 Live Mode 中以 `price_` 开头的 Price ID，并由另一位发布人员复核金额、币种和 one-time 类型。
+2. 在生产 Supabase Function Secrets 写入同一 Live Mode 的配置：
+   - `STRIPE_BOXES_UNLIMITED_PRICE_ID`：Live Mode 的 `HKD 38.00` one-time Price ID；
+   - `STRIPE_SECRET_KEY`：对应 Live Mode 的 `sk_live_...` 服务端 Secret Key；
+   - `PUBLIC_APP_ORIGIN`：生产前端站点的精确 Origin；
+   - `STRIPE_WEBHOOK_SECRET`：下一步生产 Live Mode Webhook Endpoint 独有的签名 Secret。
+3. 在 Stripe Live Mode 新建指向生产 Supabase 项目 `stripe-webhook` 的 Endpoint，订阅 `checkout.session.completed` 与 `charge.refunded`；将该 Endpoint 的 `whsec_...` 写入生产 `STRIPE_WEBHOOK_SECRET`，不得复制 Test Mode 的 Webhook Secret。
+4. 在生产项目按同一兼容顺序发布：002 → 004 → 005 → Edge Functions → 前端 → 等待旧缓存退出 → 003。发布前再次确认 Price ID、Secret Key、Webhook Secret 属于 Live Mode 且彼此匹配；发现任何 Test Mode 值时立即停止上线。
+5. 使用受控生产账号进行不暴露支付资料的最小冒烟验证，确认 Checkout 显示 HKD 38.00、返回 Origin 正确、Webhook 发放单条 active 权益且 AI Credits 不变化；按运营流程处置或退款该验证订单。
 
 ## Cloudflare R2
 
