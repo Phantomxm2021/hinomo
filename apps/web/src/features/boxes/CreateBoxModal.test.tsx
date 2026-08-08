@@ -4,13 +4,15 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { CreateBoxModal } from './CreateBoxModal'
 
 vi.mock('./BoxForm', () => ({
-  BoxForm: ({ onBusyChange, onCompleted }: {
+  BoxForm: ({ onBusyChange, onCompleted, onLimitReached }: {
     onBusyChange?: (busy: boolean) => void
     onCompleted?: (box: { id: string }) => void
+    onLimitReached?: () => void
   }) => (
     <>
       <button type="button" onClick={() => onBusyChange?.(true)}>开始保存</button>
       <button type="button" onClick={() => onCompleted?.({ id: 'box-new' })}>完成创建</button>
+      <button type="button" onClick={() => onLimitReached?.()}>触发额度限制</button>
     </>
   ),
 }))
@@ -93,4 +95,17 @@ test('forwards the completed box through one callback', async () => {
 
   expect(onCompleted).toHaveBeenCalledTimes(1)
   expect(onCompleted).toHaveBeenCalledWith({ id: 'box-new' })
+})
+
+test('forwards a limit rejection without dismissing the create dialog', async () => {
+  const user = userEvent.setup()
+  const onClose = vi.fn()
+  const onLimitReached = vi.fn()
+  render(<CreateBoxModal open onClose={onClose} onCompleted={vi.fn()} onLimitReached={onLimitReached} />)
+
+  await user.click(screen.getByRole('button', { name: '触发额度限制' }))
+
+  expect(onLimitReached).toHaveBeenCalledTimes(1)
+  expect(onClose).not.toHaveBeenCalled()
+  expect(screen.getByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
 })

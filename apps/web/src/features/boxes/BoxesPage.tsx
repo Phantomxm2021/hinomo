@@ -17,7 +17,9 @@ import {
   catalogueSummary,
   filterBoxes,
 } from './box-catalogue'
+import { getBoxPlanSummary, startBoxUnlimitedCheckout } from './box-entitlements.api'
 import { deleteBox, listBoxesForVenue, type BoxSummary, type CreatedBox } from './boxes.api'
+import { BoxLimitPaywall } from './BoxLimitPaywall'
 import { CreateBoxModal } from './CreateBoxModal'
 import { EditBoxModal } from './EditBoxModal'
 import { SpaceFilterChips } from './SpaceFilterChips'
@@ -25,6 +27,16 @@ import { SpaceFilterChips } from './SpaceFilterChips'
 type CatalogueParam = 'space'
 
 const EMPTY_BOXES: readonly BoxSummary[] = []
+const PURCHASE_CONFIRMATION_ATTEMPTS = 8
+const PURCHASE_CONFIRMATION_INTERVAL_MS = 1_500
+
+type PurchaseConfirmationState = 'idle' | 'confirming' | 'delayed'
+
+function errorCode(error: unknown) {
+  if (typeof error === 'string') return error
+  if (!error || typeof error !== 'object' || !('message' in error)) return ''
+  return String(error.message)
+}
 
 export function BoxesPage() {
   const { t } = useI18n()
@@ -43,7 +55,12 @@ export function BoxesPage() {
   const [editCompletionPending, setEditCompletionPending] = useState(false)
   const [createSucceeded, setCreateSucceeded] = useState(false)
   const [createdBox, setCreatedBox] = useState<CreatedBox | null>(null)
+  const [paywallOpen, setPaywallOpen] = useState(false)
+  const [purchaseConfirmation, setPurchaseConfirmation] = useState<PurchaseConfirmationState>('idle')
   const createSuccessTimerRef = useRef<number | null>(null)
+  const purchaseConfirmationTimerRef = useRef<number | null>(null)
+  const purchaseConfirmationRunRef = useRef(0)
+  const handledPurchaseResultRef = useRef<string | null>(null)
   const venuesQuery = useQuery({ queryKey: ['venues'], queryFn: listVenues })
   const venues = venuesQuery.data ?? []
   const [selectedVenueId] = useSelectedVenue(venues)
@@ -52,6 +69,7 @@ export function BoxesPage() {
     queryFn: () => listBoxesForVenue(selectedVenueId!),
     enabled: Boolean(selectedVenueId),
   })
+  const boxPlanQuery = useQuery({ queryKey: ['box-plan'], queryFn: getBoxPlanSummary })
   const deleteMutation = useMutation({
     mutationFn: (boxId: string) => deleteBox(boxId),
     onSuccess: (_data, boxId) => {
@@ -59,6 +77,7 @@ export function BoxesPage() {
       deleteReturnFocusRef.current = createButtonRef.current
       setDeleteTarget(null)
       void queryClient.invalidateQueries({ queryKey: ['boxes'] })
+      void queryClient.invalidateQueries({ queryKey: ['box-plan'] })
     },
   })
   const allBoxes = boxesQuery.data ?? EMPTY_BOXES
@@ -72,6 +91,7 @@ export function BoxesPage() {
   const catalogueError = boxesQuery.isError || venuesQuery.isError
   const selectedSpace = searchParams.get('space') ?? ''
   const creating = searchParams.get('create') === '1'
+  const purchaseResult = searchParams.get('purchase')
   const editingBoxId = searchParams.get('edit')
   const wasCreating = useRef(creating)
   const createBlocker = useBlocker((creating && createBusy) || (Boolean(editingBoxId) && editBusy))
@@ -81,6 +101,18 @@ export function BoxesPage() {
     query: '',
     spaceId: selectedSpace,
   }), [boxes, selectedSpace])
+  const boxPlanStatus = useMemo(() => {
+    const plan = boxPlanQuery.data
+    if (!plan) return null
+    if (plan.unlimited_boxes) return t('boxes.planUnlimitedActive')
+    if (plan.box_count > plan.free_limit) {
+      return t('boxes.planOverLimit', { count: plan.box_count, limit: plan.free_limit })
+    }
+    if (plan.box_count === plan.free_limit) {
+      return t('boxes.planFull', { count: plan.box_count, limit: plan.free_limit })
+    }
+    return t('boxes.planAvailable', { count: plan.box_count, limit: plan.free_limit })
+  }, [boxPlanQuery.data, t])
 
   useEffect(() => {
     if (!searchParams.has('sort')) return
@@ -109,7 +141,94 @@ export function BoxesPage() {
     createSuccessTimerRef.current = null
   }, [])
 
+  const clearPurchaseConfirmationTimer = useCallback(() => {
+    if (purchaseConfirmationTimerRef.current === null) return
+    window.clearTimeout(purchaseConfirmationTimerRef.current)
+    purchaseConfirmationTimerRef.current = null
+  }, [])
+
+  const continueCreation = useCallback((notice: string) => {
+    purchaseConfirmationRunRef.current += 1
+    clearPurchaseConfirmationTimer()
+    setPurchaseConfirmation('idle')
+    setPaywallOpen(false)
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      next.delete('purchase')
+      next.set('create', '1')
+      return next
+    }, { replace: true })
+    feedback.notify(notice)
+    void queryClient.invalidateQueries({ queryKey: ['boxes'] })
+    void queryClient.invalidateQueries({ queryKey: ['box-plan'] })
+  }, [clearPurchaseConfirmationTimer, feedback, queryClient, setSearchParams])
+
+  const startPurchaseConfirmation = useCallback(() => {
+    const run = purchaseConfirmationRunRef.current + 1
+    purchaseConfirmationRunRef.current = run
+    clearPurchaseConfirmationTimer()
+    setPurchaseConfirmation('confirming')
+    let attempts = 0
+
+    const check = async () => {
+      attempts += 1
+      const result = await boxPlanQuery.refetch()
+      if (purchaseConfirmationRunRef.current !== run) return
+      if (result.data?.unlimited_boxes) {
+        continueCreation(t('boxes.purchaseUnlocked'))
+        return
+      }
+      if (attempts >= PURCHASE_CONFIRMATION_ATTEMPTS) {
+        purchaseConfirmationTimerRef.current = null
+        setPurchaseConfirmation('delayed')
+        return
+      }
+      purchaseConfirmationTimerRef.current = window.setTimeout(() => {
+        purchaseConfirmationTimerRef.current = null
+        void check()
+      }, PURCHASE_CONFIRMATION_INTERVAL_MS)
+    }
+
+    void check()
+  }, [boxPlanQuery, clearPurchaseConfirmationTimer, continueCreation, t])
+
+  const checkoutMutation = useMutation({
+    mutationFn: startBoxUnlimitedCheckout,
+    onError: (error) => {
+      if (errorCode(error) !== 'entitlement_already_owned') return
+      void boxPlanQuery.refetch().finally(() => {
+        continueCreation(t('boxes.unlimitedOwned'))
+      })
+    },
+  })
+
+  useEffect(() => {
+    if (!purchaseResult) {
+      handledPurchaseResultRef.current = null
+      return
+    }
+    if (handledPurchaseResultRef.current === purchaseResult) return
+    handledPurchaseResultRef.current = purchaseResult
+
+    if (purchaseResult === 'canceled') {
+      setSearchParams((current) => {
+        const next = new URLSearchParams(current)
+        next.delete('purchase')
+        return next
+      }, { replace: true })
+      feedback.notify(t('boxes.purchaseCancelled'))
+      return
+    }
+    if (purchaseResult === 'success') startPurchaseConfirmation()
+  }, [feedback, purchaseResult, setSearchParams, startPurchaseConfirmation, t])
+
+  useEffect(() => () => {
+    purchaseConfirmationRunRef.current += 1
+    clearPurchaseConfirmationTimer()
+  }, [clearPurchaseConfirmationTimer])
+
   const openCreate = () => {
+    if (purchaseConfirmation !== 'idle') return
     if (selectedVenue?.space_count === 0) {
       navigate('/app/spaces?create=1&from=box')
       return
@@ -118,6 +237,10 @@ export function BoxesPage() {
     setCreateSucceeded(false)
     setCreatedBox(null)
     setCreateCompletionPending(false)
+    if (boxPlanQuery.data && !boxPlanQuery.data.can_create) {
+      setPaywallOpen(true)
+      return
+    }
     const next = new URLSearchParams(searchParams)
     next.set('create', '1')
     setSearchParams(next)
@@ -128,6 +251,11 @@ export function BoxesPage() {
     next.delete('create')
     setSearchParams(next, { replace: true })
   }, [searchParams, setSearchParams])
+
+  const closePaywall = useCallback(() => {
+    checkoutMutation.reset()
+    setPaywallOpen(false)
+  }, [checkoutMutation])
 
   const openEdit = (box: BoxSummary, trigger: HTMLButtonElement | null) => {
     editReturnFocusRef.current = trigger
@@ -210,6 +338,7 @@ export function BoxesPage() {
                 ) : null}
               </p>
             ) : null}
+            {boxPlanStatus ? <p className="mt-1 mb-0 text-sm font-semibold text-brand">{boxPlanStatus}</p> : null}
           </div>
           <button
             ref={createButtonRef}
@@ -217,12 +346,33 @@ export function BoxesPage() {
             type="button"
             aria-label={t('boxes.createAria')}
             title={t('boxes.createAria')}
+            disabled={purchaseConfirmation !== 'idle'}
             onClick={openCreate}
           >
             <AppIcon name="plus" />
           </button>
         </div>
       </header>
+
+      {purchaseConfirmation !== 'idle' ? (
+        <section
+          className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-brand/20 bg-brand/5 px-4 py-3 text-sm"
+          role="status"
+          aria-label={t(purchaseConfirmation === 'confirming' ? 'boxes.purchaseConfirmed' : 'boxes.purchaseDelayedTitle')}
+        >
+          <div>
+            <p className="m-0 font-bold text-ink">
+              {t(purchaseConfirmation === 'confirming' ? 'boxes.purchaseConfirmed' : 'boxes.purchaseDelayedTitle')}
+            </p>
+            {purchaseConfirmation === 'delayed' ? <p className="mt-1 mb-0 text-muted">{t('boxes.purchaseDelayed')}</p> : null}
+          </div>
+          {purchaseConfirmation === 'delayed' ? (
+            <button className="min-h-11 rounded-control border border-brand bg-surface px-4 py-2 font-bold text-brand-strong" type="button" onClick={startPurchaseConfirmation}>
+              {t('boxes.purchaseRecheck')}
+            </button>
+          ) : null}
+        </section>
+      ) : null}
 
       {cataloguePending ? (
         <SkeletonGroup className="grid gap-5" label={t('boxes.loading')}>
@@ -335,9 +485,27 @@ export function BoxesPage() {
           setCreateCompletionPending(true)
           setCreateBusy(false)
           void queryClient.invalidateQueries({ queryKey: ['boxes'] })
+          void queryClient.invalidateQueries({ queryKey: ['box-plan'] })
         }}
         onBusyChange={setCreateBusy}
+        onLimitReached={() => {
+          setPaywallOpen(true)
+          void queryClient.invalidateQueries({ queryKey: ['box-plan'] })
+        }}
       />
+      <BoxLimitPaywall
+        open={paywallOpen}
+        busy={checkoutMutation.isPending}
+        onClose={closePaywall}
+        onPurchase={() => checkoutMutation.mutate()}
+      />
+      {checkoutMutation.isError && errorCode(checkoutMutation.error) !== 'entitlement_already_owned' ? (
+        <ResponsiveOperationError
+          message={t('boxes.billingUnavailable')}
+          busy={checkoutMutation.isPending}
+          onRetry={() => checkoutMutation.mutate()}
+        />
+      ) : null}
       <EditBoxModal
         open={Boolean(editingBoxId)}
         boxId={editingBoxId ?? ''}
