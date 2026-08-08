@@ -123,6 +123,27 @@ test('focuses the requested control, wraps focus, and restores focus after close
   opener.remove()
 })
 
+test('restores focus to the active element when no return focus ref is provided', async () => {
+  const opener = document.createElement('button')
+  document.body.append(opener)
+  opener.focus()
+  const view = render(
+    <ResponsiveEditorDialog open title="编辑" busy={false} onClose={vi.fn()}>
+      <input aria-label="名称" />
+    </ResponsiveEditorDialog>,
+  )
+
+  await waitFor(() => expect(screen.getByRole('textbox', { name: '名称' })).toHaveFocus())
+  view.rerender(
+    <ResponsiveEditorDialog open={false} title="编辑" busy={false} onClose={vi.fn()}>
+      <input aria-label="名称" />
+    </ResponsiveEditorDialog>,
+  )
+
+  await waitFor(() => expect(opener).toHaveFocus())
+  opener.remove()
+})
+
 test('does not restore focus when only busy state changes', async () => {
   const opener = document.createElement('button')
   document.body.append(opener)

@@ -55,12 +55,13 @@ export function ResponsiveEditorDialog({
   const closeRef = useRef(close)
   const initialFocusSelectorRef = useRef(initialFocusSelector)
   const returnFocusRefRef = useRef(returnFocusRef)
+  const previousActiveElementRef = useRef<HTMLElement | null>(null)
   closeRef.current = close
   initialFocusSelectorRef.current = initialFocusSelector
   returnFocusRefRef.current = returnFocusRef
-  const restoreFocus = useCallback(() => {
+  const restoreFocus = useCallback((fallback: HTMLElement | null) => {
     window.requestAnimationFrame(() => {
-      const target = returnFocusRefRef.current?.current
+      const target = returnFocusRefRef.current?.current ?? fallback
       if (target && typeof target.focus === 'function') target.focus()
     })
   }, [])
@@ -68,6 +69,9 @@ export function ResponsiveEditorDialog({
   useEffect(() => {
     if (!open) return
 
+    previousActiveElementRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
     const appShell = document.querySelector<HTMLElement>('[data-app-shell]')
     const previousAriaHidden = appShell?.getAttribute('aria-hidden') ?? null
     const hadInert = appShell?.hasAttribute('inert') ?? false
@@ -107,7 +111,8 @@ export function ResponsiveEditorDialog({
         else appShell.setAttribute('aria-hidden', previousAriaHidden)
       }
       document.body.style.overflow = previousOverflow
-      restoreFocus()
+      restoreFocus(previousActiveElementRef.current)
+      previousActiveElementRef.current = null
     }
   }, [open, restoreFocus])
 
