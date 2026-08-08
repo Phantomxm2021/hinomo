@@ -130,7 +130,7 @@ supabase functions deploy stripe-webhook --no-verify-jwt
 3. 确认托管 Edge Function 运行时可用 `SUPABASE_SERVICE_ROLE_KEY`。上述 Stripe 配置、Price ID 和 service role key 都只能放在服务端配置中：不得写入 `apps/web/.env`，不得创建 `VITE_STRIPE_BOXES_UNLIMITED_PRICE_ID`、`VITE_STRIPE_SECRET_KEY`、`VITE_STRIPE_WEBHOOK_SECRET` 或 `VITE_SUPABASE_SERVICE_ROLE_KEY`，也不得以其他 `VITE_` 名称暴露这些值。
 4. 在测试 Supabase 项目执行加法迁移 `supabase/migrations/202608080002_box_entitlements.sql`，创建权益表以及摘要、原子创建、发放和撤销 RPC；此时不要执行 003。
 5. 接着执行 `supabase/migrations/202608080004_box_entitlements_service_read.sql`，让 `billing-checkout` 的 service role 能够只读检查 active 权益，同时保持客户端无权读取权益表、service role 无权直接写表。
-6. 再执行 `supabase/migrations/202608080005_account_entitlement_revocation_tombstones.sql`，为退款先到、付款完成后到的乱序事件建立终止记录。运行 `007_api_privileges.test.sql` 与 `018_box_entitlements.test.sql`，确认权限、摘要、原子创建、发放、退款先到、重复事件、撤销和重新激活契约通过后再继续。
+6. 再执行 `supabase/migrations/202608080005_account_entitlement_revocation_tombstones.sql`，为退款先到、付款完成后到的乱序事件建立终止记录。此时只运行 `018_box_entitlements.test.sql`，确认摘要、原子创建、发放、退款先到、重复事件、撤销和重新激活契约通过后再继续；不要提前运行 `007_api_privileges.test.sql`，因为它对箱子直接 `INSERT` 已被撤销的断言要到 003 执行后才成立。
 7. 类型检查并部署 `billing-checkout` 与 `stripe-webhook` Edge Functions：
 
 ```bash
