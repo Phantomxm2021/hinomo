@@ -7,7 +7,6 @@ import {
 import { useEffect, useState } from 'react'
 import { AppIcon, type AppIconName } from '../components/AppIcon'
 import { BrandIcon } from '../components/BrandIcon'
-import { LanguageSwitcher } from '../components/LanguageSwitcher'
 import { UserAccountMenu } from '../features/profile/UserAccountMenu'
 import { useI18n } from '../i18n/I18nProvider'
 
@@ -74,7 +73,7 @@ function Navigation({ items, mobile = false }: { items: NavigationItem[]; mobile
 }
 
 export function AppShell() {
-  const { locale, setLocale, t } = useI18n()
+  const { t } = useI18n()
   const [online, setOnline] = useState(() => navigator.onLine)
 
   useEffect(() => {
@@ -101,7 +100,6 @@ export function AppShell() {
             <BrandIcon className="size-10 rounded-control shadow-soft" />
             {t('common.appName')}
           </Link>
-          <LanguageSwitcher locale={locale} onChange={setLocale} compact />
         </div>
         <nav className="grid gap-2" aria-label={t('appShell.navigation.primaryDesktop')}><Navigation items={desktopNavigation} /></nav>
         <UserAccountMenu />

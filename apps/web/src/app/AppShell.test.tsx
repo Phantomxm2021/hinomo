@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { Session } from '@supabase/supabase-js'
 import { AuthProvider } from '../features/auth/AuthProvider'
-import { I18nProvider } from '../i18n/I18nProvider'
+import { I18nProvider, useI18n } from '../i18n/I18nProvider'
 import { AppShell } from './AppShell'
 
 const { mockGetAvatarDownload, mockGetProfile } = vi.hoisted(() => ({
@@ -39,13 +39,19 @@ test('announces offline state and clears it when connectivity returns', () => {
   vi.restoreAllMocks()
 })
 
-function renderShell(initialEntry = '/app') {
+function LocaleTestControl() {
+  const { setLocale } = useI18n()
+  return <button type="button" onClick={() => setLocale('en-US')}>切换语言</button>
+}
+
+function renderShell(initialEntry = '/app', options?: { withLocaleControl?: boolean }) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <I18nProvider>
       <MemoryRouter initialEntries={[initialEntry]}>
         <QueryClientProvider client={queryClient}>
           <AuthProvider session={{ user: { id: 'user-1', email: 'lin@example.com', user_metadata: { display_name: '林家' } } } as unknown as Session}>
+            {options?.withLocaleControl ? <LocaleTestControl /> : null}
             <Routes>
               <Route path="/app" element={<AppShell />}>
                 <Route index element={<p>内容</p>} />
@@ -58,6 +64,17 @@ function renderShell(initialEntry = '/app') {
     </I18nProvider>,
   )
 }
+
+test('keeps language selection inside settings instead of the desktop sidebar', async () => {
+  const user = userEvent.setup()
+  renderShell()
+
+  const sidebar = screen.getByRole('complementary')
+  expect(within(sidebar).queryByRole('combobox', { name: '语言' })).not.toBeInTheDocument()
+
+  await user.click(await screen.findByRole('button', { name: '打开账户菜单' }))
+  expect(screen.getByRole('menuitem', { name: /设置/ })).toHaveAttribute('href', '/app/me/settings')
+})
 
 test('provides the complete desktop navigation without a scan destination', async () => {
   renderShell()
@@ -205,10 +222,9 @@ test('keeps the boxes destination active on nested box routes', () => {
 
 test('switches desktop and mobile navigation copy when the global locale changes', async () => {
   const user = userEvent.setup()
-  renderShell()
+  renderShell('/app', { withLocaleControl: true })
 
-  await user.click(screen.getByRole('combobox', { name: '语言' }))
-  await user.selectOptions(screen.getByRole('combobox', { name: '语言' }), 'en-US')
+  await user.click(screen.getByRole('button', { name: '切换语言' }))
 
   expect(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('link', { name: 'Today' })).toBeInTheDocument()
   expect(within(screen.getByRole('navigation', { name: 'Mobile primary navigation' })).getByRole('link', { name: 'Home' })).toBeInTheDocument()
