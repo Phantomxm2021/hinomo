@@ -6,6 +6,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthContext } from '../auth/auth-context'
 import { I18nProvider } from '../../i18n/I18nProvider'
+import { useI18n } from '../../i18n/I18nProvider'
 import { UserAccountMenu } from './UserAccountMenu'
 
 const { mockGetAvatarDownload, mockGetCreditSummary, mockGetProfile } = vi.hoisted(() => ({
@@ -36,17 +37,23 @@ function renderMenu() {
     <I18nProvider>
       <MemoryRouter>
         <QueryClientProvider client={client}>
-          <AuthContext.Provider value={{
+        <AuthContext.Provider value={{
             session: { user: { id: 'user-1', email: 'user@example.com' } } as Session,
             loading: false,
             isPasswordRecovery: false,
-          }}>
-            <UserAccountMenu />
+        }}>
+          <LocaleControl />
+          <UserAccountMenu />
           </AuthContext.Provider>
         </QueryClientProvider>
       </MemoryRouter>
     </I18nProvider>,
   )
+}
+
+function LocaleControl() {
+  const { setLocale } = useI18n()
+  return <button type="button" onClick={() => setLocale('en-US')}>English</button>
 }
 
 test('shows an avatar and two text skeletons while the profile loads', () => {
@@ -93,9 +100,25 @@ test('makes the credit balance and store available from the desktop account menu
   })
   renderMenu()
 
-  expect(await screen.findByText('82 AI Credits')).toBeInTheDocument()
+  expect(await screen.findByText('82 AI 点数')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '打开账户菜单' }))
-  expect(screen.getByRole('menuitem', { name: 'AI Credits，82 credits，购买额度' })).toHaveAttribute('href', '/app/me/credits')
+  expect(screen.getByRole('menuitem', { name: 'AI 点数，82 点数，购买额度' })).toHaveAttribute('href', '/app/me/credits')
+})
+
+test('localizes credit store copy when the global locale switches', async () => {
+  const user = userEvent.setup()
+  mockGetProfile.mockResolvedValue({
+    id: 'user-1', display_name: '小诺', avatar_object_key: null, locale: 'zh-CN',
+  })
+  renderMenu()
+
+  await screen.findByText('82 AI 点数')
+  await user.click(screen.getByRole('button', { name: '打开账户菜单' }))
+  expect(screen.getByText('一次购买 · 不自动续费')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'English' }))
+
+  expect(await screen.findByText('One-time purchase · No auto-renewal')).toBeInTheDocument()
+  expect(screen.getByText('Available balance')).toBeInTheDocument()
 })
 
 test('falls back to session data after a profile error', async () => {

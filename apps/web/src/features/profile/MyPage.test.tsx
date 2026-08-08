@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { AuthContext } from '../auth/auth-context'
 import { I18nProvider } from '../../i18n/I18nProvider'
+import { useI18n } from '../../i18n/I18nProvider'
 import { MyPage } from './MyPage'
 
 const { mockGetAvatarDownload, mockGetProfile, mockSignOut, mockUpdateLocale, mockUploadAvatar, mockGetCreditSummary } = vi.hoisted(() => ({
@@ -49,12 +50,18 @@ function renderPage() {
             loading: false,
             isPasswordRecovery: false,
           }}>
+            <LocaleControl />
             <MyPage />
           </AuthContext.Provider>
         </QueryClientProvider>
       </MemoryRouter>
     </I18nProvider>,
   )
+}
+
+function LocaleControl() {
+  const { setLocale } = useI18n()
+  return <button type="button" onClick={() => setLocale('en-US')}>English</button>
 }
 
 test('uses skeletons until the profile is ready', () => {
@@ -78,8 +85,19 @@ test('shows an email summary that opens the account details page', async () => {
 test('opens the AI credit store from the account summary', async () => {
   renderPage()
 
-  const creditLink = await screen.findByRole('link', { name: /AI Credits.*0 credits/ })
+  const creditLink = await screen.findByRole('link', { name: /AI 点数.*0 点数/ })
   expect(creditLink).toHaveAttribute('href', '/app/me/credits')
+})
+
+test('localizes the credit summary when the global locale switches', async () => {
+  const user = userEvent.setup()
+  renderPage()
+
+  await screen.findByText('AI 拍照识别与智能清单')
+  await user.click(screen.getByRole('button', { name: 'English' }))
+
+  expect(await screen.findByText('AI photo recognition and smart lists')).toBeInTheDocument()
+  expect(screen.getByText('0 credits')).toBeInTheDocument()
 })
 
 test('moves preferences into the settings hierarchy', async () => {
