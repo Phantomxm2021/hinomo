@@ -158,8 +158,8 @@ export function DashboardPage() {
         </div>
       </header>
 
-      {venuesQuery.isError || spacesQuery.isError || boxesQuery.isError || profileQuery.isError ? (
-        <PageState state="error" message="部分数据加载失败，请稍后重试" onRetry={() => void Promise.all([venuesQuery.refetch(), spacesQuery.refetch(), boxesQuery.refetch(), profileQuery.refetch()])} />
+      {venuesQuery.isError || spacesQuery.isError || boxesQuery.isError ? (
+        <PageState state="error" message="部分数据加载失败，请稍后重试" onRetry={() => void Promise.all([venuesQuery.refetch(), spacesQuery.refetch(), boxesQuery.refetch()])} />
       ) : null}
 
       {initiallyLoading ? (
