@@ -22,6 +22,11 @@ export async function updateLocale(locale: 'zh-CN' | 'en-US') {
   if (error) throw error
 }
 
+export async function markOnboardingWelcomeSeen() {
+  const { error } = await supabase.rpc('mark_onboarding_welcome_seen')
+  if (error) throw error
+}
+
 export async function createAvatarUpload(input: { mimeType: string; sizeBytes: number }) {
   const { data, error } = await supabase.rpc('create_profile_avatar_upload', {
     p_mime_type: input.mimeType,

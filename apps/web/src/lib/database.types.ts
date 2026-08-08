@@ -588,6 +588,7 @@ export type Database = {
           display_name: string | null
           id: string
           locale: string
+          onboarding_welcome_seen_at: string | null
           updated_at: string
         }
         Insert: {
@@ -596,6 +597,7 @@ export type Database = {
           display_name?: string | null
           id: string
           locale?: string
+          onboarding_welcome_seen_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -604,6 +606,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           locale?: string
+          onboarding_welcome_seen_at?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -780,6 +783,10 @@ export type Database = {
       }
       update_profile_locale: {
         Args: { p_locale: string }
+        Returns: undefined
+      }
+      mark_onboarding_welcome_seen: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
       }
       enqueue_removed_media: {

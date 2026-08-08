@@ -1,6 +1,6 @@
 import { beforeEach, expect, test, vi } from 'vitest'
 import { PHOTO_UPLOAD_MAX_SIZE_MB } from '../../lib/photo-compression'
-import { getProfile, updateLocale, uploadAvatar } from './profile.api'
+import { getProfile, markOnboardingWelcomeSeen, updateLocale, uploadAvatar } from './profile.api'
 
 const { mockCompress, mockEq, mockFrom, mockMaybeSingle, mockRpc, mockSelect } = vi.hoisted(() => ({
   mockCompress: vi.fn(),
@@ -41,6 +41,20 @@ test('updates locale through the authenticated RPC', async () => {
 
   await expect(updateLocale('en-US')).resolves.toBeUndefined()
   expect(mockRpc).toHaveBeenCalledWith('update_profile_locale', { p_locale: 'en-US' })
+})
+
+test('marks the onboarding welcome as seen through the authenticated RPC', async () => {
+  mockRpc.mockResolvedValue({ data: null, error: null })
+
+  await expect(markOnboardingWelcomeSeen()).resolves.toBeUndefined()
+  expect(mockRpc).toHaveBeenCalledWith('mark_onboarding_welcome_seen')
+})
+
+test('propagates onboarding welcome RPC errors', async () => {
+  const error = new Error('onboarding welcome unavailable')
+  mockRpc.mockResolvedValue({ data: null, error })
+
+  await expect(markOnboardingWelcomeSeen()).rejects.toBe(error)
 })
 
 test('compresses an avatar before signing and uploading it', async () => {
