@@ -14,7 +14,7 @@ test('private details and the owner catalogue stay scoped to the current account
   const anonymous = await anonymousContext.newPage()
   await installMockBackend(anonymous, state)
   await anonymous.goto(privateUrl)
-  await expect(anonymous.getByRole('heading', { name: '无权限或内容不存在' })).toBeVisible()
+  await expect(anonymous.getByRole('heading', { name: '箱子不存在或无法访问' })).toBeVisible()
   await anonymous.goto(publicUrl)
   if (testInfo.project.name === 'desktop-chromium') {
     await expect(anonymous.getByRole('heading', { name: '公开纪念品' })).toBeVisible()
@@ -28,7 +28,7 @@ test('private details and the owner catalogue stay scoped to the current account
   await installMockBackend(other, state)
   await register(other, 'other@example.com')
   await other.goto(privateUrl)
-  await expect(other.getByRole('heading', { name: '无权限或内容不存在' })).toBeVisible()
+  await expect(other.getByRole('heading', { name: '箱子不存在或无法访问' })).toBeVisible()
   await other.goto('/app/boxes')
   await expect(other.getByText('0 个箱子 · 0 件物品', { exact: true })).toBeVisible()
   await expect(other.getByRole('link', { name: '打开公开纪念品' })).toHaveCount(0)

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { AuthContext } from '../auth/auth-context'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { I18nProvider } from '../../i18n/I18nProvider'
 import { GeneralSettingsPage } from './GeneralSettingsPage'
 
@@ -37,6 +38,31 @@ function renderPage() {
     </I18nProvider>,
   )
 }
+
+test('announces the saved locale in the selected language', async () => {
+  const user = userEvent.setup()
+  render(
+    <I18nProvider>
+      <MobileFeedbackProvider>
+        <MemoryRouter>
+          <AuthContext.Provider value={{
+            session: { user: { id: 'user-1', email: 'lin@example.com' } } as unknown as Session,
+            loading: false,
+            isPasswordRecovery: false,
+          }}>
+            <GeneralSettingsPage />
+          </AuthContext.Provider>
+        </MemoryRouter>
+      </MobileFeedbackProvider>
+    </I18nProvider>,
+  )
+
+  await user.selectOptions(await screen.findByLabelText('语言'), 'en-US')
+  expect(await screen.findByRole('status', { name: 'Settings saved' })).toBeInTheDocument()
+
+  await user.selectOptions(await screen.findByLabelText('Language'), 'zh-CN')
+  expect(await screen.findByRole('status', { name: '设置已保存' })).toBeInTheDocument()
+})
 
 test('keeps language inside General and switches the global locale', async () => {
   const user = userEvent.setup()

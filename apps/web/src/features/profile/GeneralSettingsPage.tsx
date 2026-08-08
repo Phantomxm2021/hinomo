@@ -1,6 +1,8 @@
+import { useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { LanguageSwitcher } from '../../components/LanguageSwitcher'
+import { useMobileFeedback } from '../../components/mobile-feedback'
 import { useAuth } from '../auth/auth-context'
 import { useI18n } from '../../i18n/I18nProvider'
 
@@ -8,7 +10,15 @@ export function GeneralSettingsPage() {
   const { session } = useAuth()
   const navigate = useNavigate()
   const { locale, setLocale, t } = useI18n()
+  const feedback = useMobileFeedback()
+  const previousLocaleRef = useRef(locale)
   const user = session?.user
+
+  useEffect(() => {
+    if (previousLocaleRef.current === locale) return
+    previousLocaleRef.current = locale
+    feedback.notify(t('settings.languageSaved'))
+  }, [feedback, locale, t])
 
   if (!user) return null
 

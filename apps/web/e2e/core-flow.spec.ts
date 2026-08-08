@@ -103,7 +103,7 @@ async function expectItemFormActionClearance(page: Parameters<typeof installMock
   await openNewItem(page)
   await expect(page.getByRole('heading', { name: '新增物品' })).toBeVisible()
   const dialog = page.getByRole('dialog', { name: '新增物品' })
-  const scrollContainer = dialog.locator('> div')
+  const scrollContainer = dialog
   const actionBar = page.getByRole('button', { name: '保存' }).locator('..')
   await page.evaluate((inset) => {
     document.documentElement.style.setProperty('--safe-area-bottom', `${inset}px`)
@@ -399,12 +399,12 @@ test('mobile My tab exposes profile settings and confirmed sign out', async ({ p
   await page.getByRole('link', { name: /设置.*通用、语言与地区/ }).click()
   await page.getByRole('link', { name: /通用.*语言与地区/ }).click()
   await page.getByRole('combobox', { name: /语言/ }).selectOption('en-US')
-  await expect(page.getByRole('status')).toContainText('设置已保存')
+  await expect(page.getByRole('status')).toContainText('Settings saved')
 
-  await page.getByRole('navigation', { name: '移动端主导航' }).getByRole('link', { name: '我的' }).click()
-  await page.getByRole('button', { name: '退出登录' }).click()
-  await expect(page.getByRole('alertdialog', { name: '退出登录？' })).toBeVisible()
-  await page.getByRole('button', { name: '确认退出' }).click()
+  await page.getByRole('navigation', { name: 'Mobile primary navigation' }).getByRole('link', { name: 'My' }).click()
+  await page.getByRole('group', { name: 'Account actions' }).getByRole('button', { name: 'Sign out' }).click()
+  await expect(page.getByRole('alertdialog', { name: 'Sign out?' })).toBeVisible()
+  await page.getByRole('alertdialog', { name: 'Sign out?' }).getByRole('button', { name: 'Sign out' }).click()
   await expect(page).toHaveURL('/login')
 })
 
@@ -422,7 +422,7 @@ test('route alignment across required viewport breakpoints', async ({ page }, te
     { path: '/app/spaces', heading: '空间', expectShell: true },
     { path: '/app/boxes', heading: '全部箱子', expectShell: true },
     { path: '/app/boxes/box-1/edit', heading: '编辑箱子', expectShell: true },
-    { path: '/app/search', heading: '查找收纳', expectShell: true },
+    { path: '/app/search', heading: '搜索', expectShell: true },
     { path: '/app/scan', heading: '扫码查看', expectShell: true },
     { path: '/app/print', heading: '下载箱子标签', desktopHeading: '打印二维码标签', expectShell: true },
     { path: '/app/me', heading: '我的', expectShell: true },
@@ -451,6 +451,8 @@ test('route alignment across required viewport breakpoints', async ({ page }, te
         const editDialog = page.getByRole('dialog', { name: '编辑箱子' })
         await expect(editDialog).toBeVisible()
         await editDialog.getByRole('button', { name: '关闭编辑箱子' }).click()
+      } else if (!desktop && route.path === '/app/search') {
+        await expect(page.getByRole('navigation', { name: '搜索导航' }).getByText('查找收纳', { exact: true })).toBeVisible()
       } else {
         await expect(page.getByRole('heading', { level: 1, name: heading, exact: true })).toBeVisible()
       }
