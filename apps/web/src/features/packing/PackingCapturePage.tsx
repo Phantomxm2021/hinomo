@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
+import { useI18n } from '../../i18n/I18nProvider'
 import { PHOTO_UPLOAD_MAX_BYTES } from '../../lib/photo-compression'
 import { getBox } from '../boxes/boxes.api'
 import {
@@ -29,6 +30,7 @@ import { packingBillingError } from '../credits/credits.api'
 
 type UploadState = 'idle' | 'compressing' | 'uploading' | 'error'
 type FinishStage = 'wait_photo_uploads' | 'check_pending_drafts' | 'load_confirmed_photos' | 'build_atlas' | 'upload_atlas' | 'complete_session' | 'refresh_state'
+type PackingError = { key: string; params?: Record<string, string | number | boolean> }
 
 const LIBRARY_ACCEPT = 'image/jpeg,image/png,image/webp'
 const CAMERA_ACCEPT = 'image/jpeg'
@@ -99,6 +101,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
   onCompleted: () => void
   onBillingBlocked?: (reason: 'insufficient_credits', requiredCredits: number) => void
 }) {
+  const { t } = useI18n()
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -108,7 +111,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
   const nextSequenceRef = useRef(1)
   const [uploadState, setUploadState] = useState<UploadState>('idle')
   const [localDraftCount, setLocalDraftCount] = useState(0)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<PackingError | null>(null)
   const [canRetryUploads, setCanRetryUploads] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [removingPhotoId, setRemovingPhotoId] = useState<string | null>(null)
@@ -167,7 +170,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
         }, error, 'packing_draft_recompression_failed')
         setUploadState('error')
         setCanRetryUploads(true)
-        setErrorMessage('待上传照片重新压缩失败，请保持页面打开并重试。')
+        setErrorMessage({ key: 'packing.compressFailed' })
         throw new Error('packing draft recompression failed')
       }
     }
@@ -185,9 +188,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
       }, error, 'packing_photo_upload_failed')
       setUploadState('error')
       setCanRetryUploads(true)
-      setErrorMessage(persisted
-        ? '照片上传失败，已保存在这台设备上。恢复网络后会继续上传。'
-        : '照片上传失败，本机也无法保存。请保持页面打开并点击重试。')
+      setErrorMessage({ key: persisted ? 'packing.uploadFailedStored' : 'packing.uploadFailedLost' })
       throw new Error('packing photo upload failed')
     }
 
@@ -203,7 +204,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
       await refreshPhotos()
       setUploadState('idle')
     }
-  }, [refreshPhotos])
+  }, [refreshPhotos, t])
 
   const enqueueDraft = useCallback((draft: PackingDraft, persisted = true) => {
     uploadQueueRef.current = uploadQueueRef.current.catch(() => undefined).then(() => uploadDraft(draft, persisted))
@@ -237,9 +238,9 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
       for (const draft of drafts) void enqueueDraft(draft)
     }).catch(() => {
       setCanRetryUploads(false)
-      setErrorMessage('无法恢复这台设备上的待上传照片。')
+      setErrorMessage({ key: 'packing.resumeFailed' })
     })
-  }, [enqueueDraft, sessionQuery.data, photosQuery.data])
+  }, [enqueueDraft, sessionQuery.data, photosQuery.data, t])
 
   useEffect(() => {
     const serverMax = Math.max(0, ...(photosQuery.data ?? []).map((photo) => photo.sequence_no))
@@ -256,7 +257,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
     const session = sessionQuery.data
     if (!file || !session) return
     if (nextSequenceRef.current > 100) {
-      setErrorMessage('一次装箱最多支持 100 张照片。')
+      setErrorMessage({ key: 'packing.maxPhotos' })
       return
     }
 
@@ -270,10 +271,10 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
       reportPackingPhotoError(file, error)
       setUploadState('error')
       setErrorMessage(error instanceof PackingImageConversionError && error.code === 'heic_not_supported'
-        ? '系统返回了 HEIC。请将 iPhone 相机格式设为“兼容性最佳”后重新拍摄。'
+        ? { key: 'packing.heicUnsupported' }
         : error instanceof PackingImageConversionError && error.code === 'unsupported_image'
-          ? '没有读取到有效照片，请重新拍摄。'
-          : '照片压缩失败，请重新拍摄。')
+          ? { key: 'packing.invalidPhoto' }
+          : { key: 'packing.photoCompressFailed' })
       return
     }
 
@@ -305,7 +306,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
       await deletePackingPhoto(photoId)
       await refreshPhotos()
     } catch {
-      setErrorMessage('照片移除失败，请稍后再试。')
+      setErrorMessage({ key: 'packing.removePhotoFailed' })
     } finally {
       setRemovingPhotoId(null)
     }
@@ -362,7 +363,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
         volatileDraftCount: volatileDraftsRef.current.size,
         error: errorDetails(error),
       })
-      setErrorMessage('照片或分析索引尚未上传完成，请检查网络后重试。')
+      setErrorMessage({ key: 'packing.uploadIncomplete' })
       setCanRetryUploads(true)
     } finally {
       setFinishing(false)
@@ -370,10 +371,10 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
   }
 
   if (boxQuery.isPending || sessionQuery.isPending) {
-    return createPortal(<PackingSheetFrame title="AI 装箱" onClose={onClose} closeButtonRef={closeButtonRef}><div className="grid min-h-72 place-content-center"><p className="font-bold text-muted">正在准备装箱记录…</p></div></PackingSheetFrame>, document.body)
+    return createPortal(<PackingSheetFrame title={t('packing.title')} onClose={onClose} closeButtonRef={closeButtonRef}><div className="grid min-h-72 place-content-center"><p className="font-bold text-muted">{t('packing.prepare')}</p></div></PackingSheetFrame>, document.body)
   }
   if (!boxQuery.data || sessionQuery.isError) {
-    return createPortal(<PackingSheetFrame title="AI 装箱" onClose={onClose} closeButtonRef={closeButtonRef}><div className="p-5"><PageState state="error" message="无法开始 AI 装箱" onRetry={() => void sessionQuery.refetch()} /></div></PackingSheetFrame>, document.body)
+    return createPortal(<PackingSheetFrame title={t('packing.title')} onClose={onClose} closeButtonRef={closeButtonRef}><div className="p-5"><PageState state="error" message={t('packing.startFailed')} onRetry={() => void sessionQuery.refetch()} /></div></PackingSheetFrame>, document.body)
   }
 
   const confirmedPhotos = photosQuery.data?.filter((photo) => photo.upload_status === 'confirmed') ?? []
@@ -384,8 +385,8 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
 
   return createPortal(
     <PackingSheetFrame
-      title="AI 装箱"
-      subtitle={`${boxQuery.data.box_code} · ${boxQuery.data.name} · ${totalCount} 张`}
+      title={t('packing.title')}
+      subtitle={`${boxQuery.data.box_code} · ${boxQuery.data.name} · ${t('packing.countLabel', { count: totalCount })}`}
       onClose={onClose}
       closeButtonRef={closeButtonRef}
       action={(
@@ -394,7 +395,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
           type="button"
           disabled={busy || totalCount === 0 || localDraftCount > 0}
           onClick={() => void finish()}
-        >{finishing ? '整理中…' : '完成'}</button>
+        >{finishing ? t('packing.finishing') : t('packing.finish')}</button>
       )}
     >
       <div className="min-h-0 overflow-y-auto">
@@ -407,9 +408,9 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
           </div>
         )}
         <div className="max-w-md">
-          <h2 className="m-0 text-[1.45rem] leading-tight font-extrabold text-ink">{latestPhoto ? '继续记录下一件' : '从第一件物品开始'}</h2>
-          <p className="mt-2 text-[0.95rem] leading-6 text-muted">每放入一个物件，拍一张。无需填写名称和数量，完成后 AI 会自动整理成带图片的清单。</p>
-          {totalCount > 0 ? <p className="mt-2 text-sm font-extrabold text-brand">完成后将使用 {totalCount} credits</p> : null}
+          <h2 className="m-0 text-[1.45rem] leading-tight font-extrabold text-ink">{latestPhoto ? t('packing.continueNext') : t('packing.startFirst')}</h2>
+          <p className="mt-2 text-[0.95rem] leading-6 text-muted">{t('packing.instructions')}</p>
+          {totalCount > 0 ? <p className="mt-2 text-sm font-extrabold text-brand">{t('packing.creditsCost', { count: totalCount })}</p> : null}
         </div>
         <input
           ref={inputRef}
@@ -417,7 +418,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
           type="file"
           accept={prefersDirectCamera ? CAMERA_ACCEPT : LIBRARY_ACCEPT}
           capture={prefersDirectCamera ? 'environment' : undefined}
-          aria-label="拍摄装箱照片"
+          aria-label={t('packing.captureLabel')}
           onChange={(event) => {
             void captureFile(event.target.files?.[0] ?? null)
             event.currentTarget.value = ''
@@ -430,12 +431,12 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
           onClick={() => inputRef.current?.click()}
         >
           <AppIcon name={prefersDirectCamera ? 'scan' : 'plus'} size={21} />
-          {uploadState === 'compressing' ? '正在处理…' : prefersDirectCamera ? '拍摄这件物品' : '选择物品照片'}
+          {uploadState === 'compressing' ? t('packing.process') : prefersDirectCamera ? t('packing.captureItem') : t('packing.choosePhoto')}
         </button>
         <p className="min-h-5 text-xs font-semibold text-muted" role="status">
-          {uploadState === 'compressing' ? '正在处理照片…' : uploadState === 'uploading' ? `正在安全上传 · ${confirmedCount} 张完成` : localDraftCount > 0 ? `${localDraftCount} 张等待上传` : confirmedCount > 0 ? `${confirmedCount} 张已安全保存` : prefersDirectCamera ? '将启动系统后置相机并压缩为 JPEG' : '支持 JPEG、PNG 与 WebP 图片'}
+          {uploadState === 'compressing' ? t('packing.processPhoto') : uploadState === 'uploading' ? t('packing.uploadProgress', { count: confirmedCount }) : localDraftCount > 0 ? t('packing.pendingUpload', { count: localDraftCount }) : confirmedCount > 0 ? t('packing.savedCount', { count: confirmedCount }) : prefersDirectCamera ? t('packing.cameraHint') : t('packing.formatHint')}
         </p>
-          {errorMessage ? <ResponsiveOperationError message={errorMessage} onRetry={canRetryUploads ? () => void retryPendingDrafts() : undefined} /> : null}
+          {errorMessage ? <ResponsiveOperationError message={t(errorMessage.key, errorMessage.params)} onRetry={canRetryUploads ? () => void retryPendingDrafts() : undefined} /> : null}
         </section>
       </div>
     </PackingSheetFrame>,
@@ -451,11 +452,12 @@ function PackingSheetFrame({ title, subtitle, action, onClose, closeButtonRef, c
   closeButtonRef: React.RefObject<HTMLButtonElement | null>
   children: React.ReactNode
 }) {
+  const { t } = useI18n()
   return (
     <div className="fixed inset-0 z-[120] flex items-end justify-center bg-ink/30 backdrop-blur-[2px] lg:p-6" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
       <section className="grid h-[94dvh] w-full max-w-3xl grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-t-[1.75rem] bg-canvas shadow-float lg:h-[min(52rem,calc(100dvh-3rem))] lg:rounded-[1.75rem]" role="dialog" aria-modal="true" aria-labelledby="packing-sheet-title">
         <header className="relative grid min-h-[4.75rem] grid-cols-[4.5rem_minmax(0,1fr)_4.5rem] items-center border-b border-line/60 bg-surface/90 px-4 pt-3 backdrop-blur-xl">
-          <button ref={closeButtonRef} className="min-h-11 justify-self-start rounded-full px-1 text-[1.0625rem] font-semibold text-brand active:opacity-50" type="button" aria-label="关闭 AI 装箱" onClick={onClose}>取消</button>
+          <button ref={closeButtonRef} className="min-h-11 justify-self-start rounded-full px-1 text-[1.0625rem] font-semibold text-brand active:opacity-50" type="button" aria-label={t('packing.close')} onClick={onClose}>{t('packing.cancel')}</button>
           <div className="min-w-0 text-center">
             <div className="absolute top-2 left-1/2 h-1.5 w-10 -translate-x-1/2 rounded-full bg-line lg:hidden" aria-hidden="true" />
             <h1 className="m-0 truncate text-[1.0625rem] font-extrabold text-ink" id="packing-sheet-title">{title}</h1>

@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { AppIcon } from '../../components/AppIcon'
-import { venueSchema } from './venue.schema'
+import { useI18n } from '../../i18n/I18nProvider'
+import { createVenueSchema } from './venue.schema'
 import type { VenueInput, VenueSummary } from './venues.api'
 
 export function VenueEditorDialog({ open, venue, pending, error, onClose, onSubmit, onDelete }: {
@@ -13,6 +14,7 @@ export function VenueEditorDialog({ open, venue, pending, error, onClose, onSubm
   onSubmit: (input: VenueInput) => Promise<void>
   onDelete: (venue: VenueSummary) => Promise<void>
 }) {
+  const { t } = useI18n()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [validationError, setValidationError] = useState<string | null>(null)
@@ -38,9 +40,9 @@ export function VenueEditorDialog({ open, venue, pending, error, onClose, onSubm
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const result = venueSchema.safeParse({ name, description })
+    const result = createVenueSchema(t).safeParse({ name, description })
     if (!result.success) {
-      setValidationError(result.error.issues[0]?.message ?? '请检查场地信息')
+      setValidationError(result.error.issues[0]?.message ?? t('venues.validationFallback'))
       return
     }
     setValidationError(null)
@@ -51,22 +53,22 @@ export function VenueEditorDialog({ open, venue, pending, error, onClose, onSubm
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-ink/30 p-0 backdrop-blur-[2px] lg:items-center lg:p-3" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !pending) onClose() }}>
       <section className="w-full max-w-lg rounded-t-[1.5rem] border-x-0 border-t border-b-0 border-line bg-surface p-5 pb-[max(1.25rem,var(--safe-area-bottom))] shadow-float lg:rounded-shell lg:border lg:p-6" role="dialog" aria-modal="true" aria-busy={pending} aria-labelledby="venue-editor-title">
         <div className="mb-5 flex items-center justify-between gap-4">
-          <h2 className="m-0 text-section-title font-bold" id="venue-editor-title">{venue ? '编辑场地' : '创建场地'}</h2>
-          <button className="grid size-11 place-items-center rounded-control border border-line bg-canvas" type="button" aria-label="关闭场地编辑器" disabled={pending} onClick={onClose}><AppIcon name="close" /></button>
+          <h2 className="m-0 text-section-title font-bold" id="venue-editor-title">{venue ? t('venues.edit') : t('venues.create')}</h2>
+          <button className="grid size-11 place-items-center rounded-control border border-line bg-canvas" type="button" aria-label={t('venues.closeEditor')} disabled={pending} onClick={onClose}><AppIcon name="close" /></button>
         </div>
         <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
-          <label className="font-bold" htmlFor="venue-name">场地名称</label>
+          <label className="font-bold" htmlFor="venue-name">{t('venues.name')}</label>
           <input className="min-h-12 rounded-control border border-line bg-surface px-3" id="venue-name" value={name} autoFocus readOnly={pending} onChange={(event) => setName(event.target.value)} />
-          <label className="font-bold" htmlFor="venue-description">描述（可选）</label>
+          <label className="font-bold" htmlFor="venue-description">{t('venues.descriptionOptional')}</label>
           <textarea className="min-h-24 resize-y rounded-control border border-line bg-surface px-3 py-2" id="venue-description" value={description} readOnly={pending} onChange={(event) => setDescription(event.target.value)} />
           {validationError ? <p className="text-danger" role="alert">{validationError}</p> : null}
-          {error ? <p className="text-danger" role="alert">场地保存失败，请重试</p> : null}
-          {defaultVenue ? <p className="text-sm text-muted">默认场地可以更名，但不能删除。</p> : null}
-          {venue && venue.space_count > 0 ? <p className="text-sm text-muted">该场地包含 {venue.space_count} 个空间，移走空间后才能删除。</p> : null}
+          {error ? <p className="text-danger" role="alert">{t('venues.saveError')}</p> : null}
+          {defaultVenue ? <p className="text-sm text-muted">{t('venues.defaultHint')}</p> : null}
+          {venue && venue.space_count > 0 ? <p className="text-sm text-muted">{t('venues.deleteBlocked', { count: venue.space_count })}</p> : null}
           <div className="mt-3 flex flex-wrap justify-end gap-2">
-            {venue ? <button className="mr-auto min-h-11 rounded-control px-4 font-bold text-danger disabled:opacity-50" type="button" disabled={pending || defaultVenue || venue.space_count > 0} onClick={() => void onDelete(venue)}>删除场地</button> : null}
-            <button className="min-h-11 rounded-control border border-line px-4 font-bold" type="button" disabled={pending} onClick={onClose}>取消</button>
-            <button className="min-h-11 rounded-control bg-brand px-5 font-bold text-white disabled:opacity-50" type="submit" disabled={pending}>{pending ? '保存中…' : venue ? '保存场地' : '创建场地'}</button>
+            {venue ? <button className="mr-auto min-h-11 rounded-control px-4 font-bold text-danger disabled:opacity-50" type="button" disabled={pending || defaultVenue || venue.space_count > 0} onClick={() => void onDelete(venue)}>{t('venues.delete')}</button> : null}
+            <button className="min-h-11 rounded-control border border-line px-4 font-bold" type="button" disabled={pending} onClick={onClose}>{t('venues.cancel')}</button>
+            <button className="min-h-11 rounded-control bg-brand px-5 font-bold text-white disabled:opacity-50" type="submit" disabled={pending}>{pending ? t('venues.saving') : venue ? t('venues.save') : t('venues.create')}</button>
           </div>
         </form>
       </section>

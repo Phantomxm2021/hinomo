@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
+import { useI18n } from '../../i18n/I18nProvider'
 
 export function CreditGateSheet({
   open,
@@ -15,6 +16,7 @@ export function CreditGateSheet({
   onClose: () => void
 }) {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const closeRef = useRef<HTMLButtonElement | null>(null)
   useEffect(() => {
     if (!open) return
@@ -36,20 +38,20 @@ export function CreditGateSheet({
       <section className="w-full max-w-lg rounded-t-[1.75rem] bg-canvas px-5 pt-3 pb-[max(1.25rem,var(--safe-area-bottom))] shadow-float lg:rounded-[1.75rem] lg:p-7" role="alertdialog" aria-modal="true" aria-labelledby="credit-gate-title" aria-describedby="credit-gate-description">
         <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-line lg:hidden" aria-hidden="true" />
         <div className="flex justify-end">
-          <button ref={closeRef} className="grid size-11 place-items-center rounded-full bg-placeholder/70 text-muted active:opacity-60" type="button" aria-label="关闭额度提示" onClick={onClose}><AppIcon name="close" /></button>
+          <button ref={closeRef} className="grid size-11 place-items-center rounded-full bg-placeholder/70 text-muted active:opacity-60" type="button" aria-label={t('credits.gateClose')} onClick={onClose}><AppIcon name="close" /></button>
         </div>
         <div className="grid justify-items-center px-3 pb-2 text-center">
           <div className="mb-5 grid size-20 place-items-center rounded-[1.45rem] bg-brand text-white shadow-soft"><AppIcon name="scan" size={36} /></div>
-          <p className="mb-2 text-xs font-extrabold tracking-[0.16em] text-brand">AI CREDITS</p>
-          <h2 className="m-0 text-[1.6rem] leading-tight font-extrabold text-ink" id="credit-gate-title">需要更多识别额度</h2>
+          <p className="mb-2 text-xs font-extrabold tracking-[0.16em] text-brand">{t('credits.title').toUpperCase()}</p>
+          <h2 className="m-0 text-[1.6rem] leading-tight font-extrabold text-ink" id="credit-gate-title">{t('credits.gateTitle')}</h2>
           <p className="mt-3 max-w-sm text-[0.95rem] leading-6 text-muted" id="credit-gate-description">
-            {`当前可用 ${availableCredits} credits${requiredCredits ? `，本次需要 ${requiredCredits}` : ''}。额度一次购买，不会自动续费。`}
+            {t('credits.gateDescription', { available: availableCredits, required: requiredCredits ? t('credits.gateRequired', { count: requiredCredits }) : '' })}
           </p>
         </div>
         <button className="mt-5 min-h-13 w-full rounded-[0.95rem] bg-brand px-6 text-base font-extrabold text-white shadow-soft active:scale-[0.99]" type="button" onClick={() => { onClose(); navigate('/app/me/credits') }}>
-          购买 credits
+          {t('credits.gateBuy')}
         </button>
-        <button className="mt-2 min-h-11 w-full bg-transparent font-semibold text-muted" type="button" onClick={onClose}>暂不</button>
+        <button className="mt-2 min-h-11 w-full bg-transparent font-semibold text-muted" type="button" onClick={onClose}>{t('credits.gateLater')}</button>
       </section>
     </div>,
     document.body,

@@ -11,13 +11,6 @@ export function createItemSchema(t: ItemSchemaTranslator) {
   })
 }
 
-export const itemSchema = createItemSchema((key) => ({
-  'validation.itemNameRequired': '请输入物品名称',
-  'validation.itemNameMax': '物品名称最多 120 字',
-  'validation.categoryMax': '分类最多 80 字',
-  'validation.quantityInteger': '数量必须是整数',
-  'validation.quantityPositive': '数量必须大于 0',
-  'validation.itemDescriptionMax': '描述最多 1000 字',
-}[key] ?? key))
+export const itemSchema = createItemSchema((key) => key)
 
 export type ItemFormValues = z.infer<typeof itemSchema>

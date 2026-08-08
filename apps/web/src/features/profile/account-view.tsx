@@ -1,10 +1,13 @@
+import { useI18n } from '../../i18n/I18nProvider'
+
 export function AccountAvatar({ src, name, size, avatarLabel }: {
   src?: string | null
   name: string
   size: 'sm' | 'lg'
   avatarLabel?: string
 }) {
-  const resolvedAvatarLabel = avatarLabel ?? `${name}头像`
+  const { t } = useI18n()
+  const resolvedAvatarLabel = avatarLabel ?? t('profile.avatar', { name })
   return src
     ? <img className={`${size === 'lg' ? 'size-20' : 'size-10'} rounded-full object-cover`} src={src} alt={resolvedAvatarLabel} />
     : <span className={`grid ${size === 'lg' ? 'size-20 text-3xl' : 'size-10'} place-items-center rounded-full bg-brand font-black text-white`} aria-label={resolvedAvatarLabel}>{name.slice(0, 1).toUpperCase()}</span>
@@ -20,8 +23,9 @@ export function AvatarUploadControl({ src, name, pending, onChange, className = 
   pendingLabel?: string
   changeLabel?: string
 }) {
-  const uploadLabel = changeLabel ?? '更换头像'
-  const pendingLabelText = pendingLabel ?? '上传中…'
+  const { t } = useI18n()
+  const uploadLabel = changeLabel ?? t('profile.changeAvatar')
+  const pendingLabelText = pendingLabel ?? t('profile.uploadingAvatar')
   return (
     <label className={`group relative block size-20 cursor-pointer overflow-hidden rounded-full ${className || 'mx-auto'}`} aria-label={uploadLabel}>
       <AccountAvatar src={src} name={name} size="lg" avatarLabel={avatarLabel} />

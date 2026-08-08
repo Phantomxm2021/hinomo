@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useI18n } from '../i18n/I18nProvider'
 import { SYSTEM_ALERT_Z_INDEX } from './overlay-layers'
 
 export type MobileAlertProps = {
@@ -12,7 +13,9 @@ export type MobileAlertProps = {
   onClose: () => void
 }
 
-export function MobileAlert({ open, title, message, primaryLabel = '好', onPrimary, cancelLabel, onClose }: MobileAlertProps) {
+export function MobileAlert({ open, title, message, primaryLabel, onPrimary, cancelLabel, onClose }: MobileAlertProps) {
+  const { t } = useI18n()
+  const resolvedPrimaryLabel = primaryLabel ?? t('common.ok')
   const primaryRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => {
@@ -43,7 +46,7 @@ export function MobileAlert({ open, title, message, primaryLabel = '好', onPrim
         </div>
         <div className={`grid border-t border-line/80 ${cancelLabel ? 'grid-cols-2' : 'grid-cols-1'}`}>
           {cancelLabel ? <button className="min-h-12 border-r border-line/80 bg-transparent px-3 text-[1.0625rem] text-brand" type="button" onClick={onClose}>{cancelLabel}</button> : null}
-          <button ref={primaryRef} className="min-h-12 bg-transparent px-3 text-[1.0625rem] font-semibold text-brand" type="button" onClick={() => { onPrimary?.(); onClose() }}>{primaryLabel}</button>
+          <button ref={primaryRef} className="min-h-12 bg-transparent px-3 text-[1.0625rem] font-semibold text-brand" type="button" onClick={() => { onPrimary?.(); onClose() }}>{resolvedPrimaryLabel}</button>
         </div>
       </section>
     </div>,

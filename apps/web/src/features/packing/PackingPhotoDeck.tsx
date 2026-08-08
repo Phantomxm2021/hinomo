@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AppIcon } from '../../components/AppIcon'
+import { useI18n } from '../../i18n/I18nProvider'
 import type { PackingPhoto } from './packing.api'
 import { PackingAuthorizedImage } from './PackingAuthorizedImage'
 
@@ -20,6 +21,7 @@ export function PackingPhotoDeck({ photos, onRemove, removingPhotoId }: {
   onRemove?: (photo: PackingPhoto) => void
   removingPhotoId?: string | null
 }) {
+  const { t } = useI18n()
   const orderedPhotos = useMemo(() => [...photos].sort((a, b) => a.sequence_no - b.sequence_no), [photos])
   const newestPhotoId = orderedPhotos.at(-1)?.id
   const [activeIndex, setActiveIndex] = useState(() => Math.max(orderedPhotos.length - 1, 0))
@@ -38,7 +40,7 @@ export function PackingPhotoDeck({ photos, onRemove, removingPhotoId }: {
     .filter(({ distance }) => Math.abs(distance) <= 2)
 
   return (
-    <div className="w-full max-w-xl" role="region" aria-label="已拍照片">
+    <div className="w-full max-w-xl" role="region" aria-label={t('packing.photoDeck')}>
       <div
         className="relative mx-5 aspect-[4/3] touch-pan-y select-none [&_img]:pointer-events-none"
         onPointerDown={(event) => {
@@ -63,22 +65,22 @@ export function PackingPhotoDeck({ photos, onRemove, removingPhotoId }: {
           >
             <PackingAuthorizedImage
               objectKey={photo.object_key}
-              alt={`第 ${photo.sequence_no} 张装箱照片`}
+              alt={t('packing.photoAlt', { number: photo.sequence_no })}
               className="h-full w-full object-cover"
             />
             {distance === 0 ? (
               <>
                 <span className="absolute top-3 left-3 rounded-full bg-ink/60 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md">
-                  第 {index + 1} 张
+                  {t('packing.photoNumber', { number: index + 1 })}
                 </span>
                 {onRemove ? (
                   <button
                     className="absolute top-3 right-3 min-h-9 rounded-full bg-ink/65 px-3 text-xs font-bold text-white backdrop-blur-md disabled:opacity-50"
                     type="button"
                     disabled={Boolean(removingPhotoId)}
-                    aria-label={`移除第 ${index + 1} 张照片`}
+                    aria-label={t('packing.removePhoto', { number: index + 1 })}
                     onClick={() => onRemove(photo)}
-                  >{removingPhotoId === photo.id ? '移除中…' : '移除'}</button>
+                  >{removingPhotoId === photo.id ? t('packing.removing') : t('common.delete')}</button>
                 ) : null}
               </>
             ) : null}
@@ -90,7 +92,7 @@ export function PackingPhotoDeck({ photos, onRemove, removingPhotoId }: {
         <button
           className="grid size-10 place-items-center rounded-full bg-surface text-ink shadow-soft disabled:opacity-25"
           type="button"
-          aria-label="上一张照片"
+          aria-label={t('packing.previousPhoto')}
           disabled={activeIndex === 0}
           onClick={showPrevious}
         >
@@ -98,12 +100,12 @@ export function PackingPhotoDeck({ photos, onRemove, removingPhotoId }: {
         </button>
         <p className="min-w-24 text-sm font-bold tabular-nums text-muted" aria-live="polite">
           {activeIndex + 1} / {orderedPhotos.length}
-          <span className="sr-only">，左右滑动切换</span>
+          <span className="sr-only">{t('packing.swipeHint')}</span>
         </p>
         <button
           className="grid size-10 place-items-center rounded-full bg-surface text-ink shadow-soft disabled:opacity-25"
           type="button"
-          aria-label="下一张照片"
+          aria-label={t('packing.nextPhoto')}
           disabled={activeIndex === orderedPhotos.length - 1}
           onClick={showNext}
         >

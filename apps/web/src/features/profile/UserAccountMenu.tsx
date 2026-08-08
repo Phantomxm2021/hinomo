@@ -39,7 +39,7 @@ export function UserAccountMenu() {
   })
 
   if (!user) return null
-  const name = profileQuery.data?.display_name || userDisplayName(user)
+  const name = profileQuery.data?.display_name || userDisplayName(user, t('profile.accountNameFallback'))
   const avatar = avatarQuery.data || user.user_metadata?.avatar_url
   const accountPending = profileQuery.isPending
     || (Boolean(profileQuery.data?.avatar_object_key) && avatarQuery.isPending)
