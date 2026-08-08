@@ -305,16 +305,12 @@ export async function installMockBackend(page: Page, state: MockState) {
         return route.fulfill({ status: 204, body: '' })
       }
       if (method === 'POST' && currentUserId) {
-        const input = request.postDataJSON() as Omit<Box, 'id' | 'public_id' | 'box_code'>
-        const box: Box = {
-          ...input,
-          id: `box-${state.boxes.length + 1}`,
-          public_id: `123e4567-e89b-42d3-a456-${String(state.boxes.length + 1).padStart(12, '0')}`,
-          box_code: `BX-${String(state.boxes.length + 1).padStart(5, '0')}`,
-          updated_at: new Date().toISOString(),
-        }
-        state.boxes.push(box)
-        return json(route, { id: box.id, public_id: box.public_id, box_code: box.box_code, name: box.name }, 201)
+        return json(route, {
+          code: '42501',
+          message: 'new row violates row-level security policy',
+          details: null,
+          hint: null,
+        }, 403)
       }
       if (method === 'GET') {
         const publicId = eqValue(url, 'public_id')

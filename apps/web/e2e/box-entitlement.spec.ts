@@ -49,6 +49,24 @@ async function submitOpenCreateDialog(page: Page, name: string) {
   await dialog.waitFor({ state: 'hidden' })
 }
 
+test('direct boxes table inserts are rejected so creation must use the RPC', async ({ page }) => {
+  const state = createMockState()
+  await prepareOwner(page, state)
+
+  const result = await page.evaluate(async () => {
+    const response = await fetch('http://127.0.0.1:54321/rest/v1/boxes', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: '绕过 RPC 的箱子' }),
+    })
+    return { status: response.status, body: await response.json() }
+  })
+
+  expect(result.status).toBe(403)
+  expect(result.body).toMatchObject({ code: '42501', message: 'new row violates row-level security policy' })
+  expect(state.boxes).toHaveLength(0)
+})
+
 test('a free account creates its third box and the fourth attempt is stopped by the HK$38 paywall', async ({ page }) => {
   const state = createMockState({ boxCount: 2 })
   await prepareOwner(page, state)
