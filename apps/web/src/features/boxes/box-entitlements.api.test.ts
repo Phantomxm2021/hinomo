@@ -80,3 +80,16 @@ test('maps checkout function errors to the stable billing fallback', async () =>
 
   await expect(startBoxUnlimitedCheckout()).rejects.toThrow('billing_unavailable')
 })
+
+test('preserves the stable error code from a non-2xx function response', async () => {
+  const context = new Response(JSON.stringify({ error: 'entitlement_already_owned' }), {
+    status: 409,
+    headers: { 'Content-Type': 'application/json' },
+  })
+  mockInvoke.mockResolvedValue({
+    data: null,
+    error: { name: 'FunctionsHttpError', context },
+  })
+
+  await expect(startBoxUnlimitedCheckout()).rejects.toThrow('entitlement_already_owned')
+})

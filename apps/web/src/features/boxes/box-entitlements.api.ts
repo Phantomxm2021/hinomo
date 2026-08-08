@@ -21,9 +21,30 @@ export async function startBoxUnlimitedCheckout(): Promise<never> {
     method: 'POST',
     body: { action: 'boxes_unlimited' },
   })
-  if (error || !data?.url) throw new Error(data?.error ?? 'billing_unavailable')
+  if (error) {
+    const code = await readFunctionErrorCode(error)
+    throw new Error(code ?? data?.error ?? 'billing_unavailable')
+  }
+  if (!data?.url) throw new Error(data?.error ?? 'billing_unavailable')
   window.location.assign(data.url)
   return new Promise<never>(() => undefined)
+}
+
+async function readFunctionErrorCode(error: unknown): Promise<string | null> {
+  if (!error || typeof error !== 'object' || !('context' in error)) return null
+  const context = (error as { context?: unknown }).context
+  if (!context || typeof context !== 'object' || !('json' in context)) return null
+
+  try {
+    const response = context as Response
+    const payload = await response.clone().json() as unknown
+    if (payload && typeof payload === 'object' && 'error' in payload && typeof payload.error === 'string') {
+      return payload.error
+    }
+  } catch {
+    // Non-JSON function errors use the stable billing fallback below.
+  }
+  return null
 }
 
 export function isBoxLimitReached(error: unknown): boolean {
