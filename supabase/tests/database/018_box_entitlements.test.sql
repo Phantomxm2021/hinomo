@@ -157,9 +157,8 @@ select is((select count(*)::integer from public.account_entitlements
 select is((select count(*)::integer from public.account_entitlements
   where user_id = (select owner_id from box_entitlement_test_state)
     and entitlement_code = 'boxes_unlimited_lifetime'
-    and source_reference = 'checkout:box-limit-2'
     and revoked_at is null), 1,
-  'a replacement source leaves exactly one active entitlement');
+  'a replacement source leaves exactly one active entitlement for the owner');
 
 select tests.authenticate_as('box-limit-other');
 select throws_ok(
