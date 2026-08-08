@@ -1,5 +1,6 @@
 import { type RefObject } from 'react'
 import { ResponsiveEditorDialog } from '../../components/ResponsiveEditorDialog'
+import { useI18n } from '../../i18n/I18nProvider'
 import type { OnboardingProgress, OnboardingStep } from './onboarding-progress'
 
 export type OnboardingWelcomeDialogProps = {
@@ -11,30 +12,6 @@ export type OnboardingWelcomeDialogProps = {
   returnFocusRef?: RefObject<HTMLElement | null>
 }
 
-const steps: ReadonlyArray<{ id: OnboardingStep; label: string }> = [
-  { id: 'space', label: '创建一个空间' },
-  { id: 'box', label: '创建第一个箱子' },
-  { id: 'item', label: '记录箱内物品' },
-]
-
-const stepCopy: Record<OnboardingStep, { title: string; description: string; action: string }> = {
-  space: {
-    title: '从一个空间开始',
-    description: '空间可以是客厅、卧室、储藏室，也可以是一组货架。',
-    action: '创建第一个空间',
-  },
-  box: {
-    title: '创建第一个箱子',
-    description: '记录它放在哪里、里面有什么，以后就不用再翻找。',
-    action: '创建第一个箱子',
-  },
-  item: {
-    title: '记录箱内物品',
-    description: '打开刚创建的箱子，拍照识别或手动添加物品。',
-    action: '记录箱内物品',
-  },
-}
-
 export function OnboardingWelcomeDialog({
   open,
   busy,
@@ -43,12 +20,22 @@ export function OnboardingWelcomeDialog({
   onStart,
   returnFocusRef,
 }: OnboardingWelcomeDialogProps) {
-  const copy = stepCopy[progress.currentStep]
+  const { t } = useI18n()
+  const steps: ReadonlyArray<{ id: OnboardingStep; label: string }> = [
+    { id: 'space', label: t('onboarding.stepDetails.space.label') },
+    { id: 'box', label: t('onboarding.stepDetails.box.label') },
+    { id: 'item', label: t('onboarding.stepDetails.item.label') },
+  ]
+  const copy = {
+    title: t(`onboarding.stepDetails.${progress.currentStep}.title`),
+    description: t(`onboarding.stepDetails.${progress.currentStep}.description`),
+    action: t(`onboarding.stepDetails.${progress.currentStep}.action`),
+  }
 
   return (
     <ResponsiveEditorDialog
       open={open}
-      title="开始使用 Nomo"
+      title={t('onboarding.title')}
       busy={busy}
       onClose={onClose}
       returnFocusRef={returnFocusRef}
@@ -58,16 +45,16 @@ export function OnboardingWelcomeDialog({
       <div className="grid gap-6">
         <div>
           <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="m-0 text-meta font-bold tracking-eyebrow text-brand-strong">新手任务</p>
+            <p className="m-0 text-meta font-bold tracking-eyebrow text-brand-strong">{t('onboarding.taskLabel')}</p>
             <span className="shrink-0 rounded-full bg-brand/10 px-3 py-1 text-xs font-bold text-brand-strong">
-              {progress.completedCount}/3
+              {t('onboarding.progress', { completed: progress.completedCount, total: 3 })}
             </span>
           </div>
           <h3 className="m-0 text-section-title font-extrabold text-ink">{copy.title}</h3>
           <p className="mt-2 max-w-xl text-body leading-relaxed text-muted">{copy.description}</p>
         </div>
 
-        <ol className="grid gap-3" aria-label="新手任务进度">
+        <ol className="grid gap-3" aria-label={t('onboarding.progressLabel')}>
           {steps.map((step, index) => {
             const completed = index < progress.completedCount
             const current = step.id === progress.currentStep

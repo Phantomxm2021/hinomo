@@ -1,8 +1,9 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useState } from 'react'
+import { useEffect, useState, type PropsWithChildren } from 'react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { SpaceFilterChips } from './SpaceFilterChips'
+import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 
 afterEach(cleanup)
 
@@ -49,4 +50,20 @@ test('keeps filter chips horizontally scrollable', () => {
 
   expect(screen.getByRole('group', { name: '按空间筛选' })).toHaveClass('overflow-x-auto', 'space-filter-scroll')
   expect(screen.getByRole('button', { name: '全部空间 6' })).toHaveClass('min-h-11', 'shrink-0')
+})
+
+test('renders filter labels in English', async () => {
+  function EnglishProvider({ children }: PropsWithChildren) {
+    const { setLocale } = useI18n()
+    useEffect(() => setLocale('en-US'), [setLocale])
+    return <>{children}</>
+  }
+  render(
+    <I18nProvider>
+      <EnglishProvider><SpaceChipsHarness onChange={vi.fn()} /></EnglishProvider>
+    </I18nProvider>,
+  )
+
+  expect(await screen.findByRole('group', { name: 'Filter by space' })).toBeInTheDocument()
+  expect(await screen.findByRole('button', { name: 'All spaces 6' })).toBeInTheDocument()
 })

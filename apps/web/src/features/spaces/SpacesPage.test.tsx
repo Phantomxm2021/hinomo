@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { PropsWithChildren } from 'react'
+import { useEffect, type PropsWithChildren } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { AppShell } from '../../app/AppShell'
-import { I18nProvider } from '../../i18n/I18nProvider'
+import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 import { AuthProvider } from '../../features/auth/AuthProvider'
 import { SpacesPage } from './SpacesPage'
 
@@ -811,4 +811,26 @@ test('keeps localized mutation errors without leaking backend text', async () =>
 
   await user.click(screen.getByRole('button', { name: '取消' }))
   await waitFor(() => expect(deleteButton).toHaveFocus())
+})
+
+test('renders the spaces empty state and CTA in English', async () => {
+  mockListSpaces.mockResolvedValue([])
+  function EnglishProvider({ children }: PropsWithChildren) {
+    const { setLocale } = useI18n()
+    useEffect(() => setLocale('en-US'), [setLocale])
+    return <>{children}</>
+  }
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <I18nProvider>
+      <EnglishProvider>
+        <MemoryRouter initialEntries={['/app/spaces']}>
+          <QueryClientProvider client={queryClient}><SpacesPage /></QueryClientProvider>
+        </MemoryRouter>
+      </EnglishProvider>
+    </I18nProvider>,
+  )
+
+  expect(await screen.findByRole('heading', { name: 'No spaces yet' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Create your first space' })).toBeInTheDocument()
 })

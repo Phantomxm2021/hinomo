@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { GlobalFindBar } from '../../components/GlobalFindBar'
 import { PageState } from '../../components/PageState'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
+import { useI18n } from '../../i18n/I18nProvider'
 import { useAuth } from '../auth/auth-context'
 import { listBoxes } from '../boxes/boxes.api'
 import { AuthorizedImage } from '../media/AuthorizedImage'
@@ -30,6 +31,7 @@ function spaceEmoji(name: string) {
 }
 
 export function DashboardPage() {
+  const { t } = useI18n()
   const { session } = useAuth()
   const user = session?.user
   const location = useLocation()
@@ -127,14 +129,21 @@ export function DashboardPage() {
     }
   }, [])
 
-  const dashboardTitle = `${greeting}，今天找什么？`
+  const greetingKey = greeting === '早上好'
+    ? 'dashboard.greetings.morning'
+    : greeting === '中午好'
+      ? 'dashboard.greetings.noon'
+      : greeting === '下午好'
+        ? 'dashboard.greetings.afternoon'
+        : 'dashboard.greetings.evening'
+  const dashboardTitle = `${t(greetingKey)}${t('dashboard.titleSuffix')}`
 
   return (
     <>
     <section className="mx-auto flex min-w-0 w-full max-w-7xl flex-col gap-6 lg:gap-10" aria-labelledby="dashboard-title">
       <header className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 py-3 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(26rem,auto)] lg:items-center lg:gap-x-6">
         <div className="col-span-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-          <p className="mb-0 text-meta font-medium tracking-eyebrow text-muted">空间总览</p>
+          <p className="mb-0 text-meta font-medium tracking-eyebrow text-muted">{t('dashboard.eyebrow')}</p>
           <div className="flex items-center gap-2">
             {onboardingAvailable ? (
               <button
@@ -143,7 +152,7 @@ export function DashboardPage() {
                 ref={returnFocusRef}
                 onClick={openOnboarding}
               >
-                新手指南
+                {t('dashboard.guide')}
               </button>
             ) : null}
             {venuesQuery.isPending && venuesQuery.data === undefined ? (
@@ -158,11 +167,11 @@ export function DashboardPage() {
       </header>
 
       {venuesQuery.isError || spacesQuery.isError || boxesQuery.isError ? (
-        <PageState state="error" message="部分数据加载失败，请稍后重试" onRetry={() => void Promise.all([venuesQuery.refetch(), spacesQuery.refetch(), boxesQuery.refetch()])} />
+        <PageState state="error" message={t('dashboard.error')} onRetry={() => void Promise.all([venuesQuery.refetch(), spacesQuery.refetch(), boxesQuery.refetch()])} />
       ) : null}
 
       {initiallyLoading ? (
-        <SkeletonGroup className="grid gap-8" label="正在加载空间总览">
+        <SkeletonGroup className="grid gap-8" label={t('dashboard.loading')}>
           <div className="hidden gap-4 sm:grid-cols-3 lg:grid">
             {Array.from({ length: 3 }, (_, index) => (
               <div className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" key={index}>
@@ -191,38 +200,38 @@ export function DashboardPage() {
         </SkeletonGroup>
       ) : (
         <>
-      <div className="hidden gap-4 sm:grid-cols-3 lg:grid" aria-label="收纳概览">
-        <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label="空间统计">
-          <span className="text-meta font-medium text-muted">空间</span>
+      <div className="hidden gap-4 sm:grid-cols-3 lg:grid" aria-label={t('dashboard.overview')}>
+        <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label={t('dashboard.spaceStats')}>
+          <span className="text-meta font-medium text-muted">{t('dashboard.spaces')}</span>
           <strong className="text-metric font-extrabold tracking-[-0.045em] text-ink">{spacesQuery.data ? spaces.length : '—'}</strong>
-          <span className="font-medium text-ink">客厅、卧室、书房...</span>
+          <span className="font-medium text-ink">{t('dashboard.sampleSpaces')}</span>
         </article>
-        <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label="箱子统计">
-          <span className="text-meta font-medium text-muted">箱子</span>
+        <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label={t('dashboard.boxStats')}>
+          <span className="text-meta font-medium text-muted">{t('dashboard.boxes')}</span>
           <strong className="text-metric font-extrabold tracking-[-0.045em] text-ink">{boxesQuery.data ? boxes.length : '—'}</strong>
-          <span className="font-medium text-ink">3 个最近更新</span>
+          <span className="font-medium text-ink">{t('dashboard.recentBoxes')}</span>
         </article>
-        <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label="物品统计">
-          <span className="text-meta font-medium text-muted">物品</span>
+        <article className="grid min-h-36 content-between rounded-card border border-line bg-surface p-6" aria-label={t('dashboard.itemStats')}>
+          <span className="text-meta font-medium text-muted">{t('dashboard.items')}</span>
           <strong className="text-metric font-extrabold tracking-[-0.045em] text-ink">{boxesQuery.data ? itemTotal : '—'}</strong>
-          <span className="font-medium text-ink">跨箱子快速搜索</span>
+          <span className="font-medium text-ink">{t('dashboard.crossBoxSearch')}</span>
         </article>
       </div>
 
       <section className="min-w-0" aria-labelledby="rooms-title">
         <div className="my-3.5 flex items-center justify-between gap-4">
-          <h2 className="mb-0 text-section-title font-bold" id="rooms-title">按空间查看</h2>
+          <h2 className="mb-0 text-section-title font-bold" id="rooms-title">{t('dashboard.viewBySpace')}</h2>
           <Link className="inline-flex min-h-11 items-center text-meta font-medium text-muted no-underline hover:text-ink" to="/app/spaces">
-            管理空间 <span aria-hidden="true">›</span>
+            {t('dashboard.manageSpaces')} <span aria-hidden="true">›</span>
           </Link>
         </div>
         {spacesQuery.isSuccess && spaces.length === 0 ? (
           <PageState
             state="empty"
             icon="space"
-            title="这个场地还没有空间"
-            description="空间可以是客厅、卧室、储藏室，也可以是一组货架。"
-            action={<Link to="/app/spaces?create=1">创建第一个空间</Link>}
+            title={t('dashboard.noVenueSpacesTitle')}
+            description={t('dashboard.noVenueSpacesDescription')}
+            action={<Link to="/app/spaces?create=1">{t('dashboard.createFirstSpace')}</Link>}
           />
         ) : null}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -232,10 +241,10 @@ export function DashboardPage() {
               to={`/app/boxes?space=${encodeURIComponent(space.id)}`}
               key={space.id}
             >
-              <span className="text-3xl leading-none" role="img" aria-label={`${space.name}图标`}>{spaceEmoji(space.name)}</span>
+              <span className="text-3xl leading-none" role="img" aria-label={t('spaces.iconAlt', { name: space.name })}>{spaceEmoji(space.name)}</span>
               <div>
                 <h3 className="text-card-title font-bold">{space.name}</h3>
-                <p className="text-body text-muted">{space.box_count} 个箱子</p>
+                <p className="text-body text-muted">{t('spaces.boxCount', { count: space.box_count })}</p>
               </div>
             </Link>
           ))}
@@ -245,11 +254,11 @@ export function DashboardPage() {
       {spaces.length > 0 ? <section className="min-w-0" aria-labelledby="recent-boxes-title">
         <div className="my-3.5 flex items-center justify-between gap-4">
           <div>
-            <h2 className="mb-0 text-section-title font-bold" id="recent-boxes-title">最近打开</h2>
+            <h2 className="mb-0 text-section-title font-bold" id="recent-boxes-title">{t('dashboard.recentOpened')}</h2>
           </div>
           {boxes.length > 0 ? (
             <Link className="inline-flex min-h-11 items-center text-meta font-medium text-muted no-underline hover:text-ink" to="/app/boxes">
-              查看全部 <span aria-hidden="true">›</span>
+              {t('dashboard.viewAll')} <span aria-hidden="true">›</span>
             </Link>
           ) : null}
         </div>
@@ -257,9 +266,9 @@ export function DashboardPage() {
           <PageState
             state="empty"
             icon="box"
-            title="给每件物品一个好找的家"
-            description="从第一个箱子开始，记录它放在哪里、里面有什么。"
-            action={<Link to="/app/boxes?create=1">创建第一个箱子</Link>}
+            title={t('dashboard.noBoxesTitle')}
+            description={t('dashboard.noBoxesDescription')}
+            action={<Link to="/app/boxes?create=1">{t('dashboard.createFirstBox')}</Link>}
           />
         ) : null}
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -268,12 +277,12 @@ export function DashboardPage() {
               <span
                 className={`relative block aspect-[3.5/1] w-full overflow-hidden ${box.cover_object_key ? 'bg-placeholder' : boxPlaceholderTones[index % boxPlaceholderTones.length]}`}
                 role={box.cover_object_key ? undefined : 'img'}
-                aria-label={box.cover_object_key ? undefined : `${box.name}封面占位图`}
+                aria-label={box.cover_object_key ? undefined : t('dashboard.coverPlaceholder', { name: box.name })}
               >
                 {box.cover_object_key ? (
                   <AuthorizedImage
                     objectKey={box.cover_object_key}
-                    alt={`${box.name}封面`}
+                    alt={t('dashboard.coverAlt', { name: box.name })}
                     className="block h-full w-full object-cover"
                   />
                 ) : (
@@ -284,9 +293,9 @@ export function DashboardPage() {
               </span>
               <span className="block px-5 pt-4.5 pb-5">
                 <h3 className="text-card-title font-bold">{box.name}</h3>
-                <p className="mb-2 text-meta text-muted">{box.space_name} · {box.location || '未填写位置'}</p>
+                <p className="mb-2 text-meta text-muted">{box.space_name} · {box.location || t('dashboard.locationUnset')}</p>
               </span>
-              <Link className="absolute inset-0 z-10 focus-visible:outline-offset-[-3px]" to={`/b/${box.public_id}`} aria-label={`打开${box.name}`} />
+              <Link className="absolute inset-0 z-10 focus-visible:outline-offset-[-3px]" to={`/b/${box.public_id}`} aria-label={t('dashboard.openBox', { name: box.name })} />
             </article>
           ))}
         </div>
@@ -295,8 +304,8 @@ export function DashboardPage() {
       )}
     </section>
     {welcomeSeenError ? (
-      <p className="mx-auto mt-3 w-full max-w-7xl text-meta text-muted" role="status" aria-label="新手指南状态" aria-live="polite">
-        新手指南记录失败，下次打开时会重试。
+      <p className="mx-auto mt-3 w-full max-w-7xl text-meta text-muted" role="status" aria-label={t('dashboard.welcomeStatus')} aria-live="polite">
+        {t('dashboard.welcomeRecordFailed')}
       </p>
     ) : null}
     <OnboardingWelcomeDialog

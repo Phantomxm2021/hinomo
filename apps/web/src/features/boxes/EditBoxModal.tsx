@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type RefObject } from 'react'
 import { ResponsiveEditorDialog } from '../../components/ResponsiveEditorDialog'
+import { useI18n } from '../../i18n/I18nProvider'
 import { BoxForm } from './BoxForm'
 
 export function EditBoxModal({
@@ -17,6 +18,7 @@ export function EditBoxModal({
   onSaved: () => void
   onBusyChange?: (busy: boolean) => void
 }) {
+  const { t } = useI18n()
   const [busy, setBusy] = useState(false)
   const changeBusy = useCallback((nextBusy: boolean) => {
     setBusy(nextBusy)
@@ -36,7 +38,7 @@ export function EditBoxModal({
   return (
     <ResponsiveEditorDialog
       open={open}
-      title="编辑箱子"
+      title={t('boxes.edit')}
       busy={busy}
       onClose={onClose}
       returnFocusRef={returnFocusRef}

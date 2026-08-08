@@ -9,6 +9,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
+import { useI18n } from '../../i18n/I18nProvider'
 import { useMobileFeedback } from '../../components/mobile-feedback'
 import {
   isVenuesSchemaUnavailable,
@@ -33,7 +34,7 @@ import {
 
 type SpaceView = 'cards' | 'plan'
 
-const spaceNameTemplates = ['客厅', '卧室', '厨房', '储藏室', '书房'] as const
+const spaceNameTemplates = ['livingRoom', 'bedroom', 'kitchen', 'storageRoom', 'study'] as const
 
 function getInitialView(): SpaceView {
   try {
@@ -53,6 +54,7 @@ function getEditorControls(dialog: HTMLElement | null) {
 }
 
 export function SpacesPage() {
+  const { t } = useI18n()
   const queryClient = useQueryClient()
   const feedback = useMobileFeedback()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -84,7 +86,7 @@ export function SpacesPage() {
     onSuccess: async () => {
       deleteReturnFocusRef.current = headerCreateButtonRef.current
       setDeleteTarget(null)
-      feedback.notify('空间已删除')
+      feedback.notify(t('spaces.deleted'))
       await queryClient.invalidateQueries({ queryKey: ['spaces'] })
     },
   })
@@ -203,7 +205,7 @@ export function SpacesPage() {
       } else {
         await createMutation.mutateAsync(input)
       }
-      feedback.notify(editTarget ? '空间已更新' : '空间已创建')
+      feedback.notify(editTarget ? t('spaces.updated') : t('spaces.created'))
       setEditorOpen(false)
       setEditTarget(null)
       reset({ venue_id: '', name: '', description: '' })
@@ -253,7 +255,7 @@ export function SpacesPage() {
   function requestDelete(space: SpaceSummary, trigger: HTMLButtonElement) {
     setBlockedMessage(null)
     if (space.box_count > 0) {
-      setBlockedMessage(`请先移动或删除其中的 ${space.box_count} 个箱子`)
+      setBlockedMessage(t('spaces.deletingBlocked', { count: space.box_count }))
       return
     }
     deleteReturnFocusRef.current = trigger
@@ -276,24 +278,31 @@ export function SpacesPage() {
     ? spaces.filter((space) => !space.venue_id || space.venue_id === selectedVenueId)
     : []
   const existingSpaceNames = new Set(visibleSpaces.map((space) => space.name.trim()))
+  const spaceTemplateLabels: Record<typeof spaceNameTemplates[number], string> = {
+    livingRoom: t('spaces.templates.livingRoom'),
+    bedroom: t('spaces.templates.bedroom'),
+    kitchen: t('spaces.templates.kitchen'),
+    storageRoom: t('spaces.templates.storageRoom'),
+    study: t('spaces.templates.study'),
+  }
 
   return (
     <section className="mx-auto grid min-w-0 w-full max-w-7xl gap-5 lg:gap-6" aria-labelledby="spaces-title">
       <header className="py-3">
-        <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">整理你的收纳范围</p>
+        <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">{t('spaces.eyebrow')}</p>
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="mb-0 text-page-title font-extrabold" id="spaces-title">空间</h1>
+            <h1 className="mb-0 text-page-title font-extrabold" id="spaces-title">{t('spaces.title')}</h1>
             {venuesQuery.isPending && venuesQuery.data === undefined ? <Skeleton className="mt-2 h-4 w-20" /> : null}
             {selectedVenue ? <p className="mt-1 mb-0 truncate text-meta font-medium tracking-eyebrow text-muted">{selectedVenue.name}</p> : null}
-            {venuesQuery.isSuccess && !selectedVenue ? <p className="mt-1 mb-0 text-sm font-semibold text-muted">暂无场地</p> : null}
+            {venuesQuery.isSuccess && !selectedVenue ? <p className="mt-1 mb-0 text-sm font-semibold text-muted">{t('spaces.noVenue')}</p> : null}
           </div>
           <button
             ref={headerCreateButtonRef}
             className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-brand bg-brand text-white transition hover:bg-brand-strong"
             type="button"
-            aria-label="创建空间"
-            title="创建空间"
+            aria-label={t('spaces.createAria')}
+            title={t('spaces.createAria')}
             disabled={venues.length === 0}
             onClick={beginCreate}
           >
@@ -305,9 +314,9 @@ export function SpacesPage() {
       {venuesQuery.isError ? (
         <PageState
           state="error"
-          message={isVenuesSchemaUnavailable(venuesQuery.error)
-            ? '场地功能尚未部署，请先执行 venues 数据库迁移。'
-            : '场地加载失败，请重试'}
+            message={isVenuesSchemaUnavailable(venuesQuery.error)
+            ? t('spaces.errorSchema')
+            : t('spaces.errorVenue')}
           onRetry={() => void venuesQuery.refetch()}
         />
       ) : null}
@@ -335,12 +344,12 @@ export function SpacesPage() {
               onFocus={() => getEditorControls(editorDialogRef.current).at(-1)?.focus()}
             />
             <div className="mb-5 flex items-center justify-between gap-4">
-              <h2 className="mb-0 text-section-title font-bold" id="space-editor-title">{editTarget ? '编辑空间' : '创建空间'}</h2>
+              <h2 className="mb-0 text-section-title font-bold" id="space-editor-title">{editTarget ? t('spaces.editorEdit') : t('spaces.editorCreate')}</h2>
               <button
                 ref={editorCloseButtonRef}
                 className="grid min-h-11 w-11 flex-none place-items-center rounded-control border border-line bg-canvas p-0 text-ink"
                 type="button"
-                aria-label={`关闭${editTarget ? '编辑空间' : '创建空间'}编辑器`}
+                aria-label={t('spaces.closeEditor', { action: editTarget ? t('spaces.editorEdit') : t('spaces.editorCreate') })}
                 disabled={editorPending}
                 onClick={closeEditor}
                 onKeyDown={(event) => {
@@ -355,11 +364,11 @@ export function SpacesPage() {
             </div>
             {searchParams.get('from') === 'box' ? (
               <p className="mb-5 rounded-control bg-brand/10 px-4 py-3 text-sm font-medium leading-relaxed text-ink">
-                创建箱子前，需要先告诉 Nomo 它放在哪个空间。
+                {t('spaces.fromBoxHint')}
               </p>
             ) : null}
             <form className="grid gap-3" onSubmit={submit} noValidate>
-              <label className="font-bold text-ink" htmlFor="space-venue">场地</label>
+              <label className="font-bold text-ink" htmlFor="space-venue">{t('spaces.venue')}</label>
               <select
                 className="min-h-12 w-full rounded-control border border-line bg-surface px-3 py-2.5 text-ink focus:border-brand"
                 id="space-venue"
@@ -367,31 +376,34 @@ export function SpacesPage() {
                 disabled={editorPending}
                 aria-invalid={errors.venue_id ? 'true' : undefined}
               >
-                <option value="">请选择场地</option>
+                <option value="">{t('spaces.selectVenue')}</option>
                 {venues.map((venue) => <option value={venue.id} key={venue.id}>{venue.name}</option>)}
               </select>
               {errors.venue_id ? <p role="alert">{errors.venue_id.message}</p> : null}
               {!editTarget ? (
                 <fieldset className="mb-1 grid gap-2 border-0 p-0">
-                  <legend className="font-bold text-ink">常用空间</legend>
+                  <legend className="font-bold text-ink">{t('spaces.commonSpaces')}</legend>
                   <div className="flex flex-wrap gap-2">
-                    {spaceNameTemplates.map((template) => (
+                    {spaceNameTemplates.map((templateId) => {
+                      const template = spaceTemplateLabels[templateId]
+                      return (
                       <button
                         className="min-h-10 rounded-full border border-line bg-canvas px-3.5 py-2 text-sm font-semibold text-ink hover:border-brand/40 hover:bg-brand/10 disabled:cursor-not-allowed disabled:opacity-50"
                         type="button"
-                        key={template}
+                        key={templateId}
                         disabled={existingSpaceNames.has(template)}
-                        aria-label={existingSpaceNames.has(template) ? `${template}，已存在` : template}
+                        aria-label={existingSpaceNames.has(template) ? t('spaces.commonSpaceExists', { name: template }) : template}
                         onClick={() => setValue('name', template, { shouldDirty: true, shouldValidate: true })}
                       >
-                        {template}{existingSpaceNames.has(template) ? ' · 已有' : ''}
+                        {template}{existingSpaceNames.has(template) ? t('spaces.commonSpaceHas') : ''}
                       </button>
-                    ))}
+                      )
+                    })}
                   </div>
-                  <p className="m-0 text-xs leading-relaxed text-muted">选择一个常用名称，或在下方自定义。</p>
+                  <p className="m-0 text-xs leading-relaxed text-muted">{t('spaces.commonSpaceHint')}</p>
                 </fieldset>
               ) : null}
-              <label className="font-bold text-ink" htmlFor="space-name">空间名称</label>
+              <label className="font-bold text-ink" htmlFor="space-name">{t('spaces.name')}</label>
               <input
                 className="min-h-12 w-full rounded-control border border-line bg-surface px-3 py-2.5 text-ink focus:border-brand"
                 id="space-name"
@@ -402,7 +414,7 @@ export function SpacesPage() {
                 readOnly={editorPending}
               />
               {errors.name ? <p id="space-name-error" role="alert">{errors.name.message}</p> : null}
-              <label className="font-bold text-ink" htmlFor="space-description">描述（可选）</label>
+              <label className="font-bold text-ink" htmlFor="space-description">{t('spaces.descriptionOptional')}</label>
               <textarea
                 className="min-h-28 w-full resize-y rounded-control border border-line bg-surface px-3 py-2.5 text-ink focus:border-brand"
                 id="space-description"
@@ -414,14 +426,14 @@ export function SpacesPage() {
               />
               {errors.description ? <p id="space-description-error" role="alert">{errors.description.message}</p> : null}
               {createMutation.isError || updateMutation.isError ? (
-                <ResponsiveOperationError message="保存失败，请稍后重试" />
+                <ResponsiveOperationError message={t('spaces.saveError')} />
               ) : null}
               {editorPending ? (
-                <p className="hidden lg:block" role="status" aria-live="polite">正在保存空间…</p>
+                <p className="hidden lg:block" role="status" aria-live="polite">{t('spaces.saving')}</p>
               ) : null}
               <div className="mt-3 flex justify-end gap-2.5">
                 <button className="min-h-11 rounded-control border border-brand/40 bg-brand/10 px-4.5 py-2.5 font-bold text-ink" type="button" disabled={editorPending} onClick={closeEditor}>
-                  取消
+                  {t('spaces.cancel')}
                 </button>
                 <button
                   ref={editorSubmitButtonRef}
@@ -435,7 +447,7 @@ export function SpacesPage() {
                     }
                   }}
                 >
-                  {editorPending ? '保存中…' : editTarget ? '保存空间' : '创建空间'}
+                  {editorPending ? t('spaces.saving') : editTarget ? t('spaces.save') : t('spaces.createButton')}
                 </button>
               </div>
             </form>
@@ -451,9 +463,9 @@ export function SpacesPage() {
         : null}
 
       {blockedMessage ? <ResponsiveOperationError message={blockedMessage} /> : null}
-      {deleteMutation.isError ? <ResponsiveOperationError message="删除失败，请稍后重试" /> : null}
+      {deleteMutation.isError ? <ResponsiveOperationError message={t('spaces.deleteError')} /> : null}
       {spacesQuery.isPending && spacesQuery.data === undefined ? (
-        <SkeletonGroup className="grid gap-5" label="正在加载空间">
+        <SkeletonGroup className="grid gap-5" label={t('spaces.loading')}>
           <div className="flex items-center justify-between gap-3">
             <Skeleton className="h-11 w-56" />
             <Skeleton className="h-11 w-28" />
@@ -474,41 +486,41 @@ export function SpacesPage() {
           )}
         </SkeletonGroup>
       ) : null}
-      {spacesQuery.isError ? <PageState state="error" message="空间加载失败，请重试" onRetry={() => void spacesQuery.refetch()} /> : null}
+      {spacesQuery.isError ? <PageState state="error" message={t('spaces.loadError')} onRetry={() => void spacesQuery.refetch()} /> : null}
       {spacesQuery.data && venuesQuery.isSuccess && visibleSpaces.length === 0 ? (
         <PageState
           state="empty"
           icon="space"
-          title="还没有空间"
-          description="空间可以是客厅、卧室、储藏室，也可以是一组货架。"
-          action={<button type="button" onClick={beginCreate}>创建第一个空间</button>}
+          title={t('spaces.emptyTitle')}
+          description={t('spaces.emptyDescription')}
+          action={<button type="button" onClick={beginCreate}>{t('spaces.createFirstSpace')}</button>}
         />
       ) : null}
       {spacesQuery.data && venuesQuery.isSuccess && visibleSpaces.length > 0 ? (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="inline-flex rounded-control border border-line bg-surface p-1" role="group" aria-label="空间视图">
+            <div className="inline-flex rounded-control border border-line bg-surface p-1" role="group" aria-label={t('spaces.viewLabel')}>
               <button className={`inline-flex min-h-11 items-center gap-2 rounded-control px-3.5 py-2 font-bold ${view === 'cards' ? 'bg-brand text-white' : 'text-muted hover:bg-canvas hover:text-ink'}`} type="button" aria-pressed={view === 'cards'} onClick={() => selectView('cards')}>
-                <AppIcon name="space" size={18} />卡片视图
+                <AppIcon name="space" size={18} />{t('spaces.cardsView')}
               </button>
               <button className={`inline-flex min-h-11 items-center gap-2 rounded-control px-3.5 py-2 font-bold ${view === 'plan' ? 'bg-brand text-white' : 'text-muted hover:bg-canvas hover:text-ink'}`} type="button" aria-pressed={view === 'plan'} onClick={() => selectView('plan')}>
-                <AppIcon name="box" size={18} />平面视图
+                <AppIcon name="box" size={18} />{t('spaces.planView')}
               </button>
             </div>
             {view === 'plan' ? (
-              <button className={`min-h-11 rounded-control border px-4 py-2.5 font-bold disabled:cursor-not-allowed disabled:opacity-55 ${layoutEditMode ? 'border-brand bg-brand/10 text-brand-strong' : 'border-line bg-surface text-ink'}`} type="button" aria-label={layoutsQuery.isPending ? '布局加载中' : undefined} title={layoutsQuery.isPending ? '布局加载中' : undefined} aria-pressed={layoutEditMode} disabled={layoutsQuery.isPending} onClick={() => setLayoutEditMode((current) => !current)}>
-                {layoutsQuery.isPending ? <Skeleton as="span" className="inline-block h-4 w-16" /> : layoutEditMode ? '完成调整' : '调整布局'}
+              <button className={`min-h-11 rounded-control border px-4 py-2.5 font-bold disabled:cursor-not-allowed disabled:opacity-55 ${layoutEditMode ? 'border-brand bg-brand/10 text-brand-strong' : 'border-line bg-surface text-ink'}`} type="button" aria-label={layoutsQuery.isPending ? t('spaces.layoutLoading') : undefined} title={layoutsQuery.isPending ? t('spaces.layoutLoading') : undefined} aria-pressed={layoutEditMode} disabled={layoutsQuery.isPending} onClick={() => setLayoutEditMode((current) => !current)}>
+                {layoutsQuery.isPending ? <Skeleton as="span" className="inline-block h-4 w-16" /> : layoutEditMode ? t('spaces.layoutDone') : t('spaces.layoutAdjust')}
               </button>
             ) : null}
           </div>
-          {view === 'plan' && layoutEditMode ? <p className="text-meta text-muted" role="status">拖动卡片移动位置；拖动右下角调整尺寸。{layoutsQuery.isSuccess ? '布局会自动保存。' : '当前调整仅保留在页面中。'}</p> : null}
-          {view === 'plan' && layoutStorageUnavailable ? <ResponsiveOperationError message="布局保存尚未启用，请先执行 space_layouts 数据库迁移。当前仍可浏览自动布局。" /> : null}
-          {view === 'plan' && layoutsQuery.isError && !layoutStorageUnavailable ? <ResponsiveOperationError message="布局加载失败；当前显示自动布局。" busy={layoutsQuery.isFetching} retryLabel="重试布局" onRetry={() => void layoutsQuery.refetch()} /> : null}
+          {view === 'plan' && layoutEditMode ? <p className="text-meta text-muted" role="status">{t('spaces.layoutInstructions')}{layoutsQuery.isSuccess ? t('spaces.layoutAutoSaved') : t('spaces.layoutLocalOnly')}</p> : null}
+          {view === 'plan' && layoutStorageUnavailable ? <ResponsiveOperationError message={t('spaces.layoutMigration')} /> : null}
+          {view === 'plan' && layoutsQuery.isError && !layoutStorageUnavailable ? <ResponsiveOperationError message={t('spaces.layoutLoadError')} busy={layoutsQuery.isFetching} retryLabel={t('spaces.retryLayout')} onRetry={() => void layoutsQuery.refetch()} /> : null}
           {layoutMutation.isError ? (
             <ResponsiveOperationError
-              message="布局保存失败；当前调整仍保留在页面中。"
+              message={t('spaces.layoutSaveError')}
               busy={layoutMutation.isPending}
-              retryLabel="重试保存布局"
+              retryLabel={t('spaces.retryLayoutSave')}
               onRetry={layoutMutation.variables ? () => layoutMutation.mutate(layoutMutation.variables!) : undefined}
             />
           ) : null}
@@ -526,8 +538,8 @@ export function SpacesPage() {
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
-        title={`删除“${deleteTarget?.name ?? ''}”？`}
-        description="删除后无法恢复。"
+        title={t('spaces.deleteTitle', { name: deleteTarget?.name ?? '' })}
+        description={t('spaces.deleteDescription')}
         busy={deleteMutation.isPending}
         returnFocusRef={deleteReturnFocusRef}
         onCancel={() => setDeleteTarget(null)}

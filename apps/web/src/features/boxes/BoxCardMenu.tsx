@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { AppIcon } from '../../components/AppIcon'
+import { useI18n } from '../../i18n/I18nProvider'
 import type { BoxSummary } from './boxes.api'
 
 type BoxCardMenuProps = {
@@ -12,6 +13,7 @@ type BoxCardMenuProps = {
 }
 
 export function BoxCardMenu({ box, open, triggerRef, onClose, onEdit, onDelete }: BoxCardMenuProps) {
+  const { t } = useI18n()
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -41,26 +43,26 @@ export function BoxCardMenu({ box, open, triggerRef, onClose, onEdit, onDelete }
       <button
         className="inline-flex min-h-11 items-center gap-2 rounded-control px-3 text-sm font-bold text-ink no-underline hover:bg-canvas"
         type="button"
-        aria-label={`编辑${box.name}`}
+        aria-label={t('boxes.editAria', { name: box.name })}
         onClick={() => {
           onEdit(box, triggerRef.current)
           onClose(false)
         }}
       >
         <AppIcon name="edit" size={16} />
-        编辑箱子
+        {t('boxes.edit')}
       </button>
       <button
         className="inline-flex min-h-11 items-center gap-2 rounded-control px-3 text-left text-sm font-bold text-danger hover:bg-danger/5"
         type="button"
-        aria-label={`删除${box.name}`}
+        aria-label={t('boxes.deleteAria', { name: box.name })}
         onClick={() => {
           onDelete(box, triggerRef.current)
           onClose(false)
         }}
       >
         <AppIcon name="trash" size={16} />
-        删除箱子
+        {t('boxes.delete')}
       </button>
     </div>
   )

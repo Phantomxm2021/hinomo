@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
+import { useI18n } from '../../i18n/I18nProvider'
 import { formatStoragePath } from '../../lib/format-storage-path'
 import { AuthorizedImage } from '../media/AuthorizedImage'
 import type { BoxSummary } from './boxes.api'
@@ -16,8 +17,9 @@ type BoxCatalogueCardProps = {
 }
 
 export function BoxCatalogueCard({ box, menuOpen, onMenuToggle, onMenuClose, onEdit, onDelete }: BoxCatalogueCardProps) {
+  const { t } = useI18n()
   const triggerRef = useRef<HTMLButtonElement | null>(null)
-  const visibilityLabel = box.visibility === 'public' ? '公开' : '私有'
+  const visibilityLabel = box.visibility === 'public' ? t('boxes.visibilityPublic') : t('boxes.visibilityPrivate')
   const closeMenu = (restoreFocus: boolean) => {
     onMenuClose()
     if (restoreFocus) window.requestAnimationFrame(() => triggerRef.current?.focus())
@@ -27,9 +29,9 @@ export function BoxCatalogueCard({ box, menuOpen, onMenuToggle, onMenuClose, onE
     <article className="group relative flex min-w-0 flex-col overflow-hidden rounded-card border border-line bg-surface transition duration-200 hover:-translate-y-0.5 hover:shadow-soft" aria-label={box.name}>
       <div className="relative aspect-[16/10] overflow-hidden bg-placeholder">
         {box.cover_object_key ? (
-          <AuthorizedImage objectKey={box.cover_object_key} alt={`${box.name}封面`} className="block h-full w-full object-cover" />
+          <AuthorizedImage objectKey={box.cover_object_key} alt={t('dashboard.coverAlt', { name: box.name })} className="block h-full w-full object-cover" />
         ) : (
-          <div className="grid h-full w-full place-content-center text-brand" role="img" aria-label="箱子封面占位图">
+          <div className="grid h-full w-full place-content-center text-brand" role="img" aria-label={t('boxes.coverPlaceholder')}>
             <span className="grid size-14 place-items-center rounded-card border border-brand/25 bg-surface/70">
               <AppIcon name="box" size={30} />
             </span>
@@ -43,19 +45,19 @@ export function BoxCatalogueCard({ box, menuOpen, onMenuToggle, onMenuClose, onE
 
       <div className="flex flex-1 flex-col gap-2 p-4">
         <h2 className="truncate text-card-title font-bold text-ink">{box.name}</h2>
-        <p className="truncate text-sm text-muted">{formatStoragePath([box.venue_name, box.space_name, box.location || '未填写位置'])}</p>
+        <p className="truncate text-sm text-muted">{formatStoragePath([box.venue_name, box.space_name, box.location || t('boxes.locationUnset')])}</p>
         <div className="mt-auto flex items-center justify-between gap-3 pt-2 text-sm">
-          <span className="font-bold text-ink">{box.item_count} 件物品</span>
+          <span className="font-bold text-ink">{t('boxes.itemCount', { count: box.item_count })}</span>
           <span className="font-mono text-xs font-extrabold text-brand">{box.box_code}</span>
         </div>
       </div>
 
-      <Link className="absolute inset-0 z-10 focus-visible:outline-offset-[-3px]" to={`/b/${box.public_id}`} aria-label={`打开${box.name}`} />
+      <Link className="absolute inset-0 z-10 focus-visible:outline-offset-[-3px]" to={`/b/${box.public_id}`} aria-label={t('boxes.open', { name: box.name })} />
       <button
         ref={triggerRef}
         className="absolute top-3 right-3 z-20 grid size-11 place-items-center rounded-control border border-line bg-surface/90 text-ink shadow-soft hover:bg-surface"
         type="button"
-        aria-label={`管理${box.name}`}
+        aria-label={t('boxes.manage', { name: box.name })}
         aria-expanded={menuOpen}
         onClick={onMenuToggle}
       >

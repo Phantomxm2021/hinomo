@@ -1,9 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useEffect, type PropsWithChildren } from 'react'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { SearchPage } from './SearchPage'
+import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 
 const { mockListBoxes, mockSearchItems } = vi.hoisted(() => ({
   mockListBoxes: vi.fn(),
@@ -42,10 +44,11 @@ function NavigationControls() {
   )
 }
 
-function renderSearch(initialEntry = '/app/search', client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
+function renderSearch(initialEntry = '/app/search', client: QueryClient | undefined = undefined) {
+  const queryClient = client ?? new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
-      <QueryClientProvider client={client}>
+      <QueryClientProvider client={queryClient}>
         <SearchPage />
         <LocationProbe />
         <NavigationControls />
@@ -278,4 +281,27 @@ test('follows same-route URL navigation, history, and q removal without stale in
   expect(screen.getByRole('searchbox')).toHaveValue('')
   expect(screen.getByText('输入关键词，快速找到物品所在的箱子。')).toBeInTheDocument()
   expect(screen.queryByText('充电器物品 × 1')).not.toBeInTheDocument()
+})
+
+test('renders search navigation and empty state in English', async () => {
+  mockSearchItems.mockResolvedValue([])
+  function EnglishProvider({ children }: PropsWithChildren) {
+    const { setLocale } = useI18n()
+    useEffect(() => setLocale('en-US'), [setLocale])
+    return <>{children}</>
+  }
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <I18nProvider>
+      <EnglishProvider>
+        <MemoryRouter initialEntries={['/app/search?q=missing']}>
+          <QueryClientProvider client={queryClient}><SearchPage /></QueryClientProvider>
+        </MemoryRouter>
+      </EnglishProvider>
+    </I18nProvider>,
+  )
+
+  expect(await screen.findByRole('heading', { name: 'Search' })).toBeInTheDocument()
+  expect(screen.getByRole('search', { name: 'Find storage' })).toBeInTheDocument()
+  expect(await screen.findByText('No matching results.')).toBeInTheDocument()
 })

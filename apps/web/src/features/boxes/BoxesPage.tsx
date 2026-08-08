@@ -6,6 +6,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
+import { useI18n } from '../../i18n/I18nProvider'
 import { useMobileFeedback } from '../../components/mobile-feedback'
 import { useSelectedVenue } from '../venues/selected-venue'
 import { listVenues } from '../venues/venues.api'
@@ -26,6 +27,7 @@ type CatalogueParam = 'space'
 const EMPTY_BOXES: readonly BoxSummary[] = []
 
 export function BoxesPage() {
+  const { t } = useI18n()
   const queryClient = useQueryClient()
   const feedback = useMobileFeedback()
   const navigate = useNavigate()
@@ -167,14 +169,14 @@ export function BoxesPage() {
     if (!createCompletionPending || creating) return
     setCreateCompletionPending(false)
     setCreateSucceeded(true)
-    feedback.notify('箱子已创建')
+    feedback.notify(t('boxes.created'))
     clearCreateSuccessTimer()
     createSuccessTimerRef.current = window.setTimeout(() => {
       createSuccessTimerRef.current = null
       setCreateSucceeded(false)
       setCreatedBox(null)
     }, 12_000)
-  }, [clearCreateSuccessTimer, createCompletionPending, creating, feedback])
+  }, [clearCreateSuccessTimer, createCompletionPending, creating, feedback, t])
 
   useEffect(() => clearCreateSuccessTimer, [clearCreateSuccessTimer])
 
@@ -193,17 +195,17 @@ export function BoxesPage() {
   return (
     <section className="mx-auto flex min-w-0 w-full max-w-7xl flex-col gap-5 lg:gap-7" aria-labelledby="boxes-title">
       <header className="py-3">
-        <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">收纳目录</p>
+          <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">{t('boxes.eyebrow')}</p>
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="mb-0 text-page-title font-extrabold" id="boxes-title">全部箱子</h1>
+            <h1 className="mb-0 text-page-title font-extrabold" id="boxes-title">{t('boxes.title')}</h1>
             {selectedVenue ? (
               <p className="mt-1 mb-0 flex min-w-0 items-center gap-1.5 truncate text-sm text-muted">
                 <span className="truncate font-medium">{selectedVenue.name}</span>
                 {hasCatalogueData ? (
                   <>
                     <span className="shrink-0" aria-hidden="true">·</span>
-                    <span className="shrink-0">{summary.boxCount} 个箱子 · {summary.itemCount} 件物品</span>
+                    <span className="shrink-0">{t('boxes.summary', { boxes: summary.boxCount, items: summary.itemCount })}</span>
                   </>
                 ) : null}
               </p>
@@ -213,8 +215,8 @@ export function BoxesPage() {
             ref={createButtonRef}
             className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-brand bg-brand text-white transition hover:bg-brand-strong"
             type="button"
-            aria-label="创建箱子"
-            title="创建箱子"
+            aria-label={t('boxes.createAria')}
+            title={t('boxes.createAria')}
             onClick={openCreate}
           >
             <AppIcon name="plus" />
@@ -223,7 +225,7 @@ export function BoxesPage() {
       </header>
 
       {cataloguePending ? (
-        <SkeletonGroup className="grid gap-5" label="正在加载箱子目录">
+        <SkeletonGroup className="grid gap-5" label={t('boxes.loading')}>
           <Skeleton className="h-10 w-full" />
           <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }, (_, index) => (
@@ -238,9 +240,9 @@ export function BoxesPage() {
           </div>
         </SkeletonGroup>
       ) : null}
-      {catalogueError && !hasCatalogueData ? <PageState state="error" message="箱子加载失败，请重试" onRetry={() => { void boxesQuery.refetch(); void venuesQuery.refetch() }} /> : null}
+      {catalogueError && !hasCatalogueData ? <PageState state="error" message={t('boxes.loadError')} onRetry={() => { void boxesQuery.refetch(); void venuesQuery.refetch() }} /> : null}
       {catalogueError && hasCatalogueData ? (
-        <ResponsiveOperationError message="箱子刷新失败，正在显示上次结果" busy={boxesQuery.isFetching || venuesQuery.isFetching} onRetry={() => { void boxesQuery.refetch(); void venuesQuery.refetch() }} />
+        <ResponsiveOperationError message={t('boxes.refreshError')} busy={boxesQuery.isFetching || venuesQuery.isFetching} onRetry={() => { void boxesQuery.refetch(); void venuesQuery.refetch() }} />
       ) : null}
       {hasCatalogueData && boxes.length > 0 ? (
         <div className="flex min-w-0 items-center gap-3">
@@ -252,9 +254,9 @@ export function BoxesPage() {
               onChange={(spaceId) => updateCatalogueParam('space', spaceId)}
             />
           </div>
-          <p className="shrink-0 text-sm font-bold text-muted" role="status" aria-label={`显示 ${visibleBoxes.length} 个箱子`}>
-            <span className="sm:hidden" aria-hidden="true">{visibleBoxes.length} 个</span>
-            <span className="hidden sm:inline" aria-hidden="true">显示 {visibleBoxes.length} 个</span>
+          <p className="shrink-0 text-sm font-bold text-muted" role="status" aria-label={t('boxes.showCountAria', { count: visibleBoxes.length })}>
+            <span className="sm:hidden" aria-hidden="true">{t('boxes.showCountShort', { count: visibleBoxes.length })}</span>
+            <span className="hidden sm:inline" aria-hidden="true">{t('boxes.showCount', { count: visibleBoxes.length })}</span>
           </p>
         </div>
       ) : null}
@@ -267,10 +269,10 @@ export function BoxesPage() {
         <PageState
           state="empty"
           icon="box"
-          title="还没有箱子"
+          title={t('boxes.emptyTitle')}
           action={(
             <button className="inline-flex min-h-11 items-center rounded-control bg-brand px-4 py-2 font-bold text-white" type="button" onClick={openCreate}>
-              创建箱子
+              {t('boxes.create')}
             </button>
           )}
         />
@@ -280,10 +282,10 @@ export function BoxesPage() {
         <PageState
           state="empty"
           icon="search"
-          title="没有匹配的箱子"
+          title={t('boxes.noMatchTitle')}
           action={(
             <button className="inline-flex min-h-11 items-center rounded-control border border-line bg-surface px-4 py-2 font-bold text-ink" type="button" onClick={clearCatalogueFilters}>
-              清除筛选
+              {t('boxes.clearFilter')}
             </button>
           )}
         />
@@ -312,10 +314,10 @@ export function BoxesPage() {
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
-        title={`删除“${deleteTarget?.name ?? ''}”？`}
-        description="箱子内的物品也会被删除，此操作无法恢复。"
+        title={t('boxes.deleteTitle', { name: deleteTarget?.name ?? '' })}
+        description={t('boxes.deleteDescription')}
         busy={deleteMutation.isPending}
-        error={deleteMutation.isError ? '删除失败，请稍后重试' : undefined}
+        error={deleteMutation.isError ? t('boxes.deleteError') : undefined}
         returnFocusRef={deleteReturnFocusRef}
         onCancel={() => {
           deleteMutation.reset()
@@ -345,7 +347,7 @@ export function BoxesPage() {
         onSaved={() => {
           setEditCompletionPending(true)
           void queryClient.invalidateQueries({ queryKey: ['boxes'] })
-          feedback.notify('修改已保存')
+          feedback.notify(t('boxes.saved'))
         }}
       />
     </section>

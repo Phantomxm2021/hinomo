@@ -50,6 +50,18 @@ function warnMissingTranslation(locale: Locale, key: string): void {
   }
 }
 
+// Feature components are also rendered in isolation by unit tests and by a few
+// embedders. Keep those renders usable in the default locale while the app
+// itself still provides the fully stateful I18nProvider at the root.
+const standaloneI18nContext: I18nContextValue = {
+  locale: DEFAULT_LOCALE,
+  setLocale: () => undefined,
+  t: (key, params) => {
+    const message = resolveMessage(messages[DEFAULT_LOCALE], key)
+    return message === undefined ? key : interpolate(message, params)
+  },
+}
+
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(readLocalePreference)
 
@@ -101,9 +113,5 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 export function useI18n(): I18nContextValue {
   const context = useContext(I18nContext)
 
-  if (!context) {
-    throw new Error('useI18n must be used within I18nProvider')
-  }
-
-  return context
+  return context ?? standaloneI18nContext
 }

@@ -7,6 +7,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { Link } from 'react-router-dom'
+import { useI18n } from '../../i18n/I18nProvider'
 import type { SpaceLayout, SpacePosition, SpaceSummary } from './spaces.api'
 import { autoSpaceLayout, constrainResize } from './space-layout'
 import { spaceEmoji, spaceTone } from './space-visuals'
@@ -46,6 +47,7 @@ export function SpaceMap({
   editMode: boolean
   onLayoutChange: (spaceId: string, position: SpacePosition) => void
 }) {
+  const { t } = useI18n()
   const [positions, setPositions] = useState<Positions>(() => buildPositions(spaces, layouts))
   const positionsRef = useRef(positions)
   const interactionRef = useRef<InteractionState | null>(null)
@@ -140,7 +142,7 @@ export function SpaceMap({
 
   const minimumHeight = Math.max(544, Math.ceil(spaces.length / 2) * 144 + 64)
   return (
-    <section className="relative overflow-hidden rounded-shell border border-line bg-surface shadow-soft" style={{ minHeight: `${minimumHeight}px` }} role="region" aria-label="空间平面总览">
+    <section className="relative overflow-hidden rounded-shell border border-line bg-surface shadow-soft" style={{ minHeight: `${minimumHeight}px` }} role="region" aria-label={t('spaces.planOverview')}>
       <div className="pointer-events-none absolute inset-0 opacity-55" style={{ backgroundImage: 'linear-gradient(#e3d5c5 1px, transparent 1px), linear-gradient(90deg, #e3d5c5 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
       {spaces.map((space, index) => {
         const position = positions[space.id] ?? autoSpaceLayout(index, spaces.length)
@@ -150,7 +152,7 @@ export function SpaceMap({
             className={`absolute rounded-card border border-line text-ink shadow-soft ${spaceTone(index)} ${editMode ? 'touch-none cursor-move ring-2 ring-brand/20' : 'hover:-translate-y-0.5'}`}
             style={{ left: `${position.x}%`, top: `${position.y}%`, width: `${position.width}%`, height: `${position.height}%` }}
             role={editMode ? 'button' : undefined}
-            aria-label={editMode ? `调整${space.name}位置和尺寸` : undefined}
+            aria-label={editMode ? t('spaces.adjustRoom', { name: space.name }) : undefined}
             tabIndex={editMode ? 0 : undefined}
             onKeyDown={(event: ReactKeyboardEvent<HTMLDivElement>) => {
               if (editMode && event.key.startsWith('Arrow')) {
@@ -171,12 +173,12 @@ export function SpaceMap({
               onDragStart={(event: ReactDragEvent<HTMLAnchorElement>) => event.preventDefault()}
             >
               <span className="flex items-start justify-between gap-2">
-                <span className="text-3xl leading-none" role="img" aria-label={`${space.name}图标`}>{spaceEmoji(space.name)}</span>
-                <span className="text-meta font-bold">{space.box_count} 箱</span>
+                <span className="text-3xl leading-none" role="img" aria-label={t('spaces.iconAlt', { name: space.name })}>{spaceEmoji(space.name)}</span>
+                <span className="text-meta font-bold">{t('spaces.boxUnit', { count: space.box_count })}</span>
               </span>
               <span className="min-w-0">
                 <strong className="block truncate text-card-title">{space.name}</strong>
-                <small className="text-meta text-muted">{space.item_count} 件物品</small>
+                <small className="text-meta text-muted">{t('spaces.itemCount', { count: space.item_count })}</small>
               </span>
             </Link>
           </div>

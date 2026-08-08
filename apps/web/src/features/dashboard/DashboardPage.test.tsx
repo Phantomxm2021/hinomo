@@ -1,10 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useEffect, type PropsWithChildren } from 'react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { DashboardPage } from './DashboardPage'
 import { greetingForHour } from './dashboard-greeting'
+import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 
 const { mockGetProfile, mockListBoxes, mockListSpaces, mockListVenues, mockMarkOnboardingWelcomeSeen, mockUseAuth } = vi.hoisted(() => ({
   mockGetProfile: vi.fn(),
@@ -389,4 +391,26 @@ test('defaults to the first venue and filters every dashboard section when venue
   expect(screen.getByText('档案室')).toBeInTheDocument()
   expect(screen.queryByText('客厅')).not.toBeInTheDocument()
   expect(within(screen.getByLabelText('物品统计')).getByText('7')).toBeInTheDocument()
+})
+
+test('renders the dashboard empty state and onboarding CTA in English', async () => {
+  mockListSpaces.mockResolvedValue([])
+  mockListBoxes.mockResolvedValue([])
+  function EnglishProvider({ children }: PropsWithChildren) {
+    const { setLocale } = useI18n()
+    useEffect(() => setLocale('en-US'), [setLocale])
+    return <>{children}</>
+  }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <I18nProvider>
+      <EnglishProvider>
+        <MemoryRouter initialEntries={['/app']}><QueryClientProvider client={client}><DashboardPage /></QueryClientProvider></MemoryRouter>
+      </EnglishProvider>
+    </I18nProvider>,
+  )
+
+  expect(await screen.findByRole('heading', { name: /what are you looking for today/ })).toBeInTheDocument()
+  const onboarding = await screen.findByRole('dialog', { name: 'Get started with Nomo' })
+  expect(within(onboarding).getByRole('button', { name: 'Create your first space' })).toBeInTheDocument()
 })

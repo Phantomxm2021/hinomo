@@ -1,3 +1,5 @@
+import { useI18n } from '../../i18n/I18nProvider'
+
 type Space = {
   id: string
   name: string
@@ -17,15 +19,16 @@ const chipClassName = (selected: boolean) => `min-h-11 shrink-0 rounded-full bor
 }`
 
 export function SpaceFilterChips({ spaces, selectedSpace, totalCount, onChange }: SpaceFilterChipsProps) {
+  const { t } = useI18n()
   return (
-    <div className="space-filter-scroll flex flex-nowrap gap-2 overflow-x-auto pb-1" role="group" aria-label="按空间筛选">
+    <div className="space-filter-scroll flex flex-nowrap gap-2 overflow-x-auto pb-1" role="group" aria-label={t('boxes.filterBySpace')}>
       <button
         className={chipClassName(selectedSpace === '')}
         type="button"
         aria-pressed={selectedSpace === ''}
         onClick={() => onChange('')}
       >
-        全部空间 {totalCount}
+        {t('boxes.allSpaces')} {totalCount}
       </button>
       {spaces.map((space) => (
         <button

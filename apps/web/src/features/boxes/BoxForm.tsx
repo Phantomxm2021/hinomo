@@ -6,6 +6,7 @@ import { PageState } from '../../components/PageState'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { useMobileFeedback } from '../../components/mobile-feedback'
+import { useI18n } from '../../i18n/I18nProvider'
 import { isUploadPending, uploadStageLabel } from '../media/media-ui'
 import { useMediaUpload } from '../media/useMediaUpload'
 import { listSpaces } from '../spaces/spaces.api'
@@ -21,6 +22,7 @@ export type BoxFormProps = {
 }
 
 export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onSaved }: BoxFormProps) {
+  const { t } = useI18n()
   const editing = Boolean(boxId)
   const feedback = useMobileFeedback()
   const initializedBoxId = useRef<string | undefined>(undefined)
@@ -134,20 +136,20 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onSave
 
   useEffect(() => {
     if (!saved || onSaved) return
-    feedback.notify('修改已保存')
-  }, [feedback, onSaved, saved])
+    feedback.notify(t('boxes.saved'))
+  }, [feedback, onSaved, saved, t])
 
   useEffect(() => {
     if (!mediaError) return
     feedback.showActionSheet({
-      title: '图片上传失败',
-      message: '填写内容已经保留。',
+      title: t('boxes.coverUploadFailed'),
+      message: t('boxes.formPreserved'),
       actions: [
-        { label: '重试上传', onSelect: () => retryCoverUploadRef.current() },
-        ...(pendingBox ? [{ label: '暂不上传', onSelect: () => finishWithoutCoverRef.current() }] : []),
+        { label: t('boxes.retryUpload'), onSelect: () => retryCoverUploadRef.current() },
+        ...(pendingBox ? [{ label: t('boxes.skipUpload'), onSelect: () => finishWithoutCoverRef.current() }] : []),
       ],
     })
-  }, [feedback, mediaError, pendingBox])
+  }, [feedback, mediaError, pendingBox, t])
 
   const submit = handleSubmit(async (values) => {
     if (!editing && pendingBox) return
@@ -188,7 +190,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onSave
     return (
       <SkeletonGroup
         className={presentation === 'page' ? 'mx-auto grid min-w-0 w-full max-w-4xl gap-4' : 'grid min-w-0 w-full gap-4'}
-        label="正在加载箱子表单"
+        label={t('boxes.formLoading')}
       >
         {presentation === 'page' ? <Skeleton className="h-10 w-44" /> : null}
         <div className={`grid gap-4 ${presentation === 'page' ? 'rounded-shell border border-line bg-surface p-5 md:p-6' : ''}`}>
@@ -204,46 +206,46 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onSave
   }
 
   if (spacesQuery.isError && spacesQuery.data === undefined) {
-    return <PageState state="error" message="空间加载失败，请重试" onRetry={() => void spacesQuery.refetch()} />
+    return <PageState state="error" message={t('spaces.loadError')} onRetry={() => void spacesQuery.refetch()} />
   }
 
   if (editing && ((boxQuery.isError && boxQuery.data === undefined) || !boxQuery.data)) {
-    return <PageState state="error" message="箱子加载失败，请重试" onRetry={() => void boxQuery.refetch()} />
+    return <PageState state="error" message={t('boxes.loadError')} onRetry={() => void boxQuery.refetch()} />
   }
 
   return (
     <section className={presentation === 'page' ? 'mx-auto grid min-w-0 w-full max-w-4xl gap-5 lg:gap-6' : 'grid min-w-0 w-full gap-4'} data-presentation={presentation} aria-labelledby={presentation === 'page' ? 'box-form-title' : undefined}>
       {presentation === 'page' ? (
         <header className="py-3">
-          <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">为实体箱子建立数字身份</p>
-          <h1 className="m-0 text-page-title font-extrabold text-ink" id="box-form-title">{editing ? '编辑箱子' : '创建箱子'}</h1>
+          <p className="mb-1 hidden text-meta font-medium tracking-eyebrow text-muted lg:block">{t('boxes.formEyebrow')}</p>
+          <h1 className="m-0 text-page-title font-extrabold text-ink" id="box-form-title">{editing ? t('boxes.edit') : t('boxes.create')}</h1>
         </header>
       ) : null}
       {spacesQuery.isError ? (
-        <ResponsiveOperationError message="空间刷新失败，正在显示上次结果" busy={spacesQuery.isFetching} onRetry={() => void spacesQuery.refetch()} />
+        <ResponsiveOperationError message={t('boxes.spaceRefreshError')} busy={spacesQuery.isFetching} onRetry={() => void spacesQuery.refetch()} />
       ) : null}
       {editing && boxQuery.isError ? (
-        <ResponsiveOperationError message="箱子刷新失败，正在显示上次内容" busy={boxQuery.isFetching} onRetry={() => void boxQuery.refetch()} />
+        <ResponsiveOperationError message={t('boxes.refreshContentError')} busy={boxQuery.isFetching} onRetry={() => void boxQuery.refetch()} />
       ) : null}
       <form className={`grid gap-3 [&_label]:font-bold [&_label]:text-ink ${presentation === 'page' ? 'rounded-shell border border-line bg-surface p-5 md:p-6' : ''}`} onSubmit={submit} noValidate>
-        <label htmlFor="box-space">空间</label>
+        <label htmlFor="box-space">{t('spaces.title')}</label>
         <select className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="box-space" aria-invalid={Boolean(errors.space_id)} aria-describedby={errors.space_id ? 'box-space-error' : undefined} {...register('space_id')}>
-          <option value="">请选择空间</option>
+          <option value="">{t('boxes.selectSpace')}</option>
           {spacesQuery.data?.map((space) => (
             <option value={space.id} key={space.id}>{space.name}</option>
           ))}
         </select>
         {errors.space_id ? <p id="box-space-error" role="alert">{errors.space_id.message}</p> : null}
 
-        <label htmlFor="box-name">箱子名称</label>
+        <label htmlFor="box-name">{t('boxes.name')}</label>
         <input className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="box-name" aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'box-name-error' : undefined} {...register('name')} />
         {errors.name ? <p id="box-name-error" role="alert">{errors.name.message}</p> : null}
 
-        <label htmlFor="box-location">具体位置</label>
+        <label htmlFor="box-location">{t('boxes.location')}</label>
         <input className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="box-location" {...register('location')} />
         {!editing ? (
           <div className="grid gap-2 sm:hidden">
-            <p className="m-0 text-xs leading-relaxed text-muted">基础信息填写后即可创建，其余信息可以稍后补充。</p>
+            <p className="m-0 text-xs leading-relaxed text-muted">{t('boxes.basicInfoHint')}</p>
             <button
               className="min-h-11 w-fit rounded-control border border-line bg-surface px-4 py-2 text-sm font-bold text-ink"
               type="button"
@@ -251,18 +253,18 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onSave
               aria-controls="box-advanced-fields"
               onClick={() => setShowAdvanced((current) => !current)}
             >
-              {showAdvanced ? '收起更多设置' : '更多设置'}
+              {showAdvanced ? t('boxes.hideAdvanced') : t('boxes.moreSettings')}
             </button>
           </div>
         ) : null}
 
         <div className={`${advancedVisible ? 'contents' : 'hidden'} sm:contents`} id="box-advanced-fields">
-          <label htmlFor="box-category">分类（可选）</label>
+          <label htmlFor="box-category">{t('boxes.categoryOptional')}</label>
           <input className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="box-category" {...register('category')} />
-          <label htmlFor="box-description">备注（可选）</label>
+          <label htmlFor="box-description">{t('boxes.noteOptional')}</label>
           <textarea className="min-h-28 w-full resize-y rounded-control border border-line bg-canvas px-3 py-3 text-ink focus:border-brand" id="box-description" rows={4} {...register('description')} />
 
-          <label htmlFor="box-cover">箱子封面（可选）</label>
+          <label htmlFor="box-cover">{t('boxes.coverOptional')}</label>
           <input
             key={boxId ?? 'create'}
             className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 py-2 text-ink file:mr-3 file:rounded-lg file:border-0 file:bg-placeholder file:px-3 file:py-2 file:font-bold file:text-ink"
@@ -276,34 +278,34 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onSave
             }}
           />
 
-          <label htmlFor="box-visibility">查看权限</label>
+          <label htmlFor="box-visibility">{t('boxes.visibility')}</label>
           <select className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="box-visibility" {...register('visibility')}>
-            <option value="private">私有</option>
-            <option value="public">公开</option>
+            <option value="private">{t('boxes.visibilityPrivate')}</option>
+            <option value="public">{t('boxes.visibilityPublic')}</option>
           </select>
         </div>
 
         {createMutation.isError || updateMutation.isError ? (
-          <ResponsiveOperationError message="保存失败，请稍后重试" />
+          <ResponsiveOperationError message={t('boxes.saveError')} />
         ) : null}
-        {saved ? <p className="hidden lg:block" role="status">修改已保存</p> : null}
-        {mediaStatus ? <p className="hidden lg:block" role="status">图片处理中：{mediaStatus}</p> : null}
+        {saved ? <p className="hidden lg:block" role="status">{t('boxes.saved')}</p> : null}
+        {mediaStatus ? <p className="hidden lg:block" role="status">{t('boxes.mediaProcessing', { status: mediaStatus })}</p> : null}
         {!editing && pendingBox ? (
           <div className="hidden gap-3 rounded-control border border-danger/30 bg-danger/5 p-4 lg:grid" role={mediaError ? 'alert' : 'status'}>
-            <p>箱子记录已创建，但封面未完成。</p>
+            <p>{t('boxes.coverIncomplete')}</p>
             <div className="flex flex-wrap gap-2">
               {coverFile ? (
                 <button className="min-h-11 w-fit rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold text-danger" type="button" disabled={busy} onClick={() => void retryCoverUpload()}>
-                  {mediaError ? '重试上传' : '上传封面'}
+                  {mediaError ? t('boxes.retryUpload') : t('boxes.uploadCover')}
                 </button>
               ) : null}
-              <button className="min-h-11 w-fit rounded-control border border-line bg-surface px-4 py-2 font-bold text-ink" type="button" disabled={busy} onClick={finishWithoutCover}>暂不上传封面</button>
+              <button className="min-h-11 w-fit rounded-control border border-line bg-surface px-4 py-2 font-bold text-ink" type="button" disabled={busy} onClick={finishWithoutCover}>{t('boxes.skipCover')}</button>
             </div>
           </div>
         ) : mediaError ? (
           <div className="hidden gap-3 rounded-control border border-danger/30 bg-danger/5 p-4 lg:grid" role="alert">
-            <p>图片上传失败，已保留填写内容。</p>
-            <button className="min-h-11 w-fit rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold text-danger" type="button" onClick={() => void retryCoverUpload()}>重试上传</button>
+            <p>{t('boxes.coverUploadError')}</p>
+            <button className="min-h-11 w-fit rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold text-danger" type="button" onClick={() => void retryCoverUpload()}>{t('boxes.retryUpload')}</button>
           </div>
         ) : null}
         {!editing && pendingBox ? null : (
@@ -313,10 +315,10 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onSave
             disabled={busy}
           >
             {createMutation.isPending || updateMutation.isPending
-              ? '保存中…'
+              ? t('common.processing')
               : editing
-                ? '保存修改'
-                : '创建箱子'}
+                ? t('boxes.saveChanges')
+                : t('boxes.create')}
           </button>
         )}
       </form>

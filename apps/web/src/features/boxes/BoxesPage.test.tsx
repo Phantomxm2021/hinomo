@@ -1,9 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useEffect, type PropsWithChildren } from 'react'
 import { createMemoryRouter, RouterProvider, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { BoxesPage } from './BoxesPage'
+import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 
 const { mockDeleteBox, mockListBoxes, mockListVenues, mockModalCleanupSawStatus } = vi.hoisted(() => ({
   mockDeleteBox: vi.fn(),
@@ -745,4 +747,22 @@ test('retries a failed inline deletion', async () => {
   expect(mockDeleteBox).toHaveBeenCalledTimes(2)
   expect(await screen.findByText('还没有箱子')).toBeInTheDocument()
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+})
+
+test('renders the boxes empty state and create CTA in English', async () => {
+  mockListBoxes.mockResolvedValue([])
+  function EnglishProvider({ children }: PropsWithChildren) {
+    const { setLocale } = useI18n()
+    useEffect(() => setLocale('en-US'), [setLocale])
+    return <>{children}</>
+  }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const router = createMemoryRouter([{
+    path: '/app/boxes',
+    element: <><main data-app-shell /><BoxesPage /><LocationProbe /></>,
+  }], { initialEntries: ['/app/boxes'] })
+  render(<I18nProvider><EnglishProvider><QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider></EnglishProvider></I18nProvider>)
+
+  expect(await screen.findByRole('heading', { name: 'No boxes yet' })).toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: 'Create box' }).length).toBeGreaterThan(0)
 })
