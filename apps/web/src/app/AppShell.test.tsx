@@ -1,10 +1,12 @@
-import { act, cleanup, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { Session } from '@supabase/supabase-js'
 import { AuthProvider } from '../features/auth/AuthProvider'
+import { GeneralSettingsPage } from '../features/profile/GeneralSettingsPage'
+import { SettingsPage } from '../features/profile/SettingsPage'
 import { I18nProvider, useI18n } from '../i18n/I18nProvider'
 import { AppShell } from './AppShell'
 
@@ -12,6 +14,8 @@ const { mockGetAvatarDownload, mockGetProfile } = vi.hoisted(() => ({
   mockGetAvatarDownload: vi.fn(),
   mockGetProfile: vi.fn(),
 }))
+
+const originalMatchMedia = window.matchMedia
 
 vi.mock('../features/profile/profile.api', () => ({
   getProfile: mockGetProfile,
@@ -24,7 +28,10 @@ beforeEach(() => {
   mockGetProfile.mockReset().mockResolvedValue({ id: 'user-1', display_name: '林家', avatar_object_key: null, locale: 'zh-CN' })
   mockGetAvatarDownload.mockReset().mockResolvedValue(null)
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  Object.defineProperty(window, 'matchMedia', { configurable: true, value: originalMatchMedia })
+})
 
 test('announces offline state and clears it when connectivity returns', () => {
   vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true)
@@ -65,6 +72,26 @@ function renderShell(initialEntry = '/app', options?: { withLocaleControl?: bool
   )
 }
 
+function mockDesktopViewport() {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: vi.fn((query: string) => ({
+      matches: true,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  })
+}
+
+function RouteProbe() {
+  return <output data-testid="route-path">{useLocation().pathname}</output>
+}
+
 test('keeps language selection inside settings instead of the desktop sidebar', async () => {
   const user = userEvent.setup()
   renderShell()
@@ -75,6 +102,67 @@ test('keeps language selection inside settings instead of the desktop sidebar', 
   await user.click(await screen.findByRole('button', { name: '打开账户菜单' }))
   expect(screen.getByRole('button', { name: '打开账户菜单' })).toHaveAttribute('data-settings-return-focus')
   expect(screen.getByRole('menuitem', { name: /设置/ })).toHaveAttribute('href', '/app/me/settings')
+})
+
+test('opens settings through the real app route and restores the account trigger after close', async () => {
+  mockDesktopViewport()
+  const user = userEvent.setup()
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <I18nProvider>
+      <MemoryRouter initialEntries={['/app']}>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider session={{ user: { id: 'user-1', email: 'lin@example.com', user_metadata: { display_name: '林家' } } } as unknown as Session}>
+            <Routes>
+              <Route path="/app" element={<AppShell />}>
+                <Route index element={<RouteProbe />} />
+                <Route path="me/settings" element={<SettingsPage />} />
+                <Route path="me/settings/general" element={<GeneralSettingsPage />} />
+              </Route>
+            </Routes>
+          </AuthProvider>
+        </QueryClientProvider>
+      </MemoryRouter>
+    </I18nProvider>,
+  )
+
+  const accountTrigger = await screen.findByRole('button', { name: '打开账户菜单' })
+  await user.click(accountTrigger)
+  await user.click(screen.getByRole('menuitem', { name: /设置/ }))
+  expect(await screen.findByRole('dialog', { name: '设置' })).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: '关闭设置' }))
+  await waitFor(() => expect(screen.getByTestId('route-path')).toHaveTextContent('/app'))
+  await waitFor(() => expect(accountTrigger).toHaveFocus())
+})
+
+test('restores the General link after closing the real nested settings route', async () => {
+  mockDesktopViewport()
+  const user = userEvent.setup()
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <I18nProvider>
+      <MemoryRouter initialEntries={['/app/me/settings']}>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider session={{ user: { id: 'user-1', email: 'lin@example.com', user_metadata: { display_name: '林家' } } } as unknown as Session}>
+            <Routes>
+              <Route path="/app" element={<AppShell />}>
+                <Route path="me/settings" element={<SettingsPage />} />
+                <Route path="me/settings/general" element={<GeneralSettingsPage />} />
+              </Route>
+            </Routes>
+          </AuthProvider>
+        </QueryClientProvider>
+      </MemoryRouter>
+    </I18nProvider>,
+  )
+
+  await user.click(await screen.findByRole('link', { name: /通用.*语言与地区/ }))
+  expect(await screen.findByRole('dialog', { name: '通用' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '关闭通用' }))
+
+  const generalLink = await screen.findByRole('link', { name: /通用.*语言与地区/ })
+  await waitFor(() => expect(generalLink).toHaveFocus())
 })
 
 test('provides the complete desktop navigation without a scan destination', async () => {

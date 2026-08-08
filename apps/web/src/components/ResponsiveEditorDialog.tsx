@@ -68,7 +68,8 @@ export function ResponsiveEditorDialog({
       const selectorTarget = returnFocusSelectorRef.current
         ? document.querySelector<HTMLElement>(returnFocusSelectorRef.current)
         : null
-      const target = returnFocusRefRef.current?.current ?? selectorTarget ?? fallback
+      const refTarget = returnFocusRefRef.current?.current
+      const target = refTarget?.isConnected ? refTarget : selectorTarget ?? fallback
       if (target && typeof target.focus === 'function') target.focus()
     })
   }, [])

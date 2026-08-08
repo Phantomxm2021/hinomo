@@ -144,13 +144,14 @@ test('restores focus to the active element when no return focus ref is provided'
   opener.remove()
 })
 
-test('restores focus to a selector after the original opener is replaced', async () => {
+test('restores focus to a selector when the ref opener is disconnected', async () => {
   const originalOpener = document.createElement('button')
   originalOpener.setAttribute('data-settings-return-focus', '')
   document.body.append(originalOpener)
   originalOpener.focus()
+  const returnFocusRef = { current: originalOpener }
   const view = render(
-    <ResponsiveEditorDialog open title="编辑" busy={false} onClose={vi.fn()} returnFocusSelector="[data-settings-return-focus]">
+    <ResponsiveEditorDialog open title="编辑" busy={false} onClose={vi.fn()} returnFocusRef={returnFocusRef} returnFocusSelector="[data-settings-return-focus]">
       <input aria-label="名称" />
     </ResponsiveEditorDialog>,
   )
