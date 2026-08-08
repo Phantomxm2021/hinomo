@@ -1,14 +1,37 @@
 import type { Session } from '@supabase/supabase-js'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
-import { afterEach, beforeEach, expect, test } from 'vitest'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { AuthContext } from '../auth/auth-context'
 import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { I18nProvider } from '../../i18n/I18nProvider'
 import { GeneralSettingsPage } from './GeneralSettingsPage'
 
+const originalMatchMedia = window.matchMedia
+
+function mockViewport(isDesktop: boolean) {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: vi.fn((query: string) => ({
+      matches: isDesktop,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  })
+}
+
+function LocationProbe() {
+  return <output data-testid="location">{useLocation().pathname}</output>
+}
+
 beforeEach(() => {
+  mockViewport(false)
   const values = new Map<string, string>()
   const storage: Storage = {
     getItem: (key) => values.get(key) ?? null,
@@ -21,7 +44,10 @@ beforeEach(() => {
   Object.defineProperty(window, 'localStorage', { configurable: true, value: storage })
   Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: storage })
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  Object.defineProperty(window, 'matchMedia', { configurable: true, value: originalMatchMedia })
+})
 
 function renderPage() {
   render(
@@ -84,6 +110,45 @@ test('switches the global locale and persists it immediately', async () => {
   await user.selectOptions(language, 'en-US')
 
   expect(localStorage.getItem('nomo-locale')).toBe('en-US')
-  expect(await screen.findByRole('heading', { name: 'General' })).toBeInTheDocument()
+  expect(await screen.findByText('General')).toBeInTheDocument()
   expect(screen.getByLabelText('Language')).toHaveValue('en-US')
+})
+
+test('keeps General as a mobile page with its language selector', () => {
+  renderPage()
+
+  expect(screen.getByRole('navigation', { name: '设置导航' })).toBeInTheDocument()
+  expect(screen.getByLabelText('语言')).toBeInTheDocument()
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+test('renders desktop General as a modal with one language selector and closes back', async () => {
+  mockViewport(true)
+  const user = userEvent.setup()
+  render(
+    <I18nProvider>
+      <MemoryRouter initialEntries={['/app/me/settings', '/app/me/settings/general']} initialIndex={1}>
+        <Routes>
+          <Route path="/app/me/settings/general" element={
+            <AuthContext.Provider value={{
+              session: { user: { id: 'user-1', email: 'lin@example.com' } } as unknown as Session,
+              loading: false,
+              isPasswordRecovery: false,
+            }}>
+              <GeneralSettingsPage />
+            </AuthContext.Provider>
+          } />
+          <Route path="/app/me/settings" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    </I18nProvider>,
+  )
+
+  const dialog = await screen.findByRole('dialog', { name: '通用' })
+  expect(dialog).toBeInTheDocument()
+  expect(screen.queryByRole('navigation', { name: '设置导航' })).not.toBeInTheDocument()
+  expect(screen.getAllByRole('combobox', { name: '语言' })).toHaveLength(1)
+
+  await user.click(screen.getByRole('button', { name: '关闭通用' }))
+  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/app/me/settings'))
 })
