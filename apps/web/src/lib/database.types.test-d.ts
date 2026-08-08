@@ -3,6 +3,7 @@ import type { Database } from './database.types'
 type BoxInsert = Database['public']['Tables']['boxes']['Insert']
 type BoxUpdate = Database['public']['Tables']['boxes']['Update']
 type PublicBoxArgs = Database['public']['Functions']['get_public_box']['Args']
+type CreatedBoxRpcArgs = Database['public']['Functions']['create_box']['Args']
 type VenueInsert = Database['public']['Tables']['venues']['Insert']
 type VenueRow = Database['public']['Tables']['venues']['Row']
 type SpaceInsert = Database['public']['Tables']['spaces']['Insert']
@@ -29,6 +30,19 @@ const validBoxUpdate = { name: '工具' } satisfies BoxUpdate
 const validPublicBoxArgs = {
   p_public_id: '00000000-0000-0000-0000-000000000003',
 } satisfies PublicBoxArgs
+const validCreatedBoxRpcArgs = {
+  p_space_id: '00000000-0000-0000-0000-000000000002',
+  p_name: '文具',
+  p_category: null,
+  p_location: null,
+  p_description: null,
+  p_visibility: 'private',
+} satisfies CreatedBoxRpcArgs
+const createWithOwnerId: CreatedBoxRpcArgs = {
+  ...validCreatedBoxRpcArgs,
+  // @ts-expect-error create_box always derives owner_id from the authenticated caller.
+  owner_id: '00000000-0000-0000-0000-000000000001',
+}
 const validVenueInsert = {
   name: '家里',
   owner_id: '00000000-0000-0000-0000-000000000001',
@@ -57,6 +71,8 @@ void insertWithBoxCode
 void updateWithPublicId
 void updateWithBoxCode
 void validPublicBoxArgs
+void validCreatedBoxRpcArgs
+void createWithOwnerId
 void validVenueInsert
 void validDefaultFlag
 void validSpaceInsert
