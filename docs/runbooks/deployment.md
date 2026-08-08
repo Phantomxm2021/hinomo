@@ -112,7 +112,8 @@ supabase functions deploy stripe-webhook --no-verify-jwt
 
 7. 在 Stripe Webhook Endpoint 指向 `https://<project-ref>.supabase.co/functions/v1/stripe-webhook`，订阅：
    - `checkout.session.completed`；
-   - `charge.refunded`；全额退款会幂等收回对应 credit 包中尚未使用的额度，已经消费的额度不生成负余额。
+   - `checkout.session.async_payment_succeeded`；
+   - `charge.refunded`；同一端点同时处理 AI Credits 与无限箱子权益的付款完成、延迟付款完成和退款事件。全额退款会幂等收回对应 credit 包中尚未使用的额度，已经消费的额度不生成负余额。
 8. 使用 Stripe 测试卡依次验证：一次性购买 20 credits → Webhook 发放 → 1 张照片预留 1 credit → 发布结算 → 全额退款收回剩余额度。
 9. 验证 Webhook 重放不会重复发放；并发完成两个会话不能透支；没有任何识别结果的终态失败会释放 reservation。
 10. 确认前端空余额入口显示 Apple 风格 credit Sheet，credit 页只进入一次性 Checkout，移动端安全区、焦点恢复和 Escape 行为正常后再灰度开启。
@@ -139,7 +140,7 @@ supabase functions deploy billing-checkout --no-verify-jwt
 supabase functions deploy stripe-webhook --no-verify-jwt
 ```
 
-8. 确认 Test Mode Webhook Endpoint 指向测试项目的 `https://<project-ref>.supabase.co/functions/v1/stripe-webhook`，且至少订阅 `checkout.session.completed` 与 `charge.refunded`。
+8. 确认 Test Mode Webhook Endpoint 指向测试项目的 `https://<project-ref>.supabase.co/functions/v1/stripe-webhook`，且订阅 `checkout.session.completed`、`checkout.session.async_payment_succeeded` 与 `charge.refunded`；该端点由 AI Credits 与无限箱子权益共用。
 9. 发布包含 `create_box` RPC、箱子额度摘要、付费墙和支付确认流程的前端版本。
 10. 等待旧前端静态资源和缓存版本退出。至少确认当前 CDN/浏览器缓存窗口已经过去、监控中不再出现旧版本的箱子直接 `INSERT` 请求，并使用全新会话验证创建请求已统一调用 `create_box` RPC。记录确认时间和执行人。
 11. 最后执行权限收口迁移 `supabase/migrations/202608080003_box_entitlements_enforce.sql`，并重新运行 `007_api_privileges.test.sql`，确认 authenticated 客户端不能直接 `INSERT public.boxes`，但 `create_box`、读取、更新和删除仍可用。此步骤完成前，免费箱子上限不视为已正式强制生效。
@@ -167,7 +168,7 @@ supabase functions deploy stripe-webhook --no-verify-jwt
    - `STRIPE_SECRET_KEY`：对应 Live Mode 的 `sk_live_...` 服务端 Secret Key；
    - `PUBLIC_APP_ORIGIN`：生产前端站点的精确 Origin；
    - `STRIPE_WEBHOOK_SECRET`：下一步生产 Live Mode Webhook Endpoint 独有的签名 Secret。
-3. 在 Stripe Live Mode 新建指向生产 Supabase 项目 `stripe-webhook` 的 Endpoint，订阅 `checkout.session.completed` 与 `charge.refunded`；将该 Endpoint 的 `whsec_...` 写入生产 `STRIPE_WEBHOOK_SECRET`，不得复制 Test Mode 的 Webhook Secret。
+3. 在 Stripe Live Mode 新建指向生产 Supabase 项目 `stripe-webhook` 的 Endpoint，订阅 `checkout.session.completed`、`checkout.session.async_payment_succeeded` 与 `charge.refunded`；该端点由 AI Credits 与无限箱子权益共用。将该 Endpoint 的 `whsec_...` 写入生产 `STRIPE_WEBHOOK_SECRET`，不得复制 Test Mode 的 Webhook Secret。
 4. 在生产项目按同一兼容顺序发布：002 → 004 → 005 → Edge Functions → 前端 → 等待旧缓存退出 → 003。发布前再次确认 Price ID、Secret Key、Webhook Secret 属于 Live Mode 且彼此匹配；发现任何 Test Mode 值时立即停止上线。
 5. 使用受控生产账号进行不暴露支付资料的最小冒烟验证，确认 Checkout 显示 HKD 38.00、返回 Origin 正确、Webhook 发放单条 active 权益且 AI Credits 不变化；按运营流程处置或退款该验证订单。
 
