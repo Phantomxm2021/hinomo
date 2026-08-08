@@ -1,5 +1,5 @@
 begin;
-select plan(21);
+select plan(27);
 
 select ok(has_table_privilege('authenticated', 'public.spaces', 'select'), 'authenticated can select spaces');
 select ok(has_table_privilege('authenticated', 'public.spaces', 'insert'), 'authenticated can insert spaces');
@@ -16,6 +16,19 @@ select ok(has_table_privilege('anon', 'public.boxes', 'select'), 'anonymous user
 select ok(has_table_privilege('anon', 'public.items', 'select'), 'anonymous users can select public items through RLS');
 select ok(has_table_privilege('authenticated', 'public.activity_logs', 'select'), 'authenticated can read authorized activity logs');
 select ok(has_sequence_privilege('authenticated', 'public.box_code_seq', 'usage'), 'box inserts can allocate a generated box code');
+
+select ok(not has_table_privilege('authenticated', 'public.account_entitlements', 'select'),
+  'authenticated users cannot inspect the entitlement ledger directly');
+select ok(not has_table_privilege('anon', 'public.account_entitlements', 'select'),
+  'anonymous users cannot inspect the entitlement ledger directly');
+select ok(has_table_privilege('service_role', 'public.account_entitlements', 'select'),
+  'service role can check active entitlements before creating Checkout');
+select ok(not has_table_privilege('service_role', 'public.account_entitlements', 'insert'),
+  'service role cannot insert entitlements directly');
+select ok(not has_table_privilege('service_role', 'public.account_entitlements', 'update'),
+  'service role cannot update entitlements directly');
+select ok(not has_table_privilege('service_role', 'public.account_entitlements', 'delete'),
+  'service role cannot delete entitlements directly');
 
 select function_privs_are('public', 'get_box_plan_summary', array[]::text[], 'authenticated', array['EXECUTE'],
   'authenticated users can read their box plan summary');

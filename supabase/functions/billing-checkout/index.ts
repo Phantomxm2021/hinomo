@@ -7,15 +7,23 @@ import {
   json,
   requiredStripePriceId,
   safeBillingError,
+  serviceDatabase,
   stripeClient,
 } from '../_shared/billing.ts'
 
-type CheckoutAction = 'credits_20' | 'credits_100' | 'credits_500'
+type CheckoutAction = 'credits_20' | 'credits_100' | 'credits_500' | 'boxes_unlimited'
+type CheckoutConfig =
+  | { env: string; credits: number }
+  | { env: string; entitlementCode: 'boxes_unlimited_lifetime' }
 
-const actions: Record<CheckoutAction, { env: string; credits: number }> = {
+const actions: Record<CheckoutAction, CheckoutConfig> = {
   credits_20: { env: 'STRIPE_CREDIT_20_PRICE_ID', credits: 20 },
   credits_100: { env: 'STRIPE_CREDIT_100_PRICE_ID', credits: 100 },
   credits_500: { env: 'STRIPE_CREDIT_500_PRICE_ID', credits: 500 },
+  boxes_unlimited: {
+    env: 'STRIPE_BOXES_UNLIMITED_PRICE_ID',
+    entitlementCode: 'boxes_unlimited_lifetime',
+  },
 }
 
 Deno.serve(async (request) => {
@@ -26,20 +34,40 @@ Deno.serve(async (request) => {
   if (request.method !== 'POST') return json(request, { error: 'method_not_allowed' }, 405)
   try {
     const user = await authenticatedUser(request)
-    const body = await request.json() as { action?: CheckoutAction }
-    const action = body.action ? actions[body.action] : undefined
-    if (!action) return json(request, { error: 'invalid_checkout_action' }, 400)
+    const body = await request.json() as { action?: string }
+    const checkoutAction = body.action
+    const action = checkoutAction && Object.hasOwn(actions, checkoutAction)
+      ? actions[checkoutAction as CheckoutAction]
+      : undefined
+    if (!action || !checkoutAction) return json(request, { error: 'invalid_checkout_action' }, 400)
+
+    if ('entitlementCode' in action) {
+      const { data: existingEntitlement, error: entitlementError } = await serviceDatabase()
+        .from('account_entitlements')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('entitlement_code', 'boxes_unlimited_lifetime')
+        .eq('status', 'active')
+        .maybeSingle()
+      if (entitlementError) throw entitlementError
+      if (existingEntitlement) return json(request, { error: 'entitlement_already_owned' }, 409)
+    }
 
     const customer = await ensureStripeCustomer(user)
-    const metadata: Record<string, string> = { supabase_user_id: user.id, checkout_action: body.action! }
-    metadata.credit_amount = String(action.credits)
+    const metadata: Record<string, string> = {
+      supabase_user_id: user.id,
+      checkout_action: checkoutAction,
+    }
+    if ('entitlementCode' in action) metadata.entitlement_code = action.entitlementCode
+    else metadata.credit_amount = String(action.credits)
+    const boxPurchase = checkoutAction === 'boxes_unlimited'
     const session = await stripeClient().checkout.sessions.create({
       mode: 'payment',
       customer,
       client_reference_id: user.id,
       line_items: [{ price: requiredStripePriceId(action.env), quantity: 1 }],
-      success_url: appUrl('/app/me/credits?checkout=success'),
-      cancel_url: appUrl('/app/me/credits?checkout=canceled'),
+      success_url: appUrl(boxPurchase ? '/app/boxes?purchase=success' : '/app/me/credits?checkout=success'),
+      cancel_url: appUrl(boxPurchase ? '/app/boxes?purchase=canceled' : '/app/me/credits?checkout=canceled'),
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
       metadata,
