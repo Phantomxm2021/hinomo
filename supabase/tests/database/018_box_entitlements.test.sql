@@ -1,5 +1,5 @@
 begin;
-select plan(30);
+select plan(31);
 
 create extension if not exists "basejump-supabase_test_helpers" with schema tests;
 select tests.create_supabase_user('box-limit-owner');
@@ -83,6 +83,8 @@ select lives_ok(
   $$select public.create_box('18000000-0000-4000-8000-000000000001', 'Limit box replacement', null, null, null, 'private')$$,
   'deleting a box frees a free-limit slot'
 );
+select is((select box_count from public.get_box_plan_summary()), 3,
+  'a replacement box restores the count to the free limit');
 
 select tests.clear_authentication();
 set local role postgres;
@@ -113,7 +115,10 @@ select is(
   false,
   'a repeated entitlement source is idempotent'
 );
-select is((select count(*)::integer from public.account_entitlements where source_reference = 'checkout:box-limit-1'), 1,
+select is((select count(*)::integer from public.account_entitlements
+  where user_id = (select owner_id from box_entitlement_test_state)
+    and entitlement_code = 'boxes_unlimited_lifetime'
+    and source_reference = 'checkout:box-limit-1'), 1,
   'an idempotent grant does not add a second entitlement row');
 
 select tests.authenticate_as('box-limit-owner');
@@ -143,9 +148,17 @@ select set_config('request.jwt.claim.role', 'service_role', true);
 select public.grant_account_entitlement(
   (select owner_id from box_entitlement_test_state), 'boxes_unlimited_lifetime', 'lifetime', 'checkout:box-limit-2', null
 );
-select is((select count(*)::integer from public.account_entitlements where revoked_at is not null), 1,
+select is((select count(*)::integer from public.account_entitlements
+  where user_id = (select owner_id from box_entitlement_test_state)
+    and entitlement_code = 'boxes_unlimited_lifetime'
+    and source_reference = 'checkout:box-limit-1'
+    and revoked_at is not null), 1,
   'revoked entitlement history is retained');
-select is((select count(*)::integer from public.account_entitlements where revoked_at is null), 1,
+select is((select count(*)::integer from public.account_entitlements
+  where user_id = (select owner_id from box_entitlement_test_state)
+    and entitlement_code = 'boxes_unlimited_lifetime'
+    and source_reference = 'checkout:box-limit-2'
+    and revoked_at is null), 1,
   'a replacement source leaves exactly one active entitlement');
 
 select tests.authenticate_as('box-limit-other');

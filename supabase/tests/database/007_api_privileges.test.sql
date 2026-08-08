@@ -1,5 +1,5 @@
 begin;
-select plan(17);
+select plan(20);
 
 select ok(has_table_privilege('authenticated', 'public.spaces', 'select'), 'authenticated can select spaces');
 select ok(has_table_privilege('authenticated', 'public.spaces', 'insert'), 'authenticated can insert spaces');
@@ -22,8 +22,14 @@ select function_privs_are('public', 'create_box', array['uuid', 'text', 'text', 
   'authenticated users can create boxes through the atomic RPC');
 select function_privs_are('public', 'grant_account_entitlement', array['uuid', 'text', 'text', 'text', 'timestamptz'], 'authenticated', array[]::text[],
   'authenticated users cannot grant entitlements');
+select function_privs_are('public', 'grant_account_entitlement', array['uuid', 'text', 'text', 'text', 'timestamptz'], 'anon', array[]::text[],
+  'anonymous users cannot grant entitlements');
 select function_privs_are('public', 'grant_account_entitlement', array['uuid', 'text', 'text', 'text', 'timestamptz'], 'service_role', array['EXECUTE'],
   'service role can grant entitlements');
+select function_privs_are('public', 'revoke_account_entitlement', array['text', 'text'], 'authenticated', array[]::text[],
+  'authenticated users cannot revoke entitlements');
+select function_privs_are('public', 'revoke_account_entitlement', array['text', 'text'], 'anon', array[]::text[],
+  'anonymous users cannot revoke entitlements');
 select function_privs_are('public', 'revoke_account_entitlement', array['text', 'text'], 'service_role', array['EXECUTE'],
   'service role can revoke entitlements');
 
