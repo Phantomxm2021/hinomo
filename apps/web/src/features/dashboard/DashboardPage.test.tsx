@@ -276,7 +276,8 @@ test('does not show onboarding entry or dialog while the profile is pending', as
   mockGetProfile.mockReturnValue(new Promise(() => undefined))
   renderDashboard()
 
-  expect(await screen.findByRole('status', { name: '正在加载空间总览' })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: '这个场地还没有空间' })).toBeInTheDocument()
+  expect(screen.queryByRole('status', { name: '正在加载空间总览' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '新手指南' })).not.toBeInTheDocument()
   expect(screen.queryByRole('dialog', { name: '开始使用 Nomo' })).not.toBeInTheDocument()
   expect(mockMarkOnboardingWelcomeSeen).not.toHaveBeenCalled()

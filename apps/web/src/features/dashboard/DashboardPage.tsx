@@ -113,7 +113,6 @@ export function DashboardPage() {
     ||
     (spacesQuery.isPending && spacesQuery.data === undefined)
     || (boxesQuery.isPending && boxesQuery.data === undefined)
-    || (Boolean(user) && profileQuery.isPending && profileQuery.data === undefined)
   )
 
   useEffect(() => {
