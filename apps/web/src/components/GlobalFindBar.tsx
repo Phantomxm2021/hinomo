@@ -17,7 +17,7 @@ export function GlobalFindBar() {
   }
 
   return (
-    <form className="flex w-full max-w-3xl items-stretch gap-2.5" role="search" onSubmit={handleSubmit}>
+    <form className="flex w-full max-w-3xl items-stretch gap-2.5" role="search" aria-label={t('search.globalPlaceholder')} onSubmit={handleSubmit}>
       <SearchInputShell
         name="q"
         enterKeyHint="search"
