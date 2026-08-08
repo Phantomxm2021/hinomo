@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js'
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test } from 'vitest'
@@ -20,9 +20,7 @@ beforeEach(() => {
   Object.defineProperty(window, 'localStorage', { configurable: true, value: storage })
   Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: storage })
 })
-afterEach(() => {
-  document.body.innerHTML = ''
-})
+afterEach(cleanup)
 
 function renderPage() {
   render(
