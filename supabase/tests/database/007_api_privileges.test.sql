@@ -1,5 +1,5 @@
 begin;
-select plan(20);
+select plan(21);
 
 select ok(has_table_privilege('authenticated', 'public.spaces', 'select'), 'authenticated can select spaces');
 select ok(has_table_privilege('authenticated', 'public.spaces', 'insert'), 'authenticated can insert spaces');
@@ -7,6 +7,7 @@ select ok(has_table_privilege('authenticated', 'public.spaces', 'update'), 'auth
 select ok(has_table_privilege('authenticated', 'public.spaces', 'delete'), 'authenticated can delete spaces');
 
 select ok(has_table_privilege('authenticated', 'public.boxes', 'select'), 'authenticated can select boxes');
+select ok(not has_table_privilege('authenticated', 'public.boxes', 'insert'), 'authenticated cannot insert boxes directly');
 select ok(has_table_privilege('authenticated', 'public.boxes', 'delete'), 'authenticated can delete boxes');
 select ok(has_table_privilege('authenticated', 'public.items', 'select'), 'authenticated can select items');
 select ok(has_table_privilege('authenticated', 'public.items', 'delete'), 'authenticated can delete items');
