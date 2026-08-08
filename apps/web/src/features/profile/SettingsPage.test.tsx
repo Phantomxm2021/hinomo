@@ -63,6 +63,7 @@ test('renders desktop settings as a centered dialog and closes back to the previ
   expect(dialog).toBeInTheDocument()
   expect(screen.queryByRole('navigation', { name: '设置导航' })).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: /通用.*语言与地区/ })).toHaveAttribute('href', '/app/me/settings/general')
+  expect(screen.getByRole('link', { name: /通用.*语言与地区/ })).toHaveAttribute('data-settings-general-link')
 
   await user.click(screen.getByRole('button', { name: '关闭设置' }))
   await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/app/me'))

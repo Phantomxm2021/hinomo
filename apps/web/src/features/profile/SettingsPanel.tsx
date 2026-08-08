@@ -2,13 +2,23 @@ import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { useI18n } from '../../i18n/I18nProvider'
 
+type SettingsPanelProps = {
+  presentation: 'page' | 'dialog'
+}
+
 /** Shared settings list used by both the mobile page and the desktop dialog. */
-export function SettingsPanel() {
+export function SettingsPanel({ presentation }: SettingsPanelProps) {
   const { t } = useI18n()
+  const cardClassName = presentation === 'dialog'
+    ? 'overflow-hidden rounded-shell border border-line bg-surface shadow-soft'
+    : 'overflow-hidden rounded-card border-0 bg-surface shadow-soft'
+  const linkClassName = presentation === 'dialog'
+    ? 'group flex min-h-[4.5rem] items-center gap-3 px-5 text-inherit no-underline transition-colors hover:bg-canvas'
+    : 'group flex min-h-[4.5rem] items-center gap-3 px-4 text-inherit no-underline transition-colors hover:bg-canvas'
 
   return (
-    <section className="overflow-hidden rounded-card border-0 bg-surface shadow-soft lg:rounded-shell lg:border lg:border-line" role="group" aria-label={t('settings.items')}>
-      <Link className="group flex min-h-[4.5rem] items-center gap-3 px-4 text-inherit no-underline transition-colors hover:bg-canvas lg:px-5" to="/app/me/settings/general">
+    <section className={cardClassName} role="group" aria-label={t('settings.items')}>
+      <Link className={linkClassName} data-settings-general-link to="/app/me/settings/general">
         <span className="grid size-8 shrink-0 place-items-center rounded-[0.6rem] bg-muted text-white shadow-sm">
           <AppIcon name="settings" size={18} />
         </span>

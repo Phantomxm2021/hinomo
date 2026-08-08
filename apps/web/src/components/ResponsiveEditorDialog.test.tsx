@@ -144,6 +144,28 @@ test('restores focus to the active element when no return focus ref is provided'
   opener.remove()
 })
 
+test('restores focus to a selector after the original opener is replaced', async () => {
+  const originalOpener = document.createElement('button')
+  originalOpener.setAttribute('data-settings-return-focus', '')
+  document.body.append(originalOpener)
+  originalOpener.focus()
+  const view = render(
+    <ResponsiveEditorDialog open title="编辑" busy={false} onClose={vi.fn()} returnFocusSelector="[data-settings-return-focus]">
+      <input aria-label="名称" />
+    </ResponsiveEditorDialog>,
+  )
+
+  await waitFor(() => expect(screen.getByRole('textbox', { name: '名称' })).toHaveFocus())
+  originalOpener.remove()
+  const replacementOpener = document.createElement('button')
+  replacementOpener.setAttribute('data-settings-return-focus', '')
+  document.body.append(replacementOpener)
+  view.unmount()
+
+  await waitFor(() => expect(replacementOpener).toHaveFocus())
+  replacementOpener.remove()
+})
+
 test('does not restore focus when only busy state changes', async () => {
   const opener = document.createElement('button')
   document.body.append(opener)

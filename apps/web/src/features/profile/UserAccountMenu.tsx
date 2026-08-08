@@ -53,6 +53,7 @@ export function UserAccountMenu() {
       <button
         className="flex w-full items-center gap-3 border-t border-line pt-5 text-left"
         type="button"
+        data-settings-return-focus
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={t('appShell.menu.open')}

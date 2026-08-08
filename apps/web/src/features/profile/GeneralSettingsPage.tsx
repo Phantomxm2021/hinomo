@@ -25,11 +25,11 @@ export function GeneralSettingsPage() {
 
   if (!user) return null
 
-  const panel = <GeneralSettingsPanel locale={locale} onLocaleChange={setLocale} />
+  const panel = <GeneralSettingsPanel locale={locale} onLocaleChange={setLocale} presentation={isDesktop ? 'dialog' : 'page'} />
 
   if (isDesktop) {
     return (
-      <ResponsiveEditorDialog open title={t('settings.general')} busy={false} onClose={() => navigate(-1)} maxWidthClassName="max-w-xl">
+      <ResponsiveEditorDialog open title={t('settings.general')} busy={false} onClose={() => navigate(-1)} returnFocusSelector="[data-settings-general-link]" maxWidthClassName="max-w-xl">
         {panel}
       </ResponsiveEditorDialog>
     )

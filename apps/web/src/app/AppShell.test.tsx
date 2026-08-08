@@ -73,6 +73,7 @@ test('keeps language selection inside settings instead of the desktop sidebar', 
   expect(within(sidebar).queryByRole('combobox', { name: '语言' })).not.toBeInTheDocument()
 
   await user.click(await screen.findByRole('button', { name: '打开账户菜单' }))
+  expect(screen.getByRole('button', { name: '打开账户菜单' })).toHaveAttribute('data-settings-return-focus')
   expect(screen.getByRole('menuitem', { name: /设置/ })).toHaveAttribute('href', '/app/me/settings')
 })
 

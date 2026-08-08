@@ -12,8 +12,8 @@ export function SettingsPage() {
 
   if (isDesktop) {
     return (
-      <ResponsiveEditorDialog open title={t('settings.title')} busy={false} onClose={() => navigate(-1)} maxWidthClassName="max-w-xl">
-        <SettingsPanel />
+      <ResponsiveEditorDialog open title={t('settings.title')} busy={false} onClose={() => navigate(-1)} returnFocusSelector="[data-settings-return-focus]" maxWidthClassName="max-w-xl">
+        <SettingsPanel presentation="dialog" />
       </ResponsiveEditorDialog>
     )
   }
@@ -30,7 +30,7 @@ export function SettingsPage() {
         <span />
       </nav>
 
-      <SettingsPanel />
+      <SettingsPanel presentation="page" />
     </section>
   )
 }

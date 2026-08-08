@@ -12,6 +12,7 @@ export type ResponsiveEditorDialogProps = {
   initialFocusSelector?: string
   maxWidthClassName?: string
   returnFocusRef?: RefObject<HTMLElement | null>
+  returnFocusSelector?: string
 }
 
 function getControls(dialog: HTMLElement | null) {
@@ -45,6 +46,7 @@ export function ResponsiveEditorDialog({
   initialFocusSelector = 'select:not(:disabled), input:not(:disabled), textarea:not(:disabled)',
   maxWidthClassName = 'max-w-lg',
   returnFocusRef,
+  returnFocusSelector,
 }: ResponsiveEditorDialogProps) {
   const { t } = useI18n()
   const dialogRef = useRef<HTMLElement | null>(null)
@@ -55,13 +57,18 @@ export function ResponsiveEditorDialog({
   const closeRef = useRef(close)
   const initialFocusSelectorRef = useRef(initialFocusSelector)
   const returnFocusRefRef = useRef(returnFocusRef)
+  const returnFocusSelectorRef = useRef(returnFocusSelector)
   const previousActiveElementRef = useRef<HTMLElement | null>(null)
   closeRef.current = close
   initialFocusSelectorRef.current = initialFocusSelector
   returnFocusRefRef.current = returnFocusRef
+  returnFocusSelectorRef.current = returnFocusSelector
   const restoreFocus = useCallback((fallback: HTMLElement | null) => {
     window.requestAnimationFrame(() => {
-      const target = returnFocusRefRef.current?.current ?? fallback
+      const selectorTarget = returnFocusSelectorRef.current
+        ? document.querySelector<HTMLElement>(returnFocusSelectorRef.current)
+        : null
+      const target = returnFocusRefRef.current?.current ?? selectorTarget ?? fallback
       if (target && typeof target.focus === 'function') target.focus()
     })
   }, [])
