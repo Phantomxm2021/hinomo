@@ -74,7 +74,7 @@ export function UserAccountMenu() {
               <span className="block truncate text-body font-bold text-ink">{name}</span>
               <span className="block truncate text-meta text-muted">{user.email}</span>
               <span className="mt-1 block text-xs font-bold text-brand">
-                {creditQuery.isPending ? t('profile.creditsLoading') : `${creditQuery.data?.credits_available ?? 0} AI Credits`}
+                {creditQuery.isPending ? t('profile.creditsLoading') : t('profile.creditsCount', { count: creditQuery.data?.credits_available ?? 0 })}
               </span>
             </span>
           </>
@@ -96,7 +96,7 @@ export function UserAccountMenu() {
               <span className="text-xs font-bold text-white/70">{t('profile.creditsOneTime')}</span>
             </span>
             <span className="mt-4 flex items-end justify-between gap-3">
-              <span><span className="block text-xs font-semibold text-white/70">{t('profile.creditsAvailable')}</span><strong className="mt-0.5 block text-xl leading-none">{creditQuery.data?.credits_available ?? 0} credits</strong></span>
+              <span><span className="block text-xs font-semibold text-white/70">{t('profile.creditsAvailable')}</span><strong className="mt-0.5 block text-xl leading-none">{t('profile.creditsBalance', { credits: creditQuery.data?.credits_available ?? 0 })}</strong></span>
               <span className="flex items-center gap-0.5 text-xs font-bold">{t('profile.creditsBuy')}<AppIcon name="chevron-right" size={15} className="transition-transform group-hover:translate-x-0.5" /></span>
             </span>
           </Link>

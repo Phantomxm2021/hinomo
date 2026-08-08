@@ -70,8 +70,8 @@ export function MyPage() {
 
           <Link className="group overflow-hidden rounded-[1.45rem] bg-[linear-gradient(145deg,#647e6e_0%,#385447_100%)] p-5 text-white no-underline shadow-float active:scale-[0.995]" to="/app/me/credits">
             <span className="flex items-start justify-between gap-4"><span className="grid size-12 place-items-center rounded-[0.95rem] bg-white/14 ring-1 ring-white/15"><AppIcon name="scan" size={24} /></span><AppIcon name="chevron-right" className="text-white/65 transition-transform group-hover:translate-x-0.5" /></span>
-            <strong className="mt-5 block text-[1.25rem]">AI Credits</strong>
-            <span className="mt-1 flex items-end justify-between gap-4"><span className="text-sm text-white/70">{t('profile.creditsDescription')}</span><span className="shrink-0 text-sm font-extrabold">{creditQuery.data?.credits_available ?? 0} credits</span></span>
+            <strong className="mt-5 block text-[1.25rem]">{t('profile.creditsTitle')}</strong>
+            <span className="mt-1 flex items-end justify-between gap-4"><span className="text-sm text-white/70">{t('profile.creditsDescription')}</span><span className="shrink-0 text-sm font-extrabold">{t('profile.creditsBalance', { credits: creditQuery.data?.credits_available ?? 0 })}</span></span>
           </Link>
 
           <section className="overflow-hidden rounded-card border-0 bg-surface shadow-soft lg:rounded-shell lg:border lg:border-line" role="group" aria-label={t('profile.sectionSettings')}>
