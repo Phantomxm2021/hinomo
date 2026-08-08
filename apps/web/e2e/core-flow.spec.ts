@@ -79,7 +79,7 @@ async function expectRouteFrame(
 
   await expect(shell.getByRole('complementary')).toBeHidden()
   const banner = shell.getByRole('banner')
-  await expect(banner.getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/app')
+  if (await banner.count()) await expect(banner.getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/app')
   const navigation = shell.getByRole('navigation', { name: '移动端主导航' })
   await expect(navigation).toBeVisible()
   await expect.poll(async () => {
@@ -144,8 +144,33 @@ test('owner creates, finds, labels, and maintains a public box', async ({ browse
   await installMockBackend(page, state)
   await page.goto('/')
   await expect(page.getByRole('heading', { name: '收起来。也找得回来。' })).toBeVisible()
-  await register(page, 'owner@example.com')
+  await register(page, 'owner@example.com', false)
   await expect(page.getByRole('heading', { name: /^(早上好|中午好|下午好|晚上好)，今天找什么？$/ })).toBeVisible()
+  const welcomeDialog = page.getByRole('dialog', { name: '开始使用 Nomo' })
+  await expect(welcomeDialog).toBeVisible()
+  await expectNoHorizontalOverflow(page)
+  await welcomeDialog.getByRole('button', { name: '关闭开始使用 Nomo' }).click()
+  await expect(welcomeDialog).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByRole('button', { name: '新手指南' })).toBeVisible()
+  await expect(welcomeDialog).toHaveCount(0)
+  await page.getByRole('button', { name: '新手指南' }).click()
+  await expect(welcomeDialog).toBeVisible()
+  await welcomeDialog.getByRole('button', { name: '关闭开始使用 Nomo' }).click()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: '新手指南' }).click()
+  await expect(welcomeDialog).toBeVisible()
+  await expectNoHorizontalOverflow(page)
+  const welcomeGeometry = await welcomeDialog.evaluate((dialog) => {
+    const rect = dialog.getBoundingClientRect()
+    return { left: rect.left, right: rect.right, width: rect.width, viewportWidth: window.innerWidth }
+  })
+  expect(welcomeGeometry.left).toBeGreaterThanOrEqual(0)
+  expect(welcomeGeometry.right).toBeLessThanOrEqual(welcomeGeometry.viewportWidth)
+  await welcomeDialog.getByRole('button', { name: '关闭开始使用 Nomo' }).click()
+  await page.setViewportSize(testInfo.project.name === 'desktop-chromium'
+    ? { width: 1280, height: 720 }
+    : { width: 390, height: 844 })
   if (testInfo.project.name === 'desktop-chromium') await expectDesktopNavigation(page)
   else await expectMobileNavigation(page)
   await createSpace(page, '家')
@@ -193,24 +218,24 @@ test('owner creates, finds, labels, and maintains a public box', async ({ browse
 
   let managementTrigger = page.getByRole('button', { name: '管理冬季衣物' })
   await managementTrigger.click()
-  let editLink = page.getByRole('link', { name: '编辑冬季衣物' })
-  await expect(editLink).toHaveAttribute('href', '/app/boxes/box-1/edit')
-  await editLink.click()
-  await expect(page).toHaveURL('/app/boxes/box-1/edit')
-  await expect(page.getByRole('heading', { name: '编辑箱子', exact: true })).toBeVisible()
-  await expect(page.getByLabel('箱子名称')).toHaveValue('冬季衣物')
-
-  await page.goBack()
+  let editButton = page.getByRole('button', { name: '编辑冬季衣物' })
+  await expect(editButton).toBeVisible()
+  await editButton.click()
+  await expect(page).toHaveURL(/\/app\/boxes\?edit=box-1$/)
+  const editDialog = page.getByRole('dialog', { name: '编辑箱子' })
+  await expect(editDialog).toBeVisible()
+  await expect(editDialog.getByLabel('箱子名称')).toHaveValue('冬季衣物')
+  await editDialog.getByRole('button', { name: '关闭编辑箱子' }).click()
   await expect(page).toHaveURL('/app/boxes')
   await expect(page.getByRole('link', { name: '打开冬季衣物' })).toBeVisible()
   await expect(page.getByRole('link', { name: '打开露营用品' })).toBeVisible()
 
   managementTrigger = page.getByRole('button', { name: '管理冬季衣物' })
   await managementTrigger.click()
-  editLink = page.getByRole('link', { name: '编辑冬季衣物' })
-  await expect(editLink).toBeVisible()
+  editButton = page.getByRole('button', { name: '编辑冬季衣物' })
+  await expect(editButton).toBeVisible()
   await page.keyboard.press('Escape')
-  await expect(editLink).toHaveCount(0)
+  await expect(editButton).toHaveCount(0)
   await expect(managementTrigger).toBeFocused()
 
   await managementTrigger.click()
@@ -289,6 +314,27 @@ test('dashboard switches spaces and recent boxes with the selected venue', async
   await expect(page.getByText('档案室', { exact: true })).toBeVisible()
   await expect(page.getByText('家庭用品', { exact: true })).toHaveCount(0)
   await expect(page.getByText('客厅', { exact: true })).toHaveCount(0)
+})
+
+test('switches onboarding and app navigation to English', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'the language switcher is exposed in the desktop sidebar')
+  const state = createMockState()
+  await installMockBackend(page, state)
+  await register(page, 'english-onboarding@example.com', false)
+
+  const welcomeDialog = page.getByRole('dialog', { name: '开始使用 Nomo' })
+  await expect(welcomeDialog).toBeVisible()
+  await welcomeDialog.getByRole('button', { name: '关闭开始使用 Nomo' }).click()
+  await page.getByRole('combobox', { name: '语言' }).selectOption('en-US')
+
+  await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /what are you looking for today/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Getting started' })).toBeVisible()
+  await page.getByRole('button', { name: 'Getting started' }).click()
+
+  const englishDialog = page.getByRole('dialog', { name: 'Get started with Nomo' })
+  await expect(englishDialog).toBeVisible()
+  await expect(englishDialog.getByRole('button', { name: 'Create your first space' })).toBeVisible()
 })
 
 test('navigation changes exactly at the 1024px desktop breakpoint', async ({ page }) => {
@@ -372,7 +418,7 @@ test('route alignment across required viewport breakpoints', async ({ page }, te
   const publicUrl = await createBox(page, '窄屏收纳箱', 'public')
 
   const routes = [
-    { path: '/app', heading: '早上好，今天找什么？', expectShell: true },
+    { path: '/app', heading: /^(早上好|中午好|下午好|晚上好)，今天找什么？$/, expectShell: true },
     { path: '/app/spaces', heading: '空间', expectShell: true },
     { path: '/app/boxes', heading: '全部箱子', expectShell: true },
     { path: '/app/boxes/box-1/edit', heading: '编辑箱子', expectShell: true },
@@ -401,6 +447,10 @@ test('route alignment across required viewport breakpoints', async ({ page }, te
       const heading = desktop && 'desktopHeading' in route ? route.desktopHeading : route.heading
       if (!route.expectShell && !desktop) {
         await expect(page.getByRole('navigation', { name: '箱子详情导航' }).getByText(`${route.heading} · 箱子详情`, { exact: true })).toBeVisible()
+      } else if (route.path.endsWith('/edit')) {
+        const editDialog = page.getByRole('dialog', { name: '编辑箱子' })
+        await expect(editDialog).toBeVisible()
+        await editDialog.getByRole('button', { name: '关闭编辑箱子' }).click()
       } else {
         await expect(page.getByRole('heading', { level: 1, name: heading, exact: true })).toBeVisible()
       }

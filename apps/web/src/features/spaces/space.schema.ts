@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { SchemaTranslator } from '../boxes/box.schema'
+import { messages } from '../../i18n/messages'
 
 export function createSpaceSchema(t: SchemaTranslator) {
   return z.object({
@@ -9,11 +10,13 @@ export function createSpaceSchema(t: SchemaTranslator) {
   })
 }
 
-export const spaceSchema = createSpaceSchema((key) => ({
-  'validation.venueRequired': '请选择场地',
-  'validation.spaceNameRequired': '请输入空间名称',
-  'validation.spaceNameMax': '空间名称最多 80 字',
-  'validation.descriptionMax': '描述最多 500 字',
-}[key] ?? key))
+const defaultSchemaMessages: Record<string, string> = {
+  'validation.venueRequired': messages['zh-CN'].validation.venueRequired,
+  'validation.spaceNameRequired': messages['zh-CN'].validation.spaceNameRequired,
+  'validation.spaceNameMax': messages['zh-CN'].validation.spaceNameMax,
+  'validation.descriptionMax': messages['zh-CN'].validation.descriptionMax,
+}
+
+export const spaceSchema = createSpaceSchema((key) => defaultSchemaMessages[key] ?? key)
 
 export type SpaceFormValues = z.infer<typeof spaceSchema>

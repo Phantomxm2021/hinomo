@@ -8,6 +8,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import type { Session } from '@supabase/supabase-js'
 import { AuthProvider } from '../features/auth/AuthProvider'
 import { AuthContext } from '../features/auth/auth-context'
+import { I18nProvider } from '../i18n/I18nProvider'
 import { RequireAuth } from './RequireAuth'
 
 const { storeSnapshot } = vi.hoisted(() => ({
@@ -103,4 +104,25 @@ test('does not redirect while the initial session is loading', () => {
   expect(screen.getAllByTestId('skeleton').length).toBeGreaterThan(1)
   expect(screen.queryByText('正在检查登录状态…')).not.toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: '登录' })).not.toBeInTheDocument()
+})
+
+test('localizes the loading status when English is selected', () => {
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: { getItem: () => 'en-US' },
+  })
+  const router = createMemoryRouter(
+    [{ path: '/app/*', element: <RequireAuth />, children: [{ path: '*', element: <h1>Boxes</h1> }] }],
+    { initialEntries: ['/app/boxes'] },
+  )
+
+  render(
+    <I18nProvider>
+      <AuthContext.Provider value={{ session: null, loading: true, isPasswordRecovery: false }}>
+        <RouterProvider router={router} />
+      </AuthContext.Provider>
+    </I18nProvider>,
+  )
+
+  expect(screen.getByRole('status', { name: 'Checking sign-in status' })).toBeInTheDocument()
 })

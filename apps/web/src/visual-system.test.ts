@@ -11,6 +11,9 @@ const boxesPageSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/
 const catalogueCardSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/BoxCatalogueCard.tsx'), 'utf8')
 const boxCardMenuSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/BoxCardMenu.tsx'), 'utf8')
 const spaceFilterChipsSource = readFileSync(resolve(process.cwd(), 'src/features/boxes/SpaceFilterChips.tsx'), 'utf8')
+const onboardingDialogSource = readFileSync(resolve(process.cwd(), 'src/features/dashboard/OnboardingWelcomeDialog.tsx'), 'utf8')
+const responsiveEditorDialogSource = readFileSync(resolve(process.cwd(), 'src/components/ResponsiveEditorDialog.tsx'), 'utf8')
+const messagesSource = readFileSync(resolve(process.cwd(), 'src/i18n/messages.ts'), 'utf8')
 const catalogueSources = [
   catalogueCardSource,
   boxCardMenuSource,
@@ -215,4 +218,23 @@ test('keeps business pages on the shared typography language', () => {
   expect(pages).not.toContain('text-2xl font-black tracking-tight text-ink md:text-4xl')
   expect(pages.match(/text-meta font-medium tracking-eyebrow text-muted/g)?.length).toBeGreaterThanOrEqual(7)
   expect(pages.match(/text-page-title font-extrabold/g)?.length).toBeGreaterThanOrEqual(7)
+})
+
+test('keeps Chinese and English typography rules explicit for shared copy', () => {
+  expect(css).toContain('.landing-zh .landing-display')
+  expect(css).toContain('line-break: strict;')
+  expect(css).toContain('.landing-en .landing-display')
+  expect(onboardingDialogSource).toContain('text-section-title font-extrabold')
+  expect(onboardingDialogSource).toContain('text-body leading-relaxed')
+  expect(messagesSource).toContain("title: '开始使用 Nomo'")
+  expect(messagesSource).toContain("title: 'Get started with Nomo'")
+})
+
+test('keeps the 390px onboarding bottom sheet inside the viewport', () => {
+  expect(responsiveEditorDialogSource).toContain('w-full')
+  expect(responsiveEditorDialogSource).toContain('min-w-0')
+  expect(responsiveEditorDialogSource).toContain('overflow-x-hidden')
+  expect(responsiveEditorDialogSource).toContain('overflow-y-auto')
+  expect(responsiveEditorDialogSource).toContain('lg:items-center')
+  expect(onboardingDialogSource).toContain('sm:w-auto')
 })

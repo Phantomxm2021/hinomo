@@ -124,7 +124,7 @@ export function ResponsiveEditorDialog({
     >
       <section
         ref={dialogRef}
-        className={`relative max-h-[calc(100dvh-max(0.75rem,var(--safe-area-top)))] w-full ${maxWidthClassName} overflow-y-auto rounded-t-[1.5rem] border-x-0 border-t border-b-0 border-line bg-canvas p-5 pb-[max(1.25rem,var(--safe-area-bottom))] shadow-float lg:max-h-[calc(100dvh-1.5rem)] lg:rounded-shell lg:border lg:p-6`}
+        className={`relative min-w-0 max-h-[calc(100dvh-max(0.75rem,var(--safe-area-top)))] w-full ${maxWidthClassName} overflow-x-hidden overflow-y-auto rounded-t-[1.5rem] border-x-0 border-t border-b-0 border-line bg-canvas p-5 pb-[max(1.25rem,var(--safe-area-bottom))] shadow-float lg:max-h-[calc(100dvh-1.5rem)] lg:rounded-shell lg:border lg:p-6`}
         role="dialog"
         aria-modal="true"
         aria-busy={busy}

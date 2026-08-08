@@ -4,7 +4,7 @@ type Venue = { id: string; owner_id: string; name: string; description: string |
 type Space = { id: string; owner_id: string; venue_id: string; name: string; description: string | null }
 type SpaceLayout = { space_id: string; owner_id: string; x_percent: number; y_percent: number; width_percent: number; height_percent: number }
 type Item = { id: string; box_id: string; name: string; category: string | null; quantity: number; stored_quantity: number; description: string | null }
-type Profile = { id: string; display_name: string | null; avatar_object_key: string | null; locale: 'zh-CN' | 'en-US' }
+type Profile = { id: string; display_name: string | null; avatar_object_key: string | null; locale: 'zh-CN' | 'en-US'; onboarding_welcome_seen_at: string | null }
 type Box = {
   id: string
   owner_id: string
@@ -56,7 +56,7 @@ export async function installMockBackend(page: Page, state: MockState) {
         ? '22222222-2222-4222-8222-222222222222'
         : '11111111-1111-4111-8111-111111111111'
       if (!state.profiles.some((profile) => profile.id === currentUserId)) {
-        state.profiles.push({ id: currentUserId, display_name: email.split('@')[0], avatar_object_key: null, locale: 'zh-CN' })
+        state.profiles.push({ id: currentUserId, display_name: email.split('@')[0], avatar_object_key: null, locale: 'zh-CN', onboarding_welcome_seen_at: null })
       }
       if (!state.venues.some((venue) => venue.owner_id === currentUserId && venue.is_default)) {
         state.venues.push({
@@ -96,6 +96,12 @@ export async function installMockBackend(page: Page, state: MockState) {
       const { p_locale: locale } = request.postDataJSON() as { p_locale: 'zh-CN' | 'en-US' }
       const profile = state.profiles.find((candidate) => candidate.id === currentUserId)
       if (profile) profile.locale = locale
+      return json(route, null)
+    }
+
+    if (url.pathname === '/rest/v1/rpc/mark_onboarding_welcome_seen' && method === 'POST' && currentUserId) {
+      const profile = state.profiles.find((candidate) => candidate.id === currentUserId)
+      if (profile && !profile.onboarding_welcome_seen_at) profile.onboarding_welcome_seen_at = new Date().toISOString()
       return json(route, null)
     }
 
@@ -286,7 +292,7 @@ export async function installMockBackend(page: Page, state: MockState) {
   })
 }
 
-export async function register(page: Page, email: string) {
+export async function register(page: Page, email: string, dismissWelcome = true) {
   await page.goto('/register')
   await page.getByLabel('昵称').fill(email.split('@')[0])
   await page.getByLabel('邮箱').fill(email)
@@ -294,6 +300,13 @@ export async function register(page: Page, email: string) {
   await page.getByRole('checkbox', { name: /我已阅读并同意/ }).check()
   await page.getByRole('button', { name: '注册' }).click()
   await page.waitForURL('**/app')
+  if (dismissWelcome) {
+    const dialog = page.getByRole('dialog', { name: '开始使用 Nomo' })
+    await dialog.waitFor({ state: 'visible', timeout: 3000 }).catch(() => undefined)
+    if (await dialog.isVisible().catch(() => false)) {
+      await dialog.getByRole('button', { name: '关闭开始使用 Nomo' }).click()
+    }
+  }
 }
 
 export async function createSpace(page: Page, name: string) {

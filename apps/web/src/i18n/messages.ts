@@ -130,8 +130,8 @@ const zhMessages = {
     move: {
       eyebrow: '新的房间，不陌生',
       title1: '搬家之后，',
-      title2: '生活依然熟悉。',
-      title3: '',
+      title2: '生活依然熟悉，',
+      title3: '就像自己的家。',
       body: '即使周围都是相似的纸箱，你也知道今晚要用的杯子、床单和充电器，分别在哪一个里面。',
     },
     together: {
@@ -228,6 +228,7 @@ const zhMessages = {
       forgotPassword: '如果该邮箱已注册，你将收到一封密码重置邮件。',
     },
     options: { label: '认证选项' },
+    sessionChecking: '正在检查登录状态',
     loading: '正在验证重置链接',
     resetInvalid: '该重置请求无法继续。',
     resetInvalidDescription: '重置链接无效或已过期，请重新申请。',
@@ -1227,6 +1228,7 @@ const enMessages = {
       forgotPassword: 'If the email is registered, you will receive a password reset email.',
     },
     options: { label: 'Authentication options' },
+    sessionChecking: 'Checking sign-in status',
     loading: 'Validating reset link',
     resetInvalid: 'This reset request cannot continue.',
     resetInvalidDescription: 'This reset link is invalid or has expired. Request a new one.',

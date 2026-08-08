@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { messages } from '../../i18n/messages'
 
 export type SchemaTranslator = (key: string) => string
 
@@ -13,13 +14,15 @@ export function createBoxSchema(t: SchemaTranslator) {
   })
 }
 
-export const boxSchema = createBoxSchema((key) => ({
-  'validation.spaceRequired': '请选择空间',
-  'validation.boxNameRequired': '请输入箱子名称',
-  'validation.boxNameMax': '箱子名称最多 120 字',
-  'validation.categoryMax': '分类最多 80 字',
-  'validation.locationMax': '具体位置最多 200 字',
-  'validation.noteMax': '备注最多 1000 字',
-}[key] ?? key))
+const defaultSchemaMessages: Record<string, string> = {
+  'validation.spaceRequired': messages['zh-CN'].validation.spaceRequired,
+  'validation.boxNameRequired': messages['zh-CN'].validation.boxNameRequired,
+  'validation.boxNameMax': messages['zh-CN'].validation.boxNameMax,
+  'validation.categoryMax': messages['zh-CN'].validation.categoryMax,
+  'validation.locationMax': messages['zh-CN'].validation.locationMax,
+  'validation.noteMax': messages['zh-CN'].validation.noteMax,
+}
+
+export const boxSchema = createBoxSchema((key) => defaultSchemaMessages[key] ?? key)
 
 export type BoxFormValues = z.infer<typeof boxSchema>
