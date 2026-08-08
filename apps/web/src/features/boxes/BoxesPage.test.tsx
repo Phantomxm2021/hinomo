@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useEffect, type PropsWithChildren } from 'react'
+import { StrictMode, useEffect, type PropsWithChildren } from 'react'
 import { createMemoryRouter, RouterProvider, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { BoxesPage } from './BoxesPage'
@@ -159,7 +159,7 @@ function EnglishProvider({ children }: PropsWithChildren) {
   return <>{children}</>
 }
 
-function renderBoxes(initialEntry = '/app/boxes', locale: 'zh-CN' | 'en-US' = 'zh-CN') {
+function renderBoxes(initialEntry = '/app/boxes', locale: 'zh-CN' | 'en-US' = 'zh-CN', strict = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -178,10 +178,13 @@ function renderBoxes(initialEntry = '/app/boxes', locale: 'zh-CN' | 'en-US' = 'z
       <RouterProvider router={router} />
     </QueryClientProvider>
   )
+  const localizedApp = locale === 'en-US'
+    ? <I18nProvider><EnglishProvider>{app}</EnglishProvider></I18nProvider>
+    : app
   return {
     client,
     router,
-    ...render(locale === 'en-US' ? <I18nProvider><EnglishProvider>{app}</EnglishProvider></I18nProvider> : app),
+    ...render(strict ? <StrictMode>{localizedApp}</StrictMode> : localizedApp),
   }
 }
 
@@ -752,6 +755,23 @@ test('opens creation after a successful purchase return confirms the entitlement
   expect(mockNotify).toHaveBeenCalledWith('无限箱子已永久解锁')
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['boxes'] })
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['box-plan'] })
+})
+
+test('restarts purchase confirmation after the StrictMode effect cleanup', async () => {
+  const freePlan = { box_count: 3, free_limit: 3, unlimited_boxes: false, can_create: false }
+  const unlimitedPlan = { ...freePlan, unlimited_boxes: true, can_create: true }
+  const initialPlan = deferred<typeof freePlan>()
+  mockGetBoxPlanSummary.mockReturnValueOnce(initialPlan.promise).mockResolvedValue(unlimitedPlan)
+  mockListBoxes.mockResolvedValue(boxes)
+  renderBoxes('/app/boxes?purchase=success', 'zh-CN', true)
+
+  expect(mockGetBoxPlanSummary).toHaveBeenCalledTimes(1)
+  vi.useFakeTimers()
+  await act(async () => { initialPlan.resolve(freePlan) })
+  await act(async () => { await vi.advanceTimersByTimeAsync(1_500) })
+
+  expect(mockGetBoxPlanSummary.mock.calls.length).toBeGreaterThanOrEqual(2)
+  expect(screen.getByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
 })
 
 test('bounds purchase confirmation to eight refetches and offers a manual recheck', async () => {

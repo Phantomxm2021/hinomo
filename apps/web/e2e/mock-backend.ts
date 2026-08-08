@@ -19,9 +19,63 @@ type Box = {
   updated_at: string
 }
 
-export type MockState = { venues: Venue[]; spaces: Space[]; spaceLayouts: SpaceLayout[]; boxes: Box[]; items: Item[]; profiles: Profile[] }
+type BoxPlan = {
+  box_count: number
+  free_limit: number
+  unlimited_boxes: boolean
+  can_create: boolean
+}
 
-export const createMockState = (): MockState => ({ venues: [], spaces: [], spaceLayouts: [], boxes: [], items: [], profiles: [] })
+type BoxCheckout = {
+  result: 'success' | 'canceled'
+  pending: boolean
+  releasePlanRequests: Array<() => void>
+}
+
+type CreditSummary = {
+  credits_available: number
+  credits_reserved: number
+}
+
+export type MockState = {
+  venues: Venue[]
+  spaces: Space[]
+  spaceLayouts: SpaceLayout[]
+  boxes: Box[]
+  items: Item[]
+  profiles: Profile[]
+  boxPlan: BoxPlan
+  boxCheckout: BoxCheckout
+  creditSummary: CreditSummary
+}
+
+export const createMockState = ({ boxCount = 0, unlimitedBoxes = false }: {
+  boxCount?: number
+  unlimitedBoxes?: boolean
+} = {}): MockState => ({
+  venues: [],
+  spaces: [],
+  spaceLayouts: [],
+  boxes: [],
+  items: [],
+  profiles: [],
+  boxPlan: {
+    box_count: boxCount,
+    free_limit: 3,
+    unlimited_boxes: unlimitedBoxes,
+    can_create: unlimitedBoxes || boxCount < 3,
+  },
+  boxCheckout: { result: 'success', pending: false, releasePlanRequests: [] },
+  creditSummary: { credits_available: 0, credits_reserved: 0 },
+})
+
+export function completeBoxUnlimitedPurchase(state: MockState) {
+  if (!state.boxCheckout.pending) throw new Error('no unlimited-box checkout is awaiting confirmation')
+  state.boxCheckout.pending = false
+  state.boxPlan.unlimited_boxes = true
+  state.boxPlan.can_create = true
+  for (const release of state.boxCheckout.releasePlanRequests.splice(0)) release()
+}
 
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
@@ -106,10 +160,65 @@ export async function installMockBackend(page: Page, state: MockState) {
     }
 
     if (url.pathname === '/rest/v1/rpc/get_credit_summary' && method === 'POST' && currentUserId) {
-      return json(route, [{
-        credits_available: 0,
-        credits_reserved: 0,
-      }])
+      return json(route, [state.creditSummary])
+    }
+
+    if (url.pathname === '/rest/v1/rpc/list_credit_transactions' && method === 'POST' && currentUserId) {
+      return json(route, [])
+    }
+
+    if (url.pathname === '/rest/v1/rpc/get_box_plan_summary' && method === 'POST' && currentUserId) {
+      if (state.boxCheckout.pending) {
+        await new Promise<void>((resolve) => state.boxCheckout.releasePlanRequests.push(resolve))
+      }
+      return json(route, [state.boxPlan])
+    }
+
+    if (url.pathname === '/rest/v1/rpc/create_box' && method === 'POST' && currentUserId) {
+      if (!state.boxPlan.unlimited_boxes && state.boxPlan.box_count >= state.boxPlan.free_limit) {
+        return json(route, {
+          code: 'P0001',
+          message: 'box_limit_reached',
+          details: null,
+          hint: null,
+        }, 400)
+      }
+
+      const input = request.postDataJSON() as {
+        p_space_id: string
+        p_name: string
+        p_category: string | null
+        p_location: string | null
+        p_description: string | null
+        p_visibility: Box['visibility']
+      }
+      const sequence = state.boxes.length + 1
+      const box: Box = {
+        id: `box-${sequence}`,
+        owner_id: currentUserId,
+        public_id: `123e4567-e89b-42d3-a456-${String(sequence).padStart(12, '0')}`,
+        box_code: `BX-${String(sequence).padStart(5, '0')}`,
+        space_id: input.p_space_id,
+        name: input.p_name,
+        category: input.p_category,
+        location: input.p_location,
+        description: input.p_description,
+        visibility: input.p_visibility,
+        updated_at: new Date().toISOString(),
+      }
+      state.boxes.push(box)
+      state.boxPlan.box_count += 1
+      state.boxPlan.can_create = state.boxPlan.unlimited_boxes || state.boxPlan.box_count < state.boxPlan.free_limit
+      return json(route, [{ id: box.id, public_id: box.public_id, box_code: box.box_code, name: box.name }])
+    }
+
+    if (url.pathname === '/functions/v1/billing-checkout' && method === 'POST' && currentUserId) {
+      const { action } = request.postDataJSON() as { action?: string }
+      if (action !== 'boxes_unlimited') return json(route, { error: 'invalid_checkout_action' }, 400)
+      state.boxCheckout.pending = state.boxCheckout.result === 'success'
+      return json(route, {
+        url: `http://127.0.0.1:4173/app/boxes?purchase=${state.boxCheckout.result}`,
+      })
     }
 
     if (url.pathname === '/rest/v1/venues') {
@@ -185,6 +294,16 @@ export async function installMockBackend(page: Page, state: MockState) {
     }
 
     if (url.pathname === '/rest/v1/boxes') {
+      if (method === 'DELETE' && currentUserId) {
+        const boxId = eqValue(url, 'id')
+        const previousLength = state.boxes.length
+        state.boxes = state.boxes.filter((box) => box.id !== boxId || box.owner_id !== currentUserId)
+        if (state.boxes.length < previousLength) {
+          state.boxPlan.box_count = Math.max(0, state.boxPlan.box_count - 1)
+          state.boxPlan.can_create = state.boxPlan.unlimited_boxes || state.boxPlan.box_count < state.boxPlan.free_limit
+        }
+        return route.fulfill({ status: 204, body: '' })
+      }
       if (method === 'POST' && currentUserId) {
         const input = request.postDataJSON() as Omit<Box, 'id' | 'public_id' | 'box_code'>
         const box: Box = {

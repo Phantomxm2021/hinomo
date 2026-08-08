@@ -224,6 +224,7 @@ export function BoxesPage() {
 
   useEffect(() => () => {
     purchaseConfirmationRunRef.current += 1
+    handledPurchaseResultRef.current = null
     clearPurchaseConfirmationTimer()
   }, [clearPurchaseConfirmationTimer])
 
