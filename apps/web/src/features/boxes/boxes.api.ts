@@ -209,14 +209,19 @@ export async function createBox(input: BoxInput): Promise<CreatedBox> {
   const ownerId = sessionData.session?.user.id
   if (!ownerId) throw new Error('authentication is required')
 
-  const { data, error } = await supabase
-    .from('boxes')
-    .insert({ ...input, owner_id: ownerId })
-    .select('id, public_id, box_code, name')
-    .single()
+  const { data, error } = await supabase.rpc('create_box', {
+    p_space_id: input.space_id,
+    p_name: input.name,
+    p_category: input.category,
+    p_location: input.location,
+    p_description: input.description,
+    p_visibility: input.visibility,
+  })
 
   if (error) throw error
-  return data
+  const created = data?.[0]
+  if (!created) throw new Error('box_creation_empty')
+  return created
 }
 
 export async function deleteBox(boxId: string) {
