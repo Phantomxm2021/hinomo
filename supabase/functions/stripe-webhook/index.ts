@@ -13,6 +13,7 @@ type EventResultCode =
   | 'duplicate_paid_entitlement'
   | 'refunded_paid_entitlement'
   | 'partial_refund_manual_review'
+  | 'async_payment_failed'
   | null
 
 function creditAmount(checkoutAction: string | undefined): number | undefined {
@@ -22,10 +23,10 @@ function creditAmount(checkoutAction: string | undefined): number | undefined {
 
 type ServiceDatabase = ReturnType<typeof serviceDatabase>
 
-async function fulfillCheckoutSession(
+async function validateCheckoutSessionIdentity(
   database: ServiceDatabase,
   session: Stripe.Checkout.Session,
-): Promise<EventResultCode> {
+): Promise<string> {
   const userId = session.client_reference_id
   const metadataUserId = session.metadata?.supabase_user_id
   const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id
@@ -36,6 +37,14 @@ async function fulfillCheckoutSession(
     p_user_id: userId, p_stripe_customer_id: customerId,
   })
   if (error) throw error
+  return userId
+}
+
+async function fulfillCheckoutSession(
+  database: ServiceDatabase,
+  session: Stripe.Checkout.Session,
+): Promise<EventResultCode> {
+  const userId = await validateCheckoutSessionIdentity(database, session)
   if (session.mode === 'payment' && session.payment_status === 'paid') {
     const checkoutAction = session.metadata?.checkout_action
     const entitlementCode = session.metadata?.entitlement_code
@@ -74,6 +83,10 @@ async function fulfillCheckoutSession(
 
 async function handleEvent(event: Stripe.Event): Promise<EventResultCode> {
   const database = serviceDatabase()
+  if (event.type === 'checkout.session.async_payment_failed') {
+    await validateCheckoutSessionIdentity(database, event.data.object as Stripe.Checkout.Session)
+    return 'async_payment_failed'
+  }
   if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
     return fulfillCheckoutSession(database, event.data.object as Stripe.Checkout.Session)
   }

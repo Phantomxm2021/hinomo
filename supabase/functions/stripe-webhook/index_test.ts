@@ -18,6 +18,13 @@ testSource('paid unlimited-box checkout grants an account entitlement instead of
     "event.type === 'checkout.session.async_payment_succeeded'",
     'Delayed-payment success must use the same fulfillment path',
   )
+  assertContains(
+    source,
+    "event.type === 'checkout.session.async_payment_failed'",
+    'Delayed-payment failure must be recorded explicitly',
+  )
+  assertContains(source, 'validateCheckoutSessionIdentity', 'Delayed-payment failure must validate Checkout identity')
+  assertContains(source, "return 'async_payment_failed'", 'Delayed-payment failure needs a stable completed result code')
   assertContains(source, 'async function fulfillCheckoutSession', 'Checkout fulfillment must have one shared path')
   assertContains(source, 'return fulfillCheckoutSession(database, event.data.object as Stripe.Checkout.Session)', 'Both payment events must call shared fulfillment')
   assertContains(source, 'userId !== metadataUserId', 'Webhook must reject mismatched Checkout user identities')

@@ -66,8 +66,12 @@ Deno.serve(async (request) => {
       customer,
       client_reference_id: user.id,
       line_items: [{ price: requiredStripePriceId(action.env), quantity: 1 }],
-      success_url: appUrl(boxPurchase ? '/app/boxes?purchase=success' : '/app/me/credits?checkout=success'),
-      cancel_url: appUrl(boxPurchase ? '/app/boxes?purchase=canceled' : '/app/me/credits?checkout=canceled'),
+      success_url: appUrl(boxPurchase
+        ? '/app/boxes?purchase=success&session_id={CHECKOUT_SESSION_ID}'
+        : '/app/me/credits?checkout=success'),
+      cancel_url: appUrl(boxPurchase
+        ? '/app/boxes?purchase=canceled&session_id={CHECKOUT_SESSION_ID}'
+        : '/app/me/credits?checkout=canceled'),
       allow_promotion_codes: !boxPurchase,
       billing_address_collection: 'auto',
       metadata,
