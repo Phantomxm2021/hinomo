@@ -3,13 +3,15 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
+import { useI18n } from '../../i18n/I18nProvider'
 import { supabase } from '../../lib/supabase'
 import { LEGAL_POLICY_VERSION } from '../legal/legal-policy'
 import { getAuthErrorMessage } from './auth-errors'
-import { registerSchema, type RegisterValues } from './auth.schemas'
+import { createRegisterSchema, type RegisterValues } from './auth.schemas'
 import { AuthField, AuthOptions, AuthPageFrame, AuthSubmitButton } from './AuthFormPrimitives'
 
 export function RegisterPage() {
+  const { locale, t } = useI18n()
   const navigate = useNavigate()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -18,7 +20,7 @@ export function RegisterPage() {
     handleSubmit,
     formState: { errors, isSubmitting, isValid },
   } = useForm<RegisterValues>({
-    resolver: zodResolver(registerSchema),
+    resolver: zodResolver(createRegisterSchema(t)),
     mode: 'onChange',
     defaultValues: { acceptLegal: false },
   })
@@ -41,7 +43,7 @@ export function RegisterPage() {
         },
       })
       if (error) {
-        setSubmitError(getAuthErrorMessage(error))
+        setSubmitError(getAuthErrorMessage(error, t))
         return
       }
       if (data.session) {
@@ -50,50 +52,50 @@ export function RegisterPage() {
       }
       setSuccess(true)
     } catch (error) {
-      setSubmitError(getAuthErrorMessage(error))
+      setSubmitError(getAuthErrorMessage(error, t))
     }
   })
 
   return (
-    <AuthPageFrame title="创建账号" subtitle="用昵称建立属于你的家庭收纳空间。">
+    <AuthPageFrame title={t('auth.register.title')} subtitle={t('auth.register.subtitle')}>
       {success ? (
         <div className="auth-register-success">
-          <p role="status">注册成功，请查收验证邮件后登录。</p>
-          <Link className="auth-secondary-link" to="/login">返回登录</Link>
+          <p role="status">{t('auth.success.register')}</p>
+          <Link className="auth-secondary-link" to="/login">{t('auth.register.signIn')}</Link>
         </div>
       ) : (
         <>
           <form className="auth-register-form" onSubmit={submit} noValidate>
-          <AuthField id="register-display-name" label="昵称" error={errors.displayName?.message}>
+          <AuthField id="register-display-name" label={t('auth.fields.nickname')} error={errors.displayName?.message}>
             <input
               id="register-display-name"
               type="text"
               autoComplete="nickname"
-              placeholder="怎么称呼你"
+              placeholder={t('auth.fields.nicknamePlaceholder')}
               aria-invalid={Boolean(errors.displayName)}
               aria-describedby={errors.displayName ? 'register-display-name-error' : undefined}
               {...register('displayName')}
             />
           </AuthField>
 
-          <AuthField id="register-email" label="邮箱" error={errors.email?.message}>
+          <AuthField id="register-email" label={t('auth.fields.email')} error={errors.email?.message}>
             <input
               id="register-email"
               type="email"
               autoComplete="email"
-              placeholder="请输入邮箱地址"
+              placeholder={t('auth.fields.emailPlaceholder')}
               aria-invalid={Boolean(errors.email)}
               aria-describedby={errors.email ? 'register-email-error' : undefined}
               {...register('email')}
             />
           </AuthField>
 
-          <AuthField id="register-password" label="密码" error={errors.password?.message}>
+          <AuthField id="register-password" label={t('auth.fields.password')} error={errors.password?.message}>
             <input
               id="register-password"
               type="password"
               autoComplete="new-password"
-              placeholder="请输入至少 8 位密码"
+              placeholder={t('auth.fields.passwordPlaceholder')}
               aria-invalid={Boolean(errors.password)}
               aria-describedby={errors.password ? 'register-password-error' : undefined}
               {...register('password')}
@@ -109,11 +111,15 @@ export function RegisterPage() {
                 aria-describedby={errors.acceptLegal ? 'register-accept-legal-error' : undefined}
                 {...register('acceptLegal')}
               />
-              <span>
-                我已阅读并同意
-                <Link to="/legal/terms?lang=zh-CN" target="_blank" rel="noreferrer">《服务条款》</Link>
-                和
-                <Link to="/legal/privacy?lang=zh-CN" target="_blank" rel="noreferrer">《隐私政策》</Link>
+                <span>
+                {t('auth.legal.consentPrefix')}{' '}
+                <Link to={`/legal/terms?lang=${locale}`} target="_blank" rel="noreferrer">
+                  {locale === 'zh-CN' ? `《${t('auth.register.terms')}》` : t('auth.register.terms')}
+                </Link>
+                {' '}{t('auth.register.and')}{' '}
+                <Link to={`/legal/privacy?lang=${locale}`} target="_blank" rel="noreferrer">
+                  {locale === 'zh-CN' ? `《${t('auth.register.privacy')}》` : t('auth.register.privacy')}
+                </Link>
               </span>
             </label>
             {errors.acceptLegal ? (
@@ -125,13 +131,13 @@ export function RegisterPage() {
           <AuthSubmitButton
             disabled={!isValid}
             pending={isSubmitting}
-            label="注册"
-            pendingLabel="注册中…"
+            label={t('auth.register.submit')}
+            pendingLabel={t('auth.pending.register')}
           />
           </form>
           <AuthOptions>
-            <span>已经有账号？</span>
-            <Link to="/login">返回登录</Link>
+            <span>{t('auth.register.hasAccount')}</span>
+            <Link to="/login">{t('auth.register.signIn')}</Link>
           </AuthOptions>
         </>
       )}

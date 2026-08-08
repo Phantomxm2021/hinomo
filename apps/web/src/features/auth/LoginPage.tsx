@@ -3,9 +3,10 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
+import { useI18n } from '../../i18n/I18nProvider'
 import { supabase } from '../../lib/supabase'
 import { getAuthErrorMessage } from './auth-errors'
-import { credentialsSchema, type Credentials } from './auth.schemas'
+import { createCredentialsSchema, type Credentials } from './auth.schemas'
 import { AuthField, AuthOptions, AuthPageFrame, AuthSubmitButton } from './AuthFormPrimitives'
 
 function safeReturnTo(value: unknown) {
@@ -15,6 +16,7 @@ function safeReturnTo(value: unknown) {
 }
 
 export function LoginPage() {
+  const { t } = useI18n()
   const location = useLocation()
   const navigate = useNavigate()
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -23,7 +25,7 @@ export function LoginPage() {
     handleSubmit,
     formState: { errors, isSubmitting, isValid },
   } = useForm<Credentials>({
-    resolver: zodResolver(credentialsSchema),
+    resolver: zodResolver(createCredentialsSchema(t)),
     mode: 'onChange',
   })
 
@@ -32,38 +34,38 @@ export function LoginPage() {
     try {
       const { error } = await supabase.auth.signInWithPassword(credentials)
       if (error) {
-        setSubmitError(getAuthErrorMessage(error))
+        setSubmitError(getAuthErrorMessage(error, t))
         return
       }
 
       const state = location.state as { returnTo?: unknown } | null
       navigate(safeReturnTo(state?.returnTo), { replace: true })
     } catch (error) {
-      setSubmitError(getAuthErrorMessage(error))
+      setSubmitError(getAuthErrorMessage(error, t))
     }
   })
 
   return (
-    <AuthPageFrame title="欢迎回来" subtitle="登录后继续整理和查找你的物品。">
+    <AuthPageFrame title={t('auth.login.title')} subtitle={t('auth.login.subtitle')}>
       <form className="auth-login-form" onSubmit={submit} noValidate>
-        <AuthField id="login-email" label="邮箱" error={errors.email?.message}>
+        <AuthField id="login-email" label={t('auth.fields.email')} error={errors.email?.message}>
           <input
             id="login-email"
             type="email"
             autoComplete="email"
-            placeholder="请输入邮箱地址"
+            placeholder={t('auth.fields.emailPlaceholder')}
             aria-invalid={Boolean(errors.email)}
             aria-describedby={errors.email ? 'login-email-error' : undefined}
             {...register('email')}
           />
         </AuthField>
 
-        <AuthField id="login-password" label="密码" error={errors.password?.message}>
+        <AuthField id="login-password" label={t('auth.fields.password')} error={errors.password?.message}>
           <input
             id="login-password"
             type="password"
             autoComplete="current-password"
-            placeholder="请输入至少 8 位密码"
+            placeholder={t('auth.fields.passwordPlaceholder')}
             aria-invalid={Boolean(errors.password)}
             aria-describedby={errors.password ? 'login-password-error' : undefined}
             {...register('password')}
@@ -74,13 +76,13 @@ export function LoginPage() {
         <AuthSubmitButton
           disabled={!isValid}
           pending={isSubmitting}
-          label="登录"
-          pendingLabel="登录中…"
+          label={t('auth.login.submit')}
+          pendingLabel={t('auth.pending.login')}
         />
       </form>
       <AuthOptions>
-        <Link to="/register">注册账号</Link>
-        <Link to="/forgot-password">忘记密码</Link>
+        <Link to="/register">{t('auth.login.register')}</Link>
+        <Link to="/forgot-password">{t('auth.forgotPassword.title')}</Link>
       </AuthOptions>
     </AuthPageFrame>
   )

@@ -3,18 +3,17 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
+import { useI18n } from '../../i18n/I18nProvider'
 import { supabase } from '../../lib/supabase'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { getAuthErrorMessage } from './auth-errors'
 import { useAuth } from './auth-context'
 import { completePasswordRecovery } from './auth-session-store'
-import {
-  resetPasswordSchema,
-  type ResetPasswordValues,
-} from './auth.schemas'
+import { createResetPasswordSchema, type ResetPasswordValues } from './auth.schemas'
 import { AuthField, AuthOptions, AuthPageFrame, AuthSubmitButton } from './AuthFormPrimitives'
 
 export function ResetPasswordPage() {
+  const { t } = useI18n()
   const { session, loading, isPasswordRecovery } = useAuth()
   const navigate = useNavigate()
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -23,7 +22,7 @@ export function ResetPasswordPage() {
     handleSubmit,
     formState: { errors, isSubmitting, isValid },
   } = useForm<ResetPasswordValues>({
-    resolver: zodResolver(resetPasswordSchema),
+    resolver: zodResolver(createResetPasswordSchema(t)),
     mode: 'onChange',
   })
 
@@ -32,20 +31,20 @@ export function ResetPasswordPage() {
     try {
       const { error } = await supabase.auth.updateUser({ password })
       if (error) {
-        setSubmitError(getAuthErrorMessage(error))
+        setSubmitError(getAuthErrorMessage(error, t))
         return
       }
       completePasswordRecovery()
       navigate('/app', { replace: true })
     } catch (error) {
-      setSubmitError(getAuthErrorMessage(error))
+      setSubmitError(getAuthErrorMessage(error, t))
     }
   })
 
   if (loading) {
     return (
-      <AuthPageFrame title="重置密码" subtitle="正在验证重置链接，请稍候。">
-        <SkeletonGroup className="grid w-full gap-5" label="正在验证重置链接">
+      <AuthPageFrame title={t('auth.resetPassword.title')} subtitle={t('auth.resetLoadingDescription')}>
+        <SkeletonGroup className="grid w-full gap-5" label={t('auth.loading')}>
           <div className="grid gap-3 rounded-shell border border-line bg-surface p-5">
             <Skeleton className="h-5 w-20" />
             <Skeleton className="h-12 w-full" />
@@ -59,37 +58,37 @@ export function ResetPasswordPage() {
   }
   if (!session || !isPasswordRecovery) {
     return (
-      <AuthPageFrame title="重置密码" subtitle="该重置请求无法继续。">
-        <ResponsiveOperationError message="重置链接无效或已过期，请重新申请。" />
+      <AuthPageFrame title={t('auth.resetPassword.title')} subtitle={t('auth.resetInvalid')}>
+        <ResponsiveOperationError message={t('auth.resetInvalidDescription')} />
         <AuthOptions>
-          <Link to="/login">返回登录</Link>
-          <Link to="/forgot-password">重新申请</Link>
+          <Link to="/login">{t('auth.login.submit')}</Link>
+          <Link to="/forgot-password">{t('auth.forgotPassword.title')}</Link>
         </AuthOptions>
       </AuthPageFrame>
     )
   }
 
   return (
-    <AuthPageFrame title="重置密码" subtitle="设置至少 8 位的新密码。">
+    <AuthPageFrame title={t('auth.resetPassword.title')} subtitle={t('auth.resetPasswordDescription')}>
       <form className="auth-reset-form" onSubmit={submit} noValidate>
-        <AuthField id="reset-password" label="新密码" error={errors.password?.message}>
+        <AuthField id="reset-password" label={t('auth.newPassword')} error={errors.password?.message}>
           <input
             id="reset-password"
             type="password"
             autoComplete="new-password"
-            placeholder="请输入至少 8 位密码"
+            placeholder={t('auth.newPasswordPlaceholder')}
             aria-invalid={Boolean(errors.password)}
             aria-describedby={errors.password ? 'reset-password-error' : undefined}
             {...register('password')}
           />
         </AuthField>
 
-        <AuthField id="reset-confirm-password" label="确认新密码" error={errors.confirmPassword?.message}>
+        <AuthField id="reset-confirm-password" label={t('auth.confirmNewPassword')} error={errors.confirmPassword?.message}>
           <input
             id="reset-confirm-password"
             type="password"
             autoComplete="new-password"
-            placeholder="请再次输入新密码"
+            placeholder={t('auth.confirmNewPasswordPlaceholder')}
             aria-invalid={Boolean(errors.confirmPassword)}
             aria-describedby={errors.confirmPassword ? 'reset-confirm-password-error' : undefined}
             {...register('confirmPassword')}
@@ -100,8 +99,8 @@ export function ResetPasswordPage() {
         <AuthSubmitButton
           disabled={!isValid}
           pending={isSubmitting}
-          label="保存新密码"
-          pendingLabel="保存中…"
+          label={t('auth.resetPassword.submit')}
+          pendingLabel={t('auth.pending.resetPassword')}
         />
       </form>
     </AuthPageFrame>

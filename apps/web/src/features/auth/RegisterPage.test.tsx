@@ -2,6 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { I18nProvider } from '../../i18n/I18nProvider'
 import { RegisterPage } from './RegisterPage'
 
 const { mockSignUp } = vi.hoisted(() => ({ mockSignUp: vi.fn() }))
@@ -20,9 +21,11 @@ describe('RegisterPage', () => {
   it('shows guidance and only enables registration for a valid complete form', async () => {
     const user = userEvent.setup()
     render(
-      <MemoryRouter>
-        <RegisterPage />
-      </MemoryRouter>,
+      <I18nProvider>
+        <MemoryRouter>
+          <RegisterPage />
+        </MemoryRouter>
+      </I18nProvider>,
     )
 
     const submitButton = screen.getByRole('button', { name: '注册' })
@@ -56,9 +59,11 @@ describe('RegisterPage', () => {
   it('registers and asks the user to verify their email', async () => {
     const user = userEvent.setup()
     render(
-      <MemoryRouter>
-        <RegisterPage />
-      </MemoryRouter>,
+      <I18nProvider>
+        <MemoryRouter>
+          <RegisterPage />
+        </MemoryRouter>
+      </I18nProvider>,
     )
 
     await user.type(screen.getByLabelText('昵称'), ' 小诺 ')
@@ -89,9 +94,11 @@ describe('RegisterPage', () => {
   it('keeps registration disabled when the nickname is missing', async () => {
     const user = userEvent.setup()
     render(
-      <MemoryRouter>
-        <RegisterPage />
-      </MemoryRouter>,
+      <I18nProvider>
+        <MemoryRouter>
+          <RegisterPage />
+        </MemoryRouter>
+      </I18nProvider>,
     )
 
     await user.type(screen.getByLabelText('邮箱'), 'new@example.com')

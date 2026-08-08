@@ -1,26 +1,53 @@
 import { z } from 'zod'
 
-export const credentialsSchema = z.object({
-  email: z.string().trim().email('请输入有效邮箱'),
-  password: z.string().min(8, '密码至少 8 位'),
-})
+export type Translate = (key: string, params?: Record<string, string | number | boolean>) => string
 
-export const emailSchema = credentialsSchema.pick({ email: true })
+function fieldRequired(t: Translate, key: string) {
+  return t('auth.validation.required', { field: t(key) })
+}
 
-export const registerSchema = credentialsSchema.extend({
-  displayName: z.string().trim().min(1, '请输入昵称').max(40, '昵称不能超过 40 个字符'),
-  acceptLegal: z.boolean().refine((accepted) => accepted, '请阅读并同意服务条款和隐私政策'),
-})
-
-export const resetPasswordSchema = z
-  .object({
-    password: z.string().min(8, '密码至少 8 位'),
-    confirmPassword: z.string().min(1, '请再次输入密码'),
+export function createCredentialsSchema(t: Translate) {
+  return z.object({
+    email: z.string().trim().email(t('auth.validation.email')),
+    password: z.string().min(8, t('auth.validation.passwordLength')),
   })
-  .refine((values) => values.password === values.confirmPassword, {
-    message: '两次输入的密码不一致',
-    path: ['confirmPassword'],
+}
+
+export function createEmailSchema(t: Translate) {
+  return createCredentialsSchema(t).pick({ email: true })
+}
+
+export function createRegisterSchema(t: Translate) {
+  return createCredentialsSchema(t).extend({
+    displayName: z.string()
+      .trim()
+      .min(1, fieldRequired(t, 'auth.fields.nickname'))
+      .max(40, t('auth.validation.nicknameTooLong')),
+    acceptLegal: z.boolean().refine(
+      (accepted) => accepted,
+      t('auth.legal.legalRequired'),
+    ),
   })
+}
+
+export function createResetPasswordSchema(t: Translate) {
+  return z
+    .object({
+      password: z.string().min(8, t('auth.validation.passwordLength')),
+      confirmPassword: z.string().min(1, fieldRequired(t, 'auth.fields.confirmPassword')),
+    })
+    .refine((values) => values.password === values.confirmPassword, {
+      message: t('auth.validation.passwordMismatch'),
+      path: ['confirmPassword'],
+    })
+}
+
+// These schemas keep the public type surface stable for consumers that only need inference.
+const fallbackTranslate: Translate = (key) => key
+export const credentialsSchema = createCredentialsSchema(fallbackTranslate)
+export const emailSchema = createEmailSchema(fallbackTranslate)
+export const registerSchema = createRegisterSchema(fallbackTranslate)
+export const resetPasswordSchema = createResetPasswordSchema(fallbackTranslate)
 
 export type Credentials = z.infer<typeof credentialsSchema>
 export type RegisterValues = z.infer<typeof registerSchema>

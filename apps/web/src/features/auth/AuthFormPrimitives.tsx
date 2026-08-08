@@ -1,12 +1,14 @@
 import type { ReactNode } from 'react'
+import { useI18n } from '../../i18n/I18nProvider'
 
 export function AuthPageFrame({ title, subtitle, children }: {
   title: string
   subtitle: string
   children: ReactNode
 }) {
+  const { locale } = useI18n()
   return (
-    <main className="auth-page text-body" lang="zh-CN">
+    <main className="auth-page text-body" lang={locale}>
       <h1 className="text-page-title font-extrabold">{title}</h1>
       <p className="auth-page-subtitle text-body text-muted">{subtitle}</p>
       {children}
@@ -45,5 +47,6 @@ export function AuthSubmitButton({ disabled, pending, label, pendingLabel }: {
 }
 
 export function AuthOptions({ children }: { children: ReactNode }) {
-  return <nav aria-label="认证选项">{children}</nav>
+  const { t } = useI18n()
+  return <nav aria-label={t('auth.options.label')}>{children}</nav>
 }

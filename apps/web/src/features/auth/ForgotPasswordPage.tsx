@@ -3,13 +3,15 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
+import { useI18n } from '../../i18n/I18nProvider'
 import { publicAppOrigin } from '../../lib/env'
 import { supabase } from '../../lib/supabase'
 import { getAuthErrorMessage } from './auth-errors'
-import { emailSchema, type EmailValues } from './auth.schemas'
+import { createEmailSchema, type EmailValues } from './auth.schemas'
 import { AuthField, AuthOptions, AuthPageFrame, AuthSubmitButton } from './AuthFormPrimitives'
 
 export function ForgotPasswordPage() {
+  const { t } = useI18n()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const {
@@ -17,7 +19,7 @@ export function ForgotPasswordPage() {
     handleSubmit,
     formState: { errors, isSubmitting, isValid },
   } = useForm<EmailValues>({
-    resolver: zodResolver(emailSchema),
+    resolver: zodResolver(createEmailSchema(t)),
     mode: 'onChange',
   })
 
@@ -29,31 +31,31 @@ export function ForgotPasswordPage() {
         redirectTo: `${origin}/reset-password`,
       })
       if (error) {
-        setSubmitError(getAuthErrorMessage(error))
+        setSubmitError(getAuthErrorMessage(error, t))
         return
       }
       setSuccess(true)
     } catch (error) {
-      setSubmitError(getAuthErrorMessage(error))
+      setSubmitError(getAuthErrorMessage(error, t))
     }
   })
 
   return (
-    <AuthPageFrame title="忘记密码" subtitle="输入注册邮箱，我们会向你发送密码重置链接。">
+    <AuthPageFrame title={t('auth.forgotPassword.title')} subtitle={t('auth.forgotPassword.subtitle')}>
       {success ? (
         <div className="auth-success">
-          <p role="status">如果该邮箱已注册，你将收到一封密码重置邮件。</p>
-          <Link className="auth-secondary-link" to="/login">返回登录</Link>
+          <p role="status">{t('auth.success.forgotPassword')}</p>
+          <Link className="auth-secondary-link" to="/login">{t('auth.forgotPassword.signIn')}</Link>
         </div>
       ) : (
         <>
           <form className="auth-forgot-form" onSubmit={submit} noValidate>
-            <AuthField id="forgot-email" label="邮箱" error={errors.email?.message}>
+            <AuthField id="forgot-email" label={t('auth.fields.email')} error={errors.email?.message}>
               <input
                 id="forgot-email"
                 type="email"
                 autoComplete="email"
-                placeholder="请输入邮箱地址"
+                placeholder={t('auth.fields.emailPlaceholder')}
                 aria-invalid={Boolean(errors.email)}
                 aria-describedby={errors.email ? 'forgot-email-error' : undefined}
                 {...register('email')}
@@ -63,12 +65,12 @@ export function ForgotPasswordPage() {
             <AuthSubmitButton
               disabled={!isValid}
               pending={isSubmitting}
-              label="发送重置邮件"
-              pendingLabel="发送中…"
+              label={t('auth.forgotPassword.submit')}
+              pendingLabel={t('auth.pending.forgotPassword')}
             />
           </form>
           <AuthOptions>
-            <Link to="/login">返回登录</Link>
+            <Link to="/login">{t('auth.forgotPassword.signIn')}</Link>
           </AuthOptions>
         </>
       )}

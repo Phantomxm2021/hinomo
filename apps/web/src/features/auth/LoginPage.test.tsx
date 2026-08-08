@@ -6,6 +6,7 @@ import {
   type InitialEntry,
 } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { I18nProvider } from '../../i18n/I18nProvider'
 import { LoginPage } from './LoginPage'
 
 const { mockSignInWithPassword } = vi.hoisted(() => ({
@@ -33,7 +34,11 @@ function renderLogin(returnTo?: string) {
     { initialEntries: [entry] },
   )
 
-  render(<RouterProvider router={router} />)
+  render(
+    <I18nProvider>
+      <RouterProvider router={router} />
+    </I18nProvider>,
+  )
   return router
 }
 

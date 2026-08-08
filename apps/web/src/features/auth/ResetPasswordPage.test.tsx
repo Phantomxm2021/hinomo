@@ -3,6 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { I18nProvider } from '../../i18n/I18nProvider'
 import { AuthProvider } from './AuthProvider'
 import { AuthContext } from './auth-context'
 import { ResetPasswordPage } from './ResetPasswordPage'
@@ -40,12 +41,14 @@ function renderReset(
     { initialEntries: ['/reset-password'] },
   )
   render(
-    <AuthProvider
-      session={session}
-      isPasswordRecovery={isPasswordRecovery}
-    >
-      <RouterProvider router={router} />
-    </AuthProvider>,
+    <I18nProvider>
+      <AuthProvider
+        session={session}
+        isPasswordRecovery={isPasswordRecovery}
+      >
+        <RouterProvider router={router} />
+      </AuthProvider>
+    </I18nProvider>,
   )
 }
 
@@ -55,9 +58,11 @@ function renderLoadingReset() {
     { initialEntries: ['/reset-password'] },
   )
   render(
-    <AuthContext.Provider value={{ session: null, loading: true, isPasswordRecovery: false }}>
-      <RouterProvider router={router} />
-    </AuthContext.Provider>,
+    <I18nProvider>
+      <AuthContext.Provider value={{ session: null, loading: true, isPasswordRecovery: false }}>
+        <RouterProvider router={router} />
+      </AuthContext.Provider>
+    </I18nProvider>,
   )
 }
 

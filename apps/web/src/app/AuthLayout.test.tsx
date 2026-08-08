@@ -1,19 +1,22 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, expect, test } from 'vitest'
+import { I18nProvider } from '../i18n/I18nProvider'
 import { AuthLayout } from './AuthLayout'
 
 afterEach(cleanup)
 
 test('frames authentication forms with the Nomo product identity', () => {
   render(
-    <MemoryRouter>
-      <Routes>
-        <Route element={<AuthLayout />}>
-          <Route path="/" element={<p>认证表单</p>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    <I18nProvider>
+      <MemoryRouter>
+        <Routes>
+          <Route element={<AuthLayout />}>
+            <Route path="/" element={<p>认证表单</p>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </I18nProvider>,
   )
 
   expect(screen.getByRole('link', { name: 'Nomo' })).toHaveAttribute('href', '/')
@@ -27,13 +30,15 @@ test('frames authentication forms with the Nomo product identity', () => {
 
 test('keeps the login page in one viewport and locks document scrolling', () => {
   render(
-    <MemoryRouter initialEntries={['/login']}>
-      <Routes>
-        <Route element={<AuthLayout />}>
-          <Route path="/login" element={<h1>登录</h1>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    <I18nProvider>
+      <MemoryRouter initialEntries={['/login']}>
+        <Routes>
+          <Route element={<AuthLayout />}>
+            <Route path="/login" element={<h1>登录</h1>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </I18nProvider>,
   )
 
   const title = screen.getByRole('heading', { name: '登录' })
@@ -55,13 +60,15 @@ test('keeps the login page in one viewport and locks document scrolling', () => 
 
 test('applies the unified access layout to password recovery', () => {
   render(
-    <MemoryRouter initialEntries={['/forgot-password']}>
-      <Routes>
-        <Route element={<AuthLayout />}>
-          <Route path="/forgot-password" element={<h1>忘记密码</h1>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    <I18nProvider>
+      <MemoryRouter initialEntries={['/forgot-password']}>
+        <Routes>
+          <Route element={<AuthLayout />}>
+            <Route path="/forgot-password" element={<h1>忘记密码</h1>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </I18nProvider>,
   )
 
   const title = screen.getByRole('heading', { name: '忘记密码' })

@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { AuthContext, type AuthContextValue } from '../features/auth/auth-context'
+import { I18nProvider } from '../i18n/I18nProvider'
 import { RootEntry } from './RootEntry'
 
 let languageStorage: Map<string, string>
@@ -27,11 +28,13 @@ afterEach(() => {
 
 function renderEntry(auth: AuthContextValue) {
   return render(
-    <AuthContext.Provider value={auth}>
-      <MemoryRouter initialEntries={['/']}>
-        <RootEntry />
-      </MemoryRouter>
-    </AuthContext.Provider>,
+    <I18nProvider>
+      <AuthContext.Provider value={auth}>
+        <MemoryRouter initialEntries={['/']}>
+          <RootEntry />
+        </MemoryRouter>
+      </AuthContext.Provider>
+    </I18nProvider>,
   )
 }
 
@@ -60,27 +63,27 @@ test('gives an authenticated visitor a direct path to the app', () => {
 test('switches the complete landing-page experience between Chinese and English', () => {
   renderEntry({ session: null, loading: false, isPasswordRecovery: false })
 
-  const languageSelect = screen.getByRole('combobox', { name: '选择语言' })
-  expect(languageSelect).toHaveValue('zh')
-  fireEvent.change(languageSelect, { target: { value: 'en' } })
+  const languageSelect = screen.getByRole('combobox', { name: '语言' })
+  expect(languageSelect).toHaveValue('zh-CN')
+  fireEvent.change(languageSelect, { target: { value: 'en-US' } })
 
-  expect(document.documentElement).toHaveAttribute('lang', 'en')
+  expect(document.documentElement).toHaveAttribute('lang', 'en-US')
   expect(screen.getByRole('heading', { name: 'Put away. Never lost.' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'We put so much away. Then forget it was ever there.' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: "Home's order shouldn't live in one person's head." })).toBeInTheDocument()
   expect(screen.getAllByRole('link', { name: 'Get started' })[0]).toHaveAttribute('href', '/register')
-  expect(screen.getByRole('combobox', { name: 'Choose language' })).toHaveValue('en')
-  expect(window.localStorage.getItem('nomo-landing-language')).toBe('en')
+  expect(screen.getByRole('combobox', { name: 'Language' })).toHaveValue('en-US')
+  expect(window.localStorage.getItem('nomo-locale')).toBe('en-US')
 })
 
 test('restores the saved landing-page language preference', () => {
-  window.localStorage.setItem('nomo-landing-language', 'en')
+  window.localStorage.setItem('nomo-locale', 'en-US')
   renderEntry({ session: null, loading: false, isPasswordRecovery: false })
 
   expect(screen.getByRole('navigation', { name: 'Landing page navigation' })).toHaveClass(
     'flex', 'max-w-7xl', 'items-center',
   )
-  expect(screen.getByRole('combobox', { name: 'Choose language' })).toHaveValue('en')
+  expect(screen.getByRole('combobox', { name: 'Language' })).toHaveValue('en-US')
   expect(screen.getByRole('heading', { name: 'Put away. Never lost.' })).toBeInTheDocument()
 })
 

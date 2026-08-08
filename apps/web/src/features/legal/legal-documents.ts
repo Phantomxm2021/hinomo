@@ -2,9 +2,10 @@ import privacyEn from '../../content/legal/privacy.en-US.md?raw'
 import privacyZh from '../../content/legal/privacy.zh-CN.md?raw'
 import termsEn from '../../content/legal/terms.en-US.md?raw'
 import termsZh from '../../content/legal/terms.zh-CN.md?raw'
+import type { Locale } from '../../i18n/locale'
 
 export type LegalDocumentKind = 'privacy' | 'terms'
-export type LegalLocale = 'zh-CN' | 'en-US'
+export type LegalLocale = Locale
 
 const documents: Record<LegalDocumentKind, Record<LegalLocale, string>> = {
   privacy: { 'zh-CN': privacyZh, 'en-US': privacyEn },

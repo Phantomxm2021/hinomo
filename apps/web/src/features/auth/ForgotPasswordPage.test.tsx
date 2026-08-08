@@ -2,6 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { I18nProvider } from '../../i18n/I18nProvider'
 import { ForgotPasswordPage } from './ForgotPasswordPage'
 
 const { mockResetPasswordForEmail } = vi.hoisted(() => ({
@@ -29,9 +30,11 @@ describe('ForgotPasswordPage', () => {
   it('uses the shared auth form and requires a valid email', async () => {
     const user = userEvent.setup()
     render(
-      <MemoryRouter>
-        <ForgotPasswordPage />
-      </MemoryRouter>,
+      <I18nProvider>
+        <MemoryRouter>
+          <ForgotPasswordPage />
+        </MemoryRouter>
+      </I18nProvider>,
     )
 
     expect(screen.getByRole('main')).toHaveClass('auth-page', 'text-body')
@@ -51,9 +54,11 @@ describe('ForgotPasswordPage', () => {
   it('requests a recovery email with the configured redirect URL', async () => {
     const user = userEvent.setup()
     render(
-      <MemoryRouter>
-        <ForgotPasswordPage />
-      </MemoryRouter>,
+      <I18nProvider>
+        <MemoryRouter>
+          <ForgotPasswordPage />
+        </MemoryRouter>
+      </I18nProvider>,
     )
 
     await user.type(screen.getByLabelText('邮箱'), 'user@example.com')
