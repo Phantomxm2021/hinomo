@@ -52,14 +52,18 @@ export function DashboardPage() {
   const visibleSpaceIds = new Set(spaces.map((space) => space.id))
   const boxes = (boxesQuery.data ?? []).filter((box) => visibleSpaceIds.has(box.space_id))
   const itemTotal = boxes.reduce((sum, box) => sum + box.item_count, 0)
+  const allSpaces = spacesQuery.data ?? []
+  const allBoxes = boxesQuery.data ?? []
+  const allItemTotal = allBoxes.reduce((sum, box) => sum + box.item_count, 0)
   const dashboardDataReady = venuesQuery.isSuccess && spacesQuery.isSuccess && boxesQuery.isSuccess
+  const profileReady = profileQuery.isSuccess
   const currentDashboardRoute = location.pathname === '/app'
-  const onboardingAvailable = currentDashboardRoute && dashboardDataReady && itemTotal === 0
+  const onboardingAvailable = currentDashboardRoute && dashboardDataReady && profileReady && allItemTotal === 0
   const onboardingProgress = getOnboardingProgress({
-    hasSpace: spaces.length > 0,
-    hasBox: boxes.length > 0,
-    hasItem: itemTotal > 0,
-    firstBoxPublicId: boxes[0]?.public_id,
+    hasSpace: allSpaces.length > 0,
+    hasBox: allBoxes.length > 0,
+    hasItem: allItemTotal > 0,
+    firstBoxPublicId: allBoxes[0]?.public_id,
   })
   const [onboardingOpen, setOnboardingOpen] = useState(false)
   const [welcomeSeenPending, setWelcomeSeenPending] = useState(false)
@@ -92,18 +96,17 @@ export function DashboardPage() {
       autoOpenedUserIdRef.current = user.id
       autoOpenedRef.current = false
     }
-    const profileReady = profileQuery.isSuccess
     const shouldAutoOpen = currentDashboardRoute
       && dashboardDataReady
       && profileReady
-      && itemTotal === 0
+      && allItemTotal === 0
       && !profileQuery.data?.onboarding_welcome_seen_at
     if (!shouldAutoOpen || autoOpenedRef.current) return
 
     autoOpenedRef.current = true
     setOnboardingOpen(true)
     recordWelcomeSeen()
-  }, [currentDashboardRoute, dashboardDataReady, itemTotal, profileQuery.data?.onboarding_welcome_seen_at, profileQuery.isSuccess, recordWelcomeSeen, user?.id])
+  }, [allItemTotal, currentDashboardRoute, dashboardDataReady, profileReady, profileQuery.data?.onboarding_welcome_seen_at, recordWelcomeSeen, user?.id])
 
   const initiallyLoading = (
     (venuesQuery.isPending && venuesQuery.data === undefined)

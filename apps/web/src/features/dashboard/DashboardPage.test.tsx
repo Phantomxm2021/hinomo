@@ -270,6 +270,49 @@ test('does not show onboarding for an account that already has items', async () 
   expect(mockMarkOnboardingWelcomeSeen).not.toHaveBeenCalled()
 })
 
+test('does not show onboarding entry or dialog while the profile is pending', async () => {
+  mockListSpaces.mockResolvedValue([])
+  mockListBoxes.mockResolvedValue([])
+  mockGetProfile.mockReturnValue(new Promise(() => undefined))
+  renderDashboard()
+
+  expect(await screen.findByRole('status', { name: '正在加载空间总览' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '新手指南' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: '开始使用 Nomo' })).not.toBeInTheDocument()
+  expect(mockMarkOnboardingWelcomeSeen).not.toHaveBeenCalled()
+})
+
+test('does not show onboarding entry or dialog when the profile fails', async () => {
+  mockListSpaces.mockResolvedValue([])
+  mockListBoxes.mockResolvedValue([])
+  mockGetProfile.mockRejectedValue(new Error('offline'))
+  renderDashboard()
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('部分数据加载失败')
+  expect(screen.queryByRole('button', { name: '新手指南' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: '开始使用 Nomo' })).not.toBeInTheDocument()
+  expect(mockMarkOnboardingWelcomeSeen).not.toHaveBeenCalled()
+})
+
+test('uses account-wide activation data instead of the selected venue for onboarding', async () => {
+  mockListVenues.mockResolvedValue([
+    { id: 'venue-home', name: '默认', description: null, is_default: true, space_count: 0 },
+    { id: 'venue-office', name: '公司', description: null, is_default: false, space_count: 1 },
+  ])
+  mockListSpaces.mockResolvedValue([
+    { id: 'space-office', venue_id: 'venue-office', venue_name: '公司', name: '档案室', description: null, box_count: 1, item_count: 3 },
+  ])
+  mockListBoxes.mockResolvedValue([
+    { id: 'box-office', public_id: 'office', box_code: 'BX-OFFICE', name: '公司档案', space_id: 'space-office', location: null, visibility: 'private', space_name: '档案室', cover_object_key: null, item_count: 3, updated_at: '2026-08-03' },
+  ])
+  renderDashboard()
+
+  expect(await screen.findByRole('heading', { name: '这个场地还没有空间' })).toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: '开始使用 Nomo' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '新手指南' })).not.toBeInTheDocument()
+  expect(mockMarkOnboardingWelcomeSeen).not.toHaveBeenCalled()
+})
+
 test('keeps the dashboard usable when recording the welcome view fails', async () => {
   mockListSpaces.mockResolvedValue([])
   mockListBoxes.mockResolvedValue([])
