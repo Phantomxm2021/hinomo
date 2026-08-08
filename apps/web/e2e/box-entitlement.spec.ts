@@ -133,7 +133,7 @@ test('a delayed paid checkout unlocks creation of boxes four and five without ch
     .click()
 
   await expect(page).toHaveURL(/\/app\/boxes\?purchase=success$/)
-  await expect(page.getByRole('status', { name: '支付已完成，正在确认无限箱子权益' })).toBeVisible()
+  await expect(page.getByRole('status', { name: '正在确认付款，请稍候' })).toBeVisible()
   await expect(page.getByRole('button', { name: '创建箱子', exact: true })).toBeDisabled()
   expect(state.boxCheckout.pending).toBe(true)
 
