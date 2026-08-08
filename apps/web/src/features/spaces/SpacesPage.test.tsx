@@ -5,6 +5,7 @@ import type { PropsWithChildren } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { AppShell } from '../../app/AppShell'
+import { I18nProvider } from '../../i18n/I18nProvider'
 import { AuthProvider } from '../../features/auth/AuthProvider'
 import { SpacesPage } from './SpacesPage'
 
@@ -259,17 +260,19 @@ test('isolates and restores the real application shell around the portalled edit
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   mockListSpaces.mockResolvedValue([])
   render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/app/spaces']}>
-        <AuthProvider session={{ user: { id: 'user-1', email: 'lin@example.com', user_metadata: {} } } as unknown as import('@supabase/supabase-js').Session}>
-          <Routes>
-            <Route path="/app" element={<AppShell />}>
-              <Route path="spaces" element={<SpacesPage />} />
-            </Route>
-          </Routes>
-        </AuthProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+    <I18nProvider>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/app/spaces']}>
+          <AuthProvider session={{ user: { id: 'user-1', email: 'lin@example.com', user_metadata: {} } } as unknown as import('@supabase/supabase-js').Session}>
+            <Routes>
+              <Route path="/app" element={<AppShell />}>
+                <Route path="spaces" element={<SpacesPage />} />
+              </Route>
+            </Routes>
+          </AuthProvider>
+        </MemoryRouter>
+      </QueryClientProvider>
+    </I18nProvider>,
   )
 
   await screen.findByText('还没有空间')

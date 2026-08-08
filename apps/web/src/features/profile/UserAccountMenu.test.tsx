@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthContext } from '../auth/auth-context'
+import { I18nProvider } from '../../i18n/I18nProvider'
 import { UserAccountMenu } from './UserAccountMenu'
 
 const { mockGetAvatarDownload, mockGetCreditSummary, mockGetProfile } = vi.hoisted(() => ({
@@ -32,17 +33,19 @@ beforeEach(() => {
 function renderMenu() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <MemoryRouter>
-      <QueryClientProvider client={client}>
-        <AuthContext.Provider value={{
-          session: { user: { id: 'user-1', email: 'user@example.com' } } as Session,
-          loading: false,
-          isPasswordRecovery: false,
-        }}>
-          <UserAccountMenu />
-        </AuthContext.Provider>
-      </QueryClientProvider>
-    </MemoryRouter>,
+    <I18nProvider>
+      <MemoryRouter>
+        <QueryClientProvider client={client}>
+          <AuthContext.Provider value={{
+            session: { user: { id: 'user-1', email: 'user@example.com' } } as Session,
+            loading: false,
+            isPasswordRecovery: false,
+          }}>
+            <UserAccountMenu />
+          </AuthContext.Provider>
+        </QueryClientProvider>
+      </MemoryRouter>
+    </I18nProvider>,
   )
 }
 

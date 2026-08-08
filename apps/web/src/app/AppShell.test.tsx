@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { Session } from '@supabase/supabase-js'
 import { AuthProvider } from '../features/auth/AuthProvider'
+import { I18nProvider } from '../i18n/I18nProvider'
 import { AppShell } from './AppShell'
 
 const { mockGetAvatarDownload, mockGetProfile } = vi.hoisted(() => ({
@@ -41,18 +42,20 @@ test('announces offline state and clears it when connectivity returns', () => {
 function renderShell(initialEntry = '/app') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider session={{ user: { id: 'user-1', email: 'lin@example.com', user_metadata: { display_name: '林家' } } } as unknown as Session}>
-          <Routes>
-            <Route path="/app" element={<AppShell />}>
-              <Route index element={<p>内容</p>} />
-              <Route path="*" element={<p>内容</p>} />
-            </Route>
-          </Routes>
-        </AuthProvider>
-      </QueryClientProvider>
-    </MemoryRouter>,
+    <I18nProvider>
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider session={{ user: { id: 'user-1', email: 'lin@example.com', user_metadata: { display_name: '林家' } } } as unknown as Session}>
+            <Routes>
+              <Route path="/app" element={<AppShell />}>
+                <Route index element={<p>内容</p>} />
+                <Route path="*" element={<p>内容</p>} />
+              </Route>
+            </Routes>
+          </AuthProvider>
+        </QueryClientProvider>
+      </MemoryRouter>
+    </I18nProvider>,
   )
 }
 
@@ -198,4 +201,16 @@ test('keeps the boxes destination active on nested box routes', () => {
   expect(boxesLink).toHaveClass('active')
   expect(boxesLink).toHaveAttribute('aria-current', 'page')
   expect(within(navigation).getByRole('link', { name: '扫码' })).not.toHaveAttribute('aria-current')
+})
+
+test('switches desktop and mobile navigation copy when the global locale changes', async () => {
+  const user = userEvent.setup()
+  renderShell()
+
+  await user.click(screen.getByRole('combobox', { name: '语言' }))
+  await user.selectOptions(screen.getByRole('combobox', { name: '语言' }), 'en-US')
+
+  expect(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('link', { name: 'Today' })).toBeInTheDocument()
+  expect(within(screen.getByRole('navigation', { name: 'Mobile primary navigation' })).getByRole('link', { name: 'Home' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Open account menu' })).toBeInTheDocument()
 })

@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { AuthContext } from '../auth/auth-context'
+import { I18nProvider } from '../../i18n/I18nProvider'
 import { MyPage } from './MyPage'
 
 const { mockGetAvatarDownload, mockGetProfile, mockSignOut, mockUpdateLocale, mockUploadAvatar, mockGetCreditSummary } = vi.hoisted(() => ({
@@ -40,17 +41,19 @@ afterEach(cleanup)
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
-    <MemoryRouter>
-      <QueryClientProvider client={client}>
-        <AuthContext.Provider value={{
-          session: { user: { id: 'user-1', email: 'lin@example.com', user_metadata: { display_name: '林家' } } } as unknown as Session,
-          loading: false,
-          isPasswordRecovery: false,
-        }}>
-          <MyPage />
-        </AuthContext.Provider>
-      </QueryClientProvider>
-    </MemoryRouter>,
+    <I18nProvider>
+      <MemoryRouter>
+        <QueryClientProvider client={client}>
+          <AuthContext.Provider value={{
+            session: { user: { id: 'user-1', email: 'lin@example.com', user_metadata: { display_name: '林家' } } } as unknown as Session,
+            loading: false,
+            isPasswordRecovery: false,
+          }}>
+            <MyPage />
+          </AuthContext.Provider>
+        </QueryClientProvider>
+      </MemoryRouter>
+    </I18nProvider>,
   )
 }
 

@@ -7,6 +7,8 @@ type ConfirmDialogProps = {
   title: string
   description: string
   confirmLabel?: string
+  cancelLabel?: string
+  busyLabel?: string
   busy?: boolean
   error?: string
   returnFocusRef?: RefObject<HTMLElement | null>
@@ -19,6 +21,8 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = '确认删除',
+  cancelLabel = '取消',
+  busyLabel = '处理中…',
   busy = false,
   error,
   returnFocusRef,
@@ -120,10 +124,10 @@ export function ConfirmDialog({
         ) : null}
         <div className="mt-5 flex justify-end gap-2.5">
           <button ref={cancelRef} className="min-h-11 rounded-control border border-line bg-canvas px-4 py-2 font-bold text-ink" type="button" onClick={onCancel} disabled={busy}>
-            取消
+            {cancelLabel}
           </button>
           <button ref={confirmRef} className="min-h-11 rounded-control border border-danger bg-danger px-4 py-2 font-bold text-white" type="button" onClick={onConfirm} disabled={busy}>
-            {busy ? '处理中…' : confirmLabel}
+            {busy ? busyLabel : confirmLabel}
           </button>
         </div>
       </section>
