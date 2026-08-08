@@ -51,7 +51,7 @@ function PrintLabel({ box, density, qr, placement }: {
           ? 'grid aspect-square min-w-0 place-items-center overflow-hidden bg-canvas p-1 text-center text-[0.5rem] text-muted xl:p-2 xl:text-xs'
           : 'grid aspect-square min-w-0 place-items-center overflow-hidden bg-canvas p-2 text-center text-xs text-muted'}>
           {qr.status === 'ready' ? (
-            <img className="size-full object-contain" src={qr.image} alt={`${box.name}二维码`} />
+            <img className="size-full object-contain" src={qr.image} alt={t('print.qrAlt', { name: box.name })} />
           ) : qr.status === 'error' ? (
             <span>{t('print.qrPreviewError')}</span>
           ) : (

@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useEffect, type PropsWithChildren } from 'react'
 import { afterEach, expect, test, vi } from 'vitest'
+import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 import type { ItemFormProps } from './ItemForm'
 import { ItemEditorDialog } from './ItemEditorDialog'
 
@@ -88,4 +90,22 @@ test('blocks editor dismissal while the item form is busy', async () => {
 
   expect(onClose).not.toHaveBeenCalled()
   expect(onDelete).not.toHaveBeenCalled()
+})
+
+test('localizes the item editor title and close label in English', () => {
+  function EnglishProvider({ children }: PropsWithChildren) {
+    const { setLocale } = useI18n()
+    useEffect(() => setLocale('en-US'), [setLocale])
+    return <>{children}</>
+  }
+  render(
+    <I18nProvider>
+      <EnglishProvider>
+        <ItemEditorDialog open boxId="box-1" item={null} onClose={vi.fn()} onSaved={vi.fn()} />
+      </EnglishProvider>
+    </I18nProvider>,
+  )
+
+  expect(screen.getByRole('dialog', { name: 'Add item' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Close Add item' })).toBeInTheDocument()
 })

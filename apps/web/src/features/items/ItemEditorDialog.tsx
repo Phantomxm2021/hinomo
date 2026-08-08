@@ -1,5 +1,6 @@
 import { type RefObject, useState } from 'react'
 import { ResponsiveEditorDialog } from '../../components/ResponsiveEditorDialog'
+import { useI18n } from '../../i18n/I18nProvider'
 import { ItemForm } from './ItemForm'
 import type { ItemRecord } from './items.api'
 
@@ -24,6 +25,7 @@ export function ItemEditorDialog({
   onDelete,
   onBusyChange,
 }: ItemEditorDialogProps) {
+  const { t } = useI18n()
   const [busy, setBusy] = useState(false)
   const changeBusy = (nextBusy: boolean) => {
     setBusy(nextBusy)
@@ -39,7 +41,7 @@ export function ItemEditorDialog({
   return (
     <ResponsiveEditorDialog
       open={open}
-      title={item ? '编辑物品' : '新增物品'}
+      title={item ? t('itemForm.editTitle') : t('itemForm.createTitle')}
       busy={busy}
       onClose={close}
       returnFocusRef={returnFocusRef}

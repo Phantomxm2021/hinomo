@@ -1,7 +1,9 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useEffect, type PropsWithChildren } from 'react'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { afterEach, expect, test } from 'vitest'
+import { I18nProvider, useI18n } from '../i18n/I18nProvider'
 import { GlobalFindBar } from './GlobalFindBar'
 
 afterEach(cleanup)
@@ -13,6 +15,12 @@ function renderFindBar() {
   )
   render(<RouterProvider router={router} />)
   return router
+}
+
+function EnglishProvider({ children }: PropsWithChildren) {
+  const { setLocale } = useI18n()
+  useEffect(() => setLocale('en-US'), [setLocale])
+  return <>{children}</>
 }
 
 test('renders accessible search controls and the scan link', () => {
@@ -111,4 +119,16 @@ test('does not navigate for an empty or whitespace-only query', async () => {
   await user.click(screen.getByRole('searchbox', { name: '搜索物品或箱子' }))
   await user.keyboard('{Enter}')
   expect(`${router.state.location.pathname}${router.state.location.search}`).toBe('/app')
+})
+
+test('localizes global search controls in English', () => {
+  const router = createMemoryRouter(
+    [{ path: '*', element: <GlobalFindBar /> }],
+    { initialEntries: ['/app'] },
+  )
+  render(<I18nProvider><EnglishProvider><RouterProvider router={router} /></EnglishProvider></I18nProvider>)
+
+  expect(screen.getByRole('searchbox', { name: 'Search items or boxes' })).toHaveAttribute('placeholder', 'Search items or boxes')
+  expect(screen.getByRole('button', { name: 'Search' })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Scan to view' })).toHaveAttribute('title', 'Scan to view')
 })

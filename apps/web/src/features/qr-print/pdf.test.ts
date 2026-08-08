@@ -90,7 +90,12 @@ test('renders every label across pages and reports progress', async () => {
   }))
   const progress = vi.fn()
 
-  await renderLabelsPdf(labels, progress)
+  await renderLabelsPdf(labels, {
+    spacePrefix: 'Space: ',
+    locationPrefix: 'Location: ',
+    scanToView: 'Scan to view box items',
+    locationUnset: 'Not set',
+  }, progress)
 
   expect(mockPdfConstructor).toHaveBeenCalledWith({
     unit: 'mm',
@@ -98,6 +103,9 @@ test('renders every label across pages and reports progress', async () => {
   })
   expect(toDataUrl.mock.instances[0]).toMatchObject({ width: 925, height: 640 })
   expect(context.drawImage).toHaveBeenCalledWith(expect.anything(), 55, 110, 390, 390)
+  expect(context.fillText).toHaveBeenCalledWith('Space: 家', 490, 330)
+  expect(context.fillText).toHaveBeenCalledWith('Location: Not set', 490, 385)
+  expect(context.fillText).toHaveBeenCalledWith('Scan to view box items', 490, 485)
   expect(fillStyles).toEqual(expect.arrayContaining(Object.values(PRINT_LABEL_COLORS).filter((color) => color !== PRINT_LABEL_COLORS.line)))
   expect(strokeStyles).toContain(PRINT_LABEL_COLORS.line)
   expect(mockBoxQrPng).toHaveBeenCalledTimes(9)

@@ -1,7 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useEffect, type PropsWithChildren } from 'react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 import { AuthorizedImage } from './AuthorizedImage'
 
 const { mockCreateDownload } = vi.hoisted(() => ({ mockCreateDownload: vi.fn() }))
@@ -85,4 +87,25 @@ test('keeps a cached image and its geometry while a refetch fails', async () => 
   expect(retrying).toHaveAttribute('aria-busy', 'true')
   await user.click(retrying)
   await waitFor(() => expect(mockCreateDownload).toHaveBeenCalledTimes(3))
+})
+
+test('localizes authorization and retry states in English', async () => {
+  mockCreateDownload.mockReturnValue(new Promise(() => undefined))
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  function EnglishProvider({ children }: PropsWithChildren) {
+    const { setLocale } = useI18n()
+    useEffect(() => setLocale('en-US'), [setLocale])
+    return <>{children}</>
+  }
+  render(
+    <I18nProvider>
+      <EnglishProvider>
+        <QueryClientProvider client={client}>
+          <AuthorizedImage objectKey="users/u/image.webp" alt="Box cover" />
+        </QueryClientProvider>
+      </EnglishProvider>
+    </I18nProvider>,
+  )
+
+  expect(screen.getByRole('status', { name: 'Loading authorized image' })).toBeInTheDocument()
 })

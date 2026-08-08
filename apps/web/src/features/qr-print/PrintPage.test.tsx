@@ -188,7 +188,7 @@ test('reports progress, prevents duplicate generation, and preserves selection f
   const user = userEvent.setup()
   const firstAttempt = deferred<void>()
   mockRenderLabelsPdf
-    .mockImplementationOnce(async (_labels, onProgress) => {
+    .mockImplementationOnce(async (_labels, _copy, onProgress) => {
       onProgress?.(1, 1)
       return firstAttempt.promise
     })
@@ -325,7 +325,7 @@ test('ignores PDF progress and settlement safely after unmount', async () => {
   const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
   const unhandledRejection = vi.fn()
   window.addEventListener('unhandledrejection', unhandledRejection)
-  mockRenderLabelsPdf.mockImplementationOnce((_labels, onProgress) => {
+  mockRenderLabelsPdf.mockImplementationOnce((_labels, _copy, onProgress) => {
     reportProgress = onProgress
     return pdf.promise
   })

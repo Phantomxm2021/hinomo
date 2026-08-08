@@ -1,4 +1,5 @@
 import { useRef, type InputHTMLAttributes } from 'react'
+import { useI18n } from '../i18n/I18nProvider'
 import { AppIcon } from './AppIcon'
 
 type SearchInputShellProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'className' | 'type'> & {
@@ -6,6 +7,7 @@ type SearchInputShellProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'classN
 }
 
 export function SearchInputShell({ onClear, value, ...props }: SearchInputShellProps) {
+  const { t } = useI18n()
   const inputElementRef = useRef<HTMLInputElement | null>(null)
   const hasValue = typeof value === 'string' && value.length > 0
 
@@ -26,7 +28,7 @@ export function SearchInputShell({ onClear, value, ...props }: SearchInputShellP
         <button
           className="absolute top-1/2 right-1.5 grid size-9 -translate-y-1/2 place-items-center rounded-full text-muted active:bg-placeholder/70 active:text-ink"
           type="button"
-          aria-label="清除搜索"
+          aria-label={t('search.clear')}
           onClick={() => {
             onClear()
             inputElementRef.current?.focus()

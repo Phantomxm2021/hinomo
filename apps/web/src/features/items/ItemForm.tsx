@@ -9,7 +9,7 @@ import { useMobileFeedback } from '../../components/mobile-feedback'
 import { AuthorizedImage } from '../media/AuthorizedImage'
 import { isUploadPending, uploadStageLabel } from '../media/media-ui'
 import { useMediaUpload } from '../media/useMediaUpload'
-import { itemSchema, type ItemFormValues } from './item.schema'
+import { createItemSchema, type ItemFormValues } from './item.schema'
 import { createItem, type ItemRecord, updateItem } from './items.api'
 
 export type ItemFormProps = {
@@ -23,7 +23,7 @@ export type ItemFormProps = {
 }
 
 export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChange, showHeading = true }: ItemFormProps) {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
   const feedback = useMobileFeedback()
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
@@ -68,9 +68,10 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChang
     handleSubmit,
     watch,
     setValue,
+    trigger,
     formState: { errors },
   } = useForm<ItemFormValues>({
-    resolver: zodResolver(itemSchema),
+    resolver: zodResolver(createItemSchema(t)),
     defaultValues: {
       name: item?.name ?? '',
       category: item?.category ?? '',
@@ -78,6 +79,11 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChang
       description: item?.description ?? '',
     },
   })
+  const previousLocaleRef = useRef(locale)
+  useEffect(() => {
+    if (previousLocaleRef.current !== locale && Object.keys(errors).length > 0) void trigger()
+    previousLocaleRef.current = locale
+  }, [errors, locale, trigger])
   const quantity = watch('quantity')
   const setQuantity = (next: number) =>
     setValue('quantity', Math.max(1, next), { shouldDirty: true, shouldValidate: true })
@@ -116,7 +122,7 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChang
       recordSaved = true
       setPendingItemId(itemId)
       await uploadImage(itemId)
-      feedback.notify(item ? '物品已更新' : '物品已创建')
+      feedback.notify(item ? t('itemForm.updated') : t('itemForm.created'))
       onSaved()
     } catch {
       if (recordSaved) setMediaError(true)
@@ -128,7 +134,7 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChang
     setMediaError(false)
     try {
       await uploadImage(pendingItemId)
-      feedback.notify('图片已上传')
+      feedback.notify(t('itemForm.uploaded'))
       onSaved()
     } catch {
       setMediaError(true)
@@ -140,14 +146,14 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChang
   useEffect(() => {
     if (!mediaError) return
     feedback.showActionSheet({
-      title: '图片上传失败',
-      message: '物品已经保存，可以重试上传或稍后再处理。',
+      title: t('itemForm.imageUploadFailed'),
+      message: t('itemForm.imageUploadPartial'),
       actions: [
-        { label: '重试上传', onSelect: () => retryImageUploadRef.current() },
-        { label: '暂不上传', onSelect: () => finishWithoutImageRef.current() },
+        { label: t('itemForm.retryUpload'), onSelect: () => retryImageUploadRef.current() },
+        { label: t('itemForm.skipUpload'), onSelect: () => finishWithoutImageRef.current() },
       ],
     })
-  }, [feedback, mediaError])
+  }, [feedback, mediaError, t])
 
   return (
     <form
@@ -157,53 +163,53 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChang
     >
       {showHeading ? (
         <h2 className="m-0 text-section-title font-bold text-ink" id="item-form-title">
-          {item ? '编辑物品' : '新增物品'}
+          {item ? t('itemForm.editTitle') : t('itemForm.createTitle')}
         </h2>
       ) : null}
       <div className="relative overflow-hidden rounded-control bg-placeholder">
-        <button className="group relative block aspect-[4/3] w-full overflow-hidden text-left" type="button" aria-label={imagePreviewUrl || (item?.image_object_key && !existingImageRemoved) ? '更换物品图片' : '添加物品图片'} onClick={() => imageInputRef.current?.click()}>
-          {imagePreviewUrl ? <img className="h-full w-full object-cover" src={imagePreviewUrl} alt="待上传物品图片预览" /> : null}
-          {!imagePreviewUrl && item?.image_object_key && !existingImageRemoved ? <AuthorizedImage objectKey={item.image_object_key} alt={`${item.name}图片预览`} className="h-full w-full object-cover" /> : null}
+        <button className="group relative block aspect-[4/3] w-full overflow-hidden text-left" type="button" aria-label={imagePreviewUrl || (item?.image_object_key && !existingImageRemoved) ? t('itemForm.changeImage') : t('itemForm.addImage')} onClick={() => imageInputRef.current?.click()}>
+          {imagePreviewUrl ? <img className="h-full w-full object-cover" src={imagePreviewUrl} alt={t('itemForm.pendingImageAlt')} /> : null}
+          {!imagePreviewUrl && item?.image_object_key && !existingImageRemoved ? <AuthorizedImage objectKey={item.image_object_key} alt={t('itemForm.imagePreviewAlt', { name: item.name })} className="h-full w-full object-cover" /> : null}
           {!imagePreviewUrl && (!item?.image_object_key || existingImageRemoved) ? (
             <span className="grid h-full place-content-center justify-items-center gap-2 text-muted">
               <AppIcon name="plus" size={28} />
-              <span className="text-sm font-bold">添加图片</span>
+              <span className="text-sm font-bold">{t('itemForm.addImageLabel')}</span>
             </span>
           ) : null}
           <span className="absolute inset-0 grid place-content-center bg-ink/45 text-sm font-bold text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-            更换图片
+            {t('itemForm.changeImage')}
           </span>
         </button>
         <input
           ref={imageInputRef}
           className="sr-only"
           id="item-image"
-          aria-label="选择物品图片"
+          aria-label={t('itemForm.chooseImage')}
           type="file"
           accept="image/jpeg,image/png,image/webp"
           onChange={(event) => {
             selectImage(event.target.files?.[0] ?? null)
           }}
         />
-        {imagePreviewUrl ? <button className="absolute top-2 right-2 inline-flex size-9 items-center justify-center rounded-full bg-ink/65 text-white shadow-sm active:opacity-75" type="button" aria-label="删除待上传图片" onClick={clearSelectedImage}><AppIcon name="trash" size={18} /></button> : null}
-        {!imagePreviewUrl && item?.image_object_key && !existingImageRemoved ? <button className="absolute top-2 right-2 inline-flex size-9 items-center justify-center rounded-full bg-ink/65 text-white shadow-sm active:opacity-75" type="button" aria-label="删除物品图片" onClick={removeExistingImage}><AppIcon name="trash" size={18} /></button> : null}
+        {imagePreviewUrl ? <button className="absolute top-2 right-2 inline-flex size-9 items-center justify-center rounded-full bg-ink/65 text-white shadow-sm active:opacity-75" type="button" aria-label={t('itemForm.removePendingImage')} onClick={clearSelectedImage}><AppIcon name="trash" size={18} /></button> : null}
+        {!imagePreviewUrl && item?.image_object_key && !existingImageRemoved ? <button className="absolute top-2 right-2 inline-flex size-9 items-center justify-center rounded-full bg-ink/65 text-white shadow-sm active:opacity-75" type="button" aria-label={t('itemForm.removeImage')} onClick={removeExistingImage}><AppIcon name="trash" size={18} /></button> : null}
       </div>
       <div className="grid gap-2">
-        <label className="font-bold text-ink" htmlFor="item-name">物品名称</label>
+        <label className="font-bold text-ink" htmlFor="item-name">{t('itemForm.name')}</label>
         <input className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="item-name" aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'item-name-error' : undefined} {...register('name')} />
         {errors.name ? <p id="item-name-error" role="alert">{errors.name.message}</p> : null}
       </div>
       <div className="grid gap-2">
-        <label className="font-bold text-ink" htmlFor="item-category">分类（可选）</label>
+        <label className="font-bold text-ink" htmlFor="item-category">{t('itemForm.categoryOptional')}</label>
         <input className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="item-category" {...register('category')} />
       </div>
       <div className="grid gap-2">
-        <label className="font-bold text-ink" htmlFor="item-quantity">数量</label>
+        <label className="font-bold text-ink" htmlFor="item-quantity">{t('itemForm.quantity')}</label>
         <div className="grid grid-cols-[2.75rem_minmax(5rem,8rem)_2.75rem] items-center gap-2">
           <button
             className="inline-flex size-11 items-center justify-center rounded-control border border-line bg-canvas text-ink"
             type="button"
-            aria-label="减少数量"
+            aria-label={t('itemForm.decreaseQuantity')}
             onClick={() => setQuantity(Number(quantity) - 1)}
           >
             <AppIcon name="minus" />
@@ -220,7 +226,7 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChang
           <button
             className="inline-flex size-11 items-center justify-center rounded-control border border-line bg-canvas text-ink"
             type="button"
-            aria-label="增加数量"
+            aria-label={t('itemForm.increaseQuantity')}
             onClick={() => setQuantity(Number(quantity) + 1)}
           >
             <AppIcon name="plus" />
@@ -229,21 +235,21 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChang
         {errors.quantity ? <p id="item-quantity-error" role="alert">{errors.quantity.message}</p> : null}
       </div>
       <div className="grid gap-2">
-        <label className="font-bold text-ink" htmlFor="item-description">描述（可选）</label>
+        <label className="font-bold text-ink" htmlFor="item-description">{t('itemForm.descriptionOptional')}</label>
         <textarea className="w-full rounded-control border border-line bg-canvas px-3 py-3 text-ink focus:border-brand" id="item-description" rows={3} {...register('description')} />
       </div>
-      {mutation.isError ? <ResponsiveOperationError message="保存失败，请稍后重试" /> : null}
+      {mutation.isError ? <ResponsiveOperationError message={t('itemForm.saveError')} /> : null}
       {mediaStatus ? <p className="hidden lg:block" role="status">{t('boxes.mediaProcessing', { status: t(mediaStatus) })}</p> : null}
       {mediaError ? (
         <div className="hidden gap-3 rounded-control border border-danger/30 bg-danger/5 p-4 lg:grid" role="alert">
-          <p>图片上传失败，已保留填写内容。</p>
-          <button className="min-h-11 w-fit rounded-control border border-danger/30 bg-surface px-4 font-bold text-danger" type="button" onClick={() => void retryImageUpload()}>重试上传</button>
+          <p>{t('itemForm.imageUploadPartial')}</p>
+          <button className="min-h-11 w-fit rounded-control border border-danger/30 bg-surface px-4 font-bold text-danger" type="button" onClick={() => void retryImageUpload()}>{t('itemForm.retryUpload')}</button>
         </div>
       ) : null}
       <div className="fixed inset-x-4 bottom-[max(1rem,var(--safe-area-bottom))] z-20 flex flex-wrap justify-end gap-2 rounded-control border border-line bg-surface/95 p-2 shadow-float backdrop-blur min-[360px]:inset-x-5 lg:static lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
-        {item && onDelete ? <button className="mr-auto min-h-11 rounded-control border border-danger/30 bg-danger/5 px-4 font-bold text-danger" type="button" disabled={busy} onClick={() => { if (!busy) onDelete() }}>删除物品</button> : null}
-        {onCancel ? <button className="min-h-11 rounded-control border border-line bg-canvas px-4 font-bold text-ink" type="button" disabled={busy} onClick={() => { if (!busy) onCancel() }}>取消</button> : null}
-        <button className="min-h-12 rounded-control border border-brand bg-brand px-5 font-bold text-white" type="submit" disabled={busy}>保存</button>
+        {item && onDelete ? <button className="mr-auto min-h-11 rounded-control border border-danger/30 bg-danger/5 px-4 font-bold text-danger" type="button" disabled={busy} onClick={() => { if (!busy) onDelete() }}>{t('itemForm.delete')}</button> : null}
+        {onCancel ? <button className="min-h-11 rounded-control border border-line bg-canvas px-4 font-bold text-ink" type="button" disabled={busy} onClick={() => { if (!busy) onCancel() }}>{t('itemForm.cancel')}</button> : null}
+        <button className="min-h-12 rounded-control border border-brand bg-brand px-5 font-bold text-white" type="submit" disabled={busy}>{t('itemForm.save')}</button>
       </div>
     </form>
   )

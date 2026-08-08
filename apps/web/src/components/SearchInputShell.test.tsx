@@ -1,5 +1,8 @@
 import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { useEffect, type PropsWithChildren } from 'react'
 import { afterEach, expect, test } from 'vitest'
+import { I18nProvider, useI18n } from '../i18n/I18nProvider'
 import { SearchInputShell } from './SearchInputShell'
 
 afterEach(cleanup)
@@ -28,4 +31,24 @@ test('provides the homepage search design tokens while forwarding input behavior
     'absolute',
     'pointer-events-none',
   )
+})
+
+test('localizes the clear action in English', async () => {
+  const user = userEvent.setup()
+  function EnglishProvider({ children }: PropsWithChildren) {
+    const { setLocale } = useI18n()
+    useEffect(() => setLocale('en-US'), [setLocale])
+    return <>{children}</>
+  }
+  const onClear = () => undefined
+  render(
+    <I18nProvider>
+      <EnglishProvider>
+        <SearchInputShell aria-label="Search" name="q" value="camera" onClear={onClear} readOnly />
+      </EnglishProvider>
+    </I18nProvider>,
+  )
+
+  await user.click(screen.getByRole('button', { name: 'Clear search' }))
+  expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveFocus()
 })

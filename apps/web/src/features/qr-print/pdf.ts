@@ -22,6 +22,13 @@ export type PdfGenerationFailure = {
   requiresReload: boolean
 }
 
+export type PdfLabelCopy = {
+  spacePrefix: string
+  locationPrefix: string
+  scanToView: string
+  locationUnset: string
+}
+
 export function describePdfGenerationFailure(error: unknown): PdfGenerationFailure {
   const detail = error instanceof Error ? error.message : String(error)
   const requiresReload = /dynamically imported module|importing a module script failed|error loading dynamically imported module/i.test(detail)
@@ -67,7 +74,7 @@ function fitText(context: CanvasRenderingContext2D, text: string, maxWidth: numb
   return `${shortened}…`
 }
 
-async function renderLabelPng(label: PrintableLabel) {
+async function renderLabelPng(label: PrintableLabel, copy: PdfLabelCopy) {
   const canvas = document.createElement('canvas')
   canvas.width = PRINT_LABEL_CANVAS_PX.width
   canvas.height = PRINT_LABEL_CANVAS_PX.height
@@ -92,16 +99,17 @@ async function renderLabelPng(label: PrintableLabel) {
   context.fillText(fitText(context, label.code, textMaxWidth), textX, 245)
   context.font = '32px system-ui, sans-serif'
   context.fillStyle = PRINT_LABEL_COLORS.ink
-  context.fillText(fitText(context, `空间：${label.space}`, textMaxWidth), textX, 330)
-  context.fillText(fitText(context, `位置：${label.location || '未填写'}`, textMaxWidth), textX, 385)
+  context.fillText(fitText(context, `${copy.spacePrefix}${label.space}`, textMaxWidth), textX, 330)
+  context.fillText(fitText(context, `${copy.locationPrefix}${label.location || copy.locationUnset}`, textMaxWidth), textX, 385)
   context.font = '24px system-ui, sans-serif'
   context.fillStyle = PRINT_LABEL_COLORS.muted
-  context.fillText('扫码查看箱内物品', textX, 485)
+  context.fillText(copy.scanToView, textX, 485)
   return canvas.toDataURL('image/png')
 }
 
 export async function renderLabelsPdf(
   labels: PrintableLabel[],
+  copy: PdfLabelCopy,
   onProgress?: (completed: number, total: number) => void,
 ) {
   if (labels.length === 0) throw new Error('Select at least one box')
@@ -116,7 +124,7 @@ export async function renderLabelsPdf(
   for (let pageIndex = 0; pageIndex < pages.length; pageIndex += 1) {
     if (pageIndex > 0) documentPdf.addPage()
     for (let labelIndex = 0; labelIndex < pages[pageIndex].length; labelIndex += 1) {
-      const image = await renderLabelPng(pages[pageIndex][labelIndex])
+      const image = await renderLabelPng(pages[pageIndex][labelIndex], copy)
       const placement = labelPlacementMm(labelIndex)
       documentPdf.addImage(image, 'PNG', placement.left, placement.top, placement.width, placement.height)
       completed += 1

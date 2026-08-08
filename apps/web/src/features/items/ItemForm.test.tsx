@@ -1,7 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useEffect, type PropsWithChildren } from 'react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 import { ItemForm } from './ItemForm'
 
 const { mockCreateItem, mockUpdateItem, mockUpload } = vi.hoisted(() => ({
@@ -304,4 +306,81 @@ test('preserves fields and retries only the failed image upload', async () => {
   expect(mockCreateItem).toHaveBeenCalledOnce()
   expect(mockUpload).toHaveBeenCalledTimes(2)
   expect(onSaved).toHaveBeenCalledOnce()
+})
+
+test('localizes item form controls and validation in English', async () => {
+  const user = userEvent.setup()
+  const client = new QueryClient()
+  function EnglishProvider({ children }: PropsWithChildren) {
+    const { setLocale } = useI18n()
+    useEffect(() => setLocale('en-US'), [setLocale])
+    return <>{children}</>
+  }
+  render(
+    <I18nProvider>
+      <EnglishProvider>
+        <QueryClientProvider client={client}>
+          <ItemForm boxId="box-1" onSaved={vi.fn()} onCancel={vi.fn()} />
+        </QueryClientProvider>
+      </EnglishProvider>
+    </I18nProvider>,
+  )
+
+  expect(screen.getByRole('heading', { name: 'Add item' })).toBeInTheDocument()
+  expect(screen.getByLabelText('Item name')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+  expect(await screen.findByText('Enter an item name')).toBeInTheDocument()
+})
+
+test('refreshes item validation messages when the locale changes', async () => {
+  const user = userEvent.setup()
+  const client = new QueryClient()
+  function LocaleHarness({ children }: PropsWithChildren) {
+    const { setLocale } = useI18n()
+    useEffect(() => setLocale('zh-CN'), [setLocale])
+    return (
+      <>
+        <button type="button" onClick={() => setLocale('en-US')}>Use English</button>
+        {children}
+      </>
+    )
+  }
+  render(
+    <I18nProvider>
+      <LocaleHarness>
+        <QueryClientProvider client={client}>
+          <ItemForm boxId="box-1" onSaved={vi.fn()} />
+        </QueryClientProvider>
+      </LocaleHarness>
+    </I18nProvider>,
+  )
+
+  await user.click(screen.getByRole('button', { name: '保存' }))
+  expect(await screen.findByText('请输入物品名称')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Use English' }))
+  expect(await screen.findByText('Enter an item name')).toBeInTheDocument()
+})
+
+test('localizes an item save error in English', async () => {
+  const user = userEvent.setup()
+  const client = new QueryClient()
+  mockCreateItem.mockRejectedValueOnce(new Error('save failed'))
+  function EnglishProvider({ children }: PropsWithChildren) {
+    const { setLocale } = useI18n()
+    useEffect(() => setLocale('en-US'), [setLocale])
+    return <>{children}</>
+  }
+  render(
+    <I18nProvider>
+      <EnglishProvider>
+        <QueryClientProvider client={client}>
+          <ItemForm boxId="box-1" onSaved={vi.fn()} />
+        </QueryClientProvider>
+      </EnglishProvider>
+    </I18nProvider>,
+  )
+
+  await user.type(screen.getByLabelText('Item name'), 'Camera')
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Could not save. Please try again later.')
 })

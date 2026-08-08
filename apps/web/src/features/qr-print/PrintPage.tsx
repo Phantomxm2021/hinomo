@@ -91,6 +91,12 @@ export function PrintPage() {
     try {
       await renderLabelsPdf(
         buildLabels(boxes, publicAppOrigin()),
+        {
+          spacePrefix: t('print.pdfSpacePrefix'),
+          locationPrefix: t('print.pdfLocationPrefix'),
+          scanToView: t('print.pdfScanToView'),
+          locationUnset: t('print.pdfLocationUnset'),
+        },
         (completed, total) => {
           if (mounted.current) setProgress({ completed, total })
         },

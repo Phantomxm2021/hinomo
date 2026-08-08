@@ -215,7 +215,12 @@ export function PublicBoxPage() {
     setPrinting(true)
     setPrintError(null)
     try {
-      await renderLabelsPdf(buildLabels([box], publicAppOrigin()))
+      await renderLabelsPdf(buildLabels([box], publicAppOrigin()), {
+        spacePrefix: t('print.pdfSpacePrefix'),
+        locationPrefix: t('print.pdfLocationPrefix'),
+        scanToView: t('print.pdfScanToView'),
+        locationUnset: t('print.pdfLocationUnset'),
+      })
     } catch (error) {
       console.error('pdf_label_generation_failed', error)
       setPrintError(describePdfGenerationFailure(error))
