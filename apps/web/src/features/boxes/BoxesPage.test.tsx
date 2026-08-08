@@ -733,10 +733,11 @@ test('blocks browser back while creation is busy', async () => {
 
 test('cleans a canceled purchase return and announces the cancellation', async () => {
   mockListBoxes.mockResolvedValue(boxes)
-  renderBoxes('/app/boxes?purchase=canceled&space=space-1')
+  renderBoxes('/app/boxes?purchase=canceled&session_id=cs_cancel_123&space=space-1')
 
   await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?space=space-1'))
   expect(screen.getByTestId('location')).not.toHaveTextContent('purchase=')
+  expect(screen.getByTestId('location')).not.toHaveTextContent('session_id=')
   expect(mockNotify).toHaveBeenCalledWith('已取消购买无限箱子')
 })
 
@@ -745,13 +746,14 @@ test('opens creation after a successful purchase return confirms the entitlement
     box_count: 3, free_limit: 3, unlimited_boxes: true, can_create: true,
   })
   mockListBoxes.mockResolvedValue(boxes)
-  const { client } = renderBoxes('/app/boxes?purchase=success&space=space-1')
+  const { client } = renderBoxes('/app/boxes?purchase=success&session_id=cs_success_123&space=space-1')
   const invalidateQueries = vi.spyOn(client, 'invalidateQueries')
 
   expect(await screen.findByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
   expect(screen.getByTestId('location')).toHaveTextContent('space=space-1')
   expect(screen.getByTestId('location')).toHaveTextContent('create=1')
   expect(screen.getByTestId('location')).not.toHaveTextContent('purchase=')
+  expect(screen.getByTestId('location')).not.toHaveTextContent('session_id=')
   expect(mockNotify).toHaveBeenCalledWith('无限箱子已永久解锁')
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['boxes'] })
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['box-plan'] })
@@ -781,7 +783,7 @@ test('bounds purchase confirmation to eight refetches and offers a manual rechec
     .mockReturnValueOnce(initialPlan.promise)
     .mockResolvedValue(freePlan)
   mockListBoxes.mockResolvedValue(boxes)
-  renderBoxes('/app/boxes?purchase=success')
+  renderBoxes('/app/boxes?purchase=success&session_id=cs_pending_123')
 
   expect(mockGetBoxPlanSummary).toHaveBeenCalledTimes(1)
   vi.useFakeTimers()
@@ -792,6 +794,8 @@ test('bounds purchase confirmation to eight refetches and offers a manual rechec
 
   expect(mockGetBoxPlanSummary).toHaveBeenCalledTimes(8)
   expect(screen.getByRole('status', { name: '付款正在确认' })).toHaveTextContent('付款正在确认')
+  expect(screen.getByRole('status', { name: '付款正在确认' })).toHaveTextContent('付款状态仍在确认中，请稍后再检查。')
+  expect(screen.getByRole('status', { name: '付款正在确认' })).toHaveTextContent('Checkout Session ID：cs_pending_123')
   const createButton = screen.getByRole('button', { name: '创建箱子' })
   expect(createButton).toBeDisabled()
   fireEvent.click(createButton)

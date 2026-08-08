@@ -92,6 +92,7 @@ export function BoxesPage() {
   const selectedSpace = searchParams.get('space') ?? ''
   const creating = searchParams.get('create') === '1'
   const purchaseResult = searchParams.get('purchase')
+  const purchaseSessionId = searchParams.get('session_id')
   const editingBoxId = searchParams.get('edit')
   const wasCreating = useRef(creating)
   const createBlocker = useBlocker((creating && createBusy) || (Boolean(editingBoxId) && editBusy))
@@ -155,6 +156,7 @@ export function BoxesPage() {
     setSearchParams((current) => {
       const next = new URLSearchParams(current)
       next.delete('purchase')
+      next.delete('session_id')
       next.set('create', '1')
       return next
     }, { replace: true })
@@ -207,20 +209,22 @@ export function BoxesPage() {
       handledPurchaseResultRef.current = null
       return
     }
-    if (handledPurchaseResultRef.current === purchaseResult) return
-    handledPurchaseResultRef.current = purchaseResult
+    const purchaseKey = `${purchaseResult}:${purchaseSessionId ?? ''}`
+    if (handledPurchaseResultRef.current === purchaseKey) return
+    handledPurchaseResultRef.current = purchaseKey
 
     if (purchaseResult === 'canceled') {
       setSearchParams((current) => {
         const next = new URLSearchParams(current)
         next.delete('purchase')
+        next.delete('session_id')
         return next
       }, { replace: true })
       feedback.notify(t('boxes.purchaseCancelled'))
       return
     }
     if (purchaseResult === 'success') startPurchaseConfirmation()
-  }, [feedback, purchaseResult, setSearchParams, startPurchaseConfirmation, t])
+  }, [feedback, purchaseResult, purchaseSessionId, setSearchParams, startPurchaseConfirmation, t])
 
   useEffect(() => () => {
     purchaseConfirmationRunRef.current += 1
@@ -365,7 +369,12 @@ export function BoxesPage() {
             <p className="m-0 font-bold text-ink">
               {t(purchaseConfirmation === 'confirming' ? 'boxes.purchaseConfirmed' : 'boxes.purchaseDelayedTitle')}
             </p>
-            {purchaseConfirmation === 'delayed' ? <p className="mt-1 mb-0 text-muted">{t('boxes.purchaseDelayed')}</p> : null}
+            {purchaseConfirmation === 'delayed' ? (
+              <>
+                <p className="mt-1 mb-0 text-muted">{t('boxes.purchaseDelayed')}</p>
+                {purchaseSessionId ? <p className="mt-1 mb-0 text-muted">{t('boxes.purchaseSupport', { sessionId: purchaseSessionId })}</p> : null}
+              </>
+            ) : null}
           </div>
           {purchaseConfirmation === 'delayed' ? (
             <button className="min-h-11 rounded-control border border-brand bg-surface px-4 py-2 font-bold text-brand-strong" type="button" onClick={startPurchaseConfirmation}>
