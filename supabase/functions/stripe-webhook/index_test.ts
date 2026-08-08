@@ -13,6 +13,13 @@ function testSource(name: string, fn: () => Promise<void>): void {
 testSource('paid unlimited-box checkout grants an account entitlement instead of credits', async () => {
   const source = await webhookSource()
 
+  assertContains(
+    source,
+    "event.type === 'checkout.session.async_payment_succeeded'",
+    'Delayed-payment success must use the same fulfillment path',
+  )
+  assertContains(source, 'async function fulfillCheckoutSession', 'Checkout fulfillment must have one shared path')
+  assertContains(source, 'return fulfillCheckoutSession(database, event.data.object as Stripe.Checkout.Session)', 'Both payment events must call shared fulfillment')
   assertContains(source, 'userId !== metadataUserId', 'Webhook must reject mismatched Checkout user identities')
   assertContains(source, 'checkoutAction === BOXES_UNLIMITED_ACTION', 'Webhook must branch on unlimited boxes')
   assertContains(source, "session.mode === 'payment'", 'Entitlements require payment Checkout mode')

@@ -899,7 +899,7 @@ export type Database = {
         Returns: {
           created: boolean
           duplicate_active: boolean
-          entitlement_id: string
+          entitlement_id: string | null
         }[]
       }
       move_item: {
