@@ -9,7 +9,11 @@ const creditActions = {
   credits_500: 500,
 } as const
 
-type EventResultCode = 'duplicate_paid_entitlement' | 'partial_refund_manual_review' | null
+type EventResultCode =
+  | 'duplicate_paid_entitlement'
+  | 'refunded_paid_entitlement'
+  | 'partial_refund_manual_review'
+  | null
 
 function creditAmount(checkoutAction: string | undefined): number | undefined {
   if (!checkoutAction || !(checkoutAction in creditActions)) return undefined
@@ -43,7 +47,10 @@ async function handleEvent(event: Stripe.Event): Promise<EventResultCode> {
           p_granted_at: session.created ? new Date(session.created * 1000).toISOString() : null,
         })
         if (grantError) throw grantError
-        if (grant?.[0]?.duplicate_active) return 'duplicate_paid_entitlement'
+        const entitlementGrant = grant?.[0]
+        if (!entitlementGrant) throw new Error('entitlement_grant_empty')
+        if (!entitlementGrant.entitlement_id) return 'refunded_paid_entitlement'
+        if (entitlementGrant.duplicate_active) return 'duplicate_paid_entitlement'
         return null
       }
 

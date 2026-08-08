@@ -1,5 +1,5 @@
 begin;
-select plan(31);
+select plan(38);
 
 create extension if not exists "basejump-supabase_test_helpers" with schema tests;
 select tests.create_supabase_user('box-limit-owner');
@@ -50,6 +50,7 @@ select legacy_space_id, legacy_id, '18000000-0000-4000-8000-000000000102', 'Box 
 from box_entitlement_test_state;
 
 select has_table('public', 'account_entitlements', 'account entitlement ledger exists');
+select has_table('public', 'account_entitlement_revocations', 'entitlement revocation tombstones exist');
 select has_function('public', 'get_box_plan_summary', array[]::text[], 'box plan summary exists');
 select has_function('public', 'create_box',
   array['uuid', 'text', 'text', 'text', 'text', 'public.box_visibility'],
@@ -159,6 +160,41 @@ select is((select count(*)::integer from public.account_entitlements
     and entitlement_code = 'boxes_unlimited_lifetime'
     and revoked_at is null), 1,
   'a replacement source leaves exactly one active entitlement for the owner');
+
+select is(
+  public.revoke_account_entitlement('stripe', 'checkout:refund-before-grant'),
+  0,
+  'a refund arriving before its entitlement records a zero-row revocation'
+);
+select is(
+  public.revoke_account_entitlement('stripe', 'checkout:refund-before-grant'),
+  0,
+  'repeating an early refund is harmless'
+);
+select is(
+  (select created from public.grant_account_entitlement(
+    (select other_id from box_entitlement_test_state), 'boxes_unlimited_lifetime',
+    'stripe', 'checkout:refund-before-grant', null
+  )),
+  false,
+  'a later grant for a refunded source is not created'
+);
+select is(
+  (select entitlement_id from public.grant_account_entitlement(
+    (select other_id from box_entitlement_test_state), 'boxes_unlimited_lifetime',
+    'stripe', 'checkout:refund-before-grant', null
+  )),
+  null::uuid,
+  'a refunded source returns no entitlement id'
+);
+select is((select count(*)::integer from public.account_entitlements
+  where source_provider = 'stripe'
+    and source_reference = 'checkout:refund-before-grant'), 0,
+  'refund-before-grant never creates an entitlement row');
+select is((select count(*)::integer from public.account_entitlement_revocations
+  where source_provider = 'stripe'
+    and source_reference = 'checkout:refund-before-grant'), 1,
+  'repeated early refunds keep one durable tombstone');
 
 select tests.authenticate_as('box-limit-other');
 select throws_ok(

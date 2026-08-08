@@ -1,5 +1,5 @@
 begin;
-select plan(27);
+select plan(33);
 
 select ok(has_table_privilege('authenticated', 'public.spaces', 'select'), 'authenticated can select spaces');
 select ok(has_table_privilege('authenticated', 'public.spaces', 'insert'), 'authenticated can insert spaces');
@@ -29,6 +29,18 @@ select ok(not has_table_privilege('service_role', 'public.account_entitlements',
   'service role cannot update entitlements directly');
 select ok(not has_table_privilege('service_role', 'public.account_entitlements', 'delete'),
   'service role cannot delete entitlements directly');
+select ok(not has_table_privilege('authenticated', 'public.account_entitlement_revocations', 'select'),
+  'authenticated users cannot inspect entitlement revocation tombstones');
+select ok(not has_table_privilege('anon', 'public.account_entitlement_revocations', 'select'),
+  'anonymous users cannot inspect entitlement revocation tombstones');
+select ok(not has_table_privilege('service_role', 'public.account_entitlement_revocations', 'select'),
+  'service role cannot inspect entitlement revocation tombstones directly');
+select ok(not has_table_privilege('service_role', 'public.account_entitlement_revocations', 'insert'),
+  'service role cannot insert entitlement revocation tombstones directly');
+select ok(not has_table_privilege('service_role', 'public.account_entitlement_revocations', 'update'),
+  'service role cannot update entitlement revocation tombstones directly');
+select ok(not has_table_privilege('service_role', 'public.account_entitlement_revocations', 'delete'),
+  'service role cannot delete entitlement revocation tombstones directly');
 
 select function_privs_are('public', 'get_box_plan_summary', array[]::text[], 'authenticated', array['EXECUTE'],
   'authenticated users can read their box plan summary');

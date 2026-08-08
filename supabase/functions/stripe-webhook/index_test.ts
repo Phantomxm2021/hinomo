@@ -27,6 +27,8 @@ testSource('duplicate active box purchase completes with an observable result', 
 
   assertContains(source, 'duplicate_active', 'Webhook must inspect the entitlement grant result')
   assertContains(source, "'duplicate_paid_entitlement'", 'Duplicate active purchases need a stable result code')
+  assertContains(source, 'entitlementGrant.entitlement_id', 'Webhook must detect a tombstoned payment source')
+  assertContains(source, "'refunded_paid_entitlement'", 'Refund-before-completion needs a stable result code')
 })
 
 testSource('full box refund revokes its entitlement while partial refund stays observable', async () => {
