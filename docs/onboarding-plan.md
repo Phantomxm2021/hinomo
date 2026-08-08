@@ -14,7 +14,7 @@ Nomo 的核心路径是“场地 → 空间 → 箱子 → 物品”。新用户
 - 首页内嵌的新手进度卡已下线，不再向空间、箱子或物品列表插入引导条目；
 - 首次进入 `/app` 且账号尚未完成基础激活时，显示一次“开始使用 Nomo”引导弹窗；
 - 弹窗关闭后不再自动出现，用户可以通过 Dashboard 的“新手指南 / Getting started”入口手动重开；
-- 弹窗关闭记录写入 `profiles.onboarding_welcome_seen_at`，因此在桌面端关闭后，移动端不会再次自动弹出；
+- 弹窗展示即调用幂等 RPC，将记录写入 `profiles.onboarding_welcome_seen_at`；因此用户关闭后，移动端不会再次自动弹出；
 - 进度仍由真实业务数据计算：空间、箱子、第一件物品；
 - 所有界面使用全局 `zh-CN / en-US` 字典，不按登录状态分叉；
 - 语言优先读取浏览器 `localStorage`（键名 `nomo-locale`），登录后通过 profile 同步到账号，切换语言时更新页面 `lang` 属性；
