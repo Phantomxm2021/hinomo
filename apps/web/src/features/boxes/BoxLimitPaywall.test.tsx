@@ -22,6 +22,7 @@ test('renders the lifetime unlock offer as a modal dialog', () => {
   expect(dialog).toHaveAttribute('aria-modal', 'true')
   expect(dialog).toHaveTextContent('免费版最多可保有 3 个箱子')
   expect(dialog).toHaveTextContent('HK$38 永久解锁')
+  expect(dialog).toHaveTextContent('暂不需要')
   expect(dialog).toHaveTextContent('一次性付款，不订阅、不自动续费')
   expect(dialog).toHaveTextContent('AI 图片识别 Credits 需单独购买')
   expect(dialog.parentElement).toHaveAttribute('data-overlay-layer', 'box-limit-paywall')
@@ -35,6 +36,16 @@ test('starts one checkout when purchase is selected', async () => {
   await user.click(screen.getByRole('button', { name: 'HK$38 永久解锁' }))
 
   expect(onPurchase).toHaveBeenCalledTimes(1)
+})
+
+test('offers a visible not-now dismissal action', async () => {
+  const user = userEvent.setup()
+  const onClose = vi.fn()
+  render(<BoxLimitPaywall open busy={false} onClose={onClose} onPurchase={vi.fn()} />)
+
+  await user.click(screen.getByRole('button', { name: '暂不需要' }))
+
+  expect(onClose).toHaveBeenCalledTimes(1)
 })
 
 test('blocks every dismissal path while checkout is busy', async () => {

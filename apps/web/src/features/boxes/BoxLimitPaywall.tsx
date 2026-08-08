@@ -141,6 +141,9 @@ export function BoxLimitPaywall({ open, busy, onClose, onPurchase }: BoxLimitPay
         <button className="mt-5 min-h-13 w-full rounded-[0.95rem] bg-brand px-6 text-base font-extrabold text-white shadow-soft active:scale-[0.99] disabled:opacity-50" type="button" disabled={busy} onClick={onPurchase}>
           {t(busy ? 'boxes.paywallPurchasing' : 'boxes.paywallPurchase')}
         </button>
+        <button className="mt-2 min-h-11 w-full rounded-[0.95rem] px-6 text-sm font-bold text-muted hover:bg-placeholder/50 disabled:opacity-50" type="button" disabled={busy} onClick={close}>
+          {t('boxes.paywallNotNow')}
+        </button>
         <span className="pointer-events-none fixed size-px overflow-hidden opacity-0" data-paywall-focus-sentinel tabIndex={0} onFocus={() => (getControls(dialogRef.current)[0] ?? dialogRef.current)?.focus()} />
       </section>
     </div>,
