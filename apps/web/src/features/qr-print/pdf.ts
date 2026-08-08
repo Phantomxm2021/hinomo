@@ -1,5 +1,6 @@
 import type { BoxSummary } from '../boxes/boxes.api'
 import { formatStoragePath } from '../../lib/format-storage-path'
+import { messages } from '../../i18n/messages'
 import {
   PRINT_LABEL_CANVAS_PX,
   PRINT_LABEL_COLORS,
@@ -30,10 +31,10 @@ export type PdfLabelCopy = {
 }
 
 const DEFAULT_PDF_LABEL_COPY: PdfLabelCopy = {
-  spacePrefix: '空间：',
-  locationPrefix: '位置：',
-  scanToView: '扫码查看箱内物品',
-  locationUnset: '未填写',
+  spacePrefix: messages['zh-CN'].print.pdfSpacePrefix,
+  locationPrefix: messages['zh-CN'].print.pdfLocationPrefix,
+  scanToView: messages['zh-CN'].print.pdfScanToView,
+  locationUnset: messages['zh-CN'].print.pdfLocationUnset,
 }
 
 export function describePdfGenerationFailure(error: unknown): PdfGenerationFailure {
