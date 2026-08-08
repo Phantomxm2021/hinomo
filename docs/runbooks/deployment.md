@@ -172,6 +172,76 @@ supabase functions deploy stripe-webhook --no-verify-jwt
 4. 在生产项目按同一兼容顺序发布：002 → 004 → 005 → Edge Functions → 前端 → 等待旧缓存退出 → 003。发布前再次确认 Price ID、Secret Key、Webhook Secret 属于 Live Mode 且彼此匹配；发现任何 Test Mode 值时立即停止上线。
 5. 使用受控生产账号进行不暴露支付资料的最小冒烟验证，确认 Checkout 显示 HKD 38.00、返回 Origin 正确、Webhook 发放单条 active 权益且 AI Credits 不变化；按运营流程处置或退款该验证订单。
 
+## 可观测性边界、Webhook 监控与回滚
+
+### 产品漏斗埋点边界
+
+当前仓库没有接入 PostHog、Mixpanel、Segment 或其他 analytics provider，也没有发出以下产品事件：`box_limit_paywall_viewed`、`box_unlimited_checkout_started`、`box_unlimited_purchase_confirmed`、`box_unlimited_purchase_confirmation_delayed`、`box_created_after_unlock`。发布记录、仪表盘和对外材料不得声称这些漏斗事件已采集或转化率可用；本期只能用 Stripe Webhook 收件箱、Stripe Dashboard 和人工验收记录做支付运营观测。以后接入 analytics provider 需单独设计、隐私评估和发布。
+
+### Stripe Webhook 查询与告警阈值
+
+以下查询只允许由受控 Supabase SQL Editor／service role 执行；`stripe_webhook_events` 不向客户端开放。查询结果只记录 `evt_...`、事件类型、错误码和时间，不复制卡号、支付方式或家庭内容。
+
+```sql
+-- 失败事件：付款发放、退款撤销和 Credits 处理都可能受影响
+select stripe_event_id, event_type, last_error_code, created_at, processed_at
+from public.stripe_webhook_events
+where status = 'failed'
+  and created_at >= pg_catalog.now() - interval '24 hours'
+order by created_at desc;
+
+-- 超过 10 分钟仍未完成的事件：可能卡在 processing 或函数没有回写
+select stripe_event_id, event_type, created_at,
+       floor(extract(epoch from (pg_catalog.now() - created_at)) / 60)::integer as age_minutes
+from public.stripe_webhook_events
+where status = 'processing'
+  and created_at < pg_catalog.now() - interval '10 minutes'
+order by created_at asc;
+
+-- 已完成但需要人工跟进的业务结果
+select stripe_event_id, event_type, last_error_code, created_at, processed_at
+from public.stripe_webhook_events
+where status = 'completed'
+  and last_error_code in (
+    'duplicate_paid_entitlement',
+    'partial_refund_manual_review',
+    'refunded_paid_entitlement'
+  )
+  and processed_at >= pg_catalog.now() - interval '24 hours'
+order by processed_at desc;
+```
+
+生产阈值：任意付款或退款事件进入 `failed` 即创建高优先级工单；超过 10 分钟的 `processing` 任意一条立即告警；`duplicate_paid_entitlement`、`partial_refund_manual_review` 或 `refunded_paid_entitlement` 任意一条都必须在 1 小时内人工确认。15 分钟内出现 5 条以上任意 Webhook 失败时升级为发布事故，暂停继续灰度；同一事件修复后才允许重放。查询中的 `evt_...` 用于在 Stripe Dashboard 找到对应 Checkout Session／Charge 和 metadata。
+
+### 重复付款与退款人工处置
+
+1. 先从查询记录取得 `stripe_event_id`，在 Stripe Dashboard 打开 Event 并核对 Checkout Session、Charge、账号 metadata 和付款状态；不要只凭用户截图或金额判断。
+2. `duplicate_paid_entitlement`：确定一笔是 canonical active 权益后保留该来源对应的权益；在 Stripe 对另一笔已付款的 Checkout Session 执行退款。不要撤销 canonical 来源，也不要直接写 `account_entitlements`。若确实需要撤销某个来源，只能由 service role 调用：
+
+   ```sql
+   select public.revoke_account_entitlement(
+     'stripe', 'checkout:cs_...'
+   ) as revoked_count;
+   ```
+
+   对重复来源调用该 RPC 可能只写入退款 tombstone，不应影响 canonical active 权益；随后确认已有箱子仍可查看、编辑、删除和管理物品。
+3. `partial_refund_manual_review`：部分退款不会自动撤销箱子权益。核对退款金额、Session/Event ID 和用户意图；若决定全额退款，先在 Stripe 完成全额退款并等待／重放 Webhook。只有经授权的全额撤销才调用上面的 `revoke_account_entitlement` RPC，记录 `revoked_count`、Session ID 和 Event ID。
+4. `refunded_paid_entitlement` 或全额退款事件失败／超时：核对该 Checkout Session 确已全额退款，然后通过同一 RPC 确保来源被撤销或写入 tombstone；修复后重放原 Event。撤销只影响未来超出免费上限的新增权限，绝不删除、锁定或降级已有箱子。
+5. 所有人工处理必须保留 Stripe Event/Session ID、操作人、退款结果和 RPC 结果。禁止直接 `update`／`delete` 权益表、删除 Webhook 历史或删除任何已有箱子。
+
+### 003 收口后的回滚（只前进迁移）
+
+迁移回滚采用 forward-only 原则：不要删除或反向执行 002、004、005、003，也不要丢弃 `account_entitlements`、退款 tombstone、Stripe Webhook 历史或已有箱子。
+
+如果 003 已执行而前端必须回退，不能直接部署仍依赖旧版直接 `INSERT` 的客户端并让其失败。先暂停流量，提交并审核一份临时 forward migration，恢复兼容窗口中 authenticated 所需的列级创建权限（仅恢复原 002 的授权范围）：
+
+```sql
+grant insert (owner_id, space_id, name, category, location, description, visibility)
+on table public.boxes to authenticated;
+```
+
+该授权只用于短时救援窗口，期间记录绕过 `create_box` 的风险和所有新建箱子；不得恢复无关角色权限。修复前端并确认新缓存已退出后，再提交另一份 forward migration 重新撤销上述列级权限，运行 `007_api_privileges.test.sql`，并确认所有权益、tombstone、Webhook 历史和箱子数据仍然存在。任何回滚方案都不得通过删除数据或 `DROP` 表／函数完成。
+
 ## Cloudflare R2
 
 - Bucket 必须保持 private。
