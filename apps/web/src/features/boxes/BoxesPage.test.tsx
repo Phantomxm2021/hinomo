@@ -788,6 +788,8 @@ test('bounds purchase confirmation to eight refetches and offers a manual rechec
   expect(mockGetBoxPlanSummary).toHaveBeenCalledTimes(1)
   vi.useFakeTimers()
   await act(async () => { initialPlan.resolve(freePlan) })
+  expect(screen.getByRole('status', { name: '正在确认付款，请稍候' })).toHaveTextContent('正在确认付款，请稍候')
+  expect(screen.getByRole('status', { name: '正在确认付款，请稍候' })).not.toHaveTextContent('支付已完成')
   for (let attempt = 1; attempt < 8; attempt += 1) {
     await act(async () => { await vi.advanceTimersByTimeAsync(1_500) })
   }

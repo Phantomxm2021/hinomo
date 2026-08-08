@@ -363,11 +363,11 @@ export function BoxesPage() {
         <section
           className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-brand/20 bg-brand/5 px-4 py-3 text-sm"
           role="status"
-          aria-label={t(purchaseConfirmation === 'confirming' ? 'boxes.purchaseConfirmed' : 'boxes.purchaseDelayedTitle')}
+          aria-label={t(purchaseConfirmation === 'confirming' ? 'boxes.purchasePending' : 'boxes.purchaseDelayedTitle')}
         >
           <div>
             <p className="m-0 font-bold text-ink">
-              {t(purchaseConfirmation === 'confirming' ? 'boxes.purchaseConfirmed' : 'boxes.purchaseDelayedTitle')}
+              {t(purchaseConfirmation === 'confirming' ? 'boxes.purchasePending' : 'boxes.purchaseDelayedTitle')}
             </p>
             {purchaseConfirmation === 'delayed' ? (
               <>
