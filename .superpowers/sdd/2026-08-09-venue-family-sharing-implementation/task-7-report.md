@@ -27,3 +27,8 @@
 
 - Tightened `safeReturnTo` to reject backslashes as well as protocol-relative and absolute targets. A return path such as `/\\evil.test/steal-session` can be normalized by browsers into a cross-origin authority URL, so it now falls back to `/app`.
 - Added a direct regression test for that escape form.
+
+## Round 2 security follow-up
+
+- Replaced the prefix-only return-target guard with strict app-relative, control-character/backslash rejection plus `new URL(candidate, window.location.origin)` same-origin validation. The returned route is the normalized path, query, and fragment only.
+- Added regressions for tab, newline, and carriage-return authority escapes. These characters are stripped by browser URL parsing and can otherwise turn `/control/evil.test` into a cross-origin URL. An encoded backslash regression confirms an unchanged percent-encoded app-relative path remains valid.
