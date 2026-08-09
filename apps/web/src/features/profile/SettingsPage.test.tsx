@@ -61,6 +61,7 @@ test('renders desktop settings as a centered dialog and closes back to the previ
 
   const dialog = await screen.findByRole('dialog', { name: '设置' })
   expect(dialog).toBeInTheDocument()
+  expect(screen.getByTestId('editor-dialog-backdrop')).toHaveClass('lg:bg-transparent', 'lg:backdrop-blur-[6px]')
   expect(screen.queryByRole('navigation', { name: '设置导航' })).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: /通用.*语言与地区/ })).toHaveAttribute('href', '/app/me/settings/general')
   expect(screen.getByRole('link', { name: /通用.*语言与地区/ })).toHaveAttribute('data-settings-general-link')

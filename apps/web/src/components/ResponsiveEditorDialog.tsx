@@ -128,7 +128,7 @@ export function ResponsiveEditorDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 p-0 backdrop-blur-[2px] lg:items-center lg:p-3"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 p-0 backdrop-blur-[2px] lg:items-center lg:bg-transparent lg:p-3 lg:backdrop-blur-[6px]"
       data-testid="editor-dialog-backdrop"
       role="presentation"
       onMouseDown={(event) => {
