@@ -61,6 +61,7 @@ export function VenueActivityPage() {
 
   if (activityQuery.isPending && !activityQuery.data) return <PageState state="loading" label={t('venueActivity.loading')} />
   if (activityQuery.isError) return <PageState state="error" message={t('venueActivity.loadError')} onRetry={() => void activityQuery.refetch()} />
+  if (membersQuery.isError) return <PageState state="error" message={t('venueActivity.membersLoadError')} onRetry={() => void membersQuery.refetch()} />
 
   return (
     <section className="mx-auto grid w-full max-w-3xl gap-6" aria-labelledby="venue-activity-title">

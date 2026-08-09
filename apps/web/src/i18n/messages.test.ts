@@ -47,6 +47,8 @@ describe('message catalog', () => {
     expect(Object.keys(messages['zh-CN'].venueActivity.events)).toEqual([
       'item_created', 'item_moved', 'item_quantity_changed', 'item_deleted', 'box_moved',
     ])
+    expect(Object.values(messages['zh-CN'].venueActivity.eventLabels)).toEqual(['添加物品', '移动物品', '更改数量', '删除物品', '移动箱子'])
+    expect(Object.values(messages['en-US'].venueActivity.eventLabels)).toEqual(['Item added', 'Item moved', 'Quantity changed', 'Item deleted', 'Box moved'])
     expect(messages['zh-CN'].venueActivity.departed).toBe('已离开')
   })
 

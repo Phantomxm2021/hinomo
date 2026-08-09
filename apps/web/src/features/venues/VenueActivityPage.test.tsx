@@ -89,6 +89,17 @@ test('shows loading, empty, and refresh failure states', async () => {
   expect(await screen.findByText('最近活动加载失败，请重试')).toBeInTheDocument()
 })
 
+test('shows a retryable member-load error without hiding ordinary activity access', async () => {
+  const user = userEvent.setup()
+  mocks.members.mockRejectedValueOnce(new Error('member network')).mockResolvedValueOnce([
+    { user_id: 'member-1', role: 'member', display_name: '李小红', avatar_url: null, joined_at: '2026-08-02T00:00:00Z', is_current: false },
+  ])
+  renderPage()
+  expect(await screen.findByText('家庭成员加载失败，请重试')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '重试' }))
+  expect(await screen.findByRole('option', { name: '李小红' })).toBeInTheDocument()
+})
+
 test('leaves the venue page immediately when the activity request reports revoked access', async () => {
   mocks.activity.mockRejectedValue(Object.assign(new Error('venue_access_denied'), { code: 'venue_access_denied' }))
   renderPage()
