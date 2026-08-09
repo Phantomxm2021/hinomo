@@ -81,7 +81,7 @@ test('renders no more than one current active reusable invite row', async () => 
   renderPage()
 
   await waitFor(() => expect(screen.getAllByRole('button', { name: '撤销邀请' })).toHaveLength(1))
-  expect(screen.getByRole('heading', { name: '当前邀请' })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: '当前邀请' })).toBeInTheDocument()
   expect(screen.getByText('当前邀请 · 已邀请 1 位成员')).toBeInTheDocument()
 })
 afterEach(() => {
@@ -101,7 +101,7 @@ test('owner manages family members, active invitations, and clears the raw invit
   expect(screen.getByText('李小红').parentElement).toHaveTextContent('成员')
   expect(screen.getByRole('button', { name: '创建邀请' })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: '最近活动' })).toHaveAttribute('href', '/app/venues/home/activity')
-  expect(screen.getByText('未使用邀请')).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: '当前邀请' })).toBeInTheDocument()
   expect(await screen.findByRole('button', { name: '撤销邀请' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '移除李小红' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '退出场地' })).not.toBeInTheDocument()
@@ -184,6 +184,23 @@ test('offers retry for transient member-page revoke failures after confirmation'
   const alert = await screen.findByRole('alertdialog', { name: '操作未完成' })
   await user.click(within(alert).getByRole('button', { name: '重试' }))
   await waitFor(() => expect(mocks.revoke).toHaveBeenCalledTimes(2))
+})
+
+test('routes access denial from a revoke retry through venue cleanup and navigation', async () => {
+  const user = userEvent.setup()
+  mocks.revoke.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockRejectedValueOnce(Object.assign(new Error('venue_access_denied'), { code: 'venue_access_denied' }))
+  const client = renderPage()
+  const removeQueries = vi.spyOn(client, 'removeQueries')
+
+  await user.click(await screen.findByRole('button', { name: '撤销邀请' }))
+  const confirmation = await screen.findByRole('alertdialog', { name: '撤销邀请？' })
+  await user.click(within(confirmation).getByRole('button', { name: '撤销邀请' }))
+  const alert = await screen.findByRole('alertdialog', { name: '操作未完成' })
+  await user.click(within(alert).getByRole('button', { name: '重试' }))
+
+  expect(await screen.findByText('首页')).toBeInTheDocument()
+  expect(mocks.revoke).toHaveBeenCalledTimes(2)
+  expect(removeQueries).toHaveBeenCalledWith({ queryKey: ['venues'] })
 })
 
 test('keeps invite creation closed when the deploy-time kill switch is disabled', async () => {
