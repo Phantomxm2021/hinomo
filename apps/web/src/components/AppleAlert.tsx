@@ -11,6 +11,8 @@ export type AppleAlertProps = {
   onPrimary?: () => void | Promise<void>
   cancelLabel?: string
   onCancel?: () => void | Promise<void>
+  primaryDisabled?: boolean
+  primaryBusy?: boolean
   onClose: () => void
 }
 
@@ -18,7 +20,7 @@ function getFocusableButtons(container: HTMLElement | null) {
   return container ? Array.from(container.querySelectorAll<HTMLButtonElement>('button:not([disabled])')) : []
 }
 
-export function AppleAlert({ open, title, message, primaryLabel, onPrimary, cancelLabel, onCancel, onClose }: AppleAlertProps) {
+export function AppleAlert({ open, title, message, primaryLabel, onPrimary, cancelLabel, onCancel, primaryDisabled = false, primaryBusy = false, onClose }: AppleAlertProps) {
   const { t } = useI18n()
   const titleId = useId()
   const messageId = useId()
@@ -86,7 +88,7 @@ export function AppleAlert({ open, title, message, primaryLabel, onPrimary, canc
         </div>
         <div className={`grid border-t border-line/80 ${cancelLabel ? 'grid-cols-2' : 'grid-cols-1'}`}>
           {cancelLabel ? <button className="min-h-12 border-r border-line/80 bg-transparent px-3 text-[1.0625rem] text-brand" type="button" onClick={cancel}>{cancelLabel}</button> : null}
-          <button ref={primaryRef} className="min-h-12 bg-transparent px-3 text-[1.0625rem] font-semibold text-brand" type="button" onClick={primary}>{resolvedPrimaryLabel}</button>
+          <button ref={primaryRef} className="min-h-12 bg-transparent px-3 text-[1.0625rem] font-semibold text-brand disabled:opacity-45" type="button" disabled={primaryDisabled} aria-busy={primaryBusy || undefined} onClick={primary}>{resolvedPrimaryLabel}</button>
         </div>
       </section>
     </div>,

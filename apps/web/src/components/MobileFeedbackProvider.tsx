@@ -26,7 +26,7 @@ export function MobileFeedbackProvider({ children }: PropsWithChildren) {
   const showAlert = useCallback((options: MobileAlertOptions & { key?: string }) => {
     setNotice(null)
     setSheet(null)
-    setAlert((current) => current?.key && current.key === options.key ? current : options)
+    setAlert(options)
   }, [])
   const api = useMemo<MobileFeedbackApi>(() => ({
     notify: (message) => { setAlert(null); setSheet(null); setNotice(message) },
@@ -37,9 +37,11 @@ export function MobileFeedbackProvider({ children }: PropsWithChildren) {
         key: options.key,
         title: options.title,
         message: options.message,
-        primaryLabel: options.retry ? t('common.retry') : t('common.ok'),
+        primaryLabel: options.retry ? (options.retrying ? t('common.retrying') : options.retryLabel ?? t('common.retry')) : t('common.ok'),
         onPrimary: options.retry,
         cancelLabel: options.retry ? t('common.cancel') : undefined,
+        primaryDisabled: options.retrying,
+        primaryBusy: options.retrying,
       })
     },
     confirm: showAlert,
@@ -55,7 +57,7 @@ export function MobileFeedbackProvider({ children }: PropsWithChildren) {
         </div>,
         document.body,
       ) : null}
-      <AppleAlert open={Boolean(alert)} title={alert?.title ?? ''} message={alert?.message} primaryLabel={alert?.primaryLabel} onPrimary={alert?.onPrimary} cancelLabel={alert?.cancelLabel} onCancel={alert?.onCancel} onClose={dismiss} />
+      <AppleAlert open={Boolean(alert)} title={alert?.title ?? ''} message={alert?.message} primaryLabel={alert?.primaryLabel} onPrimary={alert?.onPrimary} cancelLabel={alert?.cancelLabel} onCancel={alert?.onCancel} primaryDisabled={alert?.primaryDisabled} primaryBusy={alert?.primaryBusy} onClose={dismiss} />
       <MobileActionSheet open={Boolean(sheet)} title={sheet?.title ?? ''} message={sheet?.message} actions={sheet?.actions ?? []} cancelLabel={sheet?.cancelLabel} onClose={dismiss} />
     </MobileFeedbackContext.Provider>
   )

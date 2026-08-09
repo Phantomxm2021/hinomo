@@ -8,7 +8,7 @@ type ResponsiveOperationErrorProps = {
   retryLabel?: string
 }
 
-export function ResponsiveOperationError({ message, onRetry, busy = false }: ResponsiveOperationErrorProps) {
+export function ResponsiveOperationError({ message, onRetry, busy = false, retryLabel }: ResponsiveOperationErrorProps) {
   const feedback = useMobileFeedback()
   const retryRef = useRef(onRetry)
 
@@ -21,8 +21,10 @@ export function ResponsiveOperationError({ message, onRetry, busy = false }: Res
       key: `responsive-operation-error:${message}`,
       title: message,
       retry: onRetry ? () => { if (!busy) retryRef.current?.() } : undefined,
+      retryLabel,
+      retrying: busy,
     })
-  }, [busy, feedback, message, onRetry])
+  }, [busy, feedback, message, onRetry, retryLabel])
 
   return null
 }

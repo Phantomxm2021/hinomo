@@ -8,6 +8,8 @@ export type MobileAlertOptions = {
   onPrimary?: () => void | Promise<void>
   cancelLabel?: string
   onCancel?: () => void | Promise<void>
+  primaryDisabled?: boolean
+  primaryBusy?: boolean
 }
 
 export type FeedbackErrorOptions = {
@@ -15,6 +17,8 @@ export type FeedbackErrorOptions = {
   title: string
   message?: string
   retry?: () => void | Promise<void>
+  retryLabel?: string
+  retrying?: boolean
 }
 
 export type MobileSheetOptions = {

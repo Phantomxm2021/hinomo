@@ -4,10 +4,14 @@ import { MobileFeedbackProvider } from './MobileFeedbackProvider'
 import { useMobileFeedback } from './mobile-feedback'
 import { SYSTEM_ACTION_SHEET_Z_INDEX, SYSTEM_ALERT_Z_INDEX, SYSTEM_NOTICE_Z_INDEX } from './overlay-layers'
 
+const initialViewportWidth = window.innerWidth
+
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
   document.body.style.overflow = ''
+  window.innerWidth = initialViewportWidth
+  window.dispatchEvent(new Event('resize'))
 })
 
 function Harness() {
@@ -38,13 +42,16 @@ test('shows and automatically dismisses an Apple-style notice capsule', () => {
   expect(screen.queryByText('已创建箱子')).not.toBeInTheDocument()
 })
 
-test('presents blocking failures as a mobile alert with retry and cancel', () => {
+test('presents blocking failures as a mobile Apple alert with retry and cancel', () => {
+  window.innerWidth = 375
+  window.dispatchEvent(new Event('resize'))
   render(<MobileFeedbackProvider><Harness /></MobileFeedbackProvider>)
   fireEvent.click(screen.getByRole('button', { name: '错误' }))
 
   const dialog = screen.getByRole('alertdialog', { name: '加载失败' })
   expect(dialog).toHaveTextContent('请检查网络')
   expect(dialog.parentElement).toHaveClass('isolate')
+  expect(dialog.parentElement).not.toHaveClass('lg:hidden')
   expect(dialog.parentElement).toHaveStyle({ zIndex: String(SYSTEM_ALERT_Z_INDEX) })
   expect(screen.getByRole('button', { name: '重试' })).toHaveFocus()
   fireEvent.click(screen.getByRole('button', { name: '取消' }))
@@ -53,12 +60,15 @@ test('presents blocking failures as a mobile alert with retry and cancel', () =>
 
 test('renders one Apple alert at desktop width and restores focus after Escape', () => {
   window.innerWidth = 1280
+  window.dispatchEvent(new Event('resize'))
   render(<MobileFeedbackProvider><Harness /></MobileFeedbackProvider>)
   const trigger = screen.getByRole('button', { name: '全局错误' })
   trigger.focus()
   fireEvent.click(trigger)
 
-  expect(screen.getByRole('alertdialog', { name: '无法加载箱子' })).toBeInTheDocument()
+  const dialog = screen.getByRole('alertdialog', { name: '无法加载箱子' })
+  expect(dialog).toBeInTheDocument()
+  expect(dialog.parentElement).not.toHaveClass('lg:hidden')
   expect(screen.getByRole('button', { name: '重试' })).toHaveFocus()
   fireEvent.keyDown(document, { key: 'Escape' })
 
