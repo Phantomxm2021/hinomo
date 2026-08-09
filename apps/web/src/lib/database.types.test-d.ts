@@ -9,6 +9,10 @@ type VenueInsert = Database['public']['Tables']['venues']['Insert']
 type VenueRow = Database['public']['Tables']['venues']['Row']
 type SpaceInsert = Database['public']['Tables']['spaces']['Insert']
 type AcceptInviteArgs = Database['public']['Functions']['accept_venue_invite']['Args']
+type CreateVenueInviteArgs = Database['public']['Functions']['create_venue_invite']['Args']
+type CreateVenueInviteRow = Database['public']['Functions']['create_venue_invite']['Returns'][number]
+type ListedVenueInviteRow = Database['public']['Functions']['list_venue_invites']['Returns'][number]
+type VenueInviteRow = Database['public']['Tables']['venue_invites']['Row']
 type UpdateBoxArgs = Database['public']['Functions']['update_box']['Args']
 type UpdateSpaceArgs = Database['public']['Functions']['update_space']['Args']
 type PackingSessionRow = Database['public']['Tables']['packing_sessions']['Row']
@@ -66,6 +70,22 @@ const validSpaceInsert = {
   venue_id: '00000000-0000-0000-0000-000000000004',
 } satisfies SpaceInsert
 const validAcceptInvite: AcceptInviteArgs = { p_token: 'opaque-token' }
+const validCreateVenueInvite: CreateVenueInviteArgs = { p_venue_id: '00000000-0000-0000-0000-000000000004' }
+const validReusableVenueInvite: VenueInviteRow['reusable'] = true
+const validCreatedVenueInvite = {
+  invite_id: '00000000-0000-0000-0000-000000000007',
+  token: 'opaque-token',
+  expires_at: '2026-08-10T00:00:00Z',
+  reusable: true,
+} satisfies CreateVenueInviteRow
+const validListedVenueInvite = {
+  invite_id: '00000000-0000-0000-0000-000000000007',
+  created_at: '2026-08-09T00:00:00Z',
+  expires_at: '2026-08-10T00:00:00Z',
+  status: 'active',
+  reusable: true,
+  accepted_count: 2,
+} satisfies ListedVenueInviteRow
 const validUpdateBox: UpdateBoxArgs = {
   p_box_id: '00000000-0000-0000-0000-000000000005',
   p_space_id: '00000000-0000-0000-0000-000000000002',
@@ -91,6 +111,8 @@ const forgedUpdateBoxOwner: UpdateBoxArgs = { ...validUpdateBox, p_owner_id: 'fo
 const forgedUpdateSpaceOwner: UpdateSpaceArgs = { ...validUpdateSpace, p_owner_id: 'forged' }
 // @ts-expect-error actor identity comes from auth.uid(), never from the client
 const forgedAcceptInvite: AcceptInviteArgs = { p_token: 'opaque-token', p_user_id: 'forged' }
+// @ts-expect-error create_venue_invite takes only the venue identifier.
+const forgedCreateVenueInvite: CreateVenueInviteArgs = { ...validCreateVenueInvite, reusable: true }
 
 const updateWithPublicId: BoxUpdate = {
   ...validBoxUpdate,
@@ -116,6 +138,10 @@ void validVenueInsert
 void validDefaultFlag
 void validSpaceInsert
 void validAcceptInvite
+void validCreateVenueInvite
+void validReusableVenueInvite
+void validCreatedVenueInvite
+void validListedVenueInvite
 void validUpdateBox
 void validUpdateSpace
 void validPackingSessionActor
@@ -126,3 +152,4 @@ void validVenueActivityEvent
 void forgedUpdateBoxOwner
 void forgedUpdateSpaceOwner
 void forgedAcceptInvite
+void forgedCreateVenueInvite

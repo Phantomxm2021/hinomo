@@ -1,5 +1,5 @@
 begin;
-select plan(93);
+select plan(97);
 
 select ok(has_table_privilege('authenticated', 'public.spaces', 'select'), 'authenticated can select spaces');
 select ok(has_table_privilege('authenticated', 'public.spaces', 'insert'), 'authenticated can insert spaces');
@@ -87,6 +87,14 @@ select ok(not has_table_privilege('service_role', 'private.venue_membership_audi
   'service role cannot read private membership audit');
 select ok(not has_table_privilege('service_role', 'private.venue_membership_audit', 'insert, update, delete'),
   'service role cannot write private membership audit');
+select ok(not has_table_privilege('authenticated', 'private.venue_invite_acceptances', 'select'),
+  'authenticated users cannot read private venue invite acceptance history');
+select ok(not has_table_privilege('authenticated', 'private.venue_invite_acceptances', 'insert, update, delete'),
+  'authenticated users cannot write private venue invite acceptance history');
+select ok(not has_table_privilege('anon', 'private.venue_invite_acceptances', 'select, insert, update, delete'),
+  'anonymous users cannot access private venue invite acceptance history');
+select ok(not has_table_privilege('service_role', 'private.venue_invite_acceptances', 'select, insert, update, delete'),
+  'service role cannot access private venue invite acceptance history directly');
 
 select function_privs_are('public', 'can_access_venue', array['uuid'], 'authenticated', array['EXECUTE'],
   'authenticated users can ask about venue access');

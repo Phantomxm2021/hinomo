@@ -68,23 +68,24 @@ try {
   await joinWithFreshInvite(owner, members[1], venue.id)
   await joinWithFreshInvite(owner, members[2], venue.id)
 
+  const replacedInvite = await rpcRow(owner, 'create_venue_invite', { p_venue_id: venue.id })
   const finalSeatInvite = await rpcRow(owner, 'create_venue_invite', { p_venue_id: venue.id })
-  const blocked = await owner.rpc('create_venue_invite', { p_venue_id: venue.id })
-  if (codeFor(blocked.error) !== 'venue_member_limit_reached') {
-    throw new Error(`last-seat-reservation: ${codeFor(blocked.error)}`)
+  const replaced = await members[3].rpc('accept_venue_invite', { p_token: replacedInvite.token })
+  if (codeFor(replaced.error) !== 'venue_invite_revoked') {
+    throw new Error(`latest-invite-replacement: ${codeFor(replaced.error)}`)
   }
-  scenario('last-seat-reservation', 'second invite rejected')
+  scenario('latest-invite-replacement', 'previous invite revoked')
 
   const race = await Promise.allSettled([
     rpcRow(members[3], 'accept_venue_invite', { p_token: finalSeatInvite.token }),
     rpcRow(members[4], 'accept_venue_invite', { p_token: finalSeatInvite.token }),
   ])
   const joined = race.filter((entry) => entry.status === 'fulfilled' && entry.value.result === 'joined').length
-  const used = race.filter((entry) => entry.status === 'rejected' && codeFor(entry.reason) === 'venue_invite_used').length
-  if (joined !== 1 || used !== 1) throw new Error(`last-seat-race: ${joined} joined, ${used} venue_invite_used`)
+  const full = race.filter((entry) => entry.status === 'rejected' && codeFor(entry.reason) === 'venue_member_limit_reached').length
+  if (joined !== 1 || full !== 1) throw new Error(`last-seat-race: ${joined} joined, ${full} venue_member_limit_reached`)
   const finalMembers = await rpcRow(owner, 'get_venue_access_summary', { p_venue_id: venue.id })
   if (finalMembers.member_count !== 5) throw new Error(`last-seat-race: member_count ${finalMembers.member_count}`)
-  scenario('last-seat-race', '1 joined, 1 venue_invite_used')
+  scenario('last-seat-race', '1 joined, 1 venue_member_limit_reached')
 } finally {
   await Promise.all(fixtureIds.map(async (id) => {
     const { error } = await admin.auth.admin.deleteUser(id)

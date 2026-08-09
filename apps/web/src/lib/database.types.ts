@@ -675,6 +675,7 @@ export type Database = {
           created_by: string
           expires_at: string
           id: string
+          reusable: boolean
           revoked_at: string | null
           token_hash: string
           venue_id: string
@@ -686,6 +687,7 @@ export type Database = {
           created_by: string
           expires_at: string
           id?: string
+          reusable?: boolean
           revoked_at?: string | null
           token_hash: string
           venue_id: string
@@ -697,6 +699,7 @@ export type Database = {
           created_by?: string
           expires_at?: string
           id?: string
+          reusable?: boolean
           revoked_at?: string | null
           token_hash?: string
           venue_id?: string
@@ -1128,7 +1131,7 @@ export type Database = {
       }
       create_venue_invite: {
         Args: { p_venue_id: string }
-        Returns: { expires_at: string; invite_id: string; token: string }[]
+        Returns: { expires_at: string; invite_id: string; reusable: boolean; token: string }[]
       }
       get_venue_access_summary: {
         Args: { p_venue_id: string }
@@ -1185,7 +1188,14 @@ export type Database = {
       }
       list_venue_invites: {
         Args: { p_venue_id: string }
-        Returns: { created_at: string; expires_at: string; invite_id: string; status: string }[]
+        Returns: {
+          accepted_count: number
+          created_at: string
+          expires_at: string
+          invite_id: string
+          reusable: boolean
+          status: string
+        }[]
       }
       list_venue_activity: {
         Args: {
