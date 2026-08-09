@@ -1,5 +1,5 @@
 begin;
-select plan(25);
+select plan(29);
 
 create extension if not exists "basejump-supabase_test_helpers" with schema tests;
 select vault.create_secret('0123456789abcdef0123456789abcdef', 'r2_account_id', 'pgTAP R2 account');
@@ -20,14 +20,20 @@ create temporary table workflow_state (
   shared_space_id uuid not null,
   private_space_id uuid not null,
   second_space_id uuid not null,
+  member_venue_id uuid not null,
+  member_space_id uuid not null,
   shared_box_id uuid not null,
   shared_target_box_id uuid not null,
   private_box_id uuid not null,
   second_box_id uuid not null,
+  member_box_id uuid not null,
   shared_item_id uuid not null,
   private_item_id uuid not null,
+  member_item_id uuid not null,
   cover_upload_id uuid,
   cover_object_key text,
+  public_cover_upload_id uuid,
+  public_cover_object_key text,
   media_upload_id uuid,
   media_object_key text
 ) on commit drop;
@@ -43,13 +49,17 @@ insert into workflow_state values (
   '21000000-0000-4000-8000-000000000011',
   '21000000-0000-4000-8000-000000000012',
   '21000000-0000-4000-8000-000000000013',
+  '21000000-0000-4000-8000-000000000004',
+  '21000000-0000-4000-8000-000000000014',
   '21000000-0000-4000-8000-000000000021',
   '21000000-0000-4000-8000-000000000022',
   '21000000-0000-4000-8000-000000000023',
   '21000000-0000-4000-8000-000000000024',
+  '21000000-0000-4000-8000-000000000025',
   '21000000-0000-4000-8000-000000000031',
   '21000000-0000-4000-8000-000000000032',
-  null, null
+  '21000000-0000-4000-8000-000000000033',
+  null, null, null, null, null, null
 );
 
 select tests.authenticate_as('shared-workflow-owner');
@@ -63,25 +73,48 @@ insert into public.spaces (id, owner_id, venue_id, name) values
   ((select second_space_id from workflow_state), auth.uid(), (select second_venue_id from workflow_state), 'Second workflow space');
 insert into public.boxes (id, owner_id, space_id, name, visibility) values
   ((select shared_box_id from workflow_state), auth.uid(), (select shared_space_id from workflow_state), 'Shared workflow box', 'private'),
-  ((select shared_target_box_id from workflow_state), auth.uid(), (select shared_space_id from workflow_state), 'Shared workflow target', 'private'),
+  ((select shared_target_box_id from workflow_state), auth.uid(), (select shared_space_id from workflow_state), 'Shared workflow target', 'public'),
   ((select private_box_id from workflow_state), auth.uid(), (select private_space_id from workflow_state), 'Private workflow box', 'private'),
   ((select second_box_id from workflow_state), auth.uid(), (select second_space_id from workflow_state), 'Second workflow box', 'private');
 insert into public.items (id, box_id, name, quantity) values
   ((select shared_item_id from workflow_state), (select shared_box_id from workflow_state), 'Shared workflow lantern', 2),
   ((select private_item_id from workflow_state), (select private_box_id from workflow_state), 'Private workflow lantern', 1);
-
 select tests.clear_authentication();
 set local role postgres;
+insert into public.packing_sessions (id, box_id, owner_id, current_revision)
+select '21000000-0000-4000-8000-000000000041', shared_box_id, owner_id, 1 from workflow_state;
+insert into public.packing_detected_items (
+  id, session_id, box_id, analysis_revision, name, quantity_kind, quantity_value, visibility, model_id, prompt_version, published_at
+)
+select '21000000-0000-4000-8000-000000000042', '21000000-0000-4000-8000-000000000041', shared_box_id,
+  1, 'Shared workflow AI lantern', 'exact', 1, 'clear', 'test-model', 'test-prompt', pg_catalog.now()
+from workflow_state;
 insert into public.venue_members (venue_id, user_id)
 select shared_venue_id, member_id from workflow_state
 union all
 select second_venue_id, member_id from workflow_state;
 
 select tests.authenticate_as('shared-workflow-member');
+insert into public.venues (id, owner_id, name)
+select member_venue_id, auth.uid(), 'Member workflow venue' from workflow_state;
+insert into public.spaces (id, owner_id, venue_id, name)
+select member_space_id, auth.uid(), member_venue_id, 'Member workflow space' from workflow_state;
+insert into public.boxes (id, owner_id, space_id, name, visibility)
+select member_box_id, auth.uid(), member_space_id, 'Member workflow box', 'private' from workflow_state;
+insert into public.items (id, box_id, name, quantity)
+select member_item_id, member_box_id, 'Member workflow lantern', 1 from workflow_state;
+select tests.clear_authentication();
+set local role postgres;
+insert into public.venue_members (venue_id, user_id)
+select member_venue_id, owner_id from workflow_state;
+
+select tests.authenticate_as('shared-workflow-member');
 select is((select count(*)::integer from public.search_my_items('Shared workflow lantern')), 1,
   'member search_my_items finds a formal item in a shared private box');
 select is((select count(*)::integer from public.search_my_inventory('Shared workflow lantern') where source = 'formal'), 1,
   'member search_my_inventory finds a formal item in a shared private box');
+select is((select count(*)::integer from public.search_my_inventory('Shared workflow AI lantern') where source = 'ai'), 1,
+  'member search_my_inventory finds a published AI item in a shared private box');
 select is((select count(*)::integer from public.search_my_items('Private workflow lantern')), 0,
   'member search_my_items does not find a private venue item');
 select is((select count(*)::integer from public.search_my_inventory('Private workflow lantern')), 0,
@@ -103,9 +136,17 @@ select is((select count(*)::integer from public.item_movements where item_id = (
   'member can read movement history for an accessible shared venue');
 
 select tests.authenticate_as('shared-workflow-owner');
+select throws_ok(
+  $$select public.move_item((select shared_item_id from workflow_state), (select member_box_id from workflow_state), null)$$,
+  '42501', 'venue_access_denied', 'owner of only the source venue cannot move an item across venues'
+);
 select is((select box_id from public.move_item((select shared_item_id from workflow_state), (select second_box_id from workflow_state), null)),
   (select second_box_id from workflow_state), 'owner retains cross-venue item moves');
 select public.move_item((select shared_item_id from workflow_state), (select shared_box_id from workflow_state), null);
+select throws_ok(
+  $$select public.move_item((select member_item_id from workflow_state), (select shared_target_box_id from workflow_state), null)$$,
+  '42501', 'venue_access_denied', 'owner of only the target venue cannot move an item across venues'
+);
 
 select tests.authenticate_as('shared-workflow-outsider');
 select is((select count(*)::integer from public.item_movements where item_id = (select shared_item_id from workflow_state)), 0,
@@ -160,6 +201,20 @@ select lives_ok($$select public.confirm_media_upload((select media_upload_id fro
 select ok((select download_url like 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com/nomo-test-bucket/%'
   from public.create_media_download((select media_object_key from workflow_state))),
   'member can download confirmed media for a shared private item');
+with created as (
+  select upload_id, object_key
+  from workflow_state as state,
+  lateral public.create_media_upload(state.shared_target_box_id, null, 'cover', 'image/jpeg', 8)
+)
+update workflow_state as state
+set public_cover_upload_id = created.upload_id, public_cover_object_key = created.object_key
+from created;
+select public.confirm_media_upload((select public_cover_upload_id from workflow_state));
+select tests.clear_authentication();
+select ok((select download_url like 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com/nomo-test-bucket/%'
+  from public.create_media_download((select public_cover_object_key from workflow_state))),
+  'anonymous users can download confirmed media from a public box');
+select tests.authenticate_as('shared-workflow-member');
 
 select tests.clear_authentication();
 set local role postgres;
