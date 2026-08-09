@@ -11,6 +11,7 @@ export function EditBoxModal({
   onSaved,
   onBusyChange,
   canChangeVisibility,
+  onVenueAccessDenied,
 }: {
   open: boolean
   boxId: string
@@ -19,6 +20,7 @@ export function EditBoxModal({
   onSaved: () => void
   onBusyChange?: (busy: boolean) => void
   canChangeVisibility?: boolean
+  onVenueAccessDenied?: (error: unknown) => void
 }) {
   const { t } = useI18n()
   const [busy, setBusy] = useState(false)
@@ -46,7 +48,7 @@ export function EditBoxModal({
       returnFocusRef={returnFocusRef}
       maxWidthClassName="max-w-3xl"
     >
-      <BoxForm boxId={boxId} presentation="modal" onBusyChange={changeBusy} onSaved={onSaved} canChangeVisibility={canChangeVisibility} />
+      <BoxForm boxId={boxId} presentation="modal" onBusyChange={changeBusy} onSaved={onSaved} canChangeVisibility={canChangeVisibility} onVenueAccessDenied={onVenueAccessDenied} />
     </ResponsiveEditorDialog>
   )
 }

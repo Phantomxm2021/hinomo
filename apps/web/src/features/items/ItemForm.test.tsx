@@ -46,6 +46,22 @@ test('reports busy while a new item is being created and clears it after saving'
   await waitFor(() => expect(onBusyChange).toHaveBeenLastCalledWith(false))
 })
 
+test('forwards revoked access from an item mutation to the shared page handler', async () => {
+  const user = userEvent.setup()
+  const onVenueAccessDenied = vi.fn()
+  mockCreateItem.mockRejectedValue({ code: 'venue_access_denied' })
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ItemForm boxId="box-1" onSaved={vi.fn()} onVenueAccessDenied={onVenueAccessDenied} />
+    </QueryClientProvider>,
+  )
+
+  await user.type(screen.getByLabelText('物品名称'), '共享锤子')
+  await user.click(screen.getByRole('button', { name: '保存' }))
+
+  await waitFor(() => expect(onVenueAccessDenied).toHaveBeenCalledWith({ code: 'venue_access_denied' }))
+})
+
 test('keeps delete and cancel unavailable while saving an existing item', async () => {
   const user = userEvent.setup()
   const client = new QueryClient()

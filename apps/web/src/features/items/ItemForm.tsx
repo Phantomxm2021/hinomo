@@ -20,9 +20,10 @@ export type ItemFormProps = {
   onDelete?: () => void
   onBusyChange?: (busy: boolean) => void
   showHeading?: boolean
+  onVenueAccessDenied?: (error: unknown) => void
 }
 
-export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChange, showHeading = true }: ItemFormProps) {
+export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChange, showHeading = true, onVenueAccessDenied }: ItemFormProps) {
   const { locale, t } = useI18n()
   const feedback = useMobileFeedback()
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -124,7 +125,8 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChang
       await uploadImage(itemId)
       feedback.notify(item ? t('itemForm.updated') : t('itemForm.created'))
       onSaved()
-    } catch {
+    } catch (error) {
+      onVenueAccessDenied?.(error)
       if (recordSaved) setMediaError(true)
     }
   }

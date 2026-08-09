@@ -46,6 +46,7 @@ vi.mock('../venues/venues.api', () => ({
 vi.mock('../venues/venue-sharing.api', () => ({
   getVenueAccessSummary: mockGetVenueAccessSummary,
   isVenueAccessDenied: (error: unknown) => Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'venue_access_denied'),
+  revokedVenueQueryKeys: [['venues'], ['venue-access'], ['spaces'], ['boxes'], ['box'], ['items'], ['search-items'], ['item-movements'], ['venue-activity'], ['box-plan']],
 }))
 
 vi.mock('../auth/auth-context', async (importOriginal) => ({
@@ -68,7 +69,7 @@ function renderSpaces(initialEntry = '/app/spaces') {
     )
   }
 
-  return render(<SpacesPage />, { wrapper: Wrapper })
+  return { queryClient, ...render(<SpacesPage />, { wrapper: Wrapper }) }
 }
 
 function deferred<T>() {
@@ -353,6 +354,21 @@ test('creates a space, closes the editor, and resets it for the next create', as
   await user.click(screen.getByRole('button', { name: '创建空间' }))
   expect(screen.getByLabelText('空间名称')).toHaveValue('')
   expect(screen.getByLabelText('描述（可选）')).toHaveValue('')
+})
+
+test('clears venue content when a space mutation reports revoked access', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([])
+  mockCreateSpace.mockRejectedValue({ code: 'venue_access_denied' })
+  const { queryClient } = renderSpaces()
+  queryClient.setQueryData(['boxes'], ['stale venue content'])
+
+  await screen.findByText('还没有空间')
+  await user.click(screen.getByRole('button', { name: '创建空间' }))
+  await user.type(screen.getByLabelText('空间名称'), '客厅')
+  await user.click(screen.getByRole('button', { name: '创建空间' }))
+
+  await waitFor(() => expect(queryClient.getQueryData(['boxes'])).toBeUndefined())
 })
 
 test('isolates the app and locks scrolling while open, then restores on cancel and unmount', async () => {

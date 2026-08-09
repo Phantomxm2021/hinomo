@@ -22,9 +22,10 @@ export type BoxFormProps = {
   onLimitReached?: () => void
   onSaved?: () => void
   canChangeVisibility?: boolean
+  onVenueAccessDenied?: (error: unknown) => void
 }
 
-export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimitReached, onSaved, canChangeVisibility = true }: BoxFormProps) {
+export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimitReached, onSaved, canChangeVisibility = true, onVenueAccessDenied }: BoxFormProps) {
   const { locale, t } = useI18n()
   const editing = Boolean(boxId)
   const feedback = useMobileFeedback()
@@ -190,6 +191,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimi
       await uploadCover(box)
       onCompleted?.(box)
     } catch (error) {
+      onVenueAccessDenied?.(error)
       if (!editing && isBoxLimitReached(error)) {
         onLimitReached?.()
         return

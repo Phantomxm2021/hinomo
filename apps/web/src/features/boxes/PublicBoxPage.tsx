@@ -12,7 +12,7 @@ import { useI18n } from '../../i18n/I18nProvider'
 import { publicAppOrigin } from '../../lib/env'
 import { formatStoragePath } from '../../lib/format-storage-path'
 import { useAuth } from '../auth/auth-context'
-import { getVenueAccessSummary, isVenueAccessDenied } from '../venues/venue-sharing.api'
+import { getVenueAccessSummary, isVenueAccessDenied, revokedVenueQueryKeys } from '../venues/venue-sharing.api'
 import { ItemMovementSheet, type ItemMovementCommand } from '../item-movements/ItemMovementSheet'
 import { deriveItemAvailability, formatItemAvailability } from '../item-movements/item-movement-status'
 import { listItemMovements, moveItem, returnItem, takeOutItem } from '../item-movements/item-movements.api'
@@ -74,7 +74,7 @@ export function PublicBoxPage() {
   })
   const clearRevokedVenue = (error: unknown) => {
     if (!isVenueAccessDenied(error)) return
-    for (const queryKey of [['venues'], ['venue-access'], ['spaces'], ['boxes'], ['box'], ['items'], ['search-items'], ['item-movements'], ['venue-activity'], ['box-plan']]) {
+    for (const queryKey of revokedVenueQueryKeys) {
       queryClient.removeQueries({ queryKey })
     }
     navigate('/app', { replace: true })
@@ -381,6 +381,7 @@ export function PublicBoxPage() {
             setEditingItem(null)
             setDeleteTarget(editingItem)
           } : undefined}
+          onVenueAccessDenied={clearRevokedVenue}
         />
       ) : null}
 

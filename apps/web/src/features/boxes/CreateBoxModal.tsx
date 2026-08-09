@@ -11,6 +11,7 @@ export function CreateBoxModal({
   onBusyChange,
   onLimitReached,
   canChangeVisibility,
+  onVenueAccessDenied,
 }: {
   open: boolean
   onClose: () => void
@@ -18,6 +19,7 @@ export function CreateBoxModal({
   onBusyChange?: (busy: boolean) => void
   onLimitReached?: () => void
   canChangeVisibility?: boolean
+  onVenueAccessDenied?: (error: unknown) => void
 }) {
   const { t } = useI18n()
   const [busy, setBusy] = useState(false)
@@ -34,7 +36,7 @@ export function CreateBoxModal({
 
   return (
     <ResponsiveEditorDialog open={open} title={t('boxes.create')} busy={busy} onClose={onClose} maxWidthClassName="max-w-3xl">
-      <BoxForm presentation="modal" onBusyChange={changeBusy} onCompleted={onCompleted} onLimitReached={onLimitReached} canChangeVisibility={canChangeVisibility} />
+      <BoxForm presentation="modal" onBusyChange={changeBusy} onCompleted={onCompleted} onLimitReached={onLimitReached} canChangeVisibility={canChangeVisibility} onVenueAccessDenied={onVenueAccessDenied} />
     </ResponsiveEditorDialog>
   )
 }

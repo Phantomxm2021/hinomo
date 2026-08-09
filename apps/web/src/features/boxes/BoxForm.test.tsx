@@ -23,16 +23,16 @@ vi.mock('../media/useMediaUpload', () => ({
   useMediaUpload: () => ({ stage: 'idle', upload: vi.fn(), reset: mockUploadReset }),
 }))
 
-function renderForm(onLimitReached = vi.fn(), boxId?: string) {
+function renderForm(onLimitReached = vi.fn(), boxId?: string, onVenueAccessDenied = vi.fn()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <MemoryRouter>
       <QueryClientProvider client={client}>
-        <BoxForm boxId={boxId} presentation="modal" onLimitReached={onLimitReached} />
+        <BoxForm boxId={boxId} presentation="modal" onLimitReached={onLimitReached} onVenueAccessDenied={onVenueAccessDenied} />
       </QueryClientProvider>
     </MemoryRouter>,
   )
-  return onLimitReached
+  return { onLimitReached, onVenueAccessDenied }
 }
 
 beforeEach(() => {
@@ -61,7 +61,7 @@ afterEach(cleanup)
 
 test('preserves entered values and reports the authoritative box limit without a generic save error', async () => {
   const user = userEvent.setup()
-  const onLimitReached = renderForm()
+  const { onLimitReached } = renderForm()
   mockCreateBox.mockRejectedValue({ message: 'box_limit_reached' })
 
   await user.selectOptions(await screen.findByLabelText('空间'), 'space-home')
@@ -78,7 +78,7 @@ test('preserves entered values and reports the authoritative box limit without a
 
 test('keeps ordinary create failures on the existing save-error path', async () => {
   const user = userEvent.setup()
-  const onLimitReached = renderForm()
+  const { onLimitReached } = renderForm()
   mockCreateBox.mockRejectedValue(new Error('network unavailable'))
 
   await user.selectOptions(await screen.findByLabelText('空间'), 'space-home')
@@ -101,4 +101,17 @@ test('keeps edit failures on the save-error path even when their message resembl
 
   expect(await screen.findByRole('alert')).toHaveTextContent('保存失败，请稍后重试')
   expect(onLimitReached).not.toHaveBeenCalled()
+})
+
+test('forwards revoked access from a box create mutation to the page handler', async () => {
+  const user = userEvent.setup()
+  const onVenueAccessDenied = vi.fn()
+  renderForm(vi.fn(), undefined, onVenueAccessDenied)
+  mockCreateBox.mockRejectedValue({ code: 'venue_access_denied' })
+
+  await user.selectOptions(await screen.findByLabelText('空间'), 'space-home')
+  await user.type(screen.getByLabelText('箱子名称'), '共享工具')
+  await user.click(screen.getByRole('button', { name: '创建箱子' }))
+
+  await waitFor(() => expect(onVenueAccessDenied).toHaveBeenCalledWith({ code: 'venue_access_denied' }))
 })

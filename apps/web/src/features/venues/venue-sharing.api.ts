@@ -104,6 +104,10 @@ export function isVenueAccessDenied(error: unknown): boolean {
   )
 }
 
+export const revokedVenueQueryKeys = [
+  ['venues'], ['venue-access'], ['spaces'], ['boxes'], ['box'], ['items'], ['search-items'], ['item-movements'], ['venue-activity'], ['box-plan'],
+] as const
+
 export async function getVenueAccessSummary(venueId: string): Promise<VenueAccessSummary> {
   const { data, error } = await supabase.rpc('get_venue_access_summary', { p_venue_id: venueId })
   if (error) throw mapVenueInviteError(error)

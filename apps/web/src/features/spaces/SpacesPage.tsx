@@ -17,7 +17,7 @@ import {
   listVenues,
 } from '../venues/venues.api'
 import { useSelectedVenue } from '../venues/selected-venue'
-import { getVenueAccessSummary, isVenueAccessDenied } from '../venues/venue-sharing.api'
+import { getVenueAccessSummary, isVenueAccessDenied, revokedVenueQueryKeys } from '../venues/venue-sharing.api'
 import { SpaceCard } from './SpaceCard'
 import { SpaceMap } from './SpaceMap'
 import { createSpaceSchema, type SpaceFormValues } from './space.schema'
@@ -89,17 +89,21 @@ export function SpacesPage() {
   })
   const accessDenied = isVenueAccessDenied(accessQuery.error)
   const accessDeniedHandled = useRef(false)
-  useEffect(() => {
-    if (!accessDenied || accessDeniedHandled.current) return
+  const handleVenueAccessDenied = useCallback((error: unknown) => {
+    if (!isVenueAccessDenied(error) || accessDeniedHandled.current) return
     accessDeniedHandled.current = true
-    for (const queryKey of [['venues'], ['venue-access'], ['spaces'], ['boxes'], ['items'], ['search-items'], ['item-movements'], ['venue-activity'], ['box-plan']]) {
+    for (const queryKey of revokedVenueQueryKeys) {
       queryClient.removeQueries({ queryKey })
     }
     navigate('/app', { replace: true })
-  }, [accessDenied, navigate, queryClient])
+  }, [navigate, queryClient])
+  useEffect(() => {
+    if (accessDenied) handleVenueAccessDenied(accessQuery.error)
+  }, [accessDenied, accessQuery.error, handleVenueAccessDenied])
   const createMutation = useMutation({
     mutationFn: (input: Parameters<typeof createSpace>[0]) => createSpace(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['spaces'] }),
+    onError: handleVenueAccessDenied,
   })
   const deleteMutation = useMutation({
     mutationFn: (spaceId: string) => deleteSpace(spaceId),
@@ -109,11 +113,13 @@ export function SpacesPage() {
       feedback.notify(t('spaces.deleted'))
       await queryClient.invalidateQueries({ queryKey: ['spaces'] })
     },
+    onError: handleVenueAccessDenied,
   })
   const updateMutation = useMutation({
     mutationFn: ({ id, input }: { id: string; input: Parameters<typeof updateSpace>[1] }) =>
       updateSpace(id, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['spaces'] }),
+    onError: handleVenueAccessDenied,
   })
   const layoutMutation = useMutation({
     mutationFn: ({ spaceId, position }: { spaceId: string; position: SpacePosition }) => {
@@ -123,6 +129,7 @@ export function SpacesPage() {
       layoutSaveQueueRef.current = nextSave
       return nextSave
     },
+    onError: handleVenueAccessDenied,
     onSuccess: (_, { spaceId, position }) => {
       queryClient.setQueryData<SpaceLayout[]>(['space-layouts'], (current = []) => [
         ...current.filter((layout) => layout.space_id !== spaceId),

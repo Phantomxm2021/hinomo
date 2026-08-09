@@ -11,7 +11,7 @@ import { useMobileFeedback } from '../../components/mobile-feedback'
 import { useAuth } from '../auth/auth-context'
 import { useSelectedVenue } from '../venues/selected-venue'
 import { listVenues } from '../venues/venues.api'
-import { getVenueAccessSummary, isVenueAccessDenied } from '../venues/venue-sharing.api'
+import { getVenueAccessSummary, isVenueAccessDenied, revokedVenueQueryKeys } from '../venues/venue-sharing.api'
 import { BoxCatalogueCard } from './BoxCatalogueCard'
 import { BoxCreationNextStep } from './BoxCreationNextStep'
 import {
@@ -81,14 +81,17 @@ export function BoxesPage() {
   })
   const accessDenied = isVenueAccessDenied(accessQuery.error)
   const accessDeniedHandled = useRef(false)
-  useEffect(() => {
-    if (!accessDenied || accessDeniedHandled.current) return
+  const handleVenueAccessDenied = useCallback((error: unknown) => {
+    if (!isVenueAccessDenied(error) || accessDeniedHandled.current) return
     accessDeniedHandled.current = true
-    for (const queryKey of [['venues'], ['venue-access'], ['spaces'], ['boxes'], ['items'], ['search-items'], ['item-movements'], ['venue-activity'], ['box-plan']]) {
+    for (const queryKey of revokedVenueQueryKeys) {
       queryClient.removeQueries({ queryKey })
     }
     navigate('/app', { replace: true })
-  }, [accessDenied, navigate, queryClient])
+  }, [navigate, queryClient])
+  useEffect(() => {
+    if (accessDenied) handleVenueAccessDenied(accessQuery.error)
+  }, [accessDenied, accessQuery.error, handleVenueAccessDenied])
   const boxPlanQuery = useQuery({
     queryKey: ['box-plan', selectedVenueId],
     queryFn: () => getVenueBoxPlanSummary(selectedVenueId!),
@@ -103,6 +106,7 @@ export function BoxesPage() {
       void queryClient.invalidateQueries({ queryKey: ['boxes'] })
       void queryClient.invalidateQueries({ queryKey: ['box-plan'] })
     },
+    onError: handleVenueAccessDenied,
   })
   const allBoxes = boxesQuery.data ?? EMPTY_BOXES
   const selectedVenue = venues.find((venue) => venue.id === selectedVenueId) ?? null
@@ -535,6 +539,7 @@ export function BoxesPage() {
           void queryClient.invalidateQueries({ queryKey: ['box-plan'] })
         }}
         canChangeVisibility={canChangeVisibility}
+        onVenueAccessDenied={handleVenueAccessDenied}
       />
       <BoxLimitPaywall
         open={isVenueOwner && paywallOpen}
@@ -556,6 +561,7 @@ export function BoxesPage() {
         onClose={closeEdit}
         onBusyChange={setEditBusy}
         canChangeVisibility={canChangeVisibility}
+        onVenueAccessDenied={handleVenueAccessDenied}
         onSaved={() => {
           setEditCompletionPending(true)
           void queryClient.invalidateQueries({ queryKey: ['boxes'] })

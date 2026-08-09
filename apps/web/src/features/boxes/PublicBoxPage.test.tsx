@@ -48,6 +48,7 @@ vi.mock('../credits/credits.api', () => ({ getCreditSummary: mockGetCreditSummar
 vi.mock('../venues/venue-sharing.api', () => ({
   getVenueAccessSummary: mockGetVenueAccessSummary,
   isVenueAccessDenied: (error: unknown) => Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'venue_access_denied'),
+  revokedVenueQueryKeys: [['venues'], ['venue-access'], ['spaces'], ['boxes'], ['box'], ['items'], ['search-items'], ['item-movements'], ['venue-activity'], ['box-plan']],
 }))
 vi.mock('./EditBoxModal', () => ({
   EditBoxModal: ({ open, onClose, onBusyChange }: { open: boolean; onClose: () => void; onBusyChange?: (busy: boolean) => void }) => open ? (
