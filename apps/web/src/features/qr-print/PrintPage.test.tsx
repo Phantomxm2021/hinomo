@@ -5,6 +5,7 @@ import { useEffect, type PropsWithChildren } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import type { BoxSummary } from '../boxes/boxes.api'
 import { PrintPage } from './PrintPage'
 
@@ -69,7 +70,7 @@ function renderPrint(locale: 'zh-CN' | 'en-US' = 'zh-CN') {
     </MemoryRouter>
   )
   const view = render(
-    locale === 'en-US' ? <I18nProvider><EnglishProvider>{app}</EnglishProvider></I18nProvider> : app,
+    <I18nProvider><MobileFeedbackProvider>{locale === 'en-US' ? <EnglishProvider>{app}</EnglishProvider> : app}</MobileFeedbackProvider></I18nProvider>,
   )
   return { ...view, client }
 }
@@ -131,7 +132,7 @@ test('localizes the print workspace and PDF errors in English', async () => {
   await user.click(within(desktop).getByRole('checkbox', { name: /露营装备/ }))
   await user.click(within(desktop).getByRole('button', { name: 'Download PDF' }))
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('Could not generate the PDF. Please try again.')
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('Could not generate the PDF. Please try again.')
 })
 
 test('connects desktop selection to the summary and A4 preview', async () => {
@@ -209,7 +210,7 @@ test('reports progress, prevents duplicate generation, and preserves selection f
     await firstAttempt.promise.catch(() => undefined)
   })
 
-  expect(screen.getByRole('alert')).toHaveTextContent('PDF 生成失败，请重试')
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('PDF 生成失败，请重试')
   expect(within(desktop).getByRole('checkbox', { name: /冬季衣物/ })).toBeChecked()
   expect(within(desktop).getByRole('group', { name: '冬季衣物标签' })).toBeInTheDocument()
   await user.click(within(desktop).getByRole('button', { name: '下载 PDF' }))
@@ -283,8 +284,8 @@ test('keeps retained catalogue data and the current preview visible after a refe
     await client.invalidateQueries({ queryKey: ['boxes'] })
   })
 
-  const alert = await screen.findByRole('alert')
-  expect(alert).toHaveTextContent('箱子列表刷新失败，正在显示上次结果')
+  const alert = await screen.findByRole('alertdialog')
+  expect(alert).toHaveTextContent('暂时无法完成此操作')
   expect(within(desktop).getByRole('checkbox', { name: /冬季衣物/ })).toBeChecked()
   expect(within(desktop).getByRole('group', { name: '冬季衣物标签' })).toBeInTheDocument()
 

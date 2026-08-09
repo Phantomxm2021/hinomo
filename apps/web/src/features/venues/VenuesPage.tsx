@@ -147,7 +147,7 @@ export function VenuesPage() {
         open={editorOpen}
         venue={editTarget}
         pending={pending}
-        error={createMutation.isError || updateMutation.isError || deleteMutation.isError}
+        error={createMutation.error ?? updateMutation.error ?? deleteMutation.error}
         onClose={closeEditor}
         onSubmit={saveVenue}
         onDelete={removeVenue}

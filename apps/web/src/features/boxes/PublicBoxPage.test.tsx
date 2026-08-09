@@ -5,6 +5,8 @@ import { createMemoryRouter, RouterProvider, useLocation, useNavigate } from 're
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { Session } from '@supabase/supabase-js'
 import { AuthProvider } from '../auth/AuthProvider'
+import { I18nProvider } from '../../i18n/I18nProvider'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { PublicBoxPage } from './PublicBoxPage'
 
 const { mockGetBoxByPublicId, mockCreateItem, mockDeleteItem, mockGetVenueAccessSummary, mockListBoxes, mockListItemMovements, mockMatchMedia, mockMoveItem, mockReturnItem, mockTakeOutItem, mockUpdateItem, mockGetCreditSummary } = vi.hoisted(() => ({
@@ -77,14 +79,14 @@ function renderPublicBox(
   entry = '/b/public-1',
 ) {
   return render(
-    <QueryClientProvider client={client}>
+    <I18nProvider><MobileFeedbackProvider><QueryClientProvider client={client}>
       <RouterProvider router={createMemoryRouter([
         { path: '/b/:publicId', element: <AuthProvider session={session}><PublicBoxPage /><NavigationProbe /></AuthProvider> },
         { path: '/previous', element: <h1>上一页</h1> },
         { path: '/app', element: <h1>我的空间</h1> },
         { path: '/app/scan', element: <h1>扫码查看</h1> },
       ], { initialEntries: ['/previous', entry], initialIndex: 1 })} />
-    </QueryClientProvider>,
+    </QueryClientProvider></MobileFeedbackProvider></I18nProvider>,
   )
 }
 
@@ -128,13 +130,12 @@ test('shows a structured skeleton while the public box is loading', () => {
   )
 })
 
-test('shows the initial public-box error in the global responsive alert layer', async () => {
+test('shows the initial public-box error with a visible retry action', async () => {
   mockGetBoxByPublicId.mockRejectedValue(new Error('network'))
   renderPublicBox()
 
   const alert = await screen.findByRole('alert')
-  expect(alert.closest('main')).toBeNull()
-  expect(alert.parentElement).toHaveClass('fixed', 'inset-0')
+  expect(alert.closest('main')).not.toBeNull()
   expect(alert).toHaveTextContent('箱子加载失败，请检查网络后重试')
 })
 
@@ -152,14 +153,10 @@ test('keeps cached public-box details visible when a refetch fails', async () =>
   renderPublicBox(null, client)
 
   expect(await screen.findByRole('heading', { name: '缓存工具箱' })).toBeInTheDocument()
-  const alert = await screen.findByRole('alert')
-  expect(alert).toHaveTextContent('箱子刷新失败，正在显示上次内容')
+  const alert = await screen.findByRole('alertdialog')
+  expect(alert).toHaveTextContent('暂时无法完成此操作')
   await user.click(within(alert).getByRole('button', { name: '重试' }))
-  const retrying = within(alert).getByRole('button', { name: '重试中…' })
-  expect(retrying).toBeDisabled()
-  expect(retrying).toHaveAttribute('aria-busy', 'true')
-  await user.click(retrying)
-  expect(mockGetBoxByPublicId).toHaveBeenCalledTimes(2)
+  await waitFor(() => expect(mockGetBoxByPublicId).toHaveBeenCalledTimes(2))
 })
 
 test('renders a public box for an anonymous visitor without edit controls', async () => {

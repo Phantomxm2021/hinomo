@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { useEffect, type PropsWithChildren } from 'react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { ItemForm } from './ItemForm'
 
 const { mockCreateItem, mockUpdateItem, mockUpload } = vi.hoisted(() => ({
@@ -280,9 +281,9 @@ test('uploads a selected image after creating the item', async () => {
   mockCreateItem.mockResolvedValue({ id: 'item-1' })
   mockUpload.mockResolvedValue('boxes/box-1/items/item-1.webp')
   render(
-    <QueryClientProvider client={client}>
+    <MobileFeedbackProvider><QueryClientProvider client={client}>
       <ItemForm boxId="box-1" onSaved={onSaved} />
-    </QueryClientProvider>,
+    </QueryClientProvider></MobileFeedbackProvider>,
   )
 
   await user.type(screen.getByLabelText('物品名称'), '围巾')
@@ -303,9 +304,11 @@ test('preserves fields and retries only the failed image upload', async () => {
   mockCreateItem.mockResolvedValue({ id: 'item-1' })
   mockUpload.mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce('key')
   render(
-    <QueryClientProvider client={client}>
-      <ItemForm boxId="box-1" onSaved={onSaved} />
-    </QueryClientProvider>,
+    <MobileFeedbackProvider>
+      <QueryClientProvider client={client}>
+        <ItemForm boxId="box-1" onSaved={onSaved} />
+      </QueryClientProvider>
+    </MobileFeedbackProvider>,
   )
 
   await user.type(screen.getByLabelText('物品名称'), '不会丢失的围巾')
@@ -315,7 +318,7 @@ test('preserves fields and retries only the failed image upload', async () => {
   )
   await user.click(screen.getByRole('button', { name: '保存' }))
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('已保留填写内容')
+  expect(await screen.findByRole('alertdialog', { name: '图片上传失败，已保留填写内容。' })).toBeInTheDocument()
   expect(screen.getByLabelText('物品名称')).toHaveValue('不会丢失的围巾')
   await user.click(screen.getByRole('button', { name: '重试上传' }))
 
@@ -364,9 +367,9 @@ test('refreshes item validation messages when the locale changes', async () => {
   render(
     <I18nProvider>
       <LocaleHarness>
-        <QueryClientProvider client={client}>
+        <MobileFeedbackProvider><QueryClientProvider client={client}>
           <ItemForm boxId="box-1" onSaved={vi.fn()} />
-        </QueryClientProvider>
+        </QueryClientProvider></MobileFeedbackProvider>
       </LocaleHarness>
     </I18nProvider>,
   )
@@ -389,14 +392,16 @@ test('localizes an item save error in English', async () => {
   render(
     <I18nProvider>
       <EnglishProvider>
-        <QueryClientProvider client={client}>
-          <ItemForm boxId="box-1" onSaved={vi.fn()} />
-        </QueryClientProvider>
+        <MobileFeedbackProvider>
+          <QueryClientProvider client={client}>
+            <ItemForm boxId="box-1" onSaved={vi.fn()} />
+          </QueryClientProvider>
+        </MobileFeedbackProvider>
       </EnglishProvider>
     </I18nProvider>,
   )
 
   await user.type(screen.getByLabelText('Item name'), 'Camera')
   await user.click(screen.getByRole('button', { name: 'Save' }))
-  expect(await screen.findByRole('alert')).toHaveTextContent('Could not save. Please try again later.')
+  expect(await screen.findByRole('alertdialog', { name: 'Action couldn’t be completed' })).toHaveTextContent('This action couldn’t be completed')
 })

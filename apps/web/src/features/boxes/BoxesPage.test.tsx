@@ -6,6 +6,7 @@ import { createMemoryRouter, RouterProvider, useLocation, useNavigate, useNaviga
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { BoxesPage } from './BoxesPage'
 import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 
 const {
   mockDeleteBox,
@@ -53,15 +54,6 @@ vi.mock('../venues/venue-sharing.api', () => ({
   getVenueAccessSummary: mockGetVenueAccessSummary,
   isVenueAccessDenied: (error: unknown) => Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'venue_access_denied'),
   revokedVenueQueryKeys: [['venues'], ['venue-access'], ['spaces'], ['boxes'], ['box'], ['items'], ['search-items'], ['item-movements'], ['venue-activity'], ['box-plan']],
-}))
-
-vi.mock('../../components/mobile-feedback', () => ({
-  useMobileFeedback: () => ({
-    notify: mockNotify,
-    showAlert: vi.fn(),
-    showActionSheet: vi.fn(),
-    dismiss: vi.fn(),
-  }),
 }))
 
 vi.mock('./box-catalogue', async (importOriginal) => {
@@ -190,9 +182,7 @@ function renderBoxes(initialEntry = '/app/boxes', locale: 'zh-CN' | 'en-US' = 'z
       <RouterProvider router={router} />
     </QueryClientProvider>
   )
-  const localizedApp = locale === 'en-US'
-    ? <I18nProvider><EnglishProvider>{app}</EnglishProvider></I18nProvider>
-    : app
+  const localizedApp = <I18nProvider><MobileFeedbackProvider>{locale === 'en-US' ? <EnglishProvider>{app}</EnglishProvider> : app}</MobileFeedbackProvider></I18nProvider>
   return {
     client,
     router,
@@ -676,7 +666,7 @@ test('closes, refreshes, announces success, renders the new card, and restores f
 
   expect(screen.queryByRole('dialog', { name: '创建箱子' })).not.toBeInTheDocument()
   expect(await screen.findByRole('article', { name: '书籍' })).toBeInTheDocument()
-  expect(screen.getByRole('status', { name: '箱子已创建' })).toBeInTheDocument()
+  expect(screen.getAllByRole('status', { name: '箱子已创建' })).not.toHaveLength(0)
   expect(screen.getByRole('link', { name: '记录箱内物品' })).toHaveAttribute('href', '/b/public-new')
   expect(mockModalCleanupSawStatus).toHaveBeenCalledWith(false)
   expect(document.querySelector('[data-app-shell]')).not.toHaveAttribute('inert')
@@ -694,10 +684,10 @@ test('keeps the creation next step visible long enough to act on it', async () =
 
   fireEvent.click(screen.getByRole('button', { name: '完成测试创建' }))
   await act(async () => { await Promise.resolve() })
-  expect(screen.getByRole('status', { name: '箱子已创建' })).toBeInTheDocument()
+  expect(screen.getAllByRole('status', { name: '箱子已创建' })).not.toHaveLength(0)
 
   act(() => { vi.advanceTimersByTime(12_000) })
-  expect(screen.queryByRole('status', { name: '箱子已创建' })).not.toBeInTheDocument()
+  expect(document.querySelector('section[role="status"][aria-label="箱子已创建"]')).toBeNull()
   vi.useRealTimers()
 })
 
@@ -725,11 +715,11 @@ test('clears an earlier success status when starting another creation', async ()
   renderBoxes('/app/boxes?create=1')
 
   await user.click(await screen.findByRole('button', { name: '完成测试创建' }))
-  await screen.findByRole('status', { name: '箱子已创建' })
+  await screen.findAllByRole('status', { name: '箱子已创建' })
   await user.click(screen.getByRole('button', { name: '创建箱子' }))
 
   expect(screen.getByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
-  expect(screen.queryByRole('status', { name: '箱子已创建' })).not.toBeInTheDocument()
+  expect(document.querySelector('section[role="status"][aria-label="箱子已创建"]')).toBeNull()
 })
 
 test('lets browser back close a modal opened from the list and restores focus', async () => {
@@ -772,7 +762,7 @@ test('cleans a canceled purchase return and announces the cancellation', async (
   await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?space=space-1'))
   expect(screen.getByTestId('location')).not.toHaveTextContent('purchase=')
   expect(screen.getByTestId('location')).not.toHaveTextContent('session_id=')
-  expect(mockNotify).toHaveBeenCalledWith('已取消购买无限箱子')
+  expect(await screen.findByRole('status', { name: '已取消购买无限箱子' })).toBeInTheDocument()
 })
 
 test('opens creation after a successful purchase return confirms the entitlement', async () => {
@@ -788,7 +778,7 @@ test('opens creation after a successful purchase return confirms the entitlement
   expect(screen.getByTestId('location')).toHaveTextContent('create=1')
   expect(screen.getByTestId('location')).not.toHaveTextContent('purchase=')
   expect(screen.getByTestId('location')).not.toHaveTextContent('session_id=')
-  expect(mockNotify).toHaveBeenCalledWith('无限箱子已永久解锁')
+  expect(await screen.findByRole('status', { name: '无限箱子已永久解锁' })).toBeInTheDocument()
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['boxes'] })
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['box-plan'] })
 })
@@ -855,9 +845,9 @@ test('keeps checkout busy until navigation and shows a retryable billing error w
   await user.click(await screen.findByRole('button', { name: '模拟额度竞态' }))
   await user.click(screen.getByRole('button', { name: 'HK$38 永久解锁' }))
 
-  const error = await screen.findByRole('alert')
-  expect(error).toHaveTextContent('暂时无法连接支付服务，请稍后重试')
-  expect(mockNotify).not.toHaveBeenCalled()
+  const error = await screen.findByRole('alertdialog')
+  expect(error).toHaveTextContent('暂时无法完成此操作')
+  expect(screen.queryByRole('status', { name: /无限箱子已永久解锁|已取消购买无限箱子/ })).not.toBeInTheDocument()
   expect(screen.getByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
   expect(screen.getByRole('dialog', { name: '免费版最多可保有 3 个箱子' })).toBeInTheDocument()
 
@@ -883,7 +873,7 @@ test('refreshes an already-owned entitlement and resumes creation instead of sho
   expect(await screen.findByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
   expect(screen.queryByRole('dialog', { name: '免费版最多可保有 3 个箱子' })).not.toBeInTheDocument()
   expect(screen.queryByText('暂时无法连接支付服务，请稍后重试')).not.toBeInTheDocument()
-  expect(mockNotify).toHaveBeenCalledWith('你已拥有无限箱子权益')
+  expect(await screen.findByRole('status', { name: '你已拥有无限箱子权益' })).toBeInTheDocument()
 })
 
 test('removes a deleted box and closes the dialog before catalogue revalidation finishes', async () => {
@@ -975,8 +965,8 @@ test('keeps the stale catalogue available when a background refetch fails', asyn
   expect(await screen.findByRole('link', { name: '打开冬季衣物' })).toBeInTheDocument()
   await act(async () => { await client.invalidateQueries({ queryKey: ['boxes'] }) })
 
-  const refetchAlert = await screen.findByRole('alert')
-  expect(refetchAlert).toHaveTextContent('箱子刷新失败，正在显示上次结果')
+  const refetchAlert = await screen.findByRole('alertdialog')
+  expect(refetchAlert).toHaveTextContent('暂时无法完成此操作')
   expect(screen.getByText('2 个箱子 · 20 件物品')).toBeInTheDocument()
   expect(screen.queryByRole('searchbox', { name: '搜索箱子' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: '卧室 1' })).toHaveAttribute('aria-pressed', 'true')

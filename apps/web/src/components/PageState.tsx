@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { AppIcon, type AppIconName } from './AppIcon'
-import { ResponsiveOperationError } from './ResponsiveOperationError'
 import { Skeleton, SkeletonGroup } from './Skeleton'
+import { useI18n } from '../i18n/I18nProvider'
 
 type PageStateProps =
   | { state: 'loading'; label: string }
@@ -9,6 +9,7 @@ type PageStateProps =
   | { state: 'error'; message: string; onRetry: () => void; retryLabel?: string }
 
 export function PageState(props: PageStateProps) {
+  const { t } = useI18n()
   if (props.state === 'loading') {
     return (
       <SkeletonGroup className="min-h-40 rounded-card border border-line bg-surface/70 p-6" label={props.label}>
@@ -40,5 +41,15 @@ export function PageState(props: PageStateProps) {
     )
   }
 
-  return <ResponsiveOperationError message={props.message} onRetry={props.onRetry} retryLabel={props.retryLabel} />
+  return (
+    <section className="grid min-h-44 place-content-center justify-items-center gap-3 rounded-card border border-danger/20 bg-danger/5 px-6 py-10 text-center" data-page-state="error" role="alert">
+      <span className="grid size-12 place-items-center rounded-[1rem] bg-danger/10 text-danger" aria-hidden="true">
+        <AppIcon name="close" size={22} />
+      </span>
+      <p className="m-0 max-w-sm text-meta leading-relaxed text-ink">{props.message}</p>
+      <button className="mt-1 inline-flex min-h-10 items-center rounded-full border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink shadow-soft" type="button" onClick={props.onRetry}>
+        {props.retryLabel ?? t('common.retry')}
+      </button>
+    </section>
+  )
 }

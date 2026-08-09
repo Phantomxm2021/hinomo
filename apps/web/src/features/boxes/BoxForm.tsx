@@ -41,8 +41,6 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimi
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [pendingBox, setPendingBox] = useState<CreatedBox | null>(null)
   const [mediaError, setMediaError] = useState(false)
-  const retryCoverUploadRef = useRef<() => void>(() => undefined)
-  const finishWithoutCoverRef = useRef<() => void>(() => undefined)
   const mediaUpload = useMediaUpload()
   const mediaStatus = uploadStageLabel(mediaUpload.stage)
   const createMutation = useMutation({
@@ -141,25 +139,11 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimi
   function finishWithoutCover() {
     if (pendingBox) onCompleted?.(pendingBox)
   }
-  retryCoverUploadRef.current = () => { void retryCoverUpload() }
-  finishWithoutCoverRef.current = finishWithoutCover
 
   useEffect(() => {
     if (!saved || onSaved) return
     feedback.notify(t('boxes.saved'))
   }, [feedback, onSaved, saved, t])
-
-  useEffect(() => {
-    if (!mediaError) return
-    feedback.showActionSheet({
-      title: t('boxes.coverUploadFailed'),
-      message: t('boxes.formPreserved'),
-      actions: [
-        { label: t('boxes.retryUpload'), onSelect: () => retryCoverUploadRef.current() },
-        ...(pendingBox ? [{ label: t('boxes.skipUpload'), onSelect: () => finishWithoutCoverRef.current() }] : []),
-      ],
-    })
-  }, [feedback, mediaError, pendingBox, t])
 
   const submit = handleSubmit(async (values) => {
     if (!editing && pendingBox) return
@@ -308,7 +292,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimi
         {saved ? <p className="hidden lg:block" role="status">{t('boxes.saved')}</p> : null}
         {mediaStatus ? <p className="hidden lg:block" role="status">{t('boxes.mediaProcessing', { status: t(mediaStatus) })}</p> : null}
         {!editing && pendingBox ? (
-          <div className="hidden gap-3 rounded-control border border-danger/30 bg-danger/5 p-4 lg:grid" role={mediaError ? 'alert' : 'status'}>
+          <div className="hidden gap-3 rounded-control border border-danger/30 bg-danger/5 p-4 lg:grid" role="status">
             <p>{t('boxes.coverIncomplete')}</p>
             <div className="flex flex-wrap gap-2">
               {coverFile ? (
@@ -320,11 +304,12 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimi
             </div>
           </div>
         ) : mediaError ? (
-          <div className="hidden gap-3 rounded-control border border-danger/30 bg-danger/5 p-4 lg:grid" role="alert">
+          <div className="hidden gap-3 rounded-control border border-danger/30 bg-danger/5 p-4 lg:grid" role="status">
             <p>{t('boxes.coverUploadError')}</p>
             <button className="min-h-11 w-fit rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold text-danger" type="button" onClick={() => void retryCoverUpload()}>{t('boxes.retryUpload')}</button>
           </div>
         ) : null}
+        {mediaError ? <ResponsiveOperationError message={t('boxes.coverUploadError')} onRetry={() => void retryCoverUpload()} /> : null}
         {!editing && pendingBox ? null : (
           <button
             className="mt-2 min-h-12 w-full rounded-control border border-brand bg-brand px-5 py-2 font-bold text-white hover:bg-brand-strong sm:min-h-11 sm:w-auto"

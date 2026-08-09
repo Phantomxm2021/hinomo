@@ -7,6 +7,7 @@ import {
 } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { LoginPage } from './LoginPage'
 
 const { mockSignInWithPassword } = vi.hoisted(() => ({
@@ -42,8 +43,10 @@ function renderLogin(returnTo?: string) {
 
   render(
     <I18nProvider>
-      <LocaleControls />
-      <RouterProvider router={router} />
+      <MobileFeedbackProvider>
+        <LocaleControls />
+        <RouterProvider router={router} />
+      </MobileFeedbackProvider>
     </I18nProvider>,
   )
   return router
@@ -134,7 +137,7 @@ describe('LoginPage', () => {
 
     await submitValidCredentials()
 
-    const alert = await screen.findByRole('alert')
+    const alert = await screen.findByRole('alertdialog')
     expect(alert).toHaveTextContent('邮箱或密码不正确')
     expect(alert).not.toHaveTextContent('Invalid login credentials')
   })
@@ -147,10 +150,10 @@ describe('LoginPage', () => {
     renderLogin()
 
     await submitValidCredentials()
-    expect(await screen.findByRole('alert')).toHaveTextContent('邮箱或密码不正确')
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('邮箱或密码不正确')
 
     await userEvent.setup().click(screen.getByRole('button', { name: 'English' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('The email or password is incorrect.')
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('The email or password is incorrect.')
   })
 
   it('rejects a protocol-relative return target', async () => {

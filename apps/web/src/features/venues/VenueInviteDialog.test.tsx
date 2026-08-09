@@ -2,6 +2,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { I18nProvider } from '../../i18n/I18nProvider'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { VenueInviteDialog } from './VenueInviteDialog'
 
 const mocks = vi.hoisted(() => ({ qr: vi.fn(), revoke: vi.fn(), copy: vi.fn(), share: vi.fn() }))
@@ -11,7 +12,7 @@ vi.mock('../../lib/env', () => ({ publicAppOrigin: () => 'https://nomo.example/'
 
 function renderDialog(overrides: Partial<Parameters<typeof VenueInviteDialog>[0]> = {}) {
   const props: Parameters<typeof VenueInviteDialog>[0] = { open: true, invite: { invite_id: 'invite-1', token: 'raw-token', expires_at: '2026-08-10T00:00:00Z' }, onClose: vi.fn(), ...overrides }
-  render(<I18nProvider><button type="button">触发器</button><VenueInviteDialog {...props} /></I18nProvider>)
+  render(<I18nProvider><MobileFeedbackProvider><button type="button">触发器</button><VenueInviteDialog {...props} /></MobileFeedbackProvider></I18nProvider>)
   return props
 }
 
@@ -71,4 +72,22 @@ test('supports Escape, contains focus, restores focus, and uses the mobile safe-
   expect(dialog).toContainElement(document.activeElement as HTMLElement)
   await user.keyboard('{Escape}')
   expect(props.onClose).toHaveBeenCalled()
+})
+
+test('opens the shared Apple alert when sharing fails for a reason other than cancellation', async () => {
+  const user = userEvent.setup()
+  mocks.share.mockRejectedValue(new TypeError('Failed to fetch'))
+  renderDialog()
+
+  await user.click(screen.getByRole('button', { name: '分享邀请链接' }))
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('网络连接出现问题')
+})
+
+test('keeps user-cancelled share sheets quiet', async () => {
+  const user = userEvent.setup()
+  mocks.share.mockRejectedValue(new DOMException('cancelled', 'AbortError'))
+  renderDialog()
+
+  await user.click(screen.getByRole('button', { name: '分享邀请链接' }))
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
 })

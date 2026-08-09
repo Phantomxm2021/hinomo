@@ -6,6 +6,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { AppShell } from '../../app/AppShell'
 import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { AuthProvider } from '../../features/auth/AuthProvider'
 import { SpacesPage } from './SpacesPage'
 
@@ -61,11 +62,11 @@ function renderSpaces(initialEntry = '/app/spaces') {
 
   function Wrapper({ children }: PropsWithChildren) {
     return (
-      <MemoryRouter initialEntries={[initialEntry]}>
+      <I18nProvider><MobileFeedbackProvider><MemoryRouter initialEntries={[initialEntry]}>
         <div data-app-shell>
           <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
         </div>
-      </MemoryRouter>
+      </MemoryRouter></MobileFeedbackProvider></I18nProvider>
     )
   }
 
@@ -579,7 +580,7 @@ test('keeps the editor open with a safe error when an update fails', async () =>
   await user.type(screen.getByLabelText('空间名称'), '新家')
   await user.click(screen.getByRole('button', { name: '保存空间' }))
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('保存失败，请稍后重试')
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('暂时无法完成此操作')
   expect(screen.getByRole('dialog', { name: '编辑空间' })).toBeInTheDocument()
   expect(screen.queryByText('sensitive update details')).not.toBeInTheDocument()
 })
@@ -665,7 +666,7 @@ test('reports a real layout query failure without hiding the automatic plan', as
 
   await user.click(await screen.findByRole('button', { name: '平面视图' }))
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('布局加载失败；当前显示自动布局')
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('暂时无法完成此操作')
   expect(screen.getByRole('region', { name: '空间平面总览' })).toBeInTheDocument()
   const editLayout = screen.getByRole('button', { name: '调整布局' })
   expect(editLayout).toBeEnabled()
@@ -685,7 +686,7 @@ test('allows local layout editing when layout SQL is not installed', async () =>
 
   await user.click(await screen.findByRole('button', { name: '平面视图' }))
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('布局保存尚未启用，请先执行 space_layouts 数据库迁移')
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('布局保存尚未启用，请先执行 space_layouts 数据库迁移')
   const editLayout = screen.getByRole('button', { name: '调整布局' })
   expect(editLayout).toBeEnabled()
   await user.click(editLayout)
@@ -767,8 +768,8 @@ test('retries the last layout payload after a save failure', async () => {
   await user.click(screen.getByRole('button', { name: '调整布局' }))
   fireEvent.keyDown(screen.getByRole('link', { name: /客厅/ }), { key: 'ArrowRight' })
 
-  const alert = await screen.findByRole('alert')
-  expect(alert).toHaveTextContent('布局保存失败')
+  const alert = await screen.findByRole('alertdialog')
+  expect(alert).toHaveTextContent('暂时无法完成此操作')
   await user.click(within(alert).getByRole('button', { name: '重试保存布局' }))
 
   await waitFor(() => expect(mockSaveSpaceLayout).toHaveBeenCalledTimes(2))
@@ -788,7 +789,7 @@ test('explains why a non-empty space cannot be deleted', async () => {
   await user.click(await screen.findByRole('button', { name: '删除家' }))
 
   expect(screen.getByRole('button', { name: '删除家' })).not.toHaveAttribute('aria-disabled')
-  expect(screen.getByRole('alert')).toHaveTextContent(
+  expect(screen.getByRole('alertdialog')).toHaveTextContent(
     '请先移动或删除其中的 2 个箱子',
   )
   expect(mockDeleteSpace).not.toHaveBeenCalled()
@@ -843,7 +844,7 @@ test('keeps localized mutation errors without leaking backend text', async () =>
     }),
   )
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('保存失败，请稍后重试')
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('暂时无法完成此操作')
   expect(screen.getByRole('dialog', { name: '创建空间' })).toBeInTheDocument()
   expect(screen.queryByText('sensitive create details')).not.toBeInTheDocument()
 
@@ -852,9 +853,9 @@ test('keeps localized mutation errors without leaking backend text', async () =>
   await user.click(deleteButton)
   await user.click(screen.getByRole('button', { name: '确认删除' }))
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('删除失败，请稍后重试')
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('暂时无法完成此操作')
   expect(screen.queryByText('sensitive delete details')).not.toBeInTheDocument()
-  expect(screen.getByRole('button', { name: '确认删除' })).toHaveFocus()
+  expect(screen.getByRole('button', { name: '好' })).toHaveFocus()
 
   await user.click(screen.getByRole('button', { name: '取消' }))
   await waitFor(() => expect(deleteButton).toHaveFocus())

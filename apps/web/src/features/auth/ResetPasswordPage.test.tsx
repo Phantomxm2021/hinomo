@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../../i18n/I18nProvider'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { AuthProvider } from './AuthProvider'
 import { AuthContext } from './auth-context'
 import { ResetPasswordPage } from './ResetPasswordPage'
@@ -42,12 +43,14 @@ function renderReset(
   )
   render(
     <I18nProvider>
-      <AuthProvider
-        session={session}
-        isPasswordRecovery={isPasswordRecovery}
-      >
-        <RouterProvider router={router} />
-      </AuthProvider>
+      <MobileFeedbackProvider>
+        <AuthProvider
+          session={session}
+          isPasswordRecovery={isPasswordRecovery}
+        >
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </MobileFeedbackProvider>
     </I18nProvider>,
   )
 }
@@ -59,9 +62,11 @@ function renderLoadingReset() {
   )
   render(
     <I18nProvider>
-      <AuthContext.Provider value={{ session: null, loading: true, isPasswordRecovery: false }}>
-        <RouterProvider router={router} />
-      </AuthContext.Provider>
+      <MobileFeedbackProvider>
+        <AuthContext.Provider value={{ session: null, loading: true, isPasswordRecovery: false }}>
+          <RouterProvider router={router} />
+        </AuthContext.Provider>
+      </MobileFeedbackProvider>
     </I18nProvider>,
   )
 }
@@ -107,7 +112,7 @@ describe('ResetPasswordPage', () => {
   it('rejects an ordinary authenticated session without updating the user', () => {
     renderReset({ access_token: 'ordinary-token' } as Session, false)
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
       '重置链接无效或已过期',
     )
     expect(
@@ -119,7 +124,7 @@ describe('ResetPasswordPage', () => {
   it('rejects a reset page without a recovery session', () => {
     renderReset(null)
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
       '重置链接无效或已过期',
     )
     expect(

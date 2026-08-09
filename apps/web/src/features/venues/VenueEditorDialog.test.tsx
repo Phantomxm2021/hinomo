@@ -2,6 +2,8 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { VenueEditorDialog } from './VenueEditorDialog'
+import { I18nProvider } from '../../i18n/I18nProvider'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 
 afterEach(cleanup)
 
@@ -18,9 +20,14 @@ function renderEditor(overrides: Partial<Parameters<typeof VenueEditorDialog>[0]
     onDelete: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   }
-  render(<VenueEditorDialog {...props} />)
+  render(<I18nProvider><MobileFeedbackProvider><VenueEditorDialog {...props} /></MobileFeedbackProvider></I18nProvider>)
   return props
 }
+
+test('normalizes actual venue mutation errors through the shared Apple alert', async () => {
+  renderEditor({ error: { code: 'venue_owner_required' } })
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('仅场地主人可以执行此操作')
+})
 
 test('validates an empty venue name before calling the API', async () => {
   const user = userEvent.setup()

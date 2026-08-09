@@ -5,6 +5,8 @@ import { MemoryRouter } from 'react-router-dom'
 import { useState } from 'react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { BoxForm } from './BoxForm'
+import { I18nProvider } from '../../i18n/I18nProvider'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 
 const { mockCreateBox, mockGetBox, mockListSpaces, mockBoxQrPng, mockUpdateBox, mockUpload, mockUploadReset } = vi.hoisted(() => ({
   mockCreateBox: vi.fn(),
@@ -34,11 +36,11 @@ function renderBoxForm(initialEntry = '/app/boxes/new', client = new QueryClient
     defaultOptions: { queries: { retry: false } },
   })) {
   return render(
-    <MemoryRouter initialEntries={[initialEntry]}>
+    <I18nProvider><MobileFeedbackProvider><MemoryRouter initialEntries={[initialEntry]}>
       <QueryClientProvider client={client}>
         <BoxFormTestHarness initialEntry={initialEntry} />
       </QueryClientProvider>
-    </MemoryRouter>,
+    </MemoryRouter></MobileFeedbackProvider></I18nProvider>,
   )
 }
 
@@ -55,11 +57,11 @@ function BoxFormTestHarness({ initialEntry }: { initialEntry: string }) {
 function renderModalBoxForm(onCompleted = vi.fn(), onBusyChange?: (busy: boolean) => void, boxId?: string, onSaved?: () => void) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <MemoryRouter>
+    <I18nProvider><MobileFeedbackProvider><MemoryRouter>
       <QueryClientProvider client={client}>
         <BoxForm boxId={boxId} presentation="modal" onCompleted={onCompleted} onBusyChange={onBusyChange} onSaved={onSaved} />
       </QueryClientProvider>
-    </MemoryRouter>,
+    </MemoryRouter></MobileFeedbackProvider></I18nProvider>,
   )
 }
 
@@ -168,7 +170,7 @@ test('keeps a created box and selected cover available when upload fails, then r
   await user.upload(screen.getByLabelText('箱子封面（可选）'), file)
   await user.click(screen.getByRole('button', { name: '创建箱子' }))
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('箱子记录已创建，但封面未完成')
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('图片上传失败')
   expect(onCompleted).not.toHaveBeenCalled()
   expect(screen.queryByRole('button', { name: '创建箱子' })).not.toBeInTheDocument()
   fireEvent.submit(screen.getByRole('button', { name: '重试上传' }).closest('form')!)
@@ -257,14 +259,10 @@ test('keeps form values visible when cached spaces fail to refetch', async () =>
 
   await user.selectOptions(screen.getByLabelText('空间'), 'space-home')
   await user.type(screen.getByLabelText('箱子名称'), '保留中的填写')
-  const alert = await screen.findByRole('alert')
-  expect(alert).toHaveTextContent('空间刷新失败，正在显示上次结果')
+  const alert = await screen.findByRole('alertdialog')
+  expect(alert).toHaveTextContent('暂时无法完成此操作')
   expect(screen.getByLabelText('箱子名称')).toHaveValue('保留中的填写')
   await user.click(within(alert).getByRole('button', { name: '重试' }))
-  const retrying = within(alert).getByRole('button', { name: '重试中…' })
-  expect(retrying).toBeDisabled()
-  expect(retrying).toHaveAttribute('aria-busy', 'true')
-  await user.click(retrying)
   expect(mockListSpaces).toHaveBeenCalledTimes(2)
 })
 
@@ -286,14 +284,10 @@ test('keeps edited values visible when the cached box fails to refetch', async (
   const nameInput = await screen.findByDisplayValue('旧名称')
   await user.clear(nameInput)
   await user.type(nameInput, '用户未保存的名称')
-  const alert = await screen.findByRole('alert')
-  expect(alert).toHaveTextContent('箱子刷新失败，正在显示上次内容')
+  const alert = await screen.findByRole('alertdialog')
+  expect(alert).toHaveTextContent('暂时无法完成此操作')
   expect(nameInput).toHaveValue('用户未保存的名称')
   await user.click(within(alert).getByRole('button', { name: '重试' }))
-  const retrying = within(alert).getByRole('button', { name: '重试中…' })
-  expect(retrying).toBeDisabled()
-  expect(retrying).toHaveAttribute('aria-busy', 'true')
-  await user.click(retrying)
   expect(mockGetBox).toHaveBeenCalledTimes(2)
 })
 
@@ -313,12 +307,12 @@ test('clears saved state and a selected cover when switching boxes', async () =>
   const cover = new File(['cover'], 'box-1.png', { type: 'image/png' })
   await user.upload(screen.getByLabelText('箱子封面（可选）'), cover)
   await user.click(screen.getByRole('button', { name: '保存修改' }))
-  expect(await screen.findByText('修改已保存')).toBeInTheDocument()
+  expect((await screen.findAllByText('修改已保存')).length).toBeGreaterThan(0)
   expect(mockUpload).toHaveBeenCalledWith({ file: cover, boxId: 'box-1', itemId: null, kind: 'cover' })
 
   await user.click(screen.getByRole('button', { name: '切换箱子' }))
   expect(await screen.findByDisplayValue('第二个箱子')).toBeInTheDocument()
-  expect(screen.queryByText('修改已保存')).not.toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: '编辑箱子' }).closest('section')?.textContent).not.toContain('修改已保存')
   expect(screen.getByLabelText('箱子封面（可选）')).toHaveValue('')
   await user.click(screen.getByRole('button', { name: '保存修改' }))
   await waitFor(() => expect(mockUpdateBox).toHaveBeenLastCalledWith('box-2', expect.any(Object)))
@@ -345,7 +339,7 @@ test('preserves user edits when retrying a cached box returns a new object', asy
   const nameInput = await screen.findByDisplayValue('缓存名称')
   await user.clear(nameInput)
   await user.type(nameInput, '用户未保存的名称')
-  await user.click(within(await screen.findByRole('alert')).getByRole('button', { name: '重试' }))
+  await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: '重试' }))
 
   await waitFor(() => expect(mockGetBox).toHaveBeenCalledTimes(2))
   await waitFor(() => expect(screen.queryByText('箱子刷新失败，正在显示上次内容')).not.toBeInTheDocument())
@@ -407,7 +401,7 @@ test('edits mutable fields without sending database identifiers', async () => {
     description: null,
     visibility: 'private',
   })
-  expect(await screen.findByRole('status')).toHaveTextContent('修改已保存')
+  expect((await screen.findAllByRole('status')).some((status) => status.textContent === '修改已保存')).toBe(true)
 })
 
 test('notifies edit completion only after the record and selected cover upload succeed', async () => {
@@ -448,7 +442,7 @@ test('waits for a failed replacement-cover retry before notifying edit completio
   await user.upload(screen.getByLabelText('箱子封面（可选）'), new File(['cover'], 'cover.jpg', { type: 'image/jpeg' }))
   await user.click(screen.getByRole('button', { name: '保存修改' }))
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('图片上传失败')
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('图片上传失败')
   expect(onSaved).not.toHaveBeenCalled()
   await user.click(screen.getByRole('button', { name: '重试上传' }))
   await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))

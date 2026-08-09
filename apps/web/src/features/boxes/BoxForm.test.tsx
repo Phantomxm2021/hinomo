@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { BoxForm } from './BoxForm'
 
 const { mockCreateBox, mockGetBox, mockListSpaces, mockUpdateBox, mockUploadReset } = vi.hoisted(() => ({
@@ -27,9 +28,9 @@ function renderForm(onLimitReached = vi.fn(), boxId?: string, onVenueAccessDenie
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <MemoryRouter>
-      <QueryClientProvider client={client}>
+      <MobileFeedbackProvider><QueryClientProvider client={client}>
         <BoxForm boxId={boxId} presentation="modal" onLimitReached={onLimitReached} onVenueAccessDenied={onVenueAccessDenied} />
-      </QueryClientProvider>
+      </QueryClientProvider></MobileFeedbackProvider>
     </MemoryRouter>,
   )
   return { onLimitReached, onVenueAccessDenied }
@@ -85,7 +86,7 @@ test('keeps ordinary create failures on the existing save-error path', async () 
   await user.type(screen.getByLabelText('箱子名称'), '工具')
   await user.click(screen.getByRole('button', { name: '创建箱子' }))
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('保存失败，请稍后重试')
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('暂时无法完成此操作')
   expect(onLimitReached).not.toHaveBeenCalled()
   expect(screen.getByLabelText('箱子名称')).toHaveValue('工具')
 })
@@ -99,7 +100,7 @@ test('keeps edit failures on the save-error path even when their message resembl
   await screen.findByDisplayValue('已有箱子')
   await user.click(screen.getByRole('button', { name: '保存修改' }))
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('保存失败，请稍后重试')
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('暂时无法完成此操作')
   expect(onLimitReached).not.toHaveBeenCalled()
 })
 

@@ -56,8 +56,10 @@ export function VenueInviteDialog({ open, invite, onClose }: VenueInviteDialogPr
     }
     try {
       await window.navigator.share({ title: t('venueSharing.shareTitle'), text: t('venueSharing.shareText'), url: inviteUrl })
-    } catch {
-      // Cancellation is intentionally quiet; the secret remains only in the current tab.
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      const classification = classifyFeedbackError(error)
+      feedback.error({ key: 'venue.invite.share', title: t(classification.titleKey), message: t(classification.messageKey) })
     }
   }
 

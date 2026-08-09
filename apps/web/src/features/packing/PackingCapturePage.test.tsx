@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { PHOTO_UPLOAD_MAX_BYTES } from '../../lib/photo-compression'
+import { I18nProvider } from '../../i18n/I18nProvider'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { PackingCaptureSheet } from './PackingCapturePage'
 
 const mocks = vi.hoisted(() => ({
@@ -58,11 +60,11 @@ const session = {
 function renderSheet() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <MemoryRouter>
+    <I18nProvider><MobileFeedbackProvider><MemoryRouter>
       <QueryClientProvider client={client}>
         <PackingCaptureSheet boxId="box-1" onClose={mocks.onClose} onCompleted={mocks.onCompleted} onVenueAccessDenied={mocks.onVenueAccessDenied} />
       </QueryClientProvider>
-    </MemoryRouter>,
+    </MemoryRouter></MobileFeedbackProvider></I18nProvider>,
   )
 }
 
@@ -216,7 +218,7 @@ test('reports the exact finish stage to the Vite terminal bridge', async () => {
       error: expect.objectContaining({ message: 'canvas encoding failed' }),
     }),
   ))
-  expect(await screen.findByRole('alert')).toHaveTextContent('照片或分析索引尚未上传完成')
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('照片或分析索引尚未上传完成')
 })
 
 test('uploads directly when iPhone IndexedDB cannot persist the compressed draft', async () => {
@@ -272,7 +274,7 @@ test('retains a local draft when upload fails', async () => {
 
   await user.upload(await screen.findByLabelText('拍摄装箱照片'), new File(['photo'], 'photo.jpg', { type: 'image/jpeg' }))
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('照片上传失败')
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('照片上传失败')
   expect(mocks.deleteDraft).not.toHaveBeenCalled()
   expect(screen.getByRole('button', { name: '完成' })).toBeDisabled()
 })

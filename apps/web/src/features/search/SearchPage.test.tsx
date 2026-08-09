@@ -6,6 +6,7 @@ import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { SearchPage } from './SearchPage'
 import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 
 const { mockListBoxes, mockSearchItems } = vi.hoisted(() => ({
   mockListBoxes: vi.fn(),
@@ -47,13 +48,13 @@ function NavigationControls() {
 function renderSearch(initialEntry = '/app/search', client: QueryClient | undefined = undefined) {
   const queryClient = client ?? new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <MemoryRouter initialEntries={[initialEntry]}>
+    <I18nProvider><MobileFeedbackProvider><MemoryRouter initialEntries={[initialEntry]}>
       <QueryClientProvider client={queryClient}>
         <SearchPage />
         <LocationProbe />
         <NavigationControls />
       </QueryClientProvider>
-    </MemoryRouter>,
+    </MemoryRouter></MobileFeedbackProvider></I18nProvider>,
   )
 }
 
@@ -101,7 +102,7 @@ test('shows item results with a local retry when boxes initially fail', async ()
   renderSearch('/app/search?q=充电器')
 
   expect(await screen.findByText('USB-C 充电器 × 2')).toBeInTheDocument()
-  expect(screen.getByRole('alert')).toHaveTextContent('箱子结果加载失败')
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('暂时无法完成此操作')
   expect(screen.queryByText('搜索失败，请重试')).not.toBeInTheDocument()
 })
 
@@ -111,7 +112,7 @@ test('shows box results with a local retry when items initially fail', async () 
   renderSearch('/app/search?q=充电器')
 
   expect(await screen.findByText('充电器收纳箱')).toBeInTheDocument()
-  expect(screen.getByRole('alert')).toHaveTextContent('物品结果加载失败')
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('暂时无法完成此操作')
   expect(screen.queryByText('搜索失败，请重试')).not.toBeInTheDocument()
 })
 
@@ -131,22 +132,12 @@ test('keeps cached box and item results visible when their refetches fail', asyn
 
   expect(await screen.findByText('充电器收纳箱')).toBeInTheDocument()
   expect(screen.getByText('USB-C 充电器 × 2')).toBeInTheDocument()
-  await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(2))
-  const alerts = screen.getAllByRole('alert')
-  expect(alerts[0]).toHaveTextContent('箱子结果刷新失败')
-  expect(alerts[1]).toHaveTextContent('物品结果刷新失败')
+  await waitFor(() => expect(screen.getAllByRole('alertdialog')).toHaveLength(1))
+  const alerts = screen.getAllByRole('alertdialog')
+  expect(alerts[0]).toHaveTextContent('暂时无法完成此操作')
   const boxRetry = within(alerts[0]).getByRole('button', { name: '重试' })
   await user.click(boxRetry)
-  expect(within(alerts[0]).getByRole('button', { name: '重试中…' })).toBeDisabled()
-  expect(within(alerts[0]).getByRole('button', { name: '重试中…' })).toHaveAttribute('aria-busy', 'true')
-  await user.click(within(alerts[0]).getByRole('button', { name: '重试中…' }))
-  expect(mockListBoxes).toHaveBeenCalledTimes(2)
-
-  const itemRetry = within(alerts[1]).getByRole('button', { name: '重试' })
-  await user.click(itemRetry)
-  expect(within(alerts[1]).getByRole('button', { name: '重试中…' })).toBeDisabled()
-  await user.click(within(alerts[1]).getByRole('button', { name: '重试中…' }))
-  expect(mockSearchItems).toHaveBeenCalledTimes(2)
+  await waitFor(() => expect(mockSearchItems).toHaveBeenCalledTimes(2))
 })
 
 test('initializes from q and groups matching boxes and items', async () => {
