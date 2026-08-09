@@ -22,10 +22,11 @@ test('renders an empty title and optional action', () => {
   expect(screen.getByRole('link', { name: '创建箱子' }).parentElement).toHaveClass('mt-1')
 })
 
-test('retries an error state', async () => {
+test('announces an error as a heading and keeps retry accessible', async () => {
   const onRetry = vi.fn()
   render(<PageState state="error" message="箱子加载失败" onRetry={onRetry} />)
   expect(screen.getByRole('alert')).toHaveTextContent('箱子加载失败')
+  expect(screen.getByRole('heading', { name: '箱子加载失败' })).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: '重试' }))
   expect(onRetry).toHaveBeenCalledOnce()
 })

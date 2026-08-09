@@ -46,7 +46,7 @@ export function PageState(props: PageStateProps) {
       <span className="grid size-12 place-items-center rounded-[1rem] bg-danger/10 text-danger" aria-hidden="true">
         <AppIcon name="close" size={22} />
       </span>
-      <p className="m-0 max-w-sm text-meta leading-relaxed text-ink">{props.message}</p>
+      <h2 className="m-0 max-w-sm text-card-title font-semibold tracking-[-0.02em] text-ink">{props.message}</h2>
       <button className="mt-1 inline-flex min-h-10 items-center rounded-full border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink shadow-soft" type="button" onClick={props.onRetry}>
         {props.retryLabel ?? t('common.retry')}
       </button>
