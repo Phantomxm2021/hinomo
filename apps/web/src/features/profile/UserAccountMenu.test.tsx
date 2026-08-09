@@ -1,6 +1,6 @@
 import type { Session } from '@supabase/supabase-js'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
@@ -110,6 +110,38 @@ test('makes the credit balance and store available from the desktop account menu
   expect(screen.getByRole('menuitem', { name: 'AI 点数，82 点数，购买额度' })).toHaveAttribute('href', '/app/me/credits')
 })
 
+test('closes the account menu when a pointer lands outside the portal', async () => {
+  const user = userEvent.setup()
+  mockGetProfile.mockResolvedValue({
+    id: 'user-1', display_name: '小诺', avatar_object_key: null, locale: 'zh-CN',
+  })
+  renderMenu()
+
+  await screen.findByText('小诺')
+  await user.click(screen.getByRole('button', { name: '打开账户菜单' }))
+  expect(screen.getByRole('menu', { name: '账户' })).toBeInTheDocument()
+
+  fireEvent.pointerDown(document.body)
+
+  expect(screen.queryByRole('menu', { name: '账户' })).not.toBeInTheDocument()
+})
+
+test('closes the account menu when the browser window loses focus', async () => {
+  const user = userEvent.setup()
+  mockGetProfile.mockResolvedValue({
+    id: 'user-1', display_name: '小诺', avatar_object_key: null, locale: 'zh-CN',
+  })
+  renderMenu()
+
+  await screen.findByText('小诺')
+  await user.click(screen.getByRole('button', { name: '打开账户菜单' }))
+  expect(screen.getByRole('menu', { name: '账户' })).toBeInTheDocument()
+
+  window.dispatchEvent(new Event('blur'))
+
+  await waitFor(() => expect(screen.queryByRole('menu', { name: '账户' })).not.toBeInTheDocument())
+})
+
 test('localizes credit store copy when the global locale switches', async () => {
   const user = userEvent.setup()
   mockGetProfile.mockResolvedValue({
@@ -122,6 +154,7 @@ test('localizes credit store copy when the global locale switches', async () => 
   expect(screen.getByText('一次购买 · 不自动续费')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'English' }))
 
+  await user.click(screen.getByRole('button', { name: 'Open account menu' }))
   expect(await screen.findByText('One-time purchase · No auto-renewal')).toBeInTheDocument()
   expect(screen.getByText('Available balance')).toBeInTheDocument()
 })

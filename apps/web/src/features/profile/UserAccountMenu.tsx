@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
@@ -20,6 +20,8 @@ export function UserAccountMenu() {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [dialog, setDialog] = useState<'profile' | null>(null)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
   const user = session?.user
   const profileQuery = useQuery({
     queryKey: ['profile', user?.id],
@@ -45,6 +47,29 @@ export function UserAccountMenu() {
     }),
   })
 
+  useEffect(() => {
+    if (!open) return
+
+    const closeOnPointerDownOutside = (event: PointerEvent) => {
+      const target = event.target as Node
+      if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    const closeOnWindowBlur = () => setOpen(false)
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+
+    document.addEventListener('pointerdown', closeOnPointerDownOutside)
+    document.addEventListener('keydown', closeOnEscape)
+    window.addEventListener('blur', closeOnWindowBlur)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnPointerDownOutside)
+      document.removeEventListener('keydown', closeOnEscape)
+      window.removeEventListener('blur', closeOnWindowBlur)
+    }
+  }, [open])
+
   if (!user) return null
   const name = profileQuery.data?.display_name || userDisplayName(user, t('profile.accountNameFallback'))
   const avatar = avatarQuery.data || user.user_metadata?.avatar_url
@@ -67,6 +92,7 @@ export function UserAccountMenu() {
   return (
     <div className="relative mt-auto">
       <button
+        ref={triggerRef}
         className="flex w-full items-center gap-3 border-t border-line pt-5 text-left"
         type="button"
         data-settings-return-focus
@@ -100,7 +126,7 @@ export function UserAccountMenu() {
         <AppIcon name="chevron-right" size={18} />
       </button>
       {open ? createPortal(
-        <div className="fixed bottom-28 left-6 z-[60] grid w-72 max-w-[calc(100vw-3rem)] gap-1 rounded-card border border-line bg-surface p-2 shadow-float" role="menu" aria-label={t('appShell.menu.account')}>
+        <div ref={menuRef} className="fixed bottom-28 left-6 z-[60] grid w-72 max-w-[calc(100vw-3rem)] gap-1 rounded-card border border-line bg-surface p-2 shadow-float" role="menu" aria-label={t('appShell.menu.account')}>
           <Link
             className="group mb-1 overflow-hidden rounded-[1rem] bg-[linear-gradient(145deg,#647e6e_0%,#385447_100%)] p-4 text-white no-underline shadow-soft transition-transform hover:-translate-y-0.5"
             to="/app/me/credits"
