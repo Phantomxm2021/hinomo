@@ -140,8 +140,8 @@ begin
   end;
   invite_status := case
     when invite.revoked_at is not null then 'revoked'
-    when invite.expires_at <= pg_catalog.now() then 'expired'
     when not invite.reusable and invite.accepted_at is not null then 'used'
+    when invite.expires_at <= pg_catalog.now() then 'expired'
     when 1 + (select count(*)::integer from public.venue_members as members where members.venue_id = invite.venue_id) >= 5 then 'full'
     else 'active'
   end;
@@ -201,11 +201,11 @@ begin
   if invite.revoked_at is not null then
     raise exception using errcode = 'P0001', message = 'venue_invite_revoked';
   end if;
-  if invite.expires_at <= pg_catalog.now() then
-    raise exception using errcode = 'P0001', message = 'venue_invite_expired';
-  end if;
   if not invite.reusable and invite.accepted_at is not null then
     raise exception using errcode = 'P0001', message = 'venue_invite_used';
+  end if;
+  if invite.expires_at <= pg_catalog.now() then
+    raise exception using errcode = 'P0001', message = 'venue_invite_expired';
   end if;
   if public.is_venue_owner(invite.venue_id) then
     raise exception using errcode = 'P0001', message = 'venue_owner_cannot_join';
@@ -264,8 +264,8 @@ begin
     invites.expires_at,
     case
       when invites.revoked_at is not null then 'revoked'
-      when invites.expires_at <= pg_catalog.now() then 'expired'
       when not invites.reusable and invites.accepted_at is not null then 'used'
+      when invites.expires_at <= pg_catalog.now() then 'expired'
       when 1 + (select count(*)::integer from public.venue_members as members where members.venue_id = invites.venue_id) >= 5 then 'full'
       else 'active'
     end,

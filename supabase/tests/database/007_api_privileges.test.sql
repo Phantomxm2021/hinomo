@@ -1,5 +1,5 @@
 begin;
-select plan(97);
+select plan(102);
 
 select ok(has_table_privilege('authenticated', 'public.spaces', 'select'), 'authenticated can select spaces');
 select ok(has_table_privilege('authenticated', 'public.spaces', 'insert'), 'authenticated can insert spaces');
@@ -120,14 +120,20 @@ select function_privs_are('public', 'create_venue_invite', array['uuid'], 'authe
   'authenticated users can create venue invites through the RPC');
 select function_privs_are('public', 'create_venue_invite', array['uuid'], 'anon', array[]::text[],
   'anonymous users cannot create venue invites');
+select function_privs_are('public', 'create_venue_invite', array['uuid'], 'service_role', array[]::text[],
+  'service role cannot create venue invites through the user RPC');
 select function_privs_are('public', 'accept_venue_invite', array['text'], 'authenticated', array['EXECUTE'],
   'authenticated users can accept venue invites');
 select function_privs_are('public', 'accept_venue_invite', array['text'], 'anon', array[]::text[],
   'anonymous users cannot accept venue invites');
+select function_privs_are('public', 'accept_venue_invite', array['text'], 'service_role', array[]::text[],
+  'service role cannot accept venue invites through the user RPC');
 select function_privs_are('public', 'inspect_venue_invite', array['text'], 'anon', array['EXECUTE'],
   'anonymous users can inspect an invite without its token hash');
 select function_privs_are('public', 'inspect_venue_invite', array['text'], 'authenticated', array['EXECUTE'],
   'authenticated users can inspect an invite without its token hash');
+select function_privs_are('public', 'inspect_venue_invite', array['text'], 'service_role', array[]::text[],
+  'service role cannot inspect venue invites through the public RPC');
 select function_privs_are('public', 'list_accessible_venues', array[]::text[], 'authenticated', array['EXECUTE'],
   'authenticated users can list accessible venues');
 select function_privs_are('public', 'list_accessible_venues', array[]::text[], 'anon', array[]::text[],
@@ -140,6 +146,8 @@ select function_privs_are('public', 'list_venue_invites', array['uuid'], 'authen
   'authenticated users can list venue invites through the RPC');
 select function_privs_are('public', 'list_venue_invites', array['uuid'], 'anon', array[]::text[],
   'anonymous users cannot list venue invites');
+select function_privs_are('public', 'list_venue_invites', array['uuid'], 'service_role', array[]::text[],
+  'service role cannot list venue invites through the user RPC');
 select function_privs_are('public', 'remove_venue_member', array['uuid', 'uuid'], 'authenticated', array['EXECUTE'],
   'authenticated users can remove members through the RPC');
 select function_privs_are('public', 'remove_venue_member', array['uuid', 'uuid'], 'anon', array[]::text[],
@@ -152,6 +160,8 @@ select function_privs_are('public', 'revoke_venue_invite', array['uuid'], 'authe
   'authenticated users can revoke invites through the RPC');
 select function_privs_are('public', 'revoke_venue_invite', array['uuid'], 'anon', array[]::text[],
   'anonymous users cannot revoke venue invites');
+select function_privs_are('public', 'revoke_venue_invite', array['uuid'], 'service_role', array[]::text[],
+  'service role cannot revoke venue invites through the user RPC');
 
 select function_privs_are('public', 'create_space', array['uuid', 'text', 'text'], 'authenticated', array['EXECUTE'],
   'authenticated users can create shared spaces through the RPC');

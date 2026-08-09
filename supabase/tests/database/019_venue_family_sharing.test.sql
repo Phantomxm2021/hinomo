@@ -1,5 +1,5 @@
 begin;
-select plan(73);
+select plan(74);
 
 create extension if not exists "basejump-supabase_test_helpers" with schema tests;
 select tests.create_supabase_user('family-owner');
@@ -210,10 +210,18 @@ select ok(not (select reusable from public.venue_invites where id = '19000000-00
 select tests.authenticate_as('family-member-e');
 select is((select result from public.accept_venue_invite('legacy-single-use-token')), 'joined',
   'a pre-existing single-use invite still accepts once');
+select tests.clear_authentication();
+set local role postgres;
+update public.venue_invites
+set expires_at = pg_catalog.now() - interval '1 second'
+where id = '19000000-0000-4000-8000-000000000004';
 select tests.authenticate_as('family-owner');
-select is((select accepted_count from public.list_venue_invites('19000000-0000-4000-8000-000000000003')
-  where invite_id = '19000000-0000-4000-8000-000000000004'), 1,
-  'legacy single-use acceptance contributes to invite acceptance counts');
+select ok((select status = 'used' and accepted_count = 1
+  from public.list_venue_invites('19000000-0000-4000-8000-000000000003')
+  where invite_id = '19000000-0000-4000-8000-000000000004'),
+  'used legacy invites remain used in the owner list after expiry');
+select is((select status from public.inspect_venue_invite('legacy-single-use-token')), 'used',
+  'used legacy invites remain used when inspected after expiry');
 select tests.authenticate_as('family-outsider');
 select throws_ok(
   $$select * from public.accept_venue_invite('legacy-single-use-token')$$,
