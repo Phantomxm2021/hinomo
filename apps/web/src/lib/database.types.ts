@@ -778,6 +778,10 @@ export type Database = {
           public_id: string
         }[]
       }
+      create_space: {
+        Args: { p_description: string | null; p_name: string; p_venue_id: string }
+        Returns: { id: string }[]
+      }
       collect_media_cleanup_results: {
         Args: Record<PropertyKey, never>
         Returns: number
@@ -810,6 +814,10 @@ export type Database = {
           unlimited_boxes: boolean
         }[]
       }
+      get_venue_box_plan_summary: {
+        Args: { p_venue_id: string }
+        Returns: { box_count: number; can_create: boolean; free_limit: number; unlimited_boxes: boolean }[]
+      }
       list_credit_transactions: {
         Args: { p_limit?: number }
         Returns: {
@@ -818,6 +826,24 @@ export type Database = {
           description: string | null
           id: string
           kind: Database['public']['Enums']['credit_transaction_kind']
+        }[]
+      }
+      list_accessible_boxes: {
+        Args: { p_venue_id?: string | null }
+        Returns: {
+          box_code: string
+          cover_object_key: string | null
+          id: string
+          item_count: number
+          location: string | null
+          name: string
+          public_id: string
+          space_id: string
+          space_name: string
+          updated_at: string
+          venue_id: string
+          venue_name: string
+          visibility: Database['public']['Enums']['box_visibility']
         }[]
       }
       confirm_packing_photo_upload: {
@@ -1001,6 +1027,10 @@ export type Database = {
           stored_quantity: number
         }[]
       }
+      save_space_layout: {
+        Args: { p_height_percent: number; p_space_id: string; p_width_percent: number; p_x_percent: number; p_y_percent: number }
+        Returns: undefined
+      }
       search_my_items: {
         Args: { p_query: string }
         Returns: {
@@ -1050,6 +1080,22 @@ export type Database = {
           quantity: number
           stored_quantity: number
         }[]
+      }
+      update_box: {
+        Args: {
+          p_box_id: string
+          p_category: string | null
+          p_description: string | null
+          p_location: string | null
+          p_name: string
+          p_space_id: string
+          p_visibility: Database['public']['Enums']['box_visibility']
+        }
+        Returns: undefined
+      }
+      update_space: {
+        Args: { p_description: string | null; p_name: string; p_space_id: string; p_venue_id: string }
+        Returns: undefined
       }
       accept_venue_invite: {
         Args: { p_token: string }

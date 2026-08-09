@@ -1,5 +1,5 @@
 begin;
-select plan(73);
+select plan(91);
 
 select ok(has_table_privilege('authenticated', 'public.spaces', 'select'), 'authenticated can select spaces');
 select ok(has_table_privilege('authenticated', 'public.spaces', 'insert'), 'authenticated can insert spaces');
@@ -140,6 +140,43 @@ select function_privs_are('public', 'revoke_venue_invite', array['uuid'], 'authe
   'authenticated users can revoke invites through the RPC');
 select function_privs_are('public', 'revoke_venue_invite', array['uuid'], 'anon', array[]::text[],
   'anonymous users cannot revoke venue invites');
+
+select function_privs_are('public', 'create_space', array['uuid', 'text', 'text'], 'authenticated', array['EXECUTE'],
+  'authenticated users can create shared spaces through the RPC');
+select function_privs_are('public', 'create_space', array['uuid', 'text', 'text'], 'anon', array[]::text[],
+  'anonymous users cannot create shared spaces');
+select function_privs_are('public', 'create_space', array['uuid', 'text', 'text'], 'service_role', array[]::text[],
+  'service role cannot create shared spaces through the user RPC');
+select function_privs_are('public', 'update_space', array['uuid', 'uuid', 'text', 'text'], 'authenticated', array['EXECUTE'],
+  'authenticated users can update shared spaces through the RPC');
+select function_privs_are('public', 'update_space', array['uuid', 'uuid', 'text', 'text'], 'anon', array[]::text[],
+  'anonymous users cannot update shared spaces');
+select function_privs_are('public', 'update_space', array['uuid', 'uuid', 'text', 'text'], 'service_role', array[]::text[],
+  'service role cannot update shared spaces through the user RPC');
+select function_privs_are('public', 'save_space_layout', array['uuid', 'numeric', 'numeric', 'numeric', 'numeric'], 'authenticated', array['EXECUTE'],
+  'authenticated users can save shared layouts through the RPC');
+select function_privs_are('public', 'save_space_layout', array['uuid', 'numeric', 'numeric', 'numeric', 'numeric'], 'anon', array[]::text[],
+  'anonymous users cannot save shared layouts');
+select function_privs_are('public', 'save_space_layout', array['uuid', 'numeric', 'numeric', 'numeric', 'numeric'], 'service_role', array[]::text[],
+  'service role cannot save shared layouts through the user RPC');
+select function_privs_are('public', 'get_venue_box_plan_summary', array['uuid'], 'authenticated', array['EXECUTE'],
+  'authenticated users can read venue box summaries');
+select function_privs_are('public', 'get_venue_box_plan_summary', array['uuid'], 'anon', array[]::text[],
+  'anonymous users cannot read venue box summaries');
+select function_privs_are('public', 'get_venue_box_plan_summary', array['uuid'], 'service_role', array[]::text[],
+  'service role cannot read venue box summaries through the user RPC');
+select function_privs_are('public', 'list_accessible_boxes', array['uuid'], 'authenticated', array['EXECUTE'],
+  'authenticated users can list accessible boxes');
+select function_privs_are('public', 'list_accessible_boxes', array['uuid'], 'anon', array[]::text[],
+  'anonymous users cannot list accessible boxes');
+select function_privs_are('public', 'list_accessible_boxes', array['uuid'], 'service_role', array[]::text[],
+  'service role cannot list accessible boxes through the user RPC');
+select function_privs_are('public', 'update_box', array['uuid', 'uuid', 'text', 'text', 'text', 'text', 'public.box_visibility'], 'authenticated', array['EXECUTE'],
+  'authenticated users can update shared boxes through the RPC');
+select function_privs_are('public', 'update_box', array['uuid', 'uuid', 'text', 'text', 'text', 'text', 'public.box_visibility'], 'anon', array[]::text[],
+  'anonymous users cannot update shared boxes');
+select function_privs_are('public', 'update_box', array['uuid', 'uuid', 'text', 'text', 'text', 'text', 'public.box_visibility'], 'service_role', array[]::text[],
+  'service role cannot update shared boxes through the user RPC');
 
 select * from finish();
 rollback;

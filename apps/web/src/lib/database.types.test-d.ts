@@ -9,6 +9,8 @@ type VenueInsert = Database['public']['Tables']['venues']['Insert']
 type VenueRow = Database['public']['Tables']['venues']['Row']
 type SpaceInsert = Database['public']['Tables']['spaces']['Insert']
 type AcceptInviteArgs = Database['public']['Functions']['accept_venue_invite']['Args']
+type UpdateBoxArgs = Database['public']['Functions']['update_box']['Args']
+type UpdateSpaceArgs = Database['public']['Functions']['update_space']['Args']
 
 const validBoxInsert = {
   name: '文具',
@@ -61,6 +63,20 @@ const validSpaceInsert = {
   venue_id: '00000000-0000-0000-0000-000000000004',
 } satisfies SpaceInsert
 const validAcceptInvite: AcceptInviteArgs = { p_token: 'opaque-token' }
+const validUpdateBox: UpdateBoxArgs = {
+  p_box_id: '00000000-0000-0000-0000-000000000005',
+  p_space_id: '00000000-0000-0000-0000-000000000002',
+  p_name: '文具', p_category: null, p_location: null, p_description: null, p_visibility: 'private',
+}
+const validUpdateSpace: UpdateSpaceArgs = {
+  p_space_id: '00000000-0000-0000-0000-000000000002',
+  p_venue_id: '00000000-0000-0000-0000-000000000004',
+  p_name: '卧室', p_description: null,
+}
+// @ts-expect-error update_box derives ownership from the destination venue.
+const forgedUpdateBoxOwner: UpdateBoxArgs = { ...validUpdateBox, p_owner_id: 'forged' }
+// @ts-expect-error update_space uses p_venue_id only as the destination venue.
+const forgedUpdateSpaceOwner: UpdateSpaceArgs = { ...validUpdateSpace, p_owner_id: 'forged' }
 // @ts-expect-error actor identity comes from auth.uid(), never from the client
 const forgedAcceptInvite: AcceptInviteArgs = { p_token: 'opaque-token', p_user_id: 'forged' }
 
@@ -88,4 +104,8 @@ void validVenueInsert
 void validDefaultFlag
 void validSpaceInsert
 void validAcceptInvite
+void validUpdateBox
+void validUpdateSpace
+void forgedUpdateBoxOwner
+void forgedUpdateSpaceOwner
 void forgedAcceptInvite
