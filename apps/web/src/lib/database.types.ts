@@ -21,8 +21,10 @@ export type Database = {
           created_at: string
           entity_id: string
           entity_type: Database['public']['Enums']['audit_entity']
+          event_code: Database['public']['Enums']['venue_activity_event'] | null
           id: string
           snapshot: Json
+          venue_id: string | null
         }
         Insert: {
           action: Database['public']['Enums']['audit_action']
@@ -31,8 +33,10 @@ export type Database = {
           created_at?: string
           entity_id: string
           entity_type: Database['public']['Enums']['audit_entity']
+          event_code?: Database['public']['Enums']['venue_activity_event'] | null
           id?: string
           snapshot?: Json
+          venue_id?: string | null
         }
         Update: {
           action?: Database['public']['Enums']['audit_action']
@@ -41,8 +45,10 @@ export type Database = {
           created_at?: string
           entity_id?: string
           entity_type?: Database['public']['Enums']['audit_entity']
+          event_code?: Database['public']['Enums']['venue_activity_event'] | null
           id?: string
           snapshot?: Json
+          venue_id?: string | null
         }
         Relationships: [
           {
@@ -50,6 +56,13 @@ export type Database = {
             columns: ['box_id']
             isOneToOne: false
             referencedRelation: 'boxes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'activity_logs_venue_id_fkey'
+            columns: ['venue_id']
+            isOneToOne: false
+            referencedRelation: 'venues'
             referencedColumns: ['id']
           },
         ]
@@ -1174,6 +1187,27 @@ export type Database = {
         Args: { p_venue_id: string }
         Returns: { created_at: string; expires_at: string; invite_id: string; status: string }[]
       }
+      list_venue_activity: {
+        Args: {
+          p_actor_id?: string | null
+          p_before_created_at?: string | null
+          p_before_id?: string | null
+          p_event_code?: Database['public']['Enums']['venue_activity_event'] | null
+          p_limit?: number
+          p_venue_id: string
+        }
+        Returns: {
+          actor_display_name: string | null
+          actor_id: string | null
+          actor_is_current: boolean
+          created_at: string
+          entity_id: string
+          entity_type: Database['public']['Enums']['audit_entity']
+          event_code: Database['public']['Enums']['venue_activity_event']
+          id: string
+          snapshot: Json
+        }[]
+      }
       list_venue_members: {
         Args: { p_venue_id: string }
         Returns: {
@@ -1210,6 +1244,7 @@ export type Database = {
       item_movement_action: 'take_out' | 'return' | 'move'
       media_kind: 'cover' | 'item'
       media_upload_status: 'pending' | 'confirmed' | 'expired'
+      venue_activity_event: 'item_created' | 'item_moved' | 'item_quantity_changed' | 'item_deleted' | 'box_moved'
       packing_crop_status: 'pending' | 'ready' | 'needs_review' | 'failed'
       packing_evidence_kind: 'first_seen' | 'supporting' | 'conflict' | 'verification'
       packing_job_stage: 'normalize' | 'atlas' | 'observe' | 'verify' | 'track_instances' | 'consolidate' | 'localize' | 'crop' | 'validate_crops' | 'publish'

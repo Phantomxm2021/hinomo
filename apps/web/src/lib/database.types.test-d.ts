@@ -12,6 +12,8 @@ type AcceptInviteArgs = Database['public']['Functions']['accept_venue_invite']['
 type UpdateBoxArgs = Database['public']['Functions']['update_box']['Args']
 type UpdateSpaceArgs = Database['public']['Functions']['update_space']['Args']
 type PackingSessionRow = Database['public']['Tables']['packing_sessions']['Row']
+type VenueActivityArgs = Database['public']['Functions']['list_venue_activity']['Args']
+type VenueActivityRow = Database['public']['Functions']['list_venue_activity']['Returns'][number]
 
 const validBoxInsert = {
   name: '文具',
@@ -76,6 +78,13 @@ const validUpdateSpace: UpdateSpaceArgs = {
 }
 const validPackingSessionActor: PackingSessionRow['created_by'] = null
 const validPackingSessionActorId: PackingSessionRow['created_by'] = '00000000-0000-0000-0000-000000000006'
+const validVenueActivityArgs = {
+  p_venue_id: '00000000-0000-0000-0000-000000000004',
+  p_event_code: 'item_moved',
+  p_limit: 50,
+} satisfies VenueActivityArgs
+const validVenueActivityActor: VenueActivityRow['actor_is_current'] = false
+const validVenueActivityEvent: VenueActivityRow['event_code'] = 'box_moved'
 // @ts-expect-error update_box derives ownership from the destination venue.
 const forgedUpdateBoxOwner: UpdateBoxArgs = { ...validUpdateBox, p_owner_id: 'forged' }
 // @ts-expect-error update_space uses p_venue_id only as the destination venue.
@@ -111,6 +120,9 @@ void validUpdateBox
 void validUpdateSpace
 void validPackingSessionActor
 void validPackingSessionActorId
+void validVenueActivityArgs
+void validVenueActivityActor
+void validVenueActivityEvent
 void forgedUpdateBoxOwner
 void forgedUpdateSpaceOwner
 void forgedAcceptInvite
