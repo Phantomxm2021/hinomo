@@ -6,6 +6,7 @@ import { PageState } from '../../components/PageState'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { useI18n } from '../../i18n/I18nProvider'
 import { VenueEditorDialog } from './VenueEditorDialog'
+import { VenueInviteQuickAction } from './VenueInviteQuickAction'
 import {
   createVenue,
   deleteVenue,
@@ -22,6 +23,7 @@ export function VenuesPage() {
   const { t } = useI18n()
   const [editorOpen, setEditorOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<VenueSummary | null>(null)
+  const invitesEnabled = import.meta.env.VITE_ENABLE_VENUE_INVITES === 'true'
   const venuesQuery = useQuery({ queryKey: ['venues'], queryFn: listVenues })
   const createMutation = useMutation({
     mutationFn: (input: VenueInput) => createVenue(input),
@@ -128,7 +130,7 @@ export function VenuesPage() {
                   {venue.is_default ? <span className="rounded-full bg-brand/10 px-2 py-1 text-[0.65rem] font-bold text-brand-strong">{t('venues.default')}</span> : null}
                   {venue.role === 'member' ? <span className="rounded-full bg-brand/10 px-2 py-1 text-[0.65rem] font-bold text-brand-strong">{t('venues.sharedBadge')}</span> : null}
                 </span>
-                <span className="mt-2 block text-sm text-muted">{t('venues.spaces', { count: venue.space_count })}{venue.description ? ` · ${venue.description}` : ` · ${t('venues.descriptionUnset')}`}{venue.role === 'member' ? ` · ${t('venues.sharedWith', { owner: venue.owner_display_name ?? t('venueSharing.ownerFallback') })}` : ''}</span>
+                <span className="mt-2 block text-sm text-muted">{t('venues.spaces', { count: venue.space_count })}{venue.description ? ` · ${venue.description}` : ` · ${t('venues.descriptionUnset')}`} · {t('venues.memberCount', { count: venue.member_count, max: venue.max_members })}{venue.role === 'member' ? ` · ${t('venues.sharedWith', { owner: venue.owner_display_name ?? t('venueSharing.ownerFallback') })}` : ''}</span>
               </span>
               <span className="grid size-10 place-items-center rounded-full bg-canvas text-muted transition group-hover:bg-brand/10 group-hover:text-brand"><AppIcon name="chevron-right" size={20} /></span>
             </>
@@ -140,7 +142,7 @@ export function VenuesPage() {
             ) : (
               <div className="grid gap-2" key={venue.id}>
                 <button className="group grid min-h-32 w-full grid-cols-[1fr_auto] items-center gap-4 rounded-[1.35rem] border border-line bg-surface p-5 text-left shadow-soft transition hover:-translate-y-0.5 hover:border-brand/35 sm:p-6" type="button" aria-label={t('venues.editVenue', { name: venue.name })} onClick={() => { setEditTarget(venue); setEditorOpen(true) }}>{details}</button>
-                <div className="flex flex-wrap gap-2"><Link className="inline-flex min-h-11 items-center gap-2 justify-self-start px-3 font-bold text-brand-strong no-underline" aria-label={t('venues.membersVenue', { name: venue.name })} to={`/app/venues/${venue.id}/members`}><AppIcon name="family" />{t('venues.members')}</Link><Link className="inline-flex min-h-11 items-center gap-2 justify-self-start px-3 font-bold text-brand-strong no-underline" aria-label={t('venues.activityVenue', { name: venue.name })} to={`/app/venues/${venue.id}/activity`}>{t('venueActivity.link')}</Link></div>
+                <div className="flex flex-wrap items-start gap-2 rounded-[1.1rem] border border-line/70 bg-surface px-3 py-2 sm:px-4"><VenueInviteQuickAction venueId={venue.id} enabled={invitesEnabled} /><Link className="inline-flex min-h-11 items-center gap-2 rounded-control px-3 font-bold text-brand-strong no-underline hover:bg-canvas" aria-label={t('venues.membersVenue', { name: venue.name })} to={`/app/venues/${venue.id}/members`}><AppIcon name="family" />{t('venues.members')}</Link><Link className="inline-flex min-h-11 items-center gap-2 rounded-control px-3 font-bold text-brand-strong no-underline hover:bg-canvas" aria-label={t('venues.activityVenue', { name: venue.name })} to={`/app/venues/${venue.id}/activity`}>{t('venueActivity.link')}</Link></div>
               </div>
             )
           })}

@@ -923,6 +923,9 @@ const zhMessages = {
     sharedBadge: '家庭共享',
     sharedWith: '家庭共享 · {{owner}}',
     sharedSpaceCount: '{{name}}，{{count}} 个空间，家庭共享，{{owner}}',
+    memberCount: '{{count}} / {{max}} 位家庭成员',
+    inviteFamily: '邀请家人',
+    inviteDisabled: '邀请功能暂未开启',
   },
   venueSharing: {
     invitation: '场地邀请',
@@ -2039,6 +2042,9 @@ const enMessages = {
     sharedBadge: 'Family shared',
     sharedWith: 'Family shared · {{owner}}',
     sharedSpaceCount: '{{name}}, {{count}} spaces, family shared, {{owner}}',
+    memberCount: '{{count}} / {{max}} family members',
+    inviteFamily: 'Invite family',
+    inviteDisabled: 'Invites are currently disabled',
   },
   venueSharing: {
     invitation: 'Venue invitation',

@@ -5,11 +5,12 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { VenuesPage } from './VenuesPage'
 
-const { mockListVenues, mockCreateVenue, mockUpdateVenue, mockDeleteVenue } = vi.hoisted(() => ({
+const { mockListVenues, mockCreateVenue, mockUpdateVenue, mockDeleteVenue, mockCreateInvite } = vi.hoisted(() => ({
   mockListVenues: vi.fn(),
   mockCreateVenue: vi.fn(),
   mockUpdateVenue: vi.fn(),
   mockDeleteVenue: vi.fn(),
+  mockCreateInvite: vi.fn(),
 }))
 
 vi.mock('./venues.api', async (importOriginal) => ({
@@ -20,18 +21,29 @@ vi.mock('./venues.api', async (importOriginal) => ({
   deleteVenue: mockDeleteVenue,
 }))
 
+vi.mock('./venue-sharing.api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./venue-sharing.api')>()),
+  createVenueInvite: mockCreateInvite,
+}))
+
 beforeEach(() => {
   mockListVenues.mockReset()
   mockCreateVenue.mockReset()
   mockUpdateVenue.mockReset()
   mockDeleteVenue.mockReset()
+  mockCreateInvite.mockReset()
+  vi.stubEnv('VITE_ENABLE_VENUE_INVITES', 'true')
+  mockCreateInvite.mockResolvedValue({ invite_id: 'invite-1', token: 'invite-token', expires_at: '2026-08-10T00:00:00Z' })
   mockListVenues.mockResolvedValue([
     { id: 'home', name: '家里', description: '常住地址', is_default: true, space_count: 3, role: 'owner', owner_display_name: null, owner_id: 'owner', member_count: 1, max_members: 5 },
     { id: 'office', name: '公司', description: null, is_default: false, space_count: 1, role: 'member', owner_display_name: '王小明', owner_id: 'owner', member_count: 2, max_members: 5 },
   ])
 })
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.unstubAllEnvs()
+})
 
 test('lists venues and opens creation and editing from the dedicated page', async () => {
   const user = userEvent.setup()
@@ -62,4 +74,39 @@ test('lists venues and opens creation and editing from the dedicated page', asyn
   expect(screen.getByRole('link', { name: '最近活动家里' })).toHaveAttribute('href', '/app/venues/home/activity')
   expect(screen.getByRole('link', { name: '最近活动公司' })).toHaveAttribute('href', '/app/venues/office/activity')
   expect(screen.getByRole('link', { name: '家庭成员公司' })).toHaveTextContent('家庭共享 · 王小明')
+})
+
+test('owner can invite family directly from the venue card without opening the editor', async () => {
+  const user = userEvent.setup()
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(<MemoryRouter><QueryClientProvider client={client}><VenuesPage /></QueryClientProvider></MemoryRouter>)
+
+  const inviteButton = await screen.findByRole('button', { name: '邀请家人' })
+  expect(inviteButton).toBeEnabled()
+  expect(screen.getByRole('button', { name: '编辑场地家里' })).toHaveTextContent('1 / 5 位家庭成员')
+
+  await user.click(inviteButton)
+
+  expect(mockCreateInvite).toHaveBeenCalledWith('home')
+  expect(await screen.findByRole('dialog', { name: '分享场地邀请' })).toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: '编辑场地' })).not.toBeInTheDocument()
+})
+
+test('shows the invite action with a clear disabled explanation when rollout is off', async () => {
+  vi.stubEnv('VITE_ENABLE_VENUE_INVITES', 'false')
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(<MemoryRouter><QueryClientProvider client={client}><VenuesPage /></QueryClientProvider></MemoryRouter>)
+
+  const inviteButton = await screen.findByRole('button', { name: '邀请家人' })
+  expect(inviteButton).toBeDisabled()
+  expect(screen.getByText('邀请功能暂未开启')).toBeInTheDocument()
+})
+
+test('does not show invite controls on a member venue card', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(<MemoryRouter><QueryClientProvider client={client}><VenuesPage /></QueryClientProvider></MemoryRouter>)
+
+  const memberCard = (await screen.findByRole('link', { name: /家庭成员公司/ })).parentElement
+  expect(memberCard).not.toBeNull()
+  expect(within(memberCard as HTMLElement).queryByRole('button', { name: '邀请家人' })).not.toBeInTheDocument()
 })
