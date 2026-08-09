@@ -6,6 +6,10 @@ const migration = readFileSync(
   resolve(process.cwd(), '../../supabase/migrations/202608090002_venue_shared_content.sql'),
   'utf8',
 )
+const workflowMigration = readFileSync(
+  resolve(process.cwd(), '../../supabase/migrations/202608090003_venue_shared_workflows.sql'),
+  'utf8',
+)
 
 function migrationFunction(name: string) {
   const start = migration.indexOf(`create function private.${name}()`)
@@ -52,5 +56,14 @@ describe('venue sharing migration direct-write contracts', () => {
     expect(guard).toMatch(
       /new\.space_id is distinct from old\.space_id[\s\S]*not public\.is_venue_owner\(target_venue_id\)/,
     )
+  })
+})
+
+describe('venue shared workflow SQL contracts', () => {
+  it('loads composite item rows with SELECT items.* before reading venue ids', () => {
+    expect(workflowMigration).not.toMatch(
+      /select items, spaces\.venue_id into current_item, source_venue_id/i,
+    )
+    expect(workflowMigration.match(/select items\.\*\s+into current_item/gi)).toHaveLength(3)
   })
 })

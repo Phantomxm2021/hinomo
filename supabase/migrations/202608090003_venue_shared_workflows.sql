@@ -166,13 +166,20 @@ begin
     raise exception using errcode = '22023', message = 'invalid take out details';
   end if;
 
-  select items, spaces.venue_id into current_item, source_venue_id
+  select items.* into current_item
   from public.items as items
   join public.boxes as boxes on boxes.id = items.box_id
   join public.spaces as spaces on spaces.id = boxes.space_id
   where items.id = p_item_id
   for update of items;
-  if not found or not public.can_edit_venue_content(source_venue_id) then
+  if not found then
+    raise exception using errcode = '42501', message = 'item is not accessible';
+  end if;
+  select spaces.venue_id into source_venue_id
+  from public.boxes as boxes
+  join public.spaces as spaces on spaces.id = boxes.space_id
+  where boxes.id = current_item.box_id;
+  if source_venue_id is null or not public.can_edit_venue_content(source_venue_id) then
     raise exception using errcode = '42501', message = 'item is not accessible';
   end if;
   if p_quantity > current_item.stored_quantity then
@@ -207,13 +214,20 @@ begin
     raise exception using errcode = '22023', message = 'invalid return details';
   end if;
 
-  select items, spaces.venue_id into current_item, source_venue_id
+  select items.* into current_item
   from public.items as items
   join public.boxes as boxes on boxes.id = items.box_id
   join public.spaces as spaces on spaces.id = boxes.space_id
   where items.id = p_item_id
   for update of items;
-  if not found or not public.can_edit_venue_content(source_venue_id) then
+  if not found then
+    raise exception using errcode = '42501', message = 'item is not accessible';
+  end if;
+  select spaces.venue_id into source_venue_id
+  from public.boxes as boxes
+  join public.spaces as spaces on spaces.id = boxes.space_id
+  where boxes.id = current_item.box_id;
+  if source_venue_id is null or not public.can_edit_venue_content(source_venue_id) then
     raise exception using errcode = '42501', message = 'item is not accessible';
   end if;
   if p_quantity > current_item.quantity - current_item.stored_quantity then
@@ -243,13 +257,20 @@ begin
     raise exception using errcode = '22023', message = 'invalid move details';
   end if;
 
-  select items, spaces.venue_id into current_item, source_venue_id
+  select items.* into current_item
   from public.items as items
   join public.boxes as boxes on boxes.id = items.box_id
   join public.spaces as spaces on spaces.id = boxes.space_id
   where items.id = p_item_id
   for update of items;
-  if not found or not public.can_edit_venue_content(source_venue_id) then
+  if not found then
+    raise exception using errcode = '42501', message = 'item is not accessible';
+  end if;
+  select spaces.venue_id into source_venue_id
+  from public.boxes as boxes
+  join public.spaces as spaces on spaces.id = boxes.space_id
+  where boxes.id = current_item.box_id;
+  if source_venue_id is null or not public.can_edit_venue_content(source_venue_id) then
     raise exception using errcode = '42501', message = 'item is not accessible';
   end if;
   select spaces.venue_id into target_venue_id
