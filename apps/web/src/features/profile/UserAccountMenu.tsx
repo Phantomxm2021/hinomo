@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
+import { ResponsiveEditorDialog } from '../../components/ResponsiveEditorDialog'
 import { Skeleton } from '../../components/Skeleton'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/auth-context'
@@ -12,6 +13,7 @@ import { AccountAvatar, AvatarUploadControl, ReadOnlyAccountField } from './acco
 import { getAvatarDownload, getProfile, uploadAvatar } from './profile.api'
 import { useI18n } from '../../i18n/I18nProvider'
 import { useMobileFeedback } from '../../components/mobile-feedback'
+import { SettingsPanel } from './SettingsPanel'
 
 export function UserAccountMenu() {
   const { session } = useAuth()
@@ -19,7 +21,7 @@ export function UserAccountMenu() {
   const feedback = useMobileFeedback()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
-  const [dialog, setDialog] = useState<'profile' | null>(null)
+  const [dialog, setDialog] = useState<'profile' | 'settings' | null>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const user = session?.user
@@ -146,9 +148,9 @@ export function UserAccountMenu() {
           <button className="flex min-h-11 items-center gap-3 rounded-control px-3 text-left text-body font-medium text-ink hover:bg-canvas" type="button" role="menuitem" onClick={() => { setDialog('profile'); setOpen(false) }}>
             <AppIcon name="user" size={18} />{t('profile.account')}
           </button>
-          <Link className="flex min-h-11 items-center gap-3 rounded-control px-3 text-left text-body font-medium text-ink no-underline hover:bg-canvas" to="/app/me/settings" role="menuitem" onClick={() => setOpen(false)}>
+          <button className="flex min-h-11 items-center gap-3 rounded-control px-3 text-left text-body font-medium text-ink hover:bg-canvas" type="button" role="menuitem" onClick={() => { setDialog('settings'); setOpen(false) }}>
             <AppIcon name="settings" size={18} />{t('appShell.navigation.settings')}
-          </Link>
+          </button>
           <button className="flex min-h-11 items-center gap-3 rounded-control px-3 text-left text-body font-medium text-danger hover:bg-danger/5" type="button" role="menuitem" onClick={() => void signOut()}>
             <AppIcon name="logout" size={18} />{t('appShell.menu.signOut')}
           </button>
@@ -172,6 +174,16 @@ export function UserAccountMenu() {
           </div>
         </Dialog>
       ) : null}
+      <ResponsiveEditorDialog
+        open={dialog === 'settings'}
+        title={t('settings.title')}
+        busy={false}
+        onClose={() => setDialog(null)}
+        returnFocusRef={triggerRef}
+        maxWidthClassName="max-w-xl"
+      >
+        <SettingsPanel presentation="dialog" />
+      </ResponsiveEditorDialog>
     </div>
   )
 }
