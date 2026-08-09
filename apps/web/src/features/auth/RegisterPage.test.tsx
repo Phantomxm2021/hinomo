@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, MemoryRouter, RouterProvider, type InitialEntry } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../../i18n/I18nProvider'
+import { LEGAL_POLICY_VERSION } from '../legal/legal-policy'
 import { RegisterPage } from './RegisterPage'
 
 const { mockSignUp } = vi.hoisted(() => ({ mockSignUp: vi.fn() }))
@@ -91,8 +92,8 @@ describe('RegisterPage', () => {
         data: {
           display_name: '小诺',
           legal_acceptance: {
-            terms_version: '2026-08-03',
-            privacy_version: '2026-08-03',
+            terms_version: LEGAL_POLICY_VERSION,
+            privacy_version: LEGAL_POLICY_VERSION,
             accepted_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
           },
         },
