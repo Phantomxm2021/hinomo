@@ -361,6 +361,7 @@ export function PublicBoxPage() {
           returnFocusRef={boxEditorReturnFocusRef}
           onBusyChange={setEditorBusy}
           canChangeVisibility={canChangeVisibility}
+          onVenueAccessDenied={clearRevokedVenue}
           onClose={() => setShowBoxEditor(false)}
           onSaved={() => void refreshBox()}
         />

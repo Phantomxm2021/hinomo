@@ -51,10 +51,11 @@ vi.mock('../venues/venue-sharing.api', () => ({
   revokedVenueQueryKeys: [['venues'], ['venue-access'], ['spaces'], ['boxes'], ['box'], ['items'], ['search-items'], ['item-movements'], ['venue-activity'], ['box-plan']],
 }))
 vi.mock('./EditBoxModal', () => ({
-  EditBoxModal: ({ open, onClose, onBusyChange }: { open: boolean; onClose: () => void; onBusyChange?: (busy: boolean) => void }) => open ? (
+  EditBoxModal: ({ open, onClose, onBusyChange, onVenueAccessDenied }: { open: boolean; onClose: () => void; onBusyChange?: (busy: boolean) => void; onVenueAccessDenied?: (error: unknown) => void }) => open ? (
     <section role="dialog" aria-label="编辑箱子">
       <button type="button" onClick={() => onBusyChange?.(true)}>开始忙碌</button>
       <button type="button" onClick={() => onBusyChange?.(false)}>结束忙碌</button>
+      <button type="button" onClick={() => onVenueAccessDenied?.({ code: 'venue_access_denied' })}>模拟撤权保存失败</button>
       <button type="button" onClick={onClose}>关闭编辑箱子</button>
     </section>
   ) : null,
@@ -76,6 +77,7 @@ function renderPublicBox(
       <RouterProvider router={createMemoryRouter([
         { path: '/b/:publicId', element: <AuthProvider session={session}><PublicBoxPage /><NavigationProbe /></AuthProvider> },
         { path: '/previous', element: <h1>上一页</h1> },
+        { path: '/app', element: <h1>我的空间</h1> },
         { path: '/app/scan', element: <h1>扫码查看</h1> },
       ], { initialEntries: ['/previous', entry], initialIndex: 1 })} />
     </QueryClientProvider>,
@@ -262,6 +264,26 @@ test('gives a shared-venue member content controls but not visibility or AI cont
   expect(await screen.findByRole('button', { name: '新增物品' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '打开锤子操作' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'AI 装箱' })).not.toBeInTheDocument()
+})
+
+test('clears shared venue data when an ordinary box edit reports revoked access', async () => {
+  const user = userEvent.setup()
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client.setQueryData(['boxes'], ['stale venue content'])
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'private-1', box_code: 'BX-00001',
+    space_id: 'space-1', venue_id: 'venue-1', name: '共享工具', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库', updated_at: '2026-07-29T10:00:00Z', items: [],
+  })
+  mockGetVenueAccessSummary.mockResolvedValue({
+    venue_id: 'venue-1', role: 'member', can_delete_box: false, can_change_box_visibility: false, can_use_ai: false,
+  })
+  renderPublicBox({ user: { id: 'member-1' } } as Session, client, '/b/private-1')
+
+  await user.click(await screen.findByRole('button', { name: '编辑箱子' }))
+  await user.click(screen.getByRole('button', { name: '模拟撤权保存失败' }))
+
+  await waitFor(() => expect(client.getQueryData(['boxes'])).toBeUndefined())
 })
 
 test('opens the mobile plus menu with the owner box actions', async () => {
