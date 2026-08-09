@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react'
+import { useCallback, useEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useI18n } from '../i18n/I18nProvider'
 import { SYSTEM_ALERT_Z_INDEX } from './overlay-layers'
@@ -29,12 +29,21 @@ export function AppleAlert({ open, title, message, primaryLabel, onPrimary, canc
   const previousFocusRef = useRef<HTMLElement | null>(null)
   const resolvedPrimaryLabel = primaryLabel ?? t('common.ok')
 
+  const focusFirstEnabledControl = useCallback(() => {
+    const buttons = getFocusableButtons(dialogRef.current)
+    if (!primaryDisabled) {
+      primaryRef.current?.focus()
+      if (document.activeElement === primaryRef.current) return
+    }
+    buttons[0]?.focus()
+  }, [primaryDisabled])
+
   useEffect(() => {
     if (!open) return
     previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    primaryRef.current?.focus()
+    focusFirstEnabledControl()
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -65,7 +74,11 @@ export function AppleAlert({ open, title, message, primaryLabel, onPrimary, canc
       previousFocusRef.current?.focus()
       previousFocusRef.current = null
     }
-  }, [onCancel, onClose, open])
+  }, [focusFirstEnabledControl, onCancel, onClose, open])
+
+  useEffect(() => {
+    if (open && primaryDisabled) focusFirstEnabledControl()
+  }, [focusFirstEnabledControl, open, primaryDisabled])
 
   if (!open) return null
 
