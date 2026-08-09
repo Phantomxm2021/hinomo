@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useI18n } from '../i18n/I18nProvider'
 import { SYSTEM_ALERT_Z_INDEX } from './overlay-layers'
@@ -13,6 +13,7 @@ export type AppleAlertProps = {
   onCancel?: () => void | Promise<void>
   primaryDisabled?: boolean
   primaryBusy?: boolean
+  onActionError?: (error: unknown) => void
   onClose: () => void
 }
 
@@ -20,13 +21,15 @@ function getFocusableButtons(container: HTMLElement | null) {
   return container ? Array.from(container.querySelectorAll<HTMLButtonElement>('button:not([disabled])')) : []
 }
 
-export function AppleAlert({ open, title, message, primaryLabel, onPrimary, cancelLabel, onCancel, primaryDisabled = false, primaryBusy = false, onClose }: AppleAlertProps) {
+export function AppleAlert({ open, title, message, primaryLabel, onPrimary, cancelLabel, onCancel, primaryDisabled = false, primaryBusy = false, onActionError, onClose }: AppleAlertProps) {
   const { t } = useI18n()
   const titleId = useId()
   const messageId = useId()
   const dialogRef = useRef<HTMLElement | null>(null)
   const primaryRef = useRef<HTMLButtonElement | null>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
+  const actionPendingRef = useRef(false)
+  const [actionPending, setActionPending] = useState(false)
   const resolvedPrimaryLabel = primaryLabel ?? t('common.ok')
 
   const focusFirstEnabledControl = useCallback(() => {
@@ -47,6 +50,7 @@ export function AppleAlert({ open, title, message, primaryLabel, onPrimary, canc
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        if (actionPendingRef.current) return
         event.preventDefault()
         onCancel?.()
         onClose()
@@ -82,14 +86,43 @@ export function AppleAlert({ open, title, message, primaryLabel, onPrimary, canc
 
   if (!open) return null
 
-  const cancel = () => {
-    onCancel?.()
-    onClose()
+  const reportActionError = (error: unknown) => {
+    try {
+      onActionError?.(error)
+    } catch {
+      // A feedback callback must never create an unhandled rejection.
+    }
   }
 
-  const primary = () => {
-    onPrimary?.()
-    onClose()
+  const runAction = (action?: () => void | Promise<void>) => {
+    if (actionPendingRef.current) return
+    actionPendingRef.current = true
+    setActionPending(true)
+
+    let result: void | Promise<void>
+    try {
+      result = action?.()
+    } catch (error) {
+      reportActionError(error)
+      actionPendingRef.current = false
+      setActionPending(false)
+      return
+    }
+
+    if (!result || typeof result !== 'object' || typeof result.then !== 'function') {
+      actionPendingRef.current = false
+      setActionPending(false)
+      onClose()
+      return
+    }
+
+    void Promise.resolve(result)
+      .then(() => onClose())
+      .catch(reportActionError)
+      .finally(() => {
+        actionPendingRef.current = false
+        setActionPending(false)
+      })
   }
 
   return createPortal(
@@ -100,8 +133,8 @@ export function AppleAlert({ open, title, message, primaryLabel, onPrimary, canc
           {message ? <p className="mt-1.5 mb-0 text-[0.8125rem] leading-5 text-muted" id={messageId}>{message}</p> : null}
         </div>
         <div className={`grid border-t border-line/80 ${cancelLabel ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          {cancelLabel ? <button className="min-h-12 border-r border-line/80 bg-transparent px-3 text-[1.0625rem] text-brand" type="button" onClick={cancel}>{cancelLabel}</button> : null}
-          <button ref={primaryRef} className="min-h-12 bg-transparent px-3 text-[1.0625rem] font-semibold text-brand disabled:opacity-45" type="button" disabled={primaryDisabled} aria-busy={primaryBusy || undefined} onClick={primary}>{resolvedPrimaryLabel}</button>
+          {cancelLabel ? <button className="min-h-12 border-r border-line/80 bg-transparent px-3 text-[1.0625rem] text-brand disabled:opacity-45" type="button" disabled={actionPending} onClick={() => runAction(onCancel)}>{cancelLabel}</button> : null}
+          <button ref={primaryRef} className="min-h-12 bg-transparent px-3 text-[1.0625rem] font-semibold text-brand disabled:opacity-45" type="button" disabled={primaryDisabled || actionPending} aria-busy={(primaryBusy || actionPending) || undefined} onClick={() => runAction(onPrimary)}>{resolvedPrimaryLabel}</button>
         </div>
       </section>
     </div>,

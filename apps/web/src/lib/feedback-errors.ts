@@ -8,6 +8,7 @@ const knownMessages: Record<string, Omit<FeedbackErrorClassification, 'titleKey'
   venue_member_limit_reached: { messageKey: 'venueSharing.memberLimitReached', retryable: false },
   venue_invite_expired: { messageKey: 'venueSharing.inviteExpired', retryable: false },
   venue_invite_revoked: { messageKey: 'venueSharing.inviteRevoked', retryable: false },
+  venue_invite_missing: { messageKey: 'venueSharing.inviteNotFound', retryable: false },
   venue_invite_not_found: { messageKey: 'venueSharing.inviteNotFound', retryable: false },
   '42501': { messageKey: 'common.permissionDenied', retryable: false },
 }

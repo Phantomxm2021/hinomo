@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { MobileFeedbackProvider } from './MobileFeedbackProvider'
 import { useMobileFeedback } from './mobile-feedback'
@@ -24,6 +24,8 @@ function Harness() {
       <button type="button" onClick={() => feedback.error({ key: 'boxes.refresh', title: '无法加载箱子', message: '请检查网络', retry: vi.fn() })}>全局错误</button>
       <button type="button" onClick={() => feedback.error({ key: 'boxes.refresh', title: '无法加载箱子', message: '请检查网络', retry: vi.fn() })}>重复错误</button>
       <button type="button" onClick={() => feedback.confirm({ title: '删除箱子', message: '此操作无法撤销', primaryLabel: '删除', cancelLabel: '取消', onPrimary: vi.fn() })}>确认操作</button>
+      <button type="button" onClick={() => feedback.confirm({ title: '异步失败', primaryLabel: '提交', cancelLabel: '取消', onPrimary: () => Promise.reject(new Error('primary failed')), onActionError: vi.fn() })}>异步主操作</button>
+      <button type="button" onClick={() => feedback.confirm({ title: '异步取消失败', primaryLabel: '提交', cancelLabel: '取消', onCancel: () => Promise.reject(new Error('cancel failed')), onActionError: vi.fn() })}>异步取消</button>
     </>
   )
 }
@@ -92,6 +94,23 @@ test('supports cancel and primary actions through the shared confirmation alert'
   expect(screen.getByRole('button', { name: '删除' })).toHaveFocus()
   fireEvent.click(screen.getByRole('button', { name: '取消' }))
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+})
+
+test('catches rejected async primary actions and keeps the alert open', async () => {
+  render(<MobileFeedbackProvider><Harness /></MobileFeedbackProvider>)
+  fireEvent.click(screen.getByRole('button', { name: '异步主操作' }))
+  fireEvent.click(screen.getByRole('button', { name: '提交' }))
+
+  await waitFor(() => expect(screen.getByRole('alertdialog', { name: '异步失败' })).toBeInTheDocument())
+  expect(screen.getByRole('button', { name: '提交' })).toBeInTheDocument()
+})
+
+test('catches rejected async cancel actions and keeps the alert open', async () => {
+  render(<MobileFeedbackProvider><Harness /></MobileFeedbackProvider>)
+  fireEvent.click(screen.getByRole('button', { name: '异步取消' }))
+  fireEvent.click(screen.getByRole('button', { name: '取消' }))
+
+  await waitFor(() => expect(screen.getByRole('alertdialog', { name: '异步取消失败' })).toBeInTheDocument())
 })
 
 test('presents recoverable upload choices in a safe-area action sheet', () => {

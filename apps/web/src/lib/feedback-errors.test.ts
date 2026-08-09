@@ -17,6 +17,14 @@ test('walks nested Supabase causes to classify an expired invitation', () => {
   })
 })
 
+test('maps the actual missing invitation domain code', () => {
+  expect(classifyFeedbackError({ code: 'venue_invite_missing' })).toEqual({
+    titleKey: 'common.operationFailed',
+    messageKey: 'venueSharing.inviteNotFound',
+    retryable: false,
+  })
+})
+
 test('normalizes permission, network, and unknown errors to stable message keys', () => {
   expect(classifyFeedbackError({ code: '42501' })).toEqual({
     titleKey: 'common.operationFailed',

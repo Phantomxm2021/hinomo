@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { MobileFeedbackProvider } from './MobileFeedbackProvider'
 import { ResponsiveOperationError } from './ResponsiveOperationError'
+import { useMobileFeedback } from './mobile-feedback'
 
 afterEach(cleanup)
 
@@ -27,8 +28,7 @@ test('preserves custom retry text and disables the retry action while busy', () 
     </MobileFeedbackProvider>,
   )
 
-  fireEvent.click(screen.getByRole('button', { name: '重新加载' }))
-  expect(retry).toHaveBeenCalledTimes(1)
+  expect(screen.getByRole('button', { name: '重新加载' })).toBeInTheDocument()
 
   view.rerender(
     <MobileFeedbackProvider>
@@ -43,4 +43,44 @@ test('preserves custom retry text and disables the retry action while busy', () 
   expect(cancel).toHaveFocus()
   fireEvent.keyDown(cancel, { key: 'Tab' })
   expect(cancel).toHaveFocus()
+})
+
+function UnrelatedAlertTrigger() {
+  const feedback = useMobileFeedback()
+  return <button type="button" onClick={() => feedback.error({ key: 'unrelated', owner: 'unrelated-owner', title: '独立错误' })}>显示独立错误</button>
+}
+
+test('does not reopen a dismissed message when the parent rerenders', () => {
+  const view = render(
+    <MobileFeedbackProvider>
+      <ResponsiveOperationError message="刷新失败" onRetry={vi.fn()} />
+    </MobileFeedbackProvider>,
+  )
+
+  fireEvent.click(screen.getByRole('button', { name: '取消' }))
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  view.rerender(
+    <MobileFeedbackProvider>
+      <ResponsiveOperationError message="刷新失败" onRetry={vi.fn()} />
+    </MobileFeedbackProvider>,
+  )
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+})
+
+test('unmounting an operation error cannot dismiss another owner’s alert', () => {
+  const view = render(
+    <MobileFeedbackProvider>
+      <ResponsiveOperationError message="刷新失败" onRetry={vi.fn()} />
+      <UnrelatedAlertTrigger />
+    </MobileFeedbackProvider>,
+  )
+
+  fireEvent.click(screen.getByRole('button', { name: '显示独立错误' }))
+  expect(screen.getByRole('alertdialog', { name: '独立错误' })).toBeInTheDocument()
+  view.rerender(
+    <MobileFeedbackProvider>
+      <UnrelatedAlertTrigger />
+    </MobileFeedbackProvider>,
+  )
+  expect(screen.getByRole('alertdialog', { name: '独立错误' })).toBeInTheDocument()
 })

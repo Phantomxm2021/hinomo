@@ -2,23 +2,30 @@ import { createContext, useContext } from 'react'
 import type { MobileSheetAction } from './MobileActionSheet'
 
 export type MobileAlertOptions = {
+  key?: string
+  owner?: string
   title: string
   message?: string
   primaryLabel?: string
   onPrimary?: () => void | Promise<void>
   cancelLabel?: string
   onCancel?: () => void | Promise<void>
+  onDismiss?: () => void
+  onActionError?: (error: unknown) => void
   primaryDisabled?: boolean
   primaryBusy?: boolean
 }
 
 export type FeedbackErrorOptions = {
   key: string
+  owner?: string
   title: string
   message?: string
   retry?: () => void | Promise<void>
   retryLabel?: string
   retrying?: boolean
+  onDismiss?: () => void
+  onActionError?: (error: unknown) => void
 }
 
 export type MobileSheetOptions = {
@@ -34,7 +41,7 @@ export type MobileFeedbackApi = {
   showActionSheet: (options: MobileSheetOptions) => void
   error: (options: FeedbackErrorOptions) => void
   confirm: (options: MobileAlertOptions) => void
-  dismiss: () => void
+  dismiss: (owner?: string) => void
 }
 
 const noop = () => undefined
