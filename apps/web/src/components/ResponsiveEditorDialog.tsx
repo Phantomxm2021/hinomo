@@ -33,7 +33,8 @@ function getTopmostSystemOverlay() {
       if (!topmost) return overlay
       const topmostZIndex = Number.parseInt(window.getComputedStyle(topmost).zIndex, 10) || 0
       const overlayZIndex = Number.parseInt(window.getComputedStyle(overlay).zIndex, 10) || 0
-      return overlayZIndex > topmostZIndex ? overlay : topmost
+      // When overlays share a stacking level, the later portal is visually on top.
+      return overlayZIndex >= topmostZIndex ? overlay : topmost
     }, null)
 }
 
@@ -130,6 +131,7 @@ export function ResponsiveEditorDialog({
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 p-0 backdrop-blur-[2px] lg:items-center lg:bg-transparent lg:p-3 lg:backdrop-blur-[6px]"
       data-testid="editor-dialog-backdrop"
+      data-overlay-layer="responsive-editor-dialog"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) close()
