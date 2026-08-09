@@ -1,30 +1,38 @@
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useEffect } from 'react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { I18nProvider } from '../../i18n/I18nProvider'
+import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { VenueInviteDialog } from './VenueInviteDialog'
 
-const mocks = vi.hoisted(() => ({ qr: vi.fn(), revoke: vi.fn(), copy: vi.fn(), share: vi.fn() }))
+const mocks = vi.hoisted(() => ({ qr: vi.fn(), copy: vi.fn(), share: vi.fn() }))
 vi.mock('qrcode', () => ({ default: { toDataURL: mocks.qr } }))
-vi.mock('./venue-sharing.api', () => ({ revokeVenueInvite: mocks.revoke }))
 vi.mock('../../lib/env', () => ({ publicAppOrigin: () => 'https://nomo.example/' }))
 
-function renderDialog(overrides: Partial<Parameters<typeof VenueInviteDialog>[0]> = {}) {
+function LocaleSetup({ locale }: { locale: 'zh-CN' | 'en-US' }) {
+  const { setLocale } = useI18n()
+  useEffect(() => setLocale(locale), [locale, setLocale])
+  return null
+}
+
+function renderDialog(overrides: Partial<Parameters<typeof VenueInviteDialog>[0]> = {}, locale: 'zh-CN' | 'en-US' = 'zh-CN') {
   const props: Parameters<typeof VenueInviteDialog>[0] = { open: true, invite: { invite_id: 'invite-1', token: 'raw-token', expires_at: '2026-08-10T00:00:00Z', reusable: true }, onClose: vi.fn(), ...overrides }
-  render(<I18nProvider><MobileFeedbackProvider><button type="button">触发器</button><VenueInviteDialog {...props} /></MobileFeedbackProvider></I18nProvider>)
+  render(<I18nProvider><LocaleSetup locale={locale} /><MobileFeedbackProvider><button type="button">触发器</button><VenueInviteDialog {...props} /></MobileFeedbackProvider></I18nProvider>)
   return props
 }
 
 beforeEach(() => {
-  mocks.qr.mockReset(); mocks.revoke.mockReset(); mocks.copy.mockReset(); mocks.share.mockReset()
+  mocks.qr.mockReset(); mocks.copy.mockReset(); mocks.share.mockReset()
   mocks.qr.mockResolvedValue('data:image/png;base64,qr')
   mocks.copy.mockResolvedValue(undefined)
   mocks.share.mockResolvedValue(undefined)
   Object.defineProperty(window.navigator, 'clipboard', { configurable: true, value: { writeText: mocks.copy } })
   Object.defineProperty(window.navigator, 'share', { configurable: true, value: mocks.share })
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+})
 
 test('renders a QR code and communicates that a reusable invitation can invite multiple family members', async () => {
   renderDialog({ invite: { invite_id: 'invite-1', token: 'raw-token', expires_at: '2026-08-10T00:00:00Z', reusable: true } })
@@ -54,43 +62,23 @@ test('copies on demand and reports the copied state', async () => {
   expect(await screen.findByRole('button', { name: '已复制邀请链接' })).toBeInTheDocument()
 })
 
-test('uses a clear primary-first action stack and separates the destructive revoke action', async () => {
+test('keeps the invite action stack free of visible revoke controls in Chinese', async () => {
   renderDialog()
 
   const actions = screen.getByTestId('venue-invite-actions')
   expect(actions).toHaveClass('grid', 'gap-3')
   expect(within(actions).getAllByRole('button').map((button) => button.textContent)).toEqual(['分享邀请链接', '复制邀请链接'])
-  expect(screen.getByTestId('venue-invite-danger-zone')).toHaveClass('border-t')
-  expect(screen.getByTestId('venue-invite-danger-zone')).toContainElement(screen.getByRole('button', { name: '撤销邀请' }))
+  expect(screen.queryByRole('button', { name: '撤销邀请' })).not.toBeInTheDocument()
+  expect(screen.queryByTestId('venue-invite-danger-zone')).not.toBeInTheDocument()
 })
 
-test('asks for an Apple-style destructive confirmation before revoking the invite', async () => {
-  const user = userEvent.setup()
-  let resolve: (() => void) | undefined
-  mocks.revoke.mockReturnValue(new Promise<void>((done) => { resolve = done }))
-  const props = renderDialog()
-  await user.click(screen.getByRole('button', { name: '撤销邀请' }))
-  expect(mocks.revoke).not.toHaveBeenCalled()
-  const confirmation = await screen.findByRole('alertdialog', { name: '撤销邀请？' })
-  await user.click(within(confirmation).getByRole('button', { name: '撤销邀请' }))
-  expect(screen.getByRole('button', { name: '撤销中…', hidden: true })).toBeDisabled()
-  expect(screen.getByRole('button', { name: '复制邀请链接', hidden: true })).toBeDisabled()
-  resolve?.()
-  await waitFor(() => expect(props.onClose).toHaveBeenCalled())
-  expect(mocks.revoke).toHaveBeenCalledWith('invite-1')
-})
+test('keeps the invite dialog free of visible revoke controls in English', async () => {
+  renderDialog({}, 'en-US')
 
-test('temporarily hides the underlying invite dialog from assistive technology during revoke confirmation', async () => {
-  const user = userEvent.setup()
-  renderDialog()
-  await user.click(screen.getByRole('button', { name: '撤销邀请' }))
-
-  expect(await screen.findByRole('alertdialog', { name: '撤销邀请？' })).toBeInTheDocument()
-  expect(screen.queryByRole('dialog', { name: '分享场地邀请' })).not.toBeInTheDocument()
-  expect(screen.getByTestId('editor-dialog-backdrop')).toHaveAttribute('aria-hidden', 'true')
-  await user.click(screen.getByRole('button', { name: '取消' }))
-  expect(screen.getByTestId('editor-dialog-backdrop')).not.toHaveAttribute('aria-hidden')
-  expect(screen.getByTestId('editor-dialog-backdrop')).not.toHaveAttribute('inert')
+  expect(await screen.findByText('Share venue invitation')).toBeInTheDocument()
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Revoke invitation' })).not.toBeInTheDocument()
+  expect(screen.queryByTestId('venue-invite-danger-zone')).not.toBeInTheDocument()
 })
 
 test('offers retry for transient copy failures and retries the exact clipboard operation', async () => {
@@ -126,19 +114,6 @@ test('offers retry for transient QR failures and retries QR generation', async (
   await user.click(within(alert).getByRole('button', { name: '重试' }))
   await waitFor(() => expect(mocks.qr).toHaveBeenCalledTimes(2))
   expect(await screen.findByRole('img', { name: '场地邀请二维码' })).toHaveAttribute('src', 'data:image/png;base64,retry-qr')
-})
-
-test('offers retry for transient revoke failures and repeats the exact revoke operation', async () => {
-  const user = userEvent.setup()
-  mocks.revoke.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce(undefined)
-  const props = renderDialog()
-  await user.click(screen.getByRole('button', { name: '撤销邀请' }))
-  const confirmation = await screen.findByRole('alertdialog', { name: '撤销邀请？' })
-  await user.click(within(confirmation).getByRole('button', { name: '撤销邀请' }))
-  const alert = await screen.findByRole('alertdialog', { name: '操作未完成' })
-  await user.click(within(alert).getByRole('button', { name: '重试' }))
-  await waitFor(() => expect(mocks.revoke).toHaveBeenCalledTimes(2))
-  expect(props.onClose).toHaveBeenCalled()
 })
 
 test('supports Escape, contains focus, restores focus, and uses the mobile safe-area padding', async () => {

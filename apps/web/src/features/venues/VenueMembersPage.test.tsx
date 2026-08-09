@@ -8,7 +8,7 @@ import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { VenueMembersPage } from './VenueMembersPage'
 
 const mocks = vi.hoisted(() => ({
-  access: vi.fn(), members: vi.fn(), invites: vi.fn(), createInvite: vi.fn(), revoke: vi.fn(), remove: vi.fn(), leave: vi.fn(),
+  access: vi.fn(), members: vi.fn(), invites: vi.fn(), createInvite: vi.fn(), remove: vi.fn(), leave: vi.fn(),
 }))
 
 vi.mock('./venue-sharing.api', async (importOriginal) => ({
@@ -17,7 +17,6 @@ vi.mock('./venue-sharing.api', async (importOriginal) => ({
   listVenueMembers: mocks.members,
   listVenueInvites: mocks.invites,
   createVenueInvite: mocks.createInvite,
-  revokeVenueInvite: mocks.revoke,
   removeVenueMember: mocks.remove,
   leaveVenue: mocks.leave,
 }))
@@ -48,7 +47,6 @@ beforeEach(() => {
   ])
   mocks.invites.mockResolvedValue([{ invite_id: 'invite-1', created_at: '2026-08-03T00:00:00Z', expires_at: '2026-08-10T00:00:00Z', status: 'active', reusable: true, accepted_count: 0 }])
   mocks.createInvite.mockResolvedValue({ invite_id: 'invite-new', token: 'raw-secret', expires_at: '2026-08-10T00:00:00Z', reusable: true })
-  mocks.revoke.mockResolvedValue(undefined)
   mocks.remove.mockResolvedValue(undefined)
   mocks.leave.mockResolvedValue(undefined)
 })
@@ -80,9 +78,9 @@ test('renders no more than one current active reusable invite row', async () => 
   ])
   renderPage()
 
-  await waitFor(() => expect(screen.getAllByRole('button', { name: '撤销邀请' })).toHaveLength(1))
+  await waitFor(() => expect(screen.getByText('当前邀请 · 已邀请 1 位成员')).toBeInTheDocument())
   expect(await screen.findByRole('heading', { name: '当前邀请' })).toBeInTheDocument()
-  expect(screen.getByText('当前邀请 · 已邀请 1 位成员')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '撤销邀请' })).not.toBeInTheDocument()
 })
 afterEach(() => {
   cleanup()
@@ -102,7 +100,7 @@ test('owner manages family members, active invitations, and clears the raw invit
   expect(screen.getByRole('button', { name: '创建邀请' })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: '最近活动' })).toHaveAttribute('href', '/app/venues/home/activity')
   expect(await screen.findByRole('heading', { name: '当前邀请' })).toBeInTheDocument()
-  expect(await screen.findByRole('button', { name: '撤销邀请' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '撤销邀请' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: '移除李小红' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '退出场地' })).not.toBeInTheDocument()
 
@@ -111,13 +109,6 @@ test('owner manages family members, active invitations, and clears the raw invit
   await user.click(screen.getByRole('button', { name: '关闭邀请' }))
   expect(screen.queryByRole('dialog', { name: '邀请对话框' })).not.toBeInTheDocument()
   expect(client.getMutationCache().getAll().some((mutation) => JSON.stringify(mutation.state.data).includes('raw-secret'))).toBe(false)
-
-  await user.click(screen.getByRole('button', { name: '撤销邀请' }))
-  expect(mocks.revoke).not.toHaveBeenCalled()
-  const revokeConfirmation = await screen.findByRole('alertdialog', { name: '撤销邀请？' })
-  await user.click(within(revokeConfirmation).getByRole('button', { name: '撤销邀请' }))
-  await waitFor(() => expect(mocks.revoke).toHaveBeenCalledWith('invite-1'))
-  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['venue-invites', 'home'] })
 
   await user.click(screen.getByRole('button', { name: '移除李小红' }))
   expect(await screen.findByRole('alertdialog', { name: '移除成员' })).toHaveTextContent('不会删除对方创建的数据或历史记录')
@@ -172,37 +163,6 @@ test('retries a transient member-page invite failure through the global Apple al
   await user.click(within(alert).getByRole('button', { name: '重试' }))
   await waitFor(() => expect(mocks.createInvite).toHaveBeenCalledTimes(2))
   expect(await screen.findByRole('dialog', { name: '邀请对话框' })).toHaveTextContent('retry-secret')
-})
-
-test('offers retry for transient member-page revoke failures after confirmation', async () => {
-  const user = userEvent.setup()
-  mocks.revoke.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce(undefined)
-  renderPage()
-
-  await user.click(await screen.findByRole('button', { name: '撤销邀请' }))
-  const confirmation = await screen.findByRole('alertdialog', { name: '撤销邀请？' })
-  await user.click(within(confirmation).getByRole('button', { name: '撤销邀请' }))
-  const alert = await screen.findByRole('alertdialog', { name: '操作未完成' })
-  await user.click(within(alert).getByRole('button', { name: '重试' }))
-  await waitFor(() => expect(mocks.revoke).toHaveBeenCalledTimes(2))
-})
-
-test('routes access denial from a revoke retry through venue cleanup and navigation', async () => {
-  const user = userEvent.setup()
-  mocks.revoke.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockRejectedValueOnce(Object.assign(new Error('venue_access_denied'), { code: 'venue_access_denied' }))
-  const client = renderPage()
-  const removeQueries = vi.spyOn(client, 'removeQueries')
-
-  await user.click(await screen.findByRole('button', { name: '撤销邀请' }))
-  const confirmation = await screen.findByRole('alertdialog', { name: '撤销邀请？' })
-  await user.click(within(confirmation).getByRole('button', { name: '撤销邀请' }))
-  const alert = await screen.findByRole('alertdialog', { name: '操作未完成' })
-  await user.click(within(alert).getByRole('button', { name: '重试' }))
-
-  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('你没有执行此操作的权限')
-  expect(await screen.findByText('首页')).toBeInTheDocument()
-  expect(mocks.revoke).toHaveBeenCalledTimes(2)
-  expect(removeQueries).toHaveBeenCalledWith({ queryKey: ['venues'] })
 })
 
 test('keeps invite creation closed when the deploy-time kill switch is disabled', async () => {
