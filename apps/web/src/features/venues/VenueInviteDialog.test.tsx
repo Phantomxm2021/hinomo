@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { I18nProvider } from '../../i18n/I18nProvider'
@@ -37,6 +37,16 @@ test('copies on demand and reports the copied state', async () => {
   renderDialog()
   await user.click(screen.getByRole('button', { name: '复制邀请链接' }))
   expect(await screen.findByRole('button', { name: '已复制邀请链接' })).toBeInTheDocument()
+})
+
+test('uses a clear primary-first action stack and separates the destructive revoke action', async () => {
+  renderDialog()
+
+  const actions = screen.getByTestId('venue-invite-actions')
+  expect(actions).toHaveClass('grid', 'gap-3')
+  expect(within(actions).getAllByRole('button').map((button) => button.textContent)).toEqual(['分享邀请链接', '复制邀请链接'])
+  expect(screen.getByTestId('venue-invite-danger-zone')).toHaveClass('border-t')
+  expect(screen.getByTestId('venue-invite-danger-zone')).toContainElement(screen.getByRole('button', { name: '撤销邀请' }))
 })
 
 test('disables actions while revoking and closes only after an owner revokes the invite', async () => {

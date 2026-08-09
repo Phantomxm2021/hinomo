@@ -32,6 +32,13 @@ test('validates an empty venue name before calling the API', async () => {
   expect(props.onSubmit).not.toHaveBeenCalled()
 })
 
+test('uses the close control instead of rendering a duplicate cancel button', () => {
+  renderEditor()
+
+  expect(screen.getByRole('button', { name: '关闭场地编辑器' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '取消' })).not.toBeInTheDocument()
+})
+
 test('normalizes a venue payload before submitting it', async () => {
   const user = userEvent.setup()
   const props = renderEditor()

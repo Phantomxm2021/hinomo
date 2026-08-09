@@ -110,3 +110,13 @@ test('does not show invite controls on a member venue card', async () => {
   expect(memberCard).not.toBeNull()
   expect(within(memberCard as HTMLElement).queryByRole('button', { name: '邀请家人' })).not.toBeInTheDocument()
 })
+
+test('keeps the owner venue summary and actions inside one card surface', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(<MemoryRouter><QueryClientProvider client={client}><VenuesPage /></QueryClientProvider></MemoryRouter>)
+
+  const card = await screen.findByTestId('venue-card-home')
+  expect(card).toHaveClass('rounded-[1.35rem]', 'border', 'bg-surface')
+  expect(within(card).getByRole('button', { name: '邀请家人' })).toBeInTheDocument()
+  expect(within(card).getByRole('link', { name: '家庭成员家里' })).toBeInTheDocument()
+})

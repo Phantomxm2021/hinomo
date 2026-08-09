@@ -78,11 +78,14 @@ export function VenueInviteDialog({ open, invite, onClose }: VenueInviteDialogPr
         <div className="grid min-h-52 place-items-center rounded-card border border-line bg-white p-4">
           {qrDataUrl ? <img className="size-52 max-w-full object-contain" src={qrDataUrl} alt={t('venueSharing.qrAlt')} /> : <p role="status">{t('venueSharing.qrLoading')}</p>}
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <button className="min-h-11 rounded-control border border-line px-4 font-bold disabled:opacity-50" type="button" disabled={busy || !inviteUrl} onClick={() => void copy()}>{copied ? t('venueSharing.copied') : t('venueSharing.copy')}</button>
-          <button className="min-h-11 rounded-control bg-brand px-4 font-bold text-white disabled:opacity-50" type="button" disabled={busy || !inviteUrl} onClick={() => void share()}>{t('venueSharing.share')}</button>
+        <div className="grid gap-3" data-testid="venue-invite-actions">
+          <button className="order-first min-h-12 rounded-control bg-brand px-4 font-bold text-white shadow-soft transition hover:bg-brand-strong disabled:opacity-50" type="button" disabled={busy || !inviteUrl} onClick={() => void share()}>{t('venueSharing.share')}</button>
+          <button className="min-h-12 rounded-control border border-line px-4 font-bold transition hover:bg-canvas disabled:opacity-50" type="button" disabled={busy || !inviteUrl} onClick={() => void copy()}>{copied ? t('venueSharing.copied') : t('venueSharing.copy')}</button>
         </div>
-        <button className="min-h-11 justify-self-start rounded-control px-2 font-bold text-danger disabled:opacity-50" type="button" disabled={busy || !invite} onClick={() => void revoke()}>{busy ? t('venueSharing.revoking') : t('venueSharing.revoke')}</button>
+        <div className="grid gap-2 border-t border-line/70 pt-4" data-testid="venue-invite-danger-zone">
+          <p className="m-0 text-xs leading-5 text-muted">{t('venueSharing.revokeHint')}</p>
+          <button className="min-h-11 justify-self-end rounded-control px-3 font-bold text-danger transition hover:bg-danger/5 disabled:opacity-50" type="button" disabled={busy || !invite} onClick={() => void revoke()}>{busy ? t('venueSharing.revoking') : t('venueSharing.revoke')}</button>
+        </div>
         {error ? <p className="m-0 text-sm text-danger" role="alert">{t('venueSharing.actionError')}</p> : null}
       </div>
     </ResponsiveEditorDialog>

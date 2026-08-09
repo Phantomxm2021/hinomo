@@ -73,7 +73,6 @@ export function VenueEditorDialog({ open, venue, pending, error, onClose, onSubm
           {venue && venue.space_count > 0 ? <p className="text-sm text-muted">{t('venues.deleteBlocked', { count: venue.space_count })}</p> : null}
           <div className="mt-3 flex flex-wrap justify-end gap-2">
             {venue ? <button className="mr-auto min-h-11 rounded-control px-4 font-bold text-danger disabled:opacity-50" type="button" disabled={pending || defaultVenue || venue.space_count > 0} onClick={() => void onDelete(venue)}>{t('venues.delete')}</button> : null}
-            <button className="min-h-11 rounded-control border border-line px-4 font-bold" type="button" disabled={pending} onClick={onClose}>{t('venues.cancel')}</button>
             <button className="min-h-11 rounded-control bg-brand px-5 font-bold text-white disabled:opacity-50" type="submit" disabled={pending}>{pending ? t('venues.saving') : venue ? t('venues.save') : t('venues.create')}</button>
           </div>
         </form>
