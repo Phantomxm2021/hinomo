@@ -16,3 +16,9 @@
 - `npm run typecheck` — passed.
 - `npm run lint` — passed.
 - `git diff --check` — passed.
+
+## Review follow-up
+
+- Expanded `VenueInviteErrorCode` and its normalizer to preserve every relevant domain error emitted by the sharing RPCs in migration `202608090001`: `venue_invite_missing`, `venue_owner_cannot_join`, `venue_owner_cannot_remove`, `venue_member_not_found`, and `venue_owner_cannot_leave`, in addition to the originally covered codes.
+- Added parameterized regression coverage proving each code is exposed on the thrown error and recognized by `isVenueInviteError`.
+- RED: the five new cases failed because their raw RPC errors had no stable `code` property. Final focused verification passed: 24 tests across the account boundary, sharing API, and venue API; `npm run typecheck`, `npm run lint`, and `git diff --check` also passed.

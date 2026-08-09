@@ -77,7 +77,8 @@ describe('venue sharing api', () => {
 
   it.each([
     'venue_invite_expired', 'venue_invite_used', 'venue_invite_revoked', 'venue_member_limit_reached',
-    'venue_access_denied', 'venue_owner_required',
+    'venue_access_denied', 'venue_owner_required', 'venue_invite_missing', 'venue_owner_cannot_join',
+    'venue_owner_cannot_remove', 'venue_member_not_found', 'venue_owner_cannot_leave',
   ] as const)('preserves %s as a stable invite error code', async (code) => {
     mockRpc.mockResolvedValue({ data: null, error: { message: code } })
 

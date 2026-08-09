@@ -47,6 +47,11 @@ export type VenueInviteErrorCode =
   | 'venue_member_limit_reached'
   | 'venue_access_denied'
   | 'venue_owner_required'
+  | 'venue_invite_missing'
+  | 'venue_owner_cannot_join'
+  | 'venue_owner_cannot_remove'
+  | 'venue_member_not_found'
+  | 'venue_owner_cannot_leave'
 
 const venueInviteErrorCodes = new Set<VenueInviteErrorCode>([
   'venue_invite_expired',
@@ -55,6 +60,11 @@ const venueInviteErrorCodes = new Set<VenueInviteErrorCode>([
   'venue_member_limit_reached',
   'venue_access_denied',
   'venue_owner_required',
+  'venue_invite_missing',
+  'venue_owner_cannot_join',
+  'venue_owner_cannot_remove',
+  'venue_member_not_found',
+  'venue_owner_cannot_leave',
 ])
 
 type VenueInviteError = Error & { code: VenueInviteErrorCode }
