@@ -8,6 +8,7 @@ type GrantAccountEntitlementRow = Database['public']['Functions']['grant_account
 type VenueInsert = Database['public']['Tables']['venues']['Insert']
 type VenueRow = Database['public']['Tables']['venues']['Row']
 type SpaceInsert = Database['public']['Tables']['spaces']['Insert']
+type AcceptInviteArgs = Database['public']['Functions']['accept_venue_invite']['Args']
 
 const validBoxInsert = {
   name: '文具',
@@ -59,6 +60,9 @@ const validSpaceInsert = {
   owner_id: '00000000-0000-0000-0000-000000000001',
   venue_id: '00000000-0000-0000-0000-000000000004',
 } satisfies SpaceInsert
+const validAcceptInvite: AcceptInviteArgs = { p_token: 'opaque-token' }
+// @ts-expect-error actor identity comes from auth.uid(), never from the client
+const forgedAcceptInvite: AcceptInviteArgs = { p_token: 'opaque-token', p_user_id: 'forged' }
 
 const updateWithPublicId: BoxUpdate = {
   ...validBoxUpdate,
@@ -83,3 +87,5 @@ void createWithOwnerId
 void validVenueInsert
 void validDefaultFlag
 void validSpaceInsert
+void validAcceptInvite
+void forgedAcceptInvite

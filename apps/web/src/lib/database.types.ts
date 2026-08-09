@@ -650,6 +650,79 @@ export type Database = {
         }
         Relationships: []
       }
+      venue_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          created_by: string
+          expires_at: string
+          id: string
+          revoked_at: string | null
+          token_hash: string
+          venue_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          created_by: string
+          expires_at: string
+          id?: string
+          revoked_at?: string | null
+          token_hash: string
+          venue_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          id?: string
+          revoked_at?: string | null
+          token_hash?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'venue_invites_venue_id_fkey'
+            columns: ['venue_id']
+            isOneToOne: false
+            referencedRelation: 'venues'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      venue_members: {
+        Row: {
+          invited_by: string | null
+          joined_at: string
+          user_id: string
+          venue_id: string
+        }
+        Insert: {
+          invited_by?: string | null
+          joined_at?: string
+          user_id: string
+          venue_id: string
+        }
+        Update: {
+          invited_by?: string | null
+          joined_at?: string
+          user_id?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'venue_members_venue_id_fkey'
+            columns: ['venue_id']
+            isOneToOne: false
+            referencedRelation: 'venues'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       venues: {
         Row: {
           created_at: string
@@ -977,6 +1050,98 @@ export type Database = {
           quantity: number
           stored_quantity: number
         }[]
+      }
+      accept_venue_invite: {
+        Args: { p_token: string }
+        Returns: { result: string; venue_id: string }[]
+      }
+      can_access_venue: {
+        Args: { p_venue_id: string }
+        Returns: boolean
+      }
+      can_edit_venue_content: {
+        Args: { p_venue_id: string }
+        Returns: boolean
+      }
+      create_venue_invite: {
+        Args: { p_venue_id: string }
+        Returns: { expires_at: string; invite_id: string; token: string }[]
+      }
+      get_venue_access_summary: {
+        Args: { p_venue_id: string }
+        Returns: {
+          can_change_box_visibility: boolean
+          can_delete_box: boolean
+          can_delete_space: boolean
+          can_delete_venue: boolean
+          can_manage_members: boolean
+          can_use_ai: boolean
+          max_members: number
+          member_count: number
+          role: string
+          venue_id: string
+        }[]
+      }
+      inspect_venue_invite: {
+        Args: { p_token: string }
+        Returns: {
+          current_user_state: string
+          expires_at: string | null
+          owner_display_name: string | null
+          status: string
+          venue_id: string | null
+          venue_name: string | null
+        }[]
+      }
+      is_venue_member: {
+        Args: { p_venue_id: string }
+        Returns: boolean
+      }
+      is_venue_owner: {
+        Args: { p_venue_id: string }
+        Returns: boolean
+      }
+      leave_venue: {
+        Args: { p_venue_id: string }
+        Returns: undefined
+      }
+      list_accessible_venues: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          description: string | null
+          id: string
+          is_default: boolean
+          max_members: number
+          member_count: number
+          name: string
+          owner_display_name: string | null
+          owner_id: string
+          role: string
+          space_count: number
+        }[]
+      }
+      list_venue_invites: {
+        Args: { p_venue_id: string }
+        Returns: { created_at: string; expires_at: string; invite_id: string; status: string }[]
+      }
+      list_venue_members: {
+        Args: { p_venue_id: string }
+        Returns: {
+          avatar_url: string | null
+          display_name: string | null
+          is_current: boolean
+          joined_at: string
+          role: string
+          user_id: string
+        }[]
+      }
+      remove_venue_member: {
+        Args: { p_user_id: string; p_venue_id: string }
+        Returns: undefined
+      }
+      revoke_venue_invite: {
+        Args: { p_invite_id: string }
+        Returns: undefined
       }
       write_activity_log: {
         Args: Record<PropertyKey, never>
