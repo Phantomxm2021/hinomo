@@ -30,6 +30,12 @@ describe('message catalog', () => {
     expect(messages['zh-CN'].venueSharing.revoked).not.toBe(messages['en-US'].venueSharing.revoked)
   })
 
+  test('includes localized family member management copy', () => {
+    expect(messages['zh-CN'].venueSharing.createInvite).toBe('创建邀请')
+    expect(messages['en-US'].venueSharing.leaveVenue).toBe('Leave venue')
+    expect(messages['zh-CN'].venues.sharedBadge).toBe('家庭共享')
+  })
+
   test('keeps Simplified Chinese and English leaf keys in sync', () => {
     const chineseKeys = leafPaths(messages['zh-CN']).sort()
     const englishKeys = leafPaths(messages['en-US']).sort()

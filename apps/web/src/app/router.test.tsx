@@ -15,3 +15,9 @@ test('matches the public venue join page outside the protected app routes', () =
   expect(matches?.at(-1)?.route.path).toBe('/join/venue')
   expect(matches?.some((match) => match.route.path === '/app')).toBe(false)
 })
+
+test('matches the protected venue family members page before the app fallback route', () => {
+  const matches = matchRoutes(router.routes, '/app/venues/home/members')
+
+  expect(matches?.at(-1)?.route.path).toBe('venues/:venueId/members')
+})

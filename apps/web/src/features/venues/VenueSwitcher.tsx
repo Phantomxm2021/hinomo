@@ -55,13 +55,16 @@ export function VenueSwitcher({ venues, selectedId, onSelect }: {
           <span className="venue-switcher-options block max-h-[min(18rem,calc(100dvh-11rem))] overflow-y-auto overscroll-contain py-1">
             {venues.map((venue) => {
               const selected = venue.id === selectedVenue?.id
+              const shared = venue.role === 'member'
               return (
                 <button
                   className={`flex min-h-12 w-full items-center gap-3 rounded-[0.9rem] px-3 text-left font-semibold transition ${selected ? 'bg-brand text-white' : 'text-white/82 hover:bg-white/9 hover:text-white'}`}
                   type="button"
                   role="menuitemradio"
                   aria-checked={selected}
-                  aria-label={t('venues.spaceCount', { name: venue.name, count: venue.space_count })}
+                  aria-label={shared
+                    ? t('venues.sharedSpaceCount', { name: venue.name, count: venue.space_count, owner: venue.owner_display_name ?? t('venueSharing.ownerFallback') })
+                    : t('venues.spaceCount', { name: venue.name, count: venue.space_count })}
                   key={venue.id}
                   onClick={() => {
                     onSelect(venue.id)
@@ -71,6 +74,7 @@ export function VenueSwitcher({ venues, selectedId, onSelect }: {
                 >
                   <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true">{selected ? '✓' : ''}</span>
                   <span className="min-w-0 flex-1 truncate">{venue.name}</span>
+                  {shared ? <span className="rounded-full bg-white/12 px-2 py-0.5 text-[0.65rem] font-bold text-white">{t('venues.sharedBadge')}</span> : null}
                   <span className="text-xs font-medium text-white/45">{venue.space_count}</span>
                 </button>
               )

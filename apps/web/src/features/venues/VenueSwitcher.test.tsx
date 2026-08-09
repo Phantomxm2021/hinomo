@@ -16,7 +16,7 @@ test('opens beside the trigger, selects a venue, and links to venue management',
       <VenueSwitcher
         venues={[
           { id: 'home', name: '家里', description: null, is_default: true, space_count: 3, ...venueAccess },
-          { id: 'office', name: '公司', description: null, is_default: false, space_count: 1, ...venueAccess },
+          { id: 'office', name: '公司', description: null, is_default: false, space_count: 1, ...venueAccess, role: 'member', owner_display_name: '王小明' },
         ]}
         selectedId="home"
         onSelect={onSelect}
@@ -33,7 +33,8 @@ test('opens beside the trigger, selects a venue, and links to venue management',
   const menu = screen.getByRole('menu', { name: '选择场地' })
   expect(menu).toHaveClass('absolute', 'right-0')
   expect(screen.getByRole('menuitem', { name: '场地管理' })).toHaveAttribute('href', '/app/venues')
-  await user.click(screen.getByRole('menuitemradio', { name: '公司，1 个空间' }))
+  expect(screen.getByRole('menuitemradio', { name: '公司，1 个空间，家庭共享，王小明' })).toHaveTextContent('家庭共享')
+  await user.click(screen.getByRole('menuitemradio', { name: '公司，1 个空间，家庭共享，王小明' }))
 
   expect(onSelect).toHaveBeenCalledWith('office')
   expect(screen.queryByRole('menu')).not.toBeInTheDocument()

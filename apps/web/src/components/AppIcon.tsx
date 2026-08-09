@@ -19,6 +19,10 @@ export type AppIconName =
   | 'settings'
   | 'logout'
   | 'more'
+  | 'family'
+  | 'history'
+  | 'share'
+  | 'copy'
 
 const iconPaths: Record<AppIconName, ReactNode> = {
   home: (
@@ -103,6 +107,26 @@ const iconPaths: Record<AppIconName, ReactNode> = {
       <circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" />
       <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
       <circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" />
+    </>
+  ),
+  family: (
+    <>
+      <circle cx="9" cy="8" r="3" />
+      <circle cx="17" cy="10" r="2.5" />
+      <path d="M3.5 20c.7-4 2.6-6 5.5-6 3 0 4.9 2 5.6 6M14.5 20c.4-2.3 1.6-3.8 3.8-4.3" />
+    </>
+  ),
+  history: (
+    <>
+      <path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5" />
+      <path d="M4 4v4.5h4.5M12 7v5l3.5 2" />
+    </>
+  ),
+  share: <path d="M8.5 12 15.5 5M10 5h5.5v5.5M16 13.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1h5.5" />,
+  copy: (
+    <>
+      <rect x="8" y="8" width="11" height="12" rx="2" />
+      <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h2" />
     </>
   ),
 }
