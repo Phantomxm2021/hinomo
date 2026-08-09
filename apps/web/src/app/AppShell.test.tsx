@@ -101,10 +101,10 @@ test('keeps language selection inside settings instead of the desktop sidebar', 
 
   await user.click(await screen.findByRole('button', { name: '打开账户菜单' }))
   expect(screen.getByRole('button', { name: '打开账户菜单' })).toHaveAttribute('data-settings-return-focus')
-  expect(screen.getByRole('menuitem', { name: /设置/ })).toHaveAttribute('href', '/app/me/settings')
+  expect(screen.getByRole('menuitem', { name: /设置/ })).toHaveAttribute('type', 'button')
 })
 
-test('opens settings through the real app route and restores the account trigger after close', async () => {
+test('opens desktop settings in place without changing the route and restores the account trigger after close', async () => {
   mockDesktopViewport()
   const user = userEvent.setup()
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -130,9 +130,9 @@ test('opens settings through the real app route and restores the account trigger
   await user.click(accountTrigger)
   await user.click(screen.getByRole('menuitem', { name: /设置/ }))
   expect(await screen.findByRole('dialog', { name: '设置' })).toBeInTheDocument()
+  expect(screen.getByTestId('route-path')).toHaveTextContent('/app')
 
   await user.click(screen.getByRole('button', { name: '关闭设置' }))
-  await waitFor(() => expect(screen.getByTestId('route-path')).toHaveTextContent('/app'))
   await waitFor(() => expect(accountTrigger).toHaveFocus())
 })
 
