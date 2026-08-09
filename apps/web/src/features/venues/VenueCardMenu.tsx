@@ -5,7 +5,8 @@ import { useMobileFeedback } from '../../components/mobile-feedback'
 import { useI18n } from '../../i18n/I18nProvider'
 import { classifyFeedbackError } from '../../lib/feedback-errors'
 import { VenueInviteDialog } from './VenueInviteDialog'
-import { createVenueInvite } from './venue-sharing.api'
+import { createVenueInvite, type VenueInvite } from './venue-sharing.api'
+import { useQueryClient } from '@tanstack/react-query'
 import type { VenueSummary } from './venues.api'
 
 type VenueCardMenuProps = {
@@ -17,9 +18,11 @@ type VenueCardMenuProps = {
 export function VenueCardMenu({ venue, invitesEnabled, onEdit }: VenueCardMenuProps) {
   const { t } = useI18n()
   const feedback = useMobileFeedback()
+  const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
-  const [invite, setInvite] = useState<{ invite_id: string; token: string; expires_at: string } | null>(null)
+  const [invite, setInvite] = useState<VenueInvite | null>(null)
   const [invitePending, setInvitePending] = useState(false)
+  const invitePendingRef = useRef(false)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
@@ -29,10 +32,12 @@ export function VenueCardMenu({ venue, invitesEnabled, onEdit }: VenueCardMenuPr
   }
 
   async function openInvite() {
-    if (!invitesEnabled || invitePending) return
+    if (!invitesEnabled || invitePendingRef.current) return
+    invitePendingRef.current = true
     setInvitePending(true)
     try {
       setInvite(await createVenueInvite(venue.id))
+      await queryClient.invalidateQueries({ queryKey: ['venue-invites', venue.id] })
       closeMenu(false)
     } catch (error) {
       const classification = classifyFeedbackError(error)
@@ -42,6 +47,7 @@ export function VenueCardMenu({ venue, invitesEnabled, onEdit }: VenueCardMenuPr
         message: t(classification.messageKey),
       })
     } finally {
+      invitePendingRef.current = false
       setInvitePending(false)
     }
   }

@@ -18,6 +18,7 @@ import {
   removeVenueMember,
   revokeVenueInvite,
   revokedVenueQueryKeys,
+  type VenueInvite,
   type VenueMember,
 } from './venue-sharing.api'
 
@@ -42,8 +43,9 @@ export function VenueMembersPage() {
   const feedback = useMobileFeedback()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [invite, setInvite] = useState<{ invite_id: string; token: string; expires_at: string } | null>(null)
+  const [invite, setInvite] = useState<VenueInvite | null>(null)
   const [invitePending, setInvitePending] = useState(false)
+  const invitePendingRef = useRef(false)
   const [memberToRemove, setMemberToRemove] = useState<VenueMember | null>(null)
   const [leaveOpen, setLeaveOpen] = useState(false)
   const accessDeniedHandled = useRef(false)
@@ -52,6 +54,7 @@ export function VenueMembersPage() {
   const membersQuery = useQuery({ queryKey: ['venue-members', venueId], queryFn: () => listVenueMembers(venueId), retry: false, enabled: Boolean(venueId) })
   const owner = accessQuery.data?.role === 'owner'
   const invitesQuery = useQuery({ queryKey: ['venue-invites', venueId], queryFn: () => listVenueInvites(venueId), retry: false, enabled: Boolean(venueId) && owner && invitesEnabled })
+  const activeInvite = invitesQuery.data?.find((item) => item.status === 'active')
 
   const accessDeniedError = [accessQuery.error, membersQuery.error, invitesQuery.error].find(isVenueAccessDenied)
   const clearRevokedVenue = useCallback((error: unknown) => {
@@ -97,7 +100,8 @@ export function VenueMembersPage() {
   }
 
   async function createInvite() {
-    if (!invitesEnabled || invitePending) return
+    if (!invitesEnabled || invitePendingRef.current) return
+    invitePendingRef.current = true
     setInvitePending(true)
     try {
       setInvite(await createVenueInvite(venueId))
@@ -112,6 +116,7 @@ export function VenueMembersPage() {
         })
       }
     } finally {
+      invitePendingRef.current = false
       setInvitePending(false)
     }
   }
@@ -139,7 +144,7 @@ export function VenueMembersPage() {
 
       {owner ? invitesEnabled ? <section className="grid gap-4 rounded-card border border-line bg-surface p-5" aria-labelledby="venue-invites-title">
         <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="m-0 text-section-title font-bold" id="venue-invites-title">{t('venueSharing.unusedInvites')}</h2><button className="inline-flex min-h-11 items-center gap-2 rounded-control bg-brand px-4 font-bold text-white disabled:opacity-50" type="button" disabled={invitePending} onClick={() => void createInvite()}><AppIcon name="share" />{invitePending ? t('venueSharing.creatingInvite') : t('venueSharing.createInvite')}</button></div>
-        {invitesQuery.data?.filter((item) => item.status === 'active').map((item) => <div className="flex items-center justify-between gap-3 text-sm" key={item.invite_id}><span className="text-muted">{t('venueSharing.inviteExpiresAt', { date: displayDate(item.expires_at) })}</span><button className="min-h-11 rounded-control px-3 font-bold text-danger disabled:opacity-50" type="button" disabled={revokeInviteMutation.isPending} onClick={() => revokeInviteMutation.mutate(item.invite_id)}>{t('venueSharing.revoke')}</button></div>)}
+        {activeInvite ? <div className="flex items-center justify-between gap-3 text-sm" key={activeInvite.invite_id}><span className="text-muted">{t('venueSharing.inviteExpiresAt', { date: displayDate(activeInvite.expires_at) })}</span><button className="min-h-11 rounded-control px-3 font-bold text-danger disabled:opacity-50" type="button" disabled={revokeInviteMutation.isPending} onClick={() => revokeInviteMutation.mutate(activeInvite.invite_id)}>{t('venueSharing.revoke')}</button></div> : null}
       </section> : null : <button className="justify-self-start min-h-11 rounded-control border border-danger px-4 font-bold text-danger" type="button" onClick={() => setLeaveOpen(true)}>{t('venueSharing.leaveVenue')}</button>}
 
       {invitesEnabled ? <VenueInviteDialog open={Boolean(invite)} invite={invite} onClose={closeInvite} /> : null}

@@ -29,6 +29,15 @@ export type VenueInviteSummary = {
   created_at: string
   expires_at: string
   status: string
+  reusable: boolean
+  accepted_count: number
+}
+
+export type VenueInvite = {
+  invite_id: string
+  token: string
+  expires_at: string
+  reusable: boolean
 }
 
 export type VenueInvitePreview = {
@@ -132,10 +141,16 @@ export async function listVenueMembers(venueId: string): Promise<VenueMember[]> 
   return (data ?? []).map((member) => ({ ...member, role: venueRole(member.role) }))
 }
 
-export async function createVenueInvite(venueId: string) {
+export async function createVenueInvite(venueId: string): Promise<VenueInvite> {
   const { data, error } = await supabase.rpc('create_venue_invite', { p_venue_id: venueId })
   if (error) throw mapVenueInviteError(error)
-  return requireRow(data, 'venue invite was not created')
+  const invite = requireRow(data, 'venue invite was not created')
+  return {
+    invite_id: invite.invite_id,
+    token: invite.token,
+    expires_at: invite.expires_at,
+    reusable: invite.reusable,
+  }
 }
 
 export async function inspectVenueInvite(token: string): Promise<VenueInvitePreview> {
@@ -153,7 +168,14 @@ export async function acceptVenueInvite(token: string) {
 export async function listVenueInvites(venueId: string): Promise<VenueInviteSummary[]> {
   const { data, error } = await supabase.rpc('list_venue_invites', { p_venue_id: venueId })
   if (error) throw mapVenueInviteError(error)
-  return data ?? []
+  return (data ?? []).map((invite) => ({
+    invite_id: invite.invite_id,
+    created_at: invite.created_at,
+    expires_at: invite.expires_at,
+    status: invite.status,
+    reusable: invite.reusable,
+    accepted_count: invite.accepted_count,
+  }))
 }
 
 export async function revokeVenueInvite(inviteId: string): Promise<void> {

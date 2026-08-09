@@ -11,7 +11,7 @@ vi.mock('./venue-sharing.api', () => ({ revokeVenueInvite: mocks.revoke }))
 vi.mock('../../lib/env', () => ({ publicAppOrigin: () => 'https://nomo.example/' }))
 
 function renderDialog(overrides: Partial<Parameters<typeof VenueInviteDialog>[0]> = {}) {
-  const props: Parameters<typeof VenueInviteDialog>[0] = { open: true, invite: { invite_id: 'invite-1', token: 'raw-token', expires_at: '2026-08-10T00:00:00Z' }, onClose: vi.fn(), ...overrides }
+  const props: Parameters<typeof VenueInviteDialog>[0] = { open: true, invite: { invite_id: 'invite-1', token: 'raw-token', expires_at: '2026-08-10T00:00:00Z', reusable: true }, onClose: vi.fn(), ...overrides }
   render(<I18nProvider><MobileFeedbackProvider><button type="button">触发器</button><VenueInviteDialog {...props} /></MobileFeedbackProvider></I18nProvider>)
   return props
 }
@@ -26,11 +26,22 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
-test('renders a QR code and communicates the single-use 24-hour limit', async () => {
-  renderDialog()
+test('renders a QR code and communicates that a reusable invitation can invite multiple family members', async () => {
+  renderDialog({ invite: { invite_id: 'invite-1', token: 'raw-token', expires_at: '2026-08-10T00:00:00Z', reusable: true } })
   expect(await screen.findByRole('img', { name: '场地邀请二维码' })).toHaveAttribute('src', 'data:image/png;base64,qr')
-  expect(screen.getByText('邀请链接将在 24 小时后失效，且只能使用一次。')).toBeInTheDocument()
+  expect(screen.getByText(/同一个二维码可邀请多位家庭成员/)).toBeInTheDocument()
   expect(mocks.qr).toHaveBeenCalledWith('https://nomo.example/join/venue#token=raw-token', expect.objectContaining({ errorCorrectionLevel: 'M', margin: 2, width: 1024 }))
+})
+
+test('copies the newest reusable invitation token after the owner replaces an invitation', async () => {
+  const user = userEvent.setup()
+  const { rerender } = render(<I18nProvider><MobileFeedbackProvider><VenueInviteDialog open invite={{ invite_id: 'invite-1', token: 'first-token', expires_at: '2026-08-10T00:00:00Z', reusable: true }} onClose={vi.fn()} /></MobileFeedbackProvider></I18nProvider>)
+  await screen.findByRole('img', { name: '场地邀请二维码' })
+  rerender(<I18nProvider><MobileFeedbackProvider><VenueInviteDialog open invite={{ invite_id: 'invite-2', token: 'latest-token', expires_at: '2026-08-10T01:00:00Z', reusable: true }} onClose={vi.fn()} /></MobileFeedbackProvider></I18nProvider>)
+  await waitFor(() => expect(mocks.qr).toHaveBeenLastCalledWith('https://nomo.example/join/venue#token=latest-token', expect.any(Object)))
+
+  await user.click(screen.getByRole('button', { name: '复制邀请链接' }))
+  expect(await screen.findByRole('button', { name: '已复制邀请链接' })).toBeInTheDocument()
 })
 
 test('copies on demand and reports the copied state', async () => {
@@ -50,12 +61,15 @@ test('uses a clear primary-first action stack and separates the destructive revo
   expect(screen.getByTestId('venue-invite-danger-zone')).toContainElement(screen.getByRole('button', { name: '撤销邀请' }))
 })
 
-test('disables actions while revoking and closes only after an owner revokes the invite', async () => {
+test('asks for an Apple-style destructive confirmation before revoking the invite', async () => {
   const user = userEvent.setup()
   let resolve: (() => void) | undefined
   mocks.revoke.mockReturnValue(new Promise<void>((done) => { resolve = done }))
   const props = renderDialog()
   await user.click(screen.getByRole('button', { name: '撤销邀请' }))
+  expect(mocks.revoke).not.toHaveBeenCalled()
+  const confirmation = await screen.findByRole('alertdialog', { name: '撤销邀请？' })
+  await user.click(within(confirmation).getByRole('button', { name: '撤销邀请' }))
   expect(screen.getByRole('button', { name: '撤销中…' })).toBeDisabled()
   expect(screen.getByRole('button', { name: '复制邀请链接' })).toBeDisabled()
   resolve?.()
@@ -80,6 +94,16 @@ test('opens the shared Apple alert when sharing fails for a reason other than ca
   renderDialog()
 
   await user.click(screen.getByRole('button', { name: '分享邀请链接' }))
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('网络连接出现问题')
+})
+
+test('opens the shared Apple alert when clipboard access fails', async () => {
+  const user = userEvent.setup()
+  const clipboardFailure = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
+  Object.defineProperty(window.navigator, 'clipboard', { configurable: true, value: { writeText: clipboardFailure } })
+  renderDialog()
+
+  await user.click(screen.getByRole('button', { name: '复制邀请链接' }))
   expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('网络连接出现问题')
 })
 
@@ -109,5 +133,21 @@ test('serializes share and copy so rapid clicks cannot duplicate invite actions'
   expect(mocks.copy).not.toHaveBeenCalled()
 
   resolveShare()
+  await waitFor(() => expect(share).not.toBeDisabled())
+})
+
+test('disables sharing while a clipboard operation is pending', async () => {
+  const user = userEvent.setup()
+  let resolveCopy!: () => void
+  const pendingCopy = vi.fn().mockReturnValue(new Promise<void>((resolve) => { resolveCopy = resolve }))
+  Object.defineProperty(window.navigator, 'clipboard', { configurable: true, value: { writeText: pendingCopy } })
+  renderDialog()
+
+  const copy = screen.getByRole('button', { name: '复制邀请链接' })
+  const share = screen.getByRole('button', { name: '分享邀请链接' })
+  await user.click(copy)
+  expect(copy).toBeDisabled()
+  expect(share).toBeDisabled()
+  resolveCopy()
   await waitFor(() => expect(share).not.toBeDisabled())
 })

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
@@ -46,11 +46,41 @@ beforeEach(() => {
     { user_id: 'owner', role: 'owner', display_name: '王小明', avatar_url: 'https://avatar.example/owner.png', joined_at: '2026-08-01T00:00:00Z', is_current: true },
     { user_id: 'member', role: 'member', display_name: '李小红', avatar_url: null, joined_at: '2026-08-02T00:00:00Z', is_current: false },
   ])
-  mocks.invites.mockResolvedValue([{ invite_id: 'invite-1', created_at: '2026-08-03T00:00:00Z', expires_at: '2026-08-10T00:00:00Z', status: 'active' }])
-  mocks.createInvite.mockResolvedValue({ invite_id: 'invite-new', token: 'raw-secret', expires_at: '2026-08-10T00:00:00Z' })
+  mocks.invites.mockResolvedValue([{ invite_id: 'invite-1', created_at: '2026-08-03T00:00:00Z', expires_at: '2026-08-10T00:00:00Z', status: 'active', reusable: true, accepted_count: 0 }])
+  mocks.createInvite.mockResolvedValue({ invite_id: 'invite-new', token: 'raw-secret', expires_at: '2026-08-10T00:00:00Z', reusable: true })
   mocks.revoke.mockResolvedValue(undefined)
   mocks.remove.mockResolvedValue(undefined)
   mocks.leave.mockResolvedValue(undefined)
+})
+
+test('serializes rapid invite creation and replaces the displayed token only after the later request succeeds', async () => {
+  let resolveFirst!: (invite: { invite_id: string; token: string; expires_at: string; reusable: boolean }) => void
+  mocks.createInvite.mockReturnValueOnce(new Promise((resolve) => { resolveFirst = resolve }))
+    .mockResolvedValueOnce({ invite_id: 'invite-latest', token: 'latest-secret', expires_at: '2026-08-10T01:00:00Z', reusable: true })
+  renderPage()
+
+  const create = await screen.findByRole('button', { name: '创建邀请' })
+  fireEvent.click(create)
+  fireEvent.click(create)
+  fireEvent.click(create)
+  expect(mocks.createInvite).toHaveBeenCalledOnce()
+
+  resolveFirst({ invite_id: 'invite-first', token: 'first-secret', expires_at: '2026-08-10T00:00:00Z', reusable: true })
+  expect(await screen.findByRole('dialog', { name: '邀请对话框' })).toHaveTextContent('first-secret')
+  fireEvent.click(screen.getByRole('button', { name: '创建邀请' }))
+  await waitFor(() => expect(mocks.createInvite).toHaveBeenCalledTimes(2))
+  expect(await screen.findByRole('dialog', { name: '邀请对话框' })).toHaveTextContent('latest-secret')
+})
+
+test('renders no more than one current active reusable invite row', async () => {
+  mocks.invites.mockResolvedValue([
+    { invite_id: 'invite-new', created_at: '2026-08-03T01:00:00Z', expires_at: '2026-08-10T01:00:00Z', status: 'active', reusable: true, accepted_count: 1 },
+    { invite_id: 'invite-old', created_at: '2026-08-03T00:00:00Z', expires_at: '2026-08-10T00:00:00Z', status: 'active', reusable: true, accepted_count: 0 },
+    { invite_id: 'invite-revoked', created_at: '2026-08-02T00:00:00Z', expires_at: '2026-08-09T00:00:00Z', status: 'revoked', reusable: true, accepted_count: 0 },
+  ])
+  renderPage()
+
+  await waitFor(() => expect(screen.getAllByRole('button', { name: '撤销邀请' })).toHaveLength(1))
 })
 afterEach(() => {
   cleanup()

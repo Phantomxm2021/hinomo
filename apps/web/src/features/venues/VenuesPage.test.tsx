@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
@@ -34,7 +34,7 @@ beforeEach(() => {
   mockDeleteVenue.mockReset()
   mockCreateInvite.mockReset()
   vi.stubEnv('VITE_ENABLE_VENUE_INVITES', 'true')
-  mockCreateInvite.mockResolvedValue({ invite_id: 'invite-1', token: 'invite-token', expires_at: '2026-08-10T00:00:00Z' })
+  mockCreateInvite.mockResolvedValue({ invite_id: 'invite-1', token: 'invite-token', expires_at: '2026-08-10T00:00:00Z', reusable: true })
   mockListVenues.mockResolvedValue([
     { id: 'home', name: '家里', description: '常住地址', is_default: true, space_count: 3, role: 'owner', owner_display_name: null, owner_id: 'owner', member_count: 1, max_members: 5 },
     { id: 'office', name: '公司', description: null, is_default: false, space_count: 1, role: 'member', owner_display_name: '王小明', owner_id: 'owner', member_count: 2, max_members: 5 },
@@ -105,6 +105,22 @@ test('owner can invite family directly from the venue card without opening the e
   expect(screen.queryByRole('menu', { name: '家里场地操作' })).not.toBeInTheDocument()
   expect(await screen.findByRole('dialog', { name: '分享场地邀请' })).toBeInTheDocument()
   expect(screen.queryByRole('dialog', { name: '编辑场地' })).not.toBeInTheDocument()
+})
+
+test('serializes rapid card-menu invite taps into one creation request', async () => {
+  let resolveInvite!: (value: { invite_id: string; token: string; expires_at: string; reusable: boolean }) => void
+  mockCreateInvite.mockReturnValue(new Promise((resolve) => { resolveInvite = resolve }))
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(<MobileFeedbackProvider><MemoryRouter><QueryClientProvider client={client}><VenuesPage /></QueryClientProvider></MemoryRouter></MobileFeedbackProvider>)
+
+  const card = await screen.findByTestId('venue-card-home')
+  await userEvent.setup().click(within(card).getByRole('button', { name: '管理场地家里' }))
+  const invite = within(screen.getByRole('menu', { name: '家里场地操作' })).getByRole('menuitem', { name: '邀请家人' })
+  fireEvent.click(invite)
+  fireEvent.click(invite)
+  fireEvent.click(invite)
+  expect(mockCreateInvite).toHaveBeenCalledOnce()
+  resolveInvite({ invite_id: 'invite-1', token: 'invite-token', expires_at: '2026-08-10T00:00:00Z', reusable: true })
 })
 
 test('explains when members or unused invitations have reserved all family seats', async () => {
