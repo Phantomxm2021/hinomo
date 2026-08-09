@@ -1,5 +1,5 @@
 begin;
-select plan(65);
+select plan(73);
 
 select ok(has_table_privilege('authenticated', 'public.spaces', 'select'), 'authenticated can select spaces');
 select ok(has_table_privilege('authenticated', 'public.spaces', 'insert'), 'authenticated can insert spaces');
@@ -88,6 +88,22 @@ select function_privs_are('public', 'can_access_venue', array['uuid'], 'authenti
   'authenticated users can ask about venue access');
 select function_privs_are('public', 'can_access_venue', array['uuid'], 'anon', array[]::text[],
   'anonymous users cannot ask about venue access');
+select function_privs_are('public', 'can_edit_venue_content', array['uuid'], 'authenticated', array['EXECUTE'],
+  'authenticated users can ask about venue content editing');
+select function_privs_are('public', 'can_edit_venue_content', array['uuid'], 'anon', array[]::text[],
+  'anonymous users cannot ask about venue content editing');
+select function_privs_are('public', 'get_venue_access_summary', array['uuid'], 'authenticated', array['EXECUTE'],
+  'authenticated users can read venue capability summaries');
+select function_privs_are('public', 'get_venue_access_summary', array['uuid'], 'anon', array[]::text[],
+  'anonymous users cannot read venue capability summaries');
+select function_privs_are('public', 'is_venue_member', array['uuid'], 'authenticated', array['EXECUTE'],
+  'authenticated users can ask whether they are venue members');
+select function_privs_are('public', 'is_venue_member', array['uuid'], 'anon', array[]::text[],
+  'anonymous users cannot ask whether they are venue members');
+select function_privs_are('public', 'is_venue_owner', array['uuid'], 'authenticated', array['EXECUTE'],
+  'authenticated users can ask whether they own venues');
+select function_privs_are('public', 'is_venue_owner', array['uuid'], 'anon', array[]::text[],
+  'anonymous users cannot ask whether they own venues');
 select function_privs_are('public', 'create_venue_invite', array['uuid'], 'authenticated', array['EXECUTE'],
   'authenticated users can create venue invites through the RPC');
 select function_privs_are('public', 'create_venue_invite', array['uuid'], 'anon', array[]::text[],
