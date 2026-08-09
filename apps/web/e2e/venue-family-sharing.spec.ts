@@ -45,6 +45,10 @@ test('venue card keeps one latest reusable QR, invalidates its prior token, and 
       configurable: true,
       value: async () => { throw new Error('simulated share failure') },
     })
+    Object.defineProperty(window.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: async () => { throw new Error('simulated copy failure') } },
+    })
   })
   await installMockBackend(page, state)
   await register(page, 'owner@example.com')
@@ -54,16 +58,25 @@ test('venue card keeps one latest reusable QR, invalidates its prior token, and 
   expect(state.inviteCreateRequests).toBe(1)
   expect(state.invites[0]).toMatchObject({ reusable: true, acceptedUserIds: [] })
   const firstToken = state.invites[0]!.token
+  const firstQrSrc = await firstDialog.getByAltText('场地邀请二维码').getAttribute('src')
+  expect(firstQrSrc).toBeTruthy()
   await firstDialog.getByRole('button', { name: '分享邀请链接' }).click()
+  await expect(page.getByRole('alertdialog')).toBeVisible()
+  await page.getByRole('alertdialog').getByRole('button', { name: '好' }).click()
+  await firstDialog.getByRole('button', { name: '复制邀请链接' }).click()
   await expect(page.getByRole('alertdialog')).toBeVisible()
   await page.getByRole('alertdialog').getByRole('button', { name: '好' }).click()
   await firstDialog.getByRole('button', { name: '关闭分享场地邀请' }).click()
 
-  await createInviteFromVenueCard(page)
+  const latestDialog = await createInviteFromVenueCard(page)
   await expect.poll(() => state.invites.length).toBe(2)
   const [first, latest] = state.invites
   expect(first).toMatchObject({ revokedAt: expect.any(String) })
   expect(latest).toMatchObject({ reusable: true, revokedAt: null })
+  expect(latest!.token).not.toBe(firstToken)
+  const latestQrSrc = await latestDialog.getByAltText('场地邀请二维码').getAttribute('src')
+  expect(latestQrSrc).toBeTruthy()
+  expect(latestQrSrc).not.toBe(firstQrSrc)
   expect(state.invites.filter((invite) => invite.revokedAt === null && invite.expiresAt > new Date().toISOString())).toHaveLength(1)
 
   const staleContext = await browser.newContext()
