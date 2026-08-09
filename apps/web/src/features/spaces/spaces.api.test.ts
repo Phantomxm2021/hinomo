@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createSpace, listSpaceLayouts, listSpaces, saveSpaceLayout } from './spaces.api'
+import { createSpace, listSpaceLayouts, listSpaces, saveSpaceLayout, updateSpace } from './spaces.api'
 
-const { mockFrom, mockGetSession, mockLayoutSelect, mockOrder, mockSelect, mockUpsert } = vi.hoisted(() => ({
+const { mockFrom, mockGetSession, mockLayoutSelect, mockOrder, mockRpc, mockSelect, mockUpsert } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
   mockGetSession: vi.fn(),
   mockLayoutSelect: vi.fn(),
   mockOrder: vi.fn(),
+  mockRpc: vi.fn(),
   mockSelect: vi.fn(),
   mockUpsert: vi.fn(),
 }))
@@ -14,6 +15,7 @@ vi.mock('../../lib/supabase', () => ({
   supabase: {
     auth: { getSession: mockGetSession },
     from: mockFrom,
+    rpc: mockRpc,
   },
 }))
 
@@ -23,6 +25,7 @@ describe('spaces api', () => {
     mockGetSession.mockReset()
     mockLayoutSelect.mockReset()
     mockOrder.mockReset()
+    mockRpc.mockReset()
     mockSelect.mockReset()
     mockUpsert.mockReset()
     mockFrom.mockImplementation((table: string) => table === 'space_layouts'
@@ -89,18 +92,23 @@ describe('spaces api', () => {
     )
   })
 
-  it('creates a space in the selected venue', async () => {
-    const mockSingle = vi.fn().mockResolvedValue({ data: { id: 'space-2' }, error: null })
-    const mockInsert = vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ single: mockSingle }) })
-    mockFrom.mockImplementation((table: string) => table === 'spaces'
-      ? { select: mockSelect, insert: mockInsert }
-      : { select: mockLayoutSelect, upsert: mockUpsert })
-    mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'user-1' } } } })
+  it('creates a space through the venue-safe RPC without an owner id', async () => {
+    mockRpc.mockResolvedValue({ data: [{ id: 'space-2' }], error: null })
 
     await createSpace({ venue_id: 'venue-home', name: '卧室', description: null })
 
-    expect(mockInsert).toHaveBeenCalledWith({
-      owner_id: 'user-1', venue_id: 'venue-home', name: '卧室', description: null,
+    expect(mockRpc).toHaveBeenCalledWith('create_space', {
+      p_venue_id: 'venue-home', p_name: '卧室', p_description: null,
+    })
+  })
+
+  it('updates the selected venue through the venue-safe RPC without an owner id', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null })
+
+    await updateSpace('space-1', { venue_id: 'venue-office', name: '书房', description: '文件' })
+
+    expect(mockRpc).toHaveBeenCalledWith('update_space', {
+      p_space_id: 'space-1', p_venue_id: 'venue-office', p_name: '书房', p_description: '文件',
     })
   })
 
@@ -124,15 +132,13 @@ describe('spaces api', () => {
     await expect(listSpaceLayouts()).rejects.toMatchObject({ code: 'LAYOUT_STORAGE_UNAVAILABLE' })
   })
 
-  it('upserts a layout for the signed-in owner', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'user-1' } } } })
-    mockUpsert.mockResolvedValue({ error: null })
+  it('saves a layout through the venue-safe RPC without an owner id', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null })
 
     await saveSpaceLayout('space-1', { x: 6, y: 10, width: 44, height: 36 })
 
-    expect(mockUpsert).toHaveBeenCalledWith({
-      space_id: 'space-1', owner_id: 'user-1',
-      x_percent: 6, y_percent: 10, width_percent: 44, height_percent: 36,
+    expect(mockRpc).toHaveBeenCalledWith('save_space_layout', {
+      p_space_id: 'space-1', p_x_percent: 6, p_y_percent: 10, p_width_percent: 44, p_height_percent: 36,
     })
   })
 })

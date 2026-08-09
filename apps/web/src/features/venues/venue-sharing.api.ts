@@ -95,6 +95,15 @@ export function isVenueInviteError(error: unknown, code?: VenueInviteErrorCode):
     && (!code || errorCode === code)
 }
 
+export function isVenueAccessDenied(error: unknown): boolean {
+  if (isVenueInviteError(error, 'venue_access_denied')) return true
+  if (!error || typeof error !== 'object') return false
+  const candidate = error as { code?: unknown; message?: unknown; details?: unknown }
+  return [candidate.code, candidate.message, candidate.details].some((value) =>
+    typeof value === 'string' && value.includes('venue_access_denied'),
+  )
+}
+
 export async function getVenueAccessSummary(venueId: string): Promise<VenueAccessSummary> {
   const { data, error } = await supabase.rpc('get_venue_access_summary', { p_venue_id: venueId })
   if (error) throw mapVenueInviteError(error)

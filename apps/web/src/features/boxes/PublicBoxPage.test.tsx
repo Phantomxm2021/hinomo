@@ -7,10 +7,11 @@ import type { Session } from '@supabase/supabase-js'
 import { AuthProvider } from '../auth/AuthProvider'
 import { PublicBoxPage } from './PublicBoxPage'
 
-const { mockGetBoxByPublicId, mockCreateItem, mockDeleteItem, mockListBoxes, mockListItemMovements, mockMatchMedia, mockMoveItem, mockReturnItem, mockTakeOutItem, mockUpdateItem, mockGetCreditSummary } = vi.hoisted(() => ({
+const { mockGetBoxByPublicId, mockCreateItem, mockDeleteItem, mockGetVenueAccessSummary, mockListBoxes, mockListItemMovements, mockMatchMedia, mockMoveItem, mockReturnItem, mockTakeOutItem, mockUpdateItem, mockGetCreditSummary } = vi.hoisted(() => ({
   mockGetBoxByPublicId: vi.fn(),
   mockCreateItem: vi.fn(),
   mockDeleteItem: vi.fn(),
+  mockGetVenueAccessSummary: vi.fn(),
   mockListBoxes: vi.fn(),
   mockListItemMovements: vi.fn(),
   mockMatchMedia: vi.fn(),
@@ -44,6 +45,10 @@ vi.mock('../packing/PackingCapturePage', () => ({
   ),
 }))
 vi.mock('../credits/credits.api', () => ({ getCreditSummary: mockGetCreditSummary }))
+vi.mock('../venues/venue-sharing.api', () => ({
+  getVenueAccessSummary: mockGetVenueAccessSummary,
+  isVenueAccessDenied: (error: unknown) => Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'venue_access_denied'),
+}))
 vi.mock('./EditBoxModal', () => ({
   EditBoxModal: ({ open, onClose, onBusyChange }: { open: boolean; onClose: () => void; onBusyChange?: (busy: boolean) => void }) => open ? (
     <section role="dialog" aria-label="编辑箱子">
@@ -80,6 +85,9 @@ beforeEach(() => {
   mockGetBoxByPublicId.mockReset()
   mockCreateItem.mockReset()
   mockDeleteItem.mockReset()
+  mockGetVenueAccessSummary.mockReset().mockResolvedValue({
+    venue_id: 'venue-1', role: 'owner', can_delete_box: true, can_change_box_visibility: true, can_use_ai: true,
+  })
   mockListBoxes.mockReset()
   mockListBoxes.mockResolvedValue([])
   mockListItemMovements.mockReset()
@@ -236,6 +244,23 @@ test('shows item controls only to the box owner', async () => {
     'pb-[calc(6rem+var(--safe-area-bottom))]',
     'lg:pb-10',
   )
+})
+
+test('gives a shared-venue member content controls but not visibility or AI controls', async () => {
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'private-1', box_code: 'BX-00001',
+    space_id: 'space-1', venue_id: 'venue-1', name: '共享工具', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库', updated_at: '2026-07-29T10:00:00Z',
+    items: [{ id: 'i1', name: '锤子', category: null, quantity: 1, description: null }],
+  })
+  mockGetVenueAccessSummary.mockResolvedValue({
+    venue_id: 'venue-1', role: 'member', can_delete_box: false, can_change_box_visibility: false, can_use_ai: false,
+  })
+  renderPublicBox({ user: { id: 'member-1' } } as Session, undefined, '/b/private-1')
+
+  expect(await screen.findByRole('button', { name: '新增物品' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '打开锤子操作' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'AI 装箱' })).not.toBeInTheDocument()
 })
 
 test('opens the mobile plus menu with the owner box actions', async () => {

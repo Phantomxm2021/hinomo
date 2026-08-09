@@ -83,18 +83,16 @@ export async function listSpaces(): Promise<SpaceSummary[]> {
 }
 
 export async function createSpace(input: SpaceInput) {
-  const { data: sessionData } = await supabase.auth.getSession()
-  const ownerId = sessionData.session?.user.id
-  if (!ownerId) throw new Error('authentication is required')
-
-  const { data, error } = await supabase
-    .from('spaces')
-    .insert({ ...input, owner_id: ownerId })
-    .select('id')
-    .single()
+  const { data, error } = await supabase.rpc('create_space', {
+    p_venue_id: input.venue_id,
+    p_name: input.name,
+    p_description: input.description,
+  })
 
   if (error) throw error
-  return data
+  const created = data?.[0]
+  if (!created) throw new Error('space_creation_empty')
+  return created
 }
 
 export async function deleteSpace(spaceId: string) {
@@ -103,7 +101,12 @@ export async function deleteSpace(spaceId: string) {
 }
 
 export async function updateSpace(spaceId: string, input: SpaceInput) {
-  const { error } = await supabase.from('spaces').update(input).eq('id', spaceId)
+  const { error } = await supabase.rpc('update_space', {
+    p_space_id: spaceId,
+    p_venue_id: input.venue_id,
+    p_name: input.name,
+    p_description: input.description,
+  })
   if (error) throw error
 }
 
@@ -131,17 +134,12 @@ export async function listSpaceLayouts(): Promise<SpaceLayout[]> {
 }
 
 export async function saveSpaceLayout(spaceId: string, position: SpacePosition) {
-  const { data: sessionData } = await supabase.auth.getSession()
-  const ownerId = sessionData.session?.user.id
-  if (!ownerId) throw new Error('authentication is required')
-
-  const { error } = await supabase.from('space_layouts').upsert({
-    space_id: spaceId,
-    owner_id: ownerId,
-    x_percent: position.x,
-    y_percent: position.y,
-    width_percent: position.width,
-    height_percent: position.height,
+  const { error } = await supabase.rpc('save_space_layout', {
+    p_space_id: spaceId,
+    p_x_percent: position.x,
+    p_y_percent: position.y,
+    p_width_percent: position.width,
+    p_height_percent: position.height,
   })
   if (error) throw error
 }

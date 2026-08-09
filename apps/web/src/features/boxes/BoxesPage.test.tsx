@@ -9,6 +9,7 @@ import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 
 const {
   mockDeleteBox,
+  mockGetVenueAccessSummary,
   mockGetBoxPlanSummary,
   mockListBoxes,
   mockListVenues,
@@ -17,6 +18,7 @@ const {
   mockStartBoxUnlimitedCheckout,
 } = vi.hoisted(() => ({
   mockDeleteBox: vi.fn(),
+  mockGetVenueAccessSummary: vi.fn(),
   mockGetBoxPlanSummary: vi.fn(),
   mockListBoxes: vi.fn(),
   mockListVenues: vi.fn(),
@@ -43,8 +45,13 @@ vi.mock('../auth/auth-context', () => ({
 }))
 
 vi.mock('./box-entitlements.api', () => ({
-  getBoxPlanSummary: mockGetBoxPlanSummary,
+  getVenueBoxPlanSummary: mockGetBoxPlanSummary,
   startBoxUnlimitedCheckout: mockStartBoxUnlimitedCheckout,
+}))
+
+vi.mock('../venues/venue-sharing.api', () => ({
+  getVenueAccessSummary: mockGetVenueAccessSummary,
+  isVenueAccessDenied: (error: unknown) => Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'venue_access_denied'),
 }))
 
 vi.mock('../../components/mobile-feedback', () => ({
@@ -216,6 +223,7 @@ beforeEach(() => {
     },
   })
   mockDeleteBox.mockReset()
+  mockGetVenueAccessSummary.mockReset()
   mockGetBoxPlanSummary.mockReset()
   mockListBoxes.mockReset()
   mockListVenues.mockReset()
@@ -226,6 +234,9 @@ beforeEach(() => {
     free_limit: 3,
     unlimited_boxes: false,
     can_create: true,
+  })
+  mockGetVenueAccessSummary.mockResolvedValue({
+    venue_id: 'venue-home', role: 'owner', can_delete_box: true, can_change_box_visibility: true,
   })
   mockListVenues.mockResolvedValue([
     { id: 'venue-home', name: '家里', description: null, is_default: true, space_count: 2 },
@@ -251,6 +262,24 @@ test('hydrates the space filter while ignoring a legacy search parameter', async
   expect(screen.getByRole('link', { name: '打开冬季衣物' })).toHaveAttribute('href', '/b/public-1')
   expect(screen.queryByRole('link', { name: '打开露营用品' })).not.toBeInTheDocument()
   expect(screen.getByText('显示 1 个')).toBeInTheDocument()
+})
+
+test('keeps creation available for a shared-venue member but directs a full plan to the owner', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  mockGetVenueAccessSummary.mockResolvedValue({
+    venue_id: 'venue-home', role: 'member', can_delete_box: false, can_change_box_visibility: false,
+  })
+  mockGetBoxPlanSummary.mockResolvedValue({ box_count: 3, free_limit: 3, unlimited_boxes: false, can_create: false })
+  renderBoxes()
+
+  await screen.findByRole('link', { name: '打开冬季衣物' })
+  await user.click(screen.getByRole('button', { name: '创建箱子' }))
+  expect(screen.getByText('请联系场所所有者解锁')).toBeInTheDocument()
+  expect(screen.queryByText('HK$38 永久解锁')).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '管理冬季衣物' }))
+  expect(screen.getByRole('button', { name: '编辑冬季衣物' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '删除冬季衣物' })).not.toBeInTheDocument()
 })
 
 test.each(['recent', 'items', 'unsupported'])('removes legacy sort=%s while preserving all other URL parameters', async (rawSort) => {
@@ -798,7 +827,7 @@ test('bounds purchase confirmation to eight refetches and offers a manual rechec
     await act(async () => { await vi.advanceTimersByTimeAsync(1_500) })
   }
 
-  expect(mockGetBoxPlanSummary).toHaveBeenCalledTimes(8)
+  expect(mockGetBoxPlanSummary).toHaveBeenCalledTimes(9)
   expect(screen.getByRole('status', { name: '付款正在确认' })).toHaveTextContent('付款正在确认')
   expect(screen.getByRole('status', { name: '付款正在确认' })).toHaveTextContent('付款状态仍在确认中，请稍后再检查。')
   expect(screen.getByRole('status', { name: '付款正在确认' })).toHaveTextContent('Checkout Session ID：cs_pending_123')
@@ -809,7 +838,7 @@ test('bounds purchase confirmation to eight refetches and offers a manual rechec
   const recheck = screen.getByRole('button', { name: '重新检查' })
   fireEvent.click(recheck)
   await act(async () => { await Promise.resolve() })
-  expect(mockGetBoxPlanSummary).toHaveBeenCalledTimes(9)
+  expect(mockGetBoxPlanSummary).toHaveBeenCalledTimes(10)
   expect(screen.getByTestId('location')).toHaveTextContent('purchase=success')
   expect(screen.queryByRole('dialog', { name: '免费版最多可保有 3 个箱子' })).not.toBeInTheDocument()
 })

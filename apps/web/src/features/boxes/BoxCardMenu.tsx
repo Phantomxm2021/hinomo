@@ -10,9 +10,10 @@ type BoxCardMenuProps = {
   onClose: (restoreFocus: boolean) => void
   onEdit: (box: BoxSummary, trigger: HTMLButtonElement | null) => void
   onDelete: (box: BoxSummary, trigger: HTMLButtonElement | null) => void
+  canDelete?: boolean
 }
 
-export function BoxCardMenu({ box, open, triggerRef, onClose, onEdit, onDelete }: BoxCardMenuProps) {
+export function BoxCardMenu({ box, open, triggerRef, onClose, onEdit, onDelete, canDelete = true }: BoxCardMenuProps) {
   const { t } = useI18n()
   const menuRef = useRef<HTMLDivElement | null>(null)
 
@@ -52,7 +53,7 @@ export function BoxCardMenu({ box, open, triggerRef, onClose, onEdit, onDelete }
         <AppIcon name="edit" size={16} />
         {t('boxes.edit')}
       </button>
-      <button
+      {canDelete ? <button
         className="inline-flex min-h-11 items-center gap-2 rounded-control px-3 text-left text-sm font-bold text-danger hover:bg-danger/5"
         type="button"
         aria-label={t('boxes.deleteAria', { name: box.name })}
@@ -63,7 +64,7 @@ export function BoxCardMenu({ box, open, triggerRef, onClose, onEdit, onDelete }
       >
         <AppIcon name="trash" size={16} />
         {t('boxes.delete')}
-      </button>
+      </button> : null}
     </div>
   )
 }

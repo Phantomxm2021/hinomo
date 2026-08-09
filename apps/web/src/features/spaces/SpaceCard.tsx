@@ -9,11 +9,13 @@ export function SpaceCard({
   index,
   onEdit,
   onDelete,
+  canDelete = true,
 }: {
   space: SpaceSummary
   index: number
   onEdit: () => void
   onDelete: (trigger: HTMLButtonElement) => void
+  canDelete?: boolean
 }) {
   const { t } = useI18n()
   return (
@@ -32,7 +34,7 @@ export function SpaceCard({
       </Link>
       <div className="flex items-center justify-end gap-2 border-t border-line px-3 py-2.5">
         <button className="grid size-11 place-items-center rounded-control text-muted hover:bg-canvas hover:text-ink" type="button" aria-label={t('spaces.editAria', { name: space.name })} onClick={onEdit}><AppIcon name="edit" size={19} /></button>
-        <button className="grid size-11 place-items-center rounded-control text-muted hover:bg-danger/5 hover:text-danger" type="button" aria-label={t('spaces.deleteAria', { name: space.name })} onClick={(event) => onDelete(event.currentTarget)}><AppIcon name="trash" size={19} /></button>
+        {canDelete ? <button className="grid size-11 place-items-center rounded-control text-muted hover:bg-danger/5 hover:text-danger" type="button" aria-label={t('spaces.deleteAria', { name: space.name })} onClick={(event) => onDelete(event.currentTarget)}><AppIcon name="trash" size={19} /></button> : null}
       </div>
     </article>
   )

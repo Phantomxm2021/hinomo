@@ -14,9 +14,10 @@ type BoxCatalogueCardProps = {
   onMenuClose: () => void
   onEdit: (box: BoxSummary, trigger: HTMLButtonElement | null) => void
   onDelete: (box: BoxSummary, trigger: HTMLButtonElement | null) => void
+  canDelete?: boolean
 }
 
-export function BoxCatalogueCard({ box, menuOpen, onMenuToggle, onMenuClose, onEdit, onDelete }: BoxCatalogueCardProps) {
+export function BoxCatalogueCard({ box, menuOpen, onMenuToggle, onMenuClose, onEdit, onDelete, canDelete = true }: BoxCatalogueCardProps) {
   const { t } = useI18n()
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const visibilityLabel = box.visibility === 'public' ? t('boxes.visibilityPublic') : t('boxes.visibilityPrivate')
@@ -63,7 +64,7 @@ export function BoxCatalogueCard({ box, menuOpen, onMenuToggle, onMenuClose, onE
       >
         <AppIcon name="more" size={20} />
       </button>
-      <BoxCardMenu box={box} open={menuOpen} triggerRef={triggerRef} onClose={closeMenu} onEdit={onEdit} onDelete={onDelete} />
+      <BoxCardMenu box={box} open={menuOpen} triggerRef={triggerRef} onClose={closeMenu} onEdit={onEdit} onDelete={onDelete} canDelete={canDelete} />
     </article>
   )
 }

@@ -16,6 +16,12 @@ export async function getBoxPlanSummary(): Promise<BoxPlanSummary> {
   return data?.[0] ?? emptySummary
 }
 
+export async function getVenueBoxPlanSummary(venueId: string): Promise<BoxPlanSummary> {
+  const { data, error } = await supabase.rpc('get_venue_box_plan_summary', { p_venue_id: venueId })
+  if (error) throw error
+  return data?.[0] ?? emptySummary
+}
+
 export async function startBoxUnlimitedCheckout(): Promise<never> {
   const { data, error } = await supabase.functions.invoke<{ url?: string; error?: string }>('billing-checkout', {
     method: 'POST',

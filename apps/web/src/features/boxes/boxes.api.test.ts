@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { isBoxLimitReached } from './box-entitlements.api'
-import { createBox, getBoxByPublicId, listBoxes, listBoxesForVenue } from './boxes.api'
+import { createBox, getBoxByPublicId, listBoxes, listBoxesForVenue, updateBox } from './boxes.api'
 
 const { mockEq, mockFrom, mockGetSession, mockOrder, mockRpc, mockSelect, mockSingle } = vi.hoisted(() => ({
   mockEq: vi.fn(),
@@ -33,10 +33,8 @@ describe('boxes api', () => {
     mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'user-1' } } } })
   })
 
-  it('lists only boxes owned by the signed-in user', async () => {
-    mockSelect.mockReturnValue({ eq: mockEq, order: mockOrder })
-    mockEq.mockReturnValue({ order: mockOrder })
-    mockOrder.mockResolvedValue({
+  it('lists only boxes accessible through the venue-safe RPC', async () => {
+    mockRpc.mockResolvedValue({
       data: [
         {
           id: 'box-1',
@@ -48,8 +46,8 @@ describe('boxes api', () => {
           visibility: 'private',
           cover_object_key: 'users/u/boxes/b/cover.webp',
           updated_at: '2026-07-30T08:00:00Z',
-          items: [{ count: 3 }],
-          spaces: { name: '客厅', venues: { name: '家里' } },
+          item_count: 3,
+          venue_id: 'venue-home', space_name: '客厅', venue_name: '家里',
         },
       ],
       error: null,
@@ -64,6 +62,7 @@ describe('boxes api', () => {
         name: '换季衣物',
         location: '衣柜顶层',
         visibility: 'private',
+        venue_id: 'venue-home',
         space_name: '客厅',
         venue_name: '家里',
         cover_object_key: 'users/u/boxes/b/cover.webp',
@@ -71,30 +70,19 @@ describe('boxes api', () => {
         updated_at: '2026-07-30T08:00:00Z',
       },
     ])
-    expect(mockSelect).toHaveBeenCalledWith(
-      'id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), spaces(venue_id, name, venues(name))',
-    )
-    expect(mockEq).toHaveBeenCalledWith('owner_id', 'user-1')
+    expect(mockRpc).toHaveBeenCalledWith('list_accessible_boxes', { p_venue_id: null })
   })
 
   it('limits the catalogue query to the selected venue', async () => {
-    mockSelect.mockReturnValue({ eq: mockEq })
-    mockEq.mockReturnValue({ eq: mockEq, order: mockOrder })
-    mockOrder.mockResolvedValue({ data: [], error: null })
+    mockRpc.mockResolvedValue({ data: [], error: null })
 
     await expect(listBoxesForVenue('venue-office')).resolves.toEqual([])
 
-    expect(mockSelect).toHaveBeenCalledWith(
-      'id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), spaces!inner(venue_id, name, venues(name))',
-    )
-    expect(mockEq).toHaveBeenCalledWith('owner_id', 'user-1')
-    expect(mockEq).toHaveBeenCalledWith('spaces.venue_id', 'venue-office')
+    expect(mockRpc).toHaveBeenCalledWith('list_accessible_boxes', { p_venue_id: 'venue-office' })
   })
 
-  it('keeps the catalogue available when an embedded space is inaccessible', async () => {
-    mockSelect.mockReturnValue({ eq: mockEq, order: mockOrder })
-    mockEq.mockReturnValue({ order: mockOrder })
-    mockOrder.mockResolvedValue({
+  it('maps accessible catalogue rows returned by the RPC', async () => {
+    mockRpc.mockResolvedValue({
       data: [{
         id: 'box-1',
         public_id: 'public-1',
@@ -105,47 +93,15 @@ describe('boxes api', () => {
         visibility: 'public',
         cover_object_key: null,
         updated_at: '2026-07-30T08:00:00Z',
-        items: [{ count: 0 }],
-        spaces: null,
+        item_count: 0,
+        venue_id: 'venue-home', space_name: '客厅', venue_name: '家里',
       }],
       error: null,
     })
 
-    await expect(listBoxes()).resolves.toMatchObject([{ space_name: '' }])
+    await expect(listBoxes()).resolves.toMatchObject([{ space_name: '客厅' }])
   })
 
-  it('falls back to the legacy catalogue query when the venue relationship is unavailable', async () => {
-    mockSelect.mockReturnValue({ eq: mockEq, order: mockOrder })
-    mockEq.mockReturnValue({ order: mockOrder })
-    mockOrder
-      .mockResolvedValueOnce({
-        data: null,
-        error: { code: 'PGRST200', message: "Could not find a relationship between 'spaces' and 'venues'" },
-      })
-      .mockResolvedValueOnce({
-        data: [{
-          id: 'box-1', public_id: 'public-1', box_code: 'B001', space_id: 'space-1',
-          name: '原有箱子', location: null, visibility: 'private', cover_object_key: null,
-          updated_at: '2026-07-30T08:00:00Z', items: [{ count: 2 }], spaces: { name: '客厅' },
-        }],
-        error: null,
-      })
-
-    await expect(listBoxes()).resolves.toMatchObject([{
-      name: '原有箱子', venue_name: '', space_name: '客厅', item_count: 2,
-    }])
-    expect(mockSelect).toHaveBeenNthCalledWith(
-      2,
-      'id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), spaces(name)',
-    )
-  })
-
-  it('rejects catalogue access when there is no authenticated user', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: null } })
-
-    await expect(listBoxes()).rejects.toThrow('authentication is required')
-    expect(mockFrom).not.toHaveBeenCalled()
-  })
 
   it('creates a box through the entitlement RPC', async () => {
     mockRpc.mockResolvedValue({
@@ -187,7 +143,10 @@ describe('boxes api', () => {
     expect(isBoxLimitReached(new Error('network interrupted'))).toBe(false)
   })
 
-  it('loads public box details through the safe RPC', async () => {
+  it('falls back to the public RPC when the authenticated RLS detail is not accessible', async () => {
+    mockSelect.mockReturnValue({ eq: mockEq })
+    mockEq.mockReturnValue({ single: mockSingle })
+    mockSingle.mockResolvedValue({ data: null, error: { code: 'PGRST116' } })
     mockRpc.mockResolvedValue({
       data: [{
         id: 'box-1',
@@ -214,16 +173,13 @@ describe('boxes api', () => {
       updated_at: '2026-07-30T08:00:00Z',
       space_name: '客厅',
     })
+    expect(mockSelect).toHaveBeenCalledWith(expect.stringContaining('spaces(venue_id, name, venues(name))'))
     expect(mockRpc).toHaveBeenCalledWith('get_public_box', { p_public_id: 'public-1' })
-    expect(mockFrom).not.toHaveBeenCalled()
   })
 
-  it('falls back to the owner query for a signed-in private box', async () => {
-    mockRpc.mockResolvedValue({ data: [], error: null })
+  it('uses the authenticated RLS detail query for a shared private box before public fallback', async () => {
     mockSelect.mockReturnValue({ eq: mockEq })
-    mockEq
-      .mockReturnValueOnce({ eq: mockEq })
-      .mockReturnValueOnce({ single: mockSingle })
+    mockEq.mockReturnValue({ single: mockSingle })
     mockSingle.mockResolvedValue({
       data: {
         id: 'box-private', owner_id: 'user-1', public_id: 'private-1', box_code: 'B002',
@@ -237,36 +193,8 @@ describe('boxes api', () => {
     await expect(getBoxByPublicId('private-1')).resolves.toMatchObject({
       id: 'box-private', visibility: 'private', venue_name: '家里', space_name: '书房',
     })
-    expect(mockEq).toHaveBeenNthCalledWith(1, 'public_id', 'private-1')
-    expect(mockEq).toHaveBeenNthCalledWith(2, 'owner_id', 'user-1')
-  })
-
-  it('falls back to the legacy owner detail query when venues are not deployed', async () => {
-    mockRpc.mockResolvedValue({ data: [], error: null })
-    mockSelect.mockReturnValue({ eq: mockEq })
-    mockEq
-      .mockReturnValueOnce({ eq: mockEq })
-      .mockReturnValueOnce({ single: mockSingle })
-      .mockReturnValueOnce({ eq: mockEq })
-      .mockReturnValueOnce({ single: mockSingle })
-    mockSingle
-      .mockResolvedValueOnce({
-        data: null,
-        error: { code: 'PGRST200', message: "Could not find a relationship between 'spaces' and 'venues'" },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          id: 'box-private', owner_id: 'user-1', public_id: 'private-1', box_code: 'B002',
-          space_id: 'space-1', name: '证件箱', category: null, location: null,
-          description: null, visibility: 'private', cover_object_key: null,
-          updated_at: '2026-07-30T08:00:00Z', spaces: { name: '书房' }, items: [],
-        },
-        error: null,
-      })
-
-    await expect(getBoxByPublicId('private-1')).resolves.toMatchObject({
-      id: 'box-private', venue_name: '', space_name: '书房',
-    })
+    expect(mockEq).toHaveBeenCalledWith('public_id', 'private-1')
+    expect(mockRpc).not.toHaveBeenCalled()
   })
 
   it('does not issue an owner query when the visitor is anonymous', async () => {
@@ -275,5 +203,16 @@ describe('boxes api', () => {
 
     await expect(getBoxByPublicId('private-1')).resolves.toBeNull()
     expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('updates a box through the venue-safe RPC', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null })
+    await updateBox('box-1', {
+      space_id: 'space-1', name: '证件箱', category: null, location: null, description: null, visibility: 'private',
+    })
+    expect(mockRpc).toHaveBeenCalledWith('update_box', {
+      p_box_id: 'box-1', p_space_id: 'space-1', p_name: '证件箱', p_category: null,
+      p_location: null, p_description: null, p_visibility: 'private',
+    })
   })
 })

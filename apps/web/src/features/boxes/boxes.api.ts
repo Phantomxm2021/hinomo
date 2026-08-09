@@ -38,14 +38,11 @@ export type PublicBox = EditableBox & {
   venue_name: string
   cover_object_key: string | null
   updated_at: string
+  venue_id?: string
   items: ItemRecord[]
 }
 
 type PublicBoxRpcRow = Database['public']['Functions']['get_public_box']['Returns'][number]
-
-function isVenueRelationshipUnavailable(error: { code?: string } | null) {
-  return error?.code === 'PGRST200' || error?.code === 'PGRST205' || error?.code === '42703'
-}
 
 function mapPublicBox(row: Omit<PublicBox, 'items'> & { items: unknown }): PublicBox {
   return {
@@ -54,7 +51,7 @@ function mapPublicBox(row: Omit<PublicBox, 'items'> & { items: unknown }): Publi
   }
 }
 
-function mapOwnedBox(data: {
+function mapAccessibleBox(data: {
   id: string
   owner_id: string
   public_id: string
@@ -67,7 +64,7 @@ function mapOwnedBox(data: {
   visibility: Database['public']['Enums']['box_visibility']
   cover_object_key: string | null
   updated_at: string
-  spaces: { name: string; venues?: { name: string } | null } | null
+  spaces: { venue_id?: string; name: string; venues?: { name: string } | null } | null
   items: ItemRecord[]
 }): PublicBox {
   return mapPublicBox({
@@ -83,46 +80,36 @@ function mapOwnedBox(data: {
     visibility: data.visibility,
     cover_object_key: data.cover_object_key,
     updated_at: data.updated_at,
+    ...(data.spaces?.venue_id ? { venue_id: data.spaces.venue_id } : {}),
     venue_name: data.spaces?.venues?.name ?? '',
     space_name: data.spaces?.name ?? '',
     items: data.items,
   })
 }
 
-async function getOwnedBoxByPublicId(publicId: string, ownerId: string): Promise<PublicBox | null> {
+async function getAccessibleBoxByPublicId(publicId: string): Promise<PublicBox | null> {
   const modern = await supabase
     .from('boxes')
-    .select('id, owner_id, public_id, box_code, space_id, name, category, location, description, visibility, cover_object_key, updated_at, spaces(name, venues(name)), items(id, name, category, quantity, stored_quantity, description, image_object_key)')
+    .select('id, owner_id, public_id, box_code, space_id, name, category, location, description, visibility, cover_object_key, updated_at, spaces(venue_id, name, venues(name)), items(id, name, category, quantity, stored_quantity, description, image_object_key)')
     .eq('public_id', publicId)
-    .eq('owner_id', ownerId)
     .single()
 
-  if (!modern.error) return mapOwnedBox(modern.data)
+  if (!modern.error) return mapAccessibleBox(modern.data)
   if (modern.error.code === 'PGRST116') return null
-  if (!isVenueRelationshipUnavailable(modern.error)) throw modern.error
-
-  const legacy = await supabase
-    .from('boxes')
-    .select('id, owner_id, public_id, box_code, space_id, name, category, location, description, visibility, cover_object_key, updated_at, spaces(name), items(id, name, category, quantity, description, image_object_key)')
-    .eq('public_id', publicId)
-    .eq('owner_id', ownerId)
-    .single()
-  if (legacy.error?.code === 'PGRST116') return null
-  if (legacy.error) throw legacy.error
-  return mapOwnedBox(legacy.data)
+  throw modern.error
 }
 
 export async function getBoxByPublicId(publicId: string): Promise<PublicBox | null> {
-  const { data, error } = await supabase.rpc('get_public_box', { p_public_id: publicId })
+  const { data: sessionData } = await supabase.auth.getSession()
+  if (sessionData.session?.user.id) {
+    const accessible = await getAccessibleBoxByPublicId(publicId)
+    if (accessible) return accessible
+  }
 
+  const { data, error } = await supabase.rpc('get_public_box', { p_public_id: publicId })
   if (error) throw error
   const row = data?.[0] as PublicBoxRpcRow | undefined
-  if (row) return mapPublicBox(row)
-
-  const { data: sessionData } = await supabase.auth.getSession()
-  const ownerId = sessionData.session?.user.id
-  if (!ownerId) return null
-  return getOwnedBoxByPublicId(publicId, ownerId)
+  return row ? mapPublicBox(row) : null
 }
 
 export async function getBox(boxId: string): Promise<EditableBox> {
@@ -145,62 +132,11 @@ export async function listBoxesForVenue(venueId: string): Promise<BoxSummary[]> 
 }
 
 async function listBoxesByVenue(venueId?: string): Promise<BoxSummary[]> {
-  const { data: sessionData } = await supabase.auth.getSession()
-  const ownerId = sessionData.session?.user.id
-  if (!ownerId) throw new Error('authentication is required')
-
-  const venueRelation = venueId
-    ? 'spaces!inner(venue_id, name, venues(name))'
-    : 'spaces(venue_id, name, venues(name))'
-  let modernQuery = supabase
-    .from('boxes')
-    .select(`id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), ${venueRelation}`)
-    .eq('owner_id', ownerId)
-  if (venueId) modernQuery = modernQuery.eq('spaces.venue_id', venueId)
-  const modern = await modernQuery
-    .order('updated_at', { ascending: false })
-
-  if (!modern.error) return mapBoxRows(modern.data ?? [])
-  if (!isVenueRelationshipUnavailable(modern.error)) throw modern.error
-
-  const legacy = await supabase
-    .from('boxes')
-    .select('id, public_id, box_code, space_id, name, location, visibility, cover_object_key, updated_at, items(count), spaces(name)')
-    .eq('owner_id', ownerId)
-    .order('updated_at', { ascending: false })
-  if (legacy.error) throw legacy.error
-  return mapBoxRows(legacy.data ?? [])
-}
-
-type BoxListRow = {
-  id: string
-  public_id: string
-  box_code: string
-  space_id: string
-  name: string
-  location: string | null
-  visibility: Database['public']['Enums']['box_visibility']
-  cover_object_key: string | null
-  updated_at: string
-  items: Array<{ count: number }>
-  spaces: { venue_id?: string; name: string; venues?: { name: string } | null } | null
-}
-
-function mapBoxRows(rows: BoxListRow[]): BoxSummary[] {
-  return rows.map((box) => ({
-    id: box.id,
-    public_id: box.public_id,
-    box_code: box.box_code,
-    space_id: box.space_id,
-    name: box.name,
-    location: box.location,
-    visibility: box.visibility,
-    ...(box.spaces?.venue_id ? { venue_id: box.spaces.venue_id } : {}),
-    space_name: box.spaces?.name ?? '',
-    venue_name: box.spaces?.venues?.name ?? '',
-    cover_object_key: box.cover_object_key,
-    item_count: box.items[0]?.count ?? 0,
-    updated_at: box.updated_at,
+  const { data, error } = await supabase.rpc('list_accessible_boxes', { p_venue_id: venueId ?? null })
+  if (error) throw error
+  return (data ?? []).map((box) => ({
+    ...box,
+    item_count: box.item_count,
   }))
 }
 
@@ -230,6 +166,14 @@ export async function deleteBox(boxId: string) {
 }
 
 export async function updateBox(boxId: string, input: BoxInput) {
-  const { error } = await supabase.from('boxes').update(input).eq('id', boxId)
+  const { error } = await supabase.rpc('update_box', {
+    p_box_id: boxId,
+    p_space_id: input.space_id,
+    p_name: input.name,
+    p_category: input.category,
+    p_location: input.location,
+    p_description: input.description,
+    p_visibility: input.visibility,
+  })
   if (error) throw error
 }

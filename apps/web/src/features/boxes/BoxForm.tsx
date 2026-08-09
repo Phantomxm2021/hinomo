@@ -21,9 +21,10 @@ export type BoxFormProps = {
   onCompleted?: (box: CreatedBox) => void
   onLimitReached?: () => void
   onSaved?: () => void
+  canChangeVisibility?: boolean
 }
 
-export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimitReached, onSaved }: BoxFormProps) {
+export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimitReached, onSaved, canChangeVisibility = true }: BoxFormProps) {
   const { locale, t } = useI18n()
   const editing = Boolean(boxId)
   const feedback = useMobileFeedback()
@@ -168,7 +169,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimi
       category: values.category || null,
       location: values.location || null,
       description: values.description || null,
-      visibility: values.visibility,
+      visibility: canChangeVisibility ? values.visibility : editing ? boxQuery.data!.visibility : 'private' as const,
     }
     setMediaError(false)
     setSaved(false)
@@ -290,11 +291,13 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimi
             }}
           />
 
-          <label htmlFor="box-visibility">{t('boxes.visibility')}</label>
-          <select className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="box-visibility" {...register('visibility')}>
-            <option value="private">{t('boxes.visibilityPrivate')}</option>
-            <option value="public">{t('boxes.visibilityPublic')}</option>
-          </select>
+          {canChangeVisibility ? <>
+            <label htmlFor="box-visibility">{t('boxes.visibility')}</label>
+            <select className="min-h-12 w-full rounded-control border border-line bg-canvas px-3 text-ink focus:border-brand" id="box-visibility" {...register('visibility')}>
+              <option value="private">{t('boxes.visibilityPrivate')}</option>
+              <option value="public">{t('boxes.visibilityPublic')}</option>
+            </select>
+          </> : null}
         </div>
 
         {(createMutation.isError && !isBoxLimitReached(createMutation.error)) || updateMutation.isError ? (

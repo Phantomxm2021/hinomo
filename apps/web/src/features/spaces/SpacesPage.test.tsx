@@ -9,11 +9,12 @@ import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 import { AuthProvider } from '../../features/auth/AuthProvider'
 import { SpacesPage } from './SpacesPage'
 
-const { mockCreateSpace, mockCreateVenue, mockDeleteSpace, mockDeleteVenue, mockListSpaceLayouts, mockListSpaces, mockListVenues, mockSaveSpaceLayout, mockStorageGetItem, mockStorageSetItem, mockUpdateSpace, mockUpdateVenue } = vi.hoisted(() => ({
+const { mockCreateSpace, mockCreateVenue, mockDeleteSpace, mockDeleteVenue, mockGetVenueAccessSummary, mockListSpaceLayouts, mockListSpaces, mockListVenues, mockSaveSpaceLayout, mockStorageGetItem, mockStorageSetItem, mockUpdateSpace, mockUpdateVenue } = vi.hoisted(() => ({
   mockCreateSpace: vi.fn(),
   mockCreateVenue: vi.fn(),
   mockDeleteSpace: vi.fn(),
   mockDeleteVenue: vi.fn(),
+  mockGetVenueAccessSummary: vi.fn(),
   mockListSpaceLayouts: vi.fn(),
   mockListSpaces: vi.fn(),
   mockListVenues: vi.fn(),
@@ -40,6 +41,11 @@ vi.mock('../venues/venues.api', () => ({
   listVenues: mockListVenues,
   updateVenue: mockUpdateVenue,
   isVenuesSchemaUnavailable: (error: unknown) => Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'VENUES_SCHEMA_UNAVAILABLE'),
+}))
+
+vi.mock('../venues/venue-sharing.api', () => ({
+  getVenueAccessSummary: mockGetVenueAccessSummary,
+  isVenueAccessDenied: (error: unknown) => Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'venue_access_denied'),
 }))
 
 vi.mock('../auth/auth-context', async (importOriginal) => ({
@@ -80,6 +86,7 @@ beforeEach(() => {
   mockCreateVenue.mockReset()
   mockDeleteSpace.mockReset()
   mockDeleteVenue.mockReset()
+  mockGetVenueAccessSummary.mockReset()
   mockListSpaceLayouts.mockReset()
   mockListSpaces.mockReset()
   mockListVenues.mockReset()
@@ -91,6 +98,10 @@ beforeEach(() => {
   mockListVenues.mockResolvedValue([
     { id: 'venue-home', name: '家里', description: null, space_count: 0 },
   ])
+  mockGetVenueAccessSummary.mockResolvedValue({
+    venue_id: 'venue-home', role: 'owner', can_delete_space: true, can_delete_box: true,
+    can_change_box_visibility: true, can_use_ai: true,
+  })
   mockListSpaceLayouts.mockResolvedValue([])
   mockSaveSpaceLayout.mockResolvedValue(undefined)
   mockStorageGetItem.mockReturnValue(null)
@@ -202,6 +213,21 @@ test('filters by venue and defaults a new space to the selected venue', async ()
 
   await user.click(screen.getByRole('button', { name: '创建空间' }))
   expect(screen.getByLabelText('场地')).toHaveValue('venue-office')
+})
+
+test('lets a shared-venue member edit spaces but hides deletion and locks the venue selector', async () => {
+  const user = userEvent.setup()
+  mockGetVenueAccessSummary.mockResolvedValue({ venue_id: 'venue-home', role: 'member', can_delete_space: false })
+  mockListSpaces.mockResolvedValue([
+    { id: 's1', venue_id: 'venue-home', venue_name: '家里', name: '卧室', description: null, box_count: 0, item_count: 0 },
+  ])
+  renderSpaces()
+
+  expect(await screen.findByRole('heading', { name: '卧室' })).toBeInTheDocument()
+  await waitFor(() => expect(mockGetVenueAccessSummary).toHaveBeenCalled())
+  expect(screen.queryByRole('button', { name: '删除卧室' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '编辑卧室' }))
+  await waitFor(() => expect(screen.getByLabelText('场地')).toBeDisabled())
 })
 
 test('shows an actionable empty state when the selected venue has no spaces', async () => {

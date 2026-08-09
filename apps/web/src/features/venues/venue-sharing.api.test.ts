@@ -4,6 +4,7 @@ import {
   createVenueInvite,
   getVenueAccessSummary,
   inspectVenueInvite,
+  isVenueAccessDenied,
   isVenueInviteError,
   leaveVenue,
   listVenueInvites,
@@ -84,5 +85,11 @@ describe('venue sharing api', () => {
 
     await expect(createVenueInvite('venue-1')).rejects.toMatchObject({ code })
     await createVenueInvite('venue-1').catch((error: unknown) => expect(isVenueInviteError(error, code)).toBe(true))
+  })
+
+  it('recognizes revocation errors from both mapped and direct RPC responses', () => {
+    expect(isVenueAccessDenied({ code: 'venue_access_denied' })).toBe(true)
+    expect(isVenueAccessDenied({ details: 'venue_access_denied' })).toBe(true)
+    expect(isVenueAccessDenied(new Error('network unavailable'))).toBe(false)
   })
 })

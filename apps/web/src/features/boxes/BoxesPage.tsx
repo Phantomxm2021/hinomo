@@ -11,6 +11,7 @@ import { useMobileFeedback } from '../../components/mobile-feedback'
 import { useAuth } from '../auth/auth-context'
 import { useSelectedVenue } from '../venues/selected-venue'
 import { listVenues } from '../venues/venues.api'
+import { getVenueAccessSummary, isVenueAccessDenied } from '../venues/venue-sharing.api'
 import { BoxCatalogueCard } from './BoxCatalogueCard'
 import { BoxCreationNextStep } from './BoxCreationNextStep'
 import {
@@ -18,7 +19,7 @@ import {
   catalogueSummary,
   filterBoxes,
 } from './box-catalogue'
-import { getBoxPlanSummary, startBoxUnlimitedCheckout } from './box-entitlements.api'
+import { getVenueBoxPlanSummary, startBoxUnlimitedCheckout } from './box-entitlements.api'
 import { deleteBox, listBoxesForVenue, type BoxSummary, type CreatedBox } from './boxes.api'
 import { BoxLimitPaywall } from './BoxLimitPaywall'
 import { CreateBoxModal } from './CreateBoxModal'
@@ -58,6 +59,7 @@ export function BoxesPage() {
   const [createSucceeded, setCreateSucceeded] = useState(false)
   const [createdBox, setCreatedBox] = useState<CreatedBox | null>(null)
   const [paywallOpen, setPaywallOpen] = useState(false)
+  const [memberLimitReached, setMemberLimitReached] = useState(false)
   const [purchaseConfirmation, setPurchaseConfirmation] = useState<PurchaseConfirmationState>('idle')
   const createSuccessTimerRef = useRef<number | null>(null)
   const purchaseConfirmationTimerRef = useRef<number | null>(null)
@@ -71,7 +73,27 @@ export function BoxesPage() {
     queryFn: () => listBoxesForVenue(selectedVenueId!),
     enabled: Boolean(selectedVenueId),
   })
-  const boxPlanQuery = useQuery({ queryKey: ['box-plan'], queryFn: getBoxPlanSummary })
+  const accessQuery = useQuery({
+    queryKey: ['venue-access', selectedVenueId],
+    queryFn: () => getVenueAccessSummary(selectedVenueId!),
+    enabled: Boolean(selectedVenueId),
+    retry: false,
+  })
+  const accessDenied = isVenueAccessDenied(accessQuery.error)
+  const accessDeniedHandled = useRef(false)
+  useEffect(() => {
+    if (!accessDenied || accessDeniedHandled.current) return
+    accessDeniedHandled.current = true
+    for (const queryKey of [['venues'], ['venue-access'], ['spaces'], ['boxes'], ['items'], ['search-items'], ['item-movements'], ['venue-activity'], ['box-plan']]) {
+      queryClient.removeQueries({ queryKey })
+    }
+    navigate('/app', { replace: true })
+  }, [accessDenied, navigate, queryClient])
+  const boxPlanQuery = useQuery({
+    queryKey: ['box-plan', selectedVenueId],
+    queryFn: () => getVenueBoxPlanSummary(selectedVenueId!),
+    enabled: Boolean(selectedVenueId),
+  })
   const deleteMutation = useMutation({
     mutationFn: (boxId: string) => deleteBox(boxId),
     onSuccess: (_data, boxId) => {
@@ -84,6 +106,10 @@ export function BoxesPage() {
   })
   const allBoxes = boxesQuery.data ?? EMPTY_BOXES
   const selectedVenue = venues.find((venue) => venue.id === selectedVenueId) ?? null
+  const canEditContent = accessQuery.data?.role === 'owner' || accessQuery.data?.role === 'member'
+  const canDeleteBox = accessQuery.data?.can_delete_box ?? false
+  const canChangeVisibility = accessQuery.data?.can_change_box_visibility ?? false
+  const isVenueOwner = accessQuery.data?.role === 'owner'
   const boxes = useMemo(() => selectedVenueId
     ? allBoxes.filter((box) => !box.venue_id || box.venue_id === selectedVenueId)
     : EMPTY_BOXES, [allBoxes, selectedVenueId])
@@ -245,7 +271,8 @@ export function BoxesPage() {
     setCreatedBox(null)
     setCreateCompletionPending(false)
     if (boxPlanQuery.data && !boxPlanQuery.data.can_create) {
-      setPaywallOpen(true)
+      if (isVenueOwner) setPaywallOpen(true)
+      else setMemberLimitReached(true)
       return
     }
     const next = new URLSearchParams(searchParams)
@@ -346,6 +373,7 @@ export function BoxesPage() {
               </p>
             ) : null}
             {boxPlanStatus ? <p className="mt-1 mb-0 text-sm font-semibold text-brand">{boxPlanStatus}</p> : null}
+            {memberLimitReached ? <p className="mt-1 mb-0 text-sm font-semibold text-brand">{t('boxes.contactVenueOwner')}</p> : null}
           </div>
           <button
             ref={createButtonRef}
@@ -353,7 +381,7 @@ export function BoxesPage() {
             type="button"
             aria-label={t('boxes.createAria')}
             title={t('boxes.createAria')}
-            disabled={purchaseConfirmation !== 'idle'}
+            disabled={purchaseConfirmation !== 'idle' || (accessQuery.isSuccess && !canEditContent)}
             onClick={openCreate}
           >
             <AppIcon name="plus" />
@@ -468,6 +496,7 @@ export function BoxesPage() {
                 setOpenMenuBoxId(null)
                 setDeleteTarget(target)
               }}
+              canDelete={canDeleteBox}
               key={box.id}
             />
           ))}
@@ -501,12 +530,14 @@ export function BoxesPage() {
         }}
         onBusyChange={setCreateBusy}
         onLimitReached={() => {
-          setPaywallOpen(true)
+          if (isVenueOwner) setPaywallOpen(true)
+          else setMemberLimitReached(true)
           void queryClient.invalidateQueries({ queryKey: ['box-plan'] })
         }}
+        canChangeVisibility={canChangeVisibility}
       />
       <BoxLimitPaywall
-        open={paywallOpen}
+        open={isVenueOwner && paywallOpen}
         busy={checkoutMutation.isPending}
         onClose={closePaywall}
         onPurchase={() => checkoutMutation.mutate()}
@@ -524,6 +555,7 @@ export function BoxesPage() {
         returnFocusRef={editReturnFocusRef}
         onClose={closeEdit}
         onBusyChange={setEditBusy}
+        canChangeVisibility={canChangeVisibility}
         onSaved={() => {
           setEditCompletionPending(true)
           void queryClient.invalidateQueries({ queryKey: ['boxes'] })

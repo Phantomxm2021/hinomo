@@ -12,6 +12,7 @@ import { useI18n } from '../../i18n/I18nProvider'
 import { publicAppOrigin } from '../../lib/env'
 import { formatStoragePath } from '../../lib/format-storage-path'
 import { useAuth } from '../auth/auth-context'
+import { getVenueAccessSummary, isVenueAccessDenied } from '../venues/venue-sharing.api'
 import { ItemMovementSheet, type ItemMovementCommand } from '../item-movements/ItemMovementSheet'
 import { deriveItemAvailability, formatItemAvailability } from '../item-movements/item-movement-status'
 import { listItemMovements, moveItem, returnItem, takeOutItem } from '../item-movements/item-movements.api'
@@ -65,14 +66,28 @@ export function PublicBoxPage() {
     queryFn: getCreditSummary,
     enabled: Boolean(session),
   })
+  const accessQuery = useQuery({
+    queryKey: ['venue-access', boxQuery.data?.venue_id],
+    queryFn: () => getVenueAccessSummary(boxQuery.data!.venue_id!),
+    enabled: Boolean(session && boxQuery.data?.venue_id),
+    retry: false,
+  })
+  const clearRevokedVenue = (error: unknown) => {
+    if (!isVenueAccessDenied(error)) return
+    for (const queryKey of [['venues'], ['venue-access'], ['spaces'], ['boxes'], ['box'], ['items'], ['search-items'], ['item-movements'], ['venue-activity'], ['box-plan']]) {
+      queryClient.removeQueries({ queryKey })
+    }
+    navigate('/app', { replace: true })
+  }
   useEffect(() => {
-    if (searchParams.get('capture') !== '1' || !boxQuery.data || session?.user.id !== boxQuery.data.owner_id || !creditQuery.data) return
+    const legacyOwner = !boxQuery.data?.venue_id && session?.user.id === boxQuery.data?.owner_id
+    if (searchParams.get('capture') !== '1' || !boxQuery.data || (!legacyOwner && !accessQuery.data?.can_use_ai) || !creditQuery.data) return
     if (creditQuery.data.credits_available > 0) setShowPackingCapture(true)
     else setCreditGate({})
     const next = new URLSearchParams(searchParams)
     next.delete('capture')
     setSearchParams(next, { replace: true })
-  }, [boxQuery.data, creditQuery.data, searchParams, session?.user.id, setSearchParams])
+  }, [accessQuery.data?.can_use_ai, boxQuery.data, creditQuery.data, searchParams, session?.user.id, setSearchParams])
   useEffect(() => {
     if (editorBlocker.state === 'blocked' && !editorBusy) editorBlocker.reset()
   }, [editorBlocker, editorBusy])
@@ -113,6 +128,7 @@ export function PublicBoxPage() {
         queryClient.invalidateQueries({ queryKey: ['item-movements'] }),
       ])
     },
+    onError: clearRevokedVenue,
   })
   const deleteMutation = useMutation({
     mutationFn: (itemId: string) => deleteItem(itemId),
@@ -126,6 +142,7 @@ export function PublicBoxPage() {
         queryClient.invalidateQueries({ queryKey: ['items', boxQuery.data?.id] }),
       ])
     },
+    onError: clearRevokedVenue,
   })
   const frameClassName = 'mx-auto grid min-w-0 w-full max-w-6xl gap-6 px-4 pb-[calc(6rem+var(--safe-area-bottom))] pt-3 min-[360px]:px-5 lg:gap-6 lg:px-8 lg:pb-10 lg:pt-5'
 
@@ -159,7 +176,13 @@ export function PublicBoxPage() {
   }
 
   const box = boxQuery.data
-  const isOwner = session?.user.id === box.owner_id
+  // Old detail rows from installations predating venue relations have no venue id;
+  // they can only retain controls for the authenticated record owner. Venue-backed
+  // rows always use the database capability summary below.
+  const legacyOwner = !box.venue_id && session?.user.id === box.owner_id
+  const canEditContent = legacyOwner || accessQuery.data?.role === 'owner' || accessQuery.data?.role === 'member'
+  const canChangeVisibility = legacyOwner || accessQuery.data?.can_change_box_visibility === true
+  const canUseAi = legacyOwner || accessQuery.data?.can_use_ai === true
   const totalQuantity = box.items.reduce((sum, item) => sum + item.quantity, 0)
   const updatedAt = new Intl.DateTimeFormat(locale, {
     year: 'numeric', month: 'short', day: 'numeric',
@@ -238,8 +261,8 @@ export function PublicBoxPage() {
           </button>
         </div>
         <span className="truncate pb-2 text-center text-[1.0625rem] leading-none font-bold text-ink">{t('boxes.detailTitle', { name: box.name })}</span>
-        <div className="flex justify-end gap-1" aria-label={isOwner ? t('boxes.boxTools') : undefined} aria-hidden={isOwner ? undefined : true}>
-          {isOwner ? (
+        <div className="flex justify-end gap-1" aria-label={canEditContent ? t('boxes.boxTools') : undefined} aria-hidden={canEditContent ? undefined : true}>
+          {canEditContent ? (
             <button ref={mobileActionsButtonRef} className="inline-flex size-11 items-center justify-center rounded-full text-ink active:bg-placeholder/70 active:opacity-70" type="button" aria-label={t('boxes.openActions')} onClick={() => setShowMobileActions(true)}>
               <AppIcon name="plus" size={24} />
             </button>
@@ -277,7 +300,7 @@ export function PublicBoxPage() {
               <p className="font-extrabold text-ink">{t('boxes.detailSummary', { quantity: totalQuantity, types: box.items.length })}</p>
             </div>
           </div>
-          {isOwner ? (
+          {canEditContent ? (
             <div data-testid="desktop-box-actions" className="hidden lg:flex lg:flex-wrap lg:gap-2">
               <button ref={desktopBoxEditButtonRef} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[0.9rem] border-0 bg-surface px-4 font-bold text-ink no-underline shadow-[inset_0_0_0_1px_rgba(79,64,48,0.08)] active:opacity-70 lg:min-h-11 lg:justify-start lg:rounded-control lg:border lg:border-line lg:bg-canvas lg:shadow-none" type="button" onClick={(event) => openBoxEditor(event.currentTarget)}>
                 <AppIcon name="edit" />{t('boxes.editAction')}
@@ -288,9 +311,9 @@ export function PublicBoxPage() {
               <button ref={desktopAddItemButtonRef} className="hidden min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white lg:inline-flex" type="button" onClick={(event) => openNewItem(event.currentTarget)}>
                 <AppIcon name="plus" />{t('boxes.addItem')}
               </button>
-              <button className="inline-flex min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white" type="button" onClick={openPackingCapture}>
+              {canUseAi ? <button className="inline-flex min-h-11 items-center gap-2 rounded-control border border-brand bg-brand px-4 font-bold text-white" type="button" onClick={openPackingCapture}>
                 <AppIcon name="scan" />{t('boxes.aiPacking')}
-              </button>
+              </button> : null}
             </div>
           ) : null}
         </div>
@@ -307,11 +330,11 @@ export function PublicBoxPage() {
       {movementHistoryQuery.isError ? <ResponsiveOperationError message={t('boxes.historyError')} busy={movementHistoryQuery.isFetching} onRetry={() => void movementHistoryQuery.refetch()} /> : null}
 
       <MobileActionSheet
-        open={isOwner && showMobileActions}
+        open={canEditContent && showMobileActions}
         title={t('boxes.boxActions')}
         onClose={() => setShowMobileActions(false)}
         actions={[
-          { label: t('boxes.aiPacking'), onSelect: openPackingCapture },
+          ...(canUseAi ? [{ label: t('boxes.aiPacking'), onSelect: openPackingCapture }] : []),
           { label: t('boxes.addItem'), onSelect: openNewItem },
           { label: t('boxes.editAction'), onSelect: openBoxEditor },
           { label: printing ? t('boxes.packingGenerating') : t('boxes.printLabel'), disabled: printing, onSelect: () => void printLabel() },
@@ -319,7 +342,7 @@ export function PublicBoxPage() {
       />
 
       <ItemMovementSheet
-        open={isOwner && Boolean(movementItem)}
+        open={canEditContent && Boolean(movementItem)}
         item={movementItem}
         currentBoxId={box.id}
         boxes={targetBoxesQuery.data ?? []}
@@ -331,18 +354,19 @@ export function PublicBoxPage() {
         onSubmit={async (command) => { await movementMutation.mutateAsync(command) }}
       />
 
-      {isOwner ? (
+      {canEditContent ? (
         <EditBoxModal
           open={showBoxEditor}
           boxId={box.id}
           returnFocusRef={boxEditorReturnFocusRef}
           onBusyChange={setEditorBusy}
+          canChangeVisibility={canChangeVisibility}
           onClose={() => setShowBoxEditor(false)}
           onSaved={() => void refreshBox()}
         />
       ) : null}
 
-      {isOwner ? (
+      {canEditContent ? (
         <ItemEditorDialog
           open={showItemForm || Boolean(editingItem)}
           boxId={box.id}
@@ -360,7 +384,7 @@ export function PublicBoxPage() {
         />
       ) : null}
 
-      {isOwner && showPackingCapture ? (
+      {canUseAi && showPackingCapture ? (
         <PackingCaptureSheet
           boxId={box.id}
           onClose={() => setShowPackingCapture(false)}
@@ -377,7 +401,7 @@ export function PublicBoxPage() {
         />
       ) : null}
 
-      {isOwner ? <PackingChecklistSection boxId={box.id} /> : null}
+      {canUseAi ? <PackingChecklistSection boxId={box.id} /> : null}
 
       <section className="grid gap-3" aria-labelledby="box-items-heading">
         <div className="flex items-end justify-between gap-4">
@@ -391,7 +415,7 @@ export function PublicBoxPage() {
           <div data-testid="box-item-list" className="overflow-hidden rounded-[1.25rem] bg-surface shadow-[inset_0_0_0_1px_rgba(79,64,48,0.06)] lg:contents lg:rounded-none lg:bg-transparent lg:shadow-none">
             {box.items.map((item) => (
               <article className="border-b border-line/60 last:border-b-0 lg:overflow-hidden lg:rounded-card lg:border lg:border-line lg:bg-surface" key={item.id}>
-                {isOwner ? (
+                {canEditContent ? (
                   <button className="grid w-full min-w-0 grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 p-3 text-left transition-colors hover:bg-canvas/70 active:bg-placeholder/50 lg:grid-cols-[7rem_minmax(0,1fr)_auto] lg:gap-4 lg:p-4" type="button" aria-label={t('boxes.itemActionAria', { name: item.name })} onClick={(event) => openMovementItem(item, event.currentTarget)}>
                     <div className="grid size-14 place-content-center overflow-hidden rounded-[0.9rem] bg-placeholder text-muted lg:aspect-[4/3] lg:size-auto lg:w-28 lg:rounded-control">
                       {item.image_object_key ? <AuthorizedImage objectKey={item.image_object_key} alt="" className="h-full w-full object-cover" /> : <><AppIcon name="box" /><span className="mt-1 hidden text-xs font-bold lg:inline">{t('boxes.noImage')}</span></>}
@@ -430,10 +454,10 @@ export function PublicBoxPage() {
             state="empty"
             icon="box"
             title={t('boxes.noItemsTitle')}
-            description={isOwner ? t('boxes.noItemsDescription') : undefined}
-            action={isOwner ? (
+            description={canEditContent ? t('boxes.noItemsDescription') : undefined}
+            action={canEditContent ? (
               <div className="flex flex-col gap-2 sm:flex-row">
-                <button className="border-brand! bg-brand! text-white!" type="button" onClick={openPackingCapture}>{t('boxes.captureItems')}</button>
+                {canUseAi ? <button className="border-brand! bg-brand! text-white!" type="button" onClick={openPackingCapture}>{t('boxes.captureItems')}</button> : null}
                 <button type="button" onClick={(event) => openNewItem(event.currentTarget)}>{t('boxes.manualItem')}</button>
               </div>
             ) : undefined}

@@ -24,6 +24,11 @@ describe('message catalog', () => {
     expect(messages['en-US'].boxes.purchaseDelayed).toBe('Payment status is still being confirmed. Please check again later.')
   })
 
+  test('explains that shared-venue members need the owner to unlock more boxes', () => {
+    expect(messages['zh-CN'].boxes.contactVenueOwner).toBe('请联系场所所有者解锁')
+    expect(messages['en-US'].boxes.contactVenueOwner).toContain('venue owner')
+  })
+
   test('includes localized single-use venue invitation states', () => {
     expect(messages['zh-CN'].venueSharing.inviteLimit).toContain('24 小时')
     expect(messages['en-US'].venueSharing.inviteLimit).toContain('24 hours')

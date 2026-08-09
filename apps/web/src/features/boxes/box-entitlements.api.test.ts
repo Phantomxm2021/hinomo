@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { getBoxPlanSummary, startBoxUnlimitedCheckout } from './box-entitlements.api'
+import { getBoxPlanSummary, getVenueBoxPlanSummary, startBoxUnlimitedCheckout } from './box-entitlements.api'
 
 const { mockInvoke, mockRpc } = vi.hoisted(() => ({
   mockInvoke: vi.fn(),
@@ -35,6 +35,16 @@ test('loads the signed-in box plan summary through its RPC', async () => {
     can_create: false,
   })
   expect(mockRpc).toHaveBeenCalledWith('get_box_plan_summary')
+})
+
+test('loads a venue owner plan summary through the venue RPC', async () => {
+  mockRpc.mockResolvedValue({
+    data: [{ box_count: 3, free_limit: 3, unlimited_boxes: false, can_create: false }],
+    error: null,
+  })
+
+  await expect(getVenueBoxPlanSummary('venue-1')).resolves.toMatchObject({ box_count: 3, can_create: false })
+  expect(mockRpc).toHaveBeenCalledWith('get_venue_box_plan_summary', { p_venue_id: 'venue-1' })
 })
 
 test('uses an empty plan only when the summary RPC has no rows', async () => {

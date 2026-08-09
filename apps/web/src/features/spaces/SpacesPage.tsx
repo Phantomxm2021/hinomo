@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useForm } from 'react-hook-form'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
@@ -17,6 +17,7 @@ import {
   listVenues,
 } from '../venues/venues.api'
 import { useSelectedVenue } from '../venues/selected-venue'
+import { getVenueAccessSummary, isVenueAccessDenied } from '../venues/venue-sharing.api'
 import { SpaceCard } from './SpaceCard'
 import { SpaceMap } from './SpaceMap'
 import { createSpaceSchema, type SpaceFormValues } from './space.schema'
@@ -59,6 +60,7 @@ export function SpacesPage() {
   const { session } = useAuth()
   const queryClient = useQueryClient()
   const feedback = useMobileFeedback()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const editorOpenerRef = useRef<HTMLElement | null>(null)
   const headerCreateButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -79,6 +81,22 @@ export function SpacesPage() {
   const layoutsQuery = useQuery({ queryKey: ['space-layouts'], queryFn: listSpaceLayouts })
   const venues = venuesQuery.data ?? []
   const [selectedVenueId] = useSelectedVenue(venues, session?.user.id)
+  const accessQuery = useQuery({
+    queryKey: ['venue-access', selectedVenueId],
+    queryFn: () => getVenueAccessSummary(selectedVenueId!),
+    enabled: Boolean(selectedVenueId),
+    retry: false,
+  })
+  const accessDenied = isVenueAccessDenied(accessQuery.error)
+  const accessDeniedHandled = useRef(false)
+  useEffect(() => {
+    if (!accessDenied || accessDeniedHandled.current) return
+    accessDeniedHandled.current = true
+    for (const queryKey of [['venues'], ['venue-access'], ['spaces'], ['boxes'], ['items'], ['search-items'], ['item-movements'], ['venue-activity'], ['box-plan']]) {
+      queryClient.removeQueries({ queryKey })
+    }
+    navigate('/app', { replace: true })
+  }, [accessDenied, navigate, queryClient])
   const createMutation = useMutation({
     mutationFn: (input: Parameters<typeof createSpace>[0]) => createSpace(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['spaces'] }),
@@ -282,6 +300,8 @@ export function SpacesPage() {
 
   const spaces = spacesQuery.data ?? []
   const selectedVenue = venues.find((venue) => venue.id === selectedVenueId) ?? null
+  const canEditContent = accessQuery.data?.role === 'owner' || accessQuery.data?.role === 'member'
+  const canDeleteSpace = accessQuery.data?.can_delete_space ?? false
   const visibleSpaces = selectedVenueId
     ? spaces.filter((space) => !space.venue_id || space.venue_id === selectedVenueId)
     : []
@@ -311,7 +331,7 @@ export function SpacesPage() {
             type="button"
             aria-label={t('spaces.createAria')}
             title={t('spaces.createAria')}
-            disabled={venues.length === 0}
+            disabled={venues.length === 0 || (accessQuery.isSuccess && !canEditContent)}
             onClick={beginCreate}
           >
             <AppIcon name="plus" size={20} />
@@ -381,7 +401,7 @@ export function SpacesPage() {
                 className="min-h-12 w-full rounded-control border border-line bg-surface px-3 py-2.5 text-ink focus:border-brand"
                 id="space-venue"
                 {...register('venue_id')}
-                disabled={editorPending}
+                disabled={editorPending || (Boolean(editTarget) && accessQuery.data?.role !== 'owner')}
                 aria-invalid={errors.venue_id ? 'true' : undefined}
               >
                 <option value="">{t('spaces.selectVenue')}</option>
@@ -535,7 +555,7 @@ export function SpacesPage() {
           {view === 'cards' ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {visibleSpaces.map((space, index) => (
-                <SpaceCard key={space.id} space={space} index={index} onEdit={() => beginEdit(space)} onDelete={(trigger) => requestDelete(space, trigger)} />
+              <SpaceCard key={space.id} space={space} index={index} onEdit={() => beginEdit(space)} onDelete={(trigger) => requestDelete(space, trigger)} canDelete={canDeleteSpace} />
               ))}
             </div>
           ) : (
