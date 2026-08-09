@@ -91,7 +91,9 @@ async function expectRouteFrame(
 
 async function openNewItem(page: Parameters<typeof installMockBackend>[0]) {
   const desktopAction = page.getByRole('button', { name: '新增物品', exact: true })
-  if (await desktopAction.isVisible()) {
+  const desktopLayout = await page.evaluate(() => window.matchMedia('(min-width: 1024px)').matches)
+  if (desktopLayout) {
+    await expect(desktopAction).toBeVisible()
     await desktopAction.click()
     return
   }

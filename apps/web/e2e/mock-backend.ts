@@ -299,7 +299,11 @@ export async function installMockBackend(page: Page, state: MockState) {
     if (url.pathname === '/rest/v1/rpc/get_venue_box_plan_summary' && method === 'POST' && currentUserId) {
       const { p_venue_id: venueId } = request.postDataJSON() as { p_venue_id: string }
       if (!canAccessVenue(venueId)) return error(route, 'venue_access_denied')
-      return json(route, [venuePlan(venueId)])
+      // Keep the client-facing summary independently controllable from the
+      // create RPC. This models a legitimate stale entitlement read: the UI
+      // can still attempt creation, while create_box recalculates the shared
+      // venue owner's quota and rejects an over-limit write.
+      return json(route, [{ ...venuePlan(venueId), can_create: state.boxPlan.can_create }])
     }
 
     if (url.pathname === '/rest/v1/rpc/create_space' && method === 'POST' && currentUserId) {
