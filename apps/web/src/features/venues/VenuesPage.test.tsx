@@ -151,6 +151,7 @@ test('clears venue caches and navigates home when card invite access is revoked'
   await user.click(within(screen.getByRole('menu', { name: '家里场地操作' })).getByRole('menuitem', { name: '邀请家人' }))
   await waitFor(() => expect(removeQueries).toHaveBeenCalledWith({ queryKey: ['venues'] }))
   expect(client.getQueryData(['spaces'])).toBeUndefined()
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('你没有执行此操作的权限')
 })
 
 test('explains when members or unused invitations have reserved all family seats', async () => {

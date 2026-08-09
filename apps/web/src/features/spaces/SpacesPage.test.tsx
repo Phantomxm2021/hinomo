@@ -857,6 +857,7 @@ test('keeps localized mutation errors without leaking backend text', async () =>
   expect(screen.queryByText('sensitive delete details')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: '好' })).toHaveFocus()
 
+  await user.click(screen.getByRole('button', { name: '好' }))
   await user.click(screen.getByRole('button', { name: '取消' }))
   await waitFor(() => expect(deleteButton).toHaveFocus())
 })

@@ -88,6 +88,9 @@ test('temporarily hides the underlying invite dialog from assistive technology d
   expect(await screen.findByRole('alertdialog', { name: '撤销邀请？' })).toBeInTheDocument()
   expect(screen.queryByRole('dialog', { name: '分享场地邀请' })).not.toBeInTheDocument()
   expect(screen.getByTestId('editor-dialog-backdrop')).toHaveAttribute('aria-hidden', 'true')
+  await user.click(screen.getByRole('button', { name: '取消' }))
+  expect(screen.getByTestId('editor-dialog-backdrop')).not.toHaveAttribute('aria-hidden')
+  expect(screen.getByTestId('editor-dialog-backdrop')).not.toHaveAttribute('inert')
 })
 
 test('offers retry for transient copy failures and retries the exact clipboard operation', async () => {
@@ -112,6 +115,30 @@ test('offers retry for transient share failures and retries the exact share oper
   const alert = await screen.findByRole('alertdialog', { name: '操作未完成' })
   await user.click(within(alert).getByRole('button', { name: '重试' }))
   await waitFor(() => expect(share).toHaveBeenCalledTimes(2))
+})
+
+test('offers retry for transient QR failures and retries QR generation', async () => {
+  const user = userEvent.setup()
+  mocks.qr.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce('data:image/png;base64,retry-qr')
+  renderDialog()
+
+  const alert = await screen.findByRole('alertdialog', { name: '操作未完成' })
+  await user.click(within(alert).getByRole('button', { name: '重试' }))
+  await waitFor(() => expect(mocks.qr).toHaveBeenCalledTimes(2))
+  expect(await screen.findByRole('img', { name: '场地邀请二维码' })).toHaveAttribute('src', 'data:image/png;base64,retry-qr')
+})
+
+test('offers retry for transient revoke failures and repeats the exact revoke operation', async () => {
+  const user = userEvent.setup()
+  mocks.revoke.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce(undefined)
+  const props = renderDialog()
+  await user.click(screen.getByRole('button', { name: '撤销邀请' }))
+  const confirmation = await screen.findByRole('alertdialog', { name: '撤销邀请？' })
+  await user.click(within(confirmation).getByRole('button', { name: '撤销邀请' }))
+  const alert = await screen.findByRole('alertdialog', { name: '操作未完成' })
+  await user.click(within(alert).getByRole('button', { name: '重试' }))
+  await waitFor(() => expect(mocks.revoke).toHaveBeenCalledTimes(2))
+  expect(props.onClose).toHaveBeenCalled()
 })
 
 test('supports Escape, contains focus, restores focus, and uses the mobile safe-area padding', async () => {

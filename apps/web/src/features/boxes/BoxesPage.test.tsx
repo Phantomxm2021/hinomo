@@ -362,7 +362,7 @@ test('pre-blocks a known full free account without changing the URL', async () =
   await screen.findByText('3 / 3 · 已达免费上限')
   await user.click(screen.getByRole('button', { name: '创建箱子' }))
 
-  expect(screen.getByRole('dialog', { name: '免费版最多可保有 3 个箱子' })).toBeInTheDocument()
+  expect(screen.getByRole('dialog', { name: '免费版最多可保有 3 个箱子', hidden: true })).toBeInTheDocument()
   expect(screen.queryByRole('dialog', { name: '创建箱子' })).not.toBeInTheDocument()
   expect(screen.getByTestId('location')).toHaveTextContent('?space=space-1')
 })
@@ -403,8 +403,8 @@ test('layers the paywall over a preserved create form after a stale-summary limi
   await user.click(screen.getByRole('button', { name: '创建箱子' }))
   await user.click(screen.getByRole('button', { name: '模拟额度竞态' }))
 
-  expect(screen.getByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
-  expect(screen.getByRole('dialog', { name: '免费版最多可保有 3 个箱子' })).toBeInTheDocument()
+  expect(screen.getByRole('dialog', { name: '创建箱子', hidden: true })).toBeInTheDocument()
+  expect(screen.getByRole('dialog', { name: '免费版最多可保有 3 个箱子', hidden: true })).toBeInTheDocument()
   expect(screen.getByTestId('location')).toHaveTextContent('?create=1')
 })
 
@@ -606,7 +606,7 @@ test('distinguishes a true empty catalogue from filtered no-match results', asyn
   expect(screen.queryByText('没有匹配的箱子')).not.toBeInTheDocument()
   expect(screen.queryByRole('searchbox', { name: '搜索箱子' })).not.toBeInTheDocument()
   await user.click(screen.getAllByRole('button', { name: '创建箱子' }).at(-1)!)
-  expect(screen.getByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
+  expect(screen.getByRole('dialog', { name: '创建箱子', hidden: true })).toBeInTheDocument()
 })
 
 test('routes creation to the space prerequisite when the selected venue has no spaces', async () => {
@@ -849,7 +849,7 @@ test('keeps checkout busy until navigation and shows a retryable billing error w
   expect(error).toHaveTextContent('暂时无法完成此操作')
   expect(screen.queryByRole('status', { name: /无限箱子已永久解锁|已取消购买无限箱子/ })).not.toBeInTheDocument()
   expect(screen.getByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
-  expect(screen.getByRole('dialog', { name: '免费版最多可保有 3 个箱子' })).toBeInTheDocument()
+  expect(screen.getByRole('dialog', { name: '免费版最多可保有 3 个箱子', hidden: true })).toBeInTheDocument()
 
   await user.click(within(error).getByRole('button', { name: '重试' }))
   expect(await screen.findByRole('button', { name: '购买中…' })).toBeDisabled()

@@ -30,13 +30,22 @@ export function VenueInviteDialog({ open, invite, onClose }: VenueInviteDialogPr
     setQrDataUrl(null)
     setCopied(false)
     if (!open || !inviteUrl) return () => { active = false }
-    void QRCode.toDataURL(inviteUrl, { errorCorrectionLevel: 'M', margin: 2, width: 1024 })
-      .then((dataUrl) => { if (active) setQrDataUrl(dataUrl) })
-      .catch((error) => {
+    const generateQr = async () => {
+      try {
+        const dataUrl = await QRCode.toDataURL(inviteUrl, { errorCorrectionLevel: 'M', margin: 2, width: 1024 })
+        if (active) setQrDataUrl(dataUrl)
+      } catch (error) {
         if (!active) return
         const classification = classifyFeedbackError(error)
-        feedback.error({ key: 'venue.invite.qr', title: t(classification.titleKey), message: t(classification.messageKey) })
-      })
+        feedback.error({
+          key: 'venue.invite.qr',
+          title: t(classification.titleKey),
+          message: t(classification.messageKey),
+          retry: classification.retryable ? () => generateQr() : undefined,
+        })
+      }
+    }
+    void generateQr()
     return () => { active = false }
   }, [feedback, inviteUrl, open, t])
 
@@ -80,7 +89,12 @@ export function VenueInviteDialog({ open, invite, onClose }: VenueInviteDialogPr
       onClose()
     } catch (error) {
       const classification = classifyFeedbackError(error)
-      feedback.error({ key: `venue.invite.revoke:${invite.invite_id}`, title: t(classification.titleKey), message: t(classification.messageKey) })
+      feedback.error({
+        key: `venue.invite.revoke:${invite.invite_id}`,
+        title: t(classification.titleKey),
+        message: t(classification.messageKey),
+        retry: classification.retryable ? () => revoke() : undefined,
+      })
     } finally {
       setBusy(false)
     }
@@ -97,7 +111,12 @@ export function VenueInviteDialog({ open, invite, onClose }: VenueInviteDialogPr
       onPrimary: revoke,
       onActionError: (error) => {
         const classification = classifyFeedbackError(error)
-        feedback.error({ key: `venue.invite.revoke:${invite.invite_id}:error`, title: t(classification.titleKey), message: t(classification.messageKey) })
+        feedback.error({
+          key: `venue.invite.revoke:${invite.invite_id}:error`,
+          title: t(classification.titleKey),
+          message: t(classification.messageKey),
+          retry: classification.retryable ? () => revoke() : undefined,
+        })
       },
     })
   }

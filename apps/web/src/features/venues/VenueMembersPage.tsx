@@ -118,6 +118,7 @@ export function VenueMembersPage() {
           key: `venue.invite.revoke:${inviteId}:error`,
           title: t(classification.titleKey),
           message: t(classification.messageKey),
+          retry: classification.retryable ? () => revokeInviteMutation.mutateAsync(inviteId) : undefined,
         })
       },
     })
@@ -168,7 +169,7 @@ export function VenueMembersPage() {
       </div>
 
       {owner ? invitesEnabled ? <section className="grid gap-4 rounded-card border border-line bg-surface p-5" aria-labelledby="venue-invites-title">
-        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="m-0 text-section-title font-bold" id="venue-invites-title">{t('venueSharing.unusedInvites')}</h2><button className="inline-flex min-h-11 items-center gap-2 rounded-control bg-brand px-4 font-bold text-white disabled:opacity-50" type="button" disabled={invitePending} onClick={() => void createInvite()}><AppIcon name="share" />{invitePending ? t('venueSharing.creatingInvite') : t('venueSharing.createInvite')}</button></div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="m-0 text-section-title font-bold" id="venue-invites-title">{activeInvite?.accepted_count && activeInvite.accepted_count > 0 ? t('venueSharing.inviteActive') : t('venueSharing.unusedInvites')}</h2><button className="inline-flex min-h-11 items-center gap-2 rounded-control bg-brand px-4 font-bold text-white disabled:opacity-50" type="button" disabled={invitePending} onClick={() => void createInvite()}><AppIcon name="share" />{invitePending ? t('venueSharing.creatingInvite') : t('venueSharing.createInvite')}</button></div>
         {activeInvite ? <div className="flex items-center justify-between gap-3 text-sm" key={activeInvite.invite_id}><span className="grid gap-1 text-muted"><span className="font-semibold text-ink">{activeInvite.accepted_count > 0 ? t('venueSharing.inviteActiveWithMembers', { count: activeInvite.accepted_count }) : t('venueSharing.inviteActive')}</span><span>{t('venueSharing.inviteExpiresAt', { date: displayDate(activeInvite.expires_at) })}</span></span><button className="min-h-11 rounded-control px-3 font-bold text-danger disabled:opacity-50" type="button" disabled={Boolean(inviteToRevoke) || revokeInviteMutation.isPending} onClick={() => requestRevokeInvite(activeInvite.invite_id)}>{t('venueSharing.revoke')}</button></div> : null}
       </section> : null : <button className="justify-self-start min-h-11 rounded-control border border-danger px-4 font-bold text-danger" type="button" onClick={() => setLeaveOpen(true)}>{t('venueSharing.leaveVenue')}</button>}
 

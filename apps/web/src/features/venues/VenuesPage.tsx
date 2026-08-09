@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
+import { useMobileFeedback } from '../../components/mobile-feedback'
 import { useI18n } from '../../i18n/I18nProvider'
 import { VenueCardMenu } from './VenueCardMenu'
 import { VenueEditorDialog } from './VenueEditorDialog'
@@ -22,6 +23,7 @@ export function VenuesPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { t } = useI18n()
+  const feedback = useMobileFeedback()
   const [editorOpen, setEditorOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<VenueSummary | null>(null)
   const invitesEnabled = import.meta.env.VITE_ENABLE_VENUE_INVITES === 'true'
@@ -54,6 +56,11 @@ export function VenuesPage() {
   function handleVenueAccessDenied(error: unknown) {
     if (!isVenueAccessDenied(error)) return
     for (const queryKey of revokedVenueQueryKeys) queryClient.removeQueries({ queryKey })
+    feedback.error({
+      key: 'venue.access.denied',
+      title: t('common.operationFailed'),
+      message: t('common.permissionDenied'),
+    })
     navigate('/app', { replace: true })
   }
 
