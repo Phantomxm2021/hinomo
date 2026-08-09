@@ -42,6 +42,11 @@ vi.mock('../venues/venues.api', () => ({
   isVenuesSchemaUnavailable: (error: unknown) => Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'VENUES_SCHEMA_UNAVAILABLE'),
 }))
 
+vi.mock('../auth/auth-context', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../auth/auth-context')>()),
+  useAuth: () => ({ session: { user: { id: 'user-1' } } }),
+}))
+
 function renderSpaces(initialEntry = '/app/spaces') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -177,7 +182,7 @@ test('prefills a new space from common templates while keeping the name editable
 
 test('filters by venue and defaults a new space to the selected venue', async () => {
   const user = userEvent.setup()
-  mockStorageGetItem.mockImplementation((key: string) => key === 'nomo-selected-venue-id' ? 'venue-office' : null)
+  mockStorageGetItem.mockImplementation((key: string) => key === 'nomo-selected-venue-id:user-1' ? 'venue-office' : null)
   mockListVenues.mockResolvedValue([
     { id: 'venue-home', name: '家里', description: null, space_count: 1 },
     { id: 'venue-office', name: '公司', description: null, space_count: 1 },
@@ -201,7 +206,7 @@ test('filters by venue and defaults a new space to the selected venue', async ()
 
 test('shows an actionable empty state when the selected venue has no spaces', async () => {
   const user = userEvent.setup()
-  mockStorageGetItem.mockImplementation((key: string) => key === 'nomo-selected-venue-id' ? 'venue-office' : null)
+  mockStorageGetItem.mockImplementation((key: string) => key === 'nomo-selected-venue-id:user-1' ? 'venue-office' : null)
   mockListVenues.mockResolvedValue([
     { id: 'venue-home', name: '家里', description: null, is_default: true, space_count: 1 },
     { id: 'venue-office', name: '公司', description: null, is_default: false, space_count: 0 },

@@ -47,7 +47,7 @@ export function DashboardPage() {
     enabled: Boolean(user),
   })
   const venues = venuesQuery.data ?? []
-  const [activeVenueId, setActiveVenueId] = useSelectedVenue(venues)
+  const [activeVenueId, setActiveVenueId] = useSelectedVenue(venues, user?.id)
   const spaces = activeVenueId
     ? (spacesQuery.data ?? []).filter((space) => space.venue_id === activeVenueId)
     : []

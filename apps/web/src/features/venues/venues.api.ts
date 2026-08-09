@@ -1,11 +1,17 @@
 import { supabase } from '../../lib/supabase'
+import type { VenueRole } from './venue-sharing.api'
 
 export type VenueSummary = {
   id: string
+  owner_id: string
   name: string
   description: string | null
   is_default: boolean
+  role: VenueRole
+  owner_display_name: string | null
   space_count: number
+  member_count: number
+  max_members: number
 }
 
 export type VenueInput = {
@@ -39,19 +45,20 @@ async function requireOwnerId() {
 }
 
 export async function listVenues(): Promise<VenueSummary[]> {
-  const { data, error } = await supabase
-    .from('venues')
-    .select('id, name, description, is_default, spaces(count)')
-    .order('is_default', { ascending: false })
-    .order('name')
+  const { data, error } = await supabase.rpc('list_accessible_venues')
 
   if (error) throw mapVenueError(error)
   return (data ?? []).map((venue) => ({
     id: venue.id,
+    owner_id: venue.owner_id,
     name: venue.name,
     description: venue.description,
     is_default: venue.is_default,
-    space_count: venue.spaces[0]?.count ?? 0,
+    role: venue.role === 'owner' ? 'owner' : 'member',
+    owner_display_name: venue.owner_display_name,
+    space_count: venue.space_count,
+    member_count: venue.member_count,
+    max_members: venue.max_members,
   }))
 }
 

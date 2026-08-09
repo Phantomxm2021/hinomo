@@ -11,6 +11,7 @@ import { ResponsiveOperationError } from '../../components/ResponsiveOperationEr
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { useI18n } from '../../i18n/I18nProvider'
 import { useMobileFeedback } from '../../components/mobile-feedback'
+import { useAuth } from '../auth/auth-context'
 import {
   isVenuesSchemaUnavailable,
   listVenues,
@@ -55,6 +56,7 @@ function getEditorControls(dialog: HTMLElement | null) {
 
 export function SpacesPage() {
   const { locale, t } = useI18n()
+  const { session } = useAuth()
   const queryClient = useQueryClient()
   const feedback = useMobileFeedback()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -76,7 +78,7 @@ export function SpacesPage() {
   const spacesQuery = useQuery({ queryKey: ['spaces'], queryFn: listSpaces })
   const layoutsQuery = useQuery({ queryKey: ['space-layouts'], queryFn: listSpaceLayouts })
   const venues = venuesQuery.data ?? []
-  const [selectedVenueId] = useSelectedVenue(venues)
+  const [selectedVenueId] = useSelectedVenue(venues, session?.user.id)
   const createMutation = useMutation({
     mutationFn: (input: Parameters<typeof createSpace>[0]) => createSpace(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['spaces'] }),

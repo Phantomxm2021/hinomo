@@ -38,6 +38,10 @@ vi.mock('./boxes.api', () => ({
 
 vi.mock('../venues/venues.api', () => ({ listVenues: mockListVenues }))
 
+vi.mock('../auth/auth-context', () => ({
+  useAuth: () => ({ session: { user: { id: 'user-1' } } }),
+}))
+
 vi.mock('./box-entitlements.api', () => ({
   getBoxPlanSummary: mockGetBoxPlanSummary,
   startBoxUnlimitedCheckout: mockStartBoxUnlimitedCheckout,
@@ -385,7 +389,7 @@ test('layers the paywall over a preserved create form after a stale-summary limi
 })
 
 test('shows only boxes from the venue restored from the dashboard selection', async () => {
-  venueStorage.set('nomo-selected-venue-id', 'venue-office')
+  venueStorage.set('nomo-selected-venue-id:user-1', 'venue-office')
   mockListVenues.mockResolvedValue([
     { id: 'venue-home', name: '家里', description: null, is_default: true, space_count: 1 },
     { id: 'venue-office', name: '公司', description: null, is_default: false, space_count: 1 },

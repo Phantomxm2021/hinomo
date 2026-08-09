@@ -8,6 +8,7 @@ import { ResponsiveOperationError } from '../../components/ResponsiveOperationEr
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { useI18n } from '../../i18n/I18nProvider'
 import { useMobileFeedback } from '../../components/mobile-feedback'
+import { useAuth } from '../auth/auth-context'
 import { useSelectedVenue } from '../venues/selected-venue'
 import { listVenues } from '../venues/venues.api'
 import { BoxCatalogueCard } from './BoxCatalogueCard'
@@ -40,6 +41,7 @@ function errorCode(error: unknown) {
 
 export function BoxesPage() {
   const { t } = useI18n()
+  const { session } = useAuth()
   const queryClient = useQueryClient()
   const feedback = useMobileFeedback()
   const navigate = useNavigate()
@@ -63,7 +65,7 @@ export function BoxesPage() {
   const handledPurchaseResultRef = useRef<string | null>(null)
   const venuesQuery = useQuery({ queryKey: ['venues'], queryFn: listVenues })
   const venues = venuesQuery.data ?? []
-  const [selectedVenueId] = useSelectedVenue(venues)
+  const [selectedVenueId] = useSelectedVenue(venues, session?.user.id)
   const boxesQuery = useQuery({
     queryKey: ['boxes', selectedVenueId],
     queryFn: () => listBoxesForVenue(selectedVenueId!),

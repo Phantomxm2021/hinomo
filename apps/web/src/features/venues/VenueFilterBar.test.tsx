@@ -5,14 +5,16 @@ import { VenueFilterBar } from './VenueFilterBar'
 
 afterEach(cleanup)
 
+const venueAccess = { owner_id: 'owner-1', role: 'owner' as const, owner_display_name: null, member_count: 1, max_members: 5 }
+
 test('keeps the built-in default venue selectable and editable', async () => {
   const user = userEvent.setup()
   const onEdit = vi.fn()
   const onSelect = vi.fn()
   render(<VenueFilterBar
     venues={[
-      { id: 'default', name: '默认', description: null, is_default: true, space_count: 0 },
-      { id: 'office', name: '公司', description: null, is_default: false, space_count: 2 },
+      { id: 'default', name: '默认', description: null, is_default: true, space_count: 0, ...venueAccess },
+      { id: 'office', name: '公司', description: null, is_default: false, space_count: 2, ...venueAccess },
     ]}
     selectedId="default"
     onSelect={onSelect}
@@ -32,7 +34,7 @@ test('keeps the built-in default venue selectable and editable', async () => {
 test('keeps venue chips horizontally scrollable without reserving space for a scrollbar', () => {
   render(<VenueFilterBar
     venues={[
-      { id: 'default', name: '默认', description: null, is_default: true, space_count: 0 },
+      { id: 'default', name: '默认', description: null, is_default: true, space_count: 0, ...venueAccess },
     ]}
     selectedId="default"
     onSelect={vi.fn()}

@@ -1,21 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createVenue, deleteVenue, listVenues, updateVenue } from './venues.api'
 
-const { mockDefaultOrder, mockDelete, mockEq, mockFrom, mockGetSession, mockInsert, mockNameOrder, mockSelect, mockUpdate, mockUpdateSelect } = vi.hoisted(() => ({
-  mockDefaultOrder: vi.fn(),
+const { mockDelete, mockEq, mockFrom, mockGetSession, mockInsert, mockRpc, mockSelect, mockUpdate, mockUpdateSelect } = vi.hoisted(() => ({
   mockDelete: vi.fn(),
   mockEq: vi.fn(),
   mockFrom: vi.fn(),
   mockGetSession: vi.fn(),
   mockInsert: vi.fn(),
-  mockNameOrder: vi.fn(),
+  mockRpc: vi.fn(),
   mockSelect: vi.fn(),
   mockUpdate: vi.fn(),
   mockUpdateSelect: vi.fn(),
 }))
 
 vi.mock('../../lib/supabase', () => ({
-  supabase: { auth: { getSession: mockGetSession }, from: mockFrom },
+  supabase: { auth: { getSession: mockGetSession }, from: mockFrom, rpc: mockRpc },
 }))
 
 describe('venues api', () => {
@@ -25,32 +24,28 @@ describe('venues api', () => {
     mockFrom.mockReturnValue({
       select: mockSelect, insert: mockInsert, update: mockUpdate, delete: mockDelete,
     })
-    mockSelect.mockReturnValue({ order: mockDefaultOrder })
-    mockDefaultOrder.mockReturnValue({ order: mockNameOrder })
     mockUpdate.mockReturnValue({ eq: mockEq })
     mockDelete.mockReturnValue({ eq: mockEq })
   })
 
-  it('maps venue space counts', async () => {
-    mockNameOrder.mockResolvedValue({
+  it('maps accessible venues returned by the sharing RPC', async () => {
+    mockRpc.mockResolvedValue({
       data: [
-        { id: 'default', name: '默认', description: null, is_default: true, spaces: [{ count: 0 }] },
-        { id: 'home', name: '家里', description: null, is_default: false, spaces: [{ count: 3 }] },
+        { id: 'default', owner_id: 'owner-1', name: '默认', description: null, is_default: true, role: 'owner', owner_display_name: 'Owner', space_count: 0, member_count: 1, max_members: 5 },
+        { id: 'home', owner_id: 'owner-2', name: '家里', description: null, is_default: false, role: 'member', owner_display_name: 'Alice', space_count: 3, member_count: 2, max_members: 5 },
       ],
       error: null,
     })
 
     await expect(listVenues()).resolves.toEqual([
-      { id: 'default', name: '默认', description: null, is_default: true, space_count: 0 },
-      { id: 'home', name: '家里', description: null, is_default: false, space_count: 3 },
+      { id: 'default', owner_id: 'owner-1', name: '默认', description: null, is_default: true, role: 'owner', owner_display_name: 'Owner', space_count: 0, member_count: 1, max_members: 5 },
+      { id: 'home', owner_id: 'owner-2', name: '家里', description: null, is_default: false, role: 'member', owner_display_name: 'Alice', space_count: 3, member_count: 2, max_members: 5 },
     ])
-    expect(mockSelect).toHaveBeenCalledWith('id, name, description, is_default, spaces(count)')
-    expect(mockDefaultOrder).toHaveBeenCalledWith('is_default', { ascending: false })
-    expect(mockNameOrder).toHaveBeenCalledWith('name')
+    expect(mockRpc).toHaveBeenCalledWith('list_accessible_venues')
   })
 
   it.each(['PGRST200', 'PGRST205', '42P01', '42703'])('maps %s to a deployment error', async (code) => {
-    mockNameOrder.mockResolvedValue({ data: null, error: { code, message: 'schema unavailable' } })
+    mockRpc.mockResolvedValue({ data: null, error: { code, message: 'schema unavailable' } })
     await expect(listVenues()).rejects.toMatchObject({ code: 'VENUES_SCHEMA_UNAVAILABLE' })
   })
 

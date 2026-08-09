@@ -384,7 +384,7 @@ test('defaults to the first venue and filters every dashboard section when venue
 
   await user.click(venueSelect)
   await user.click(screen.getByRole('menuitemradio', { name: '公司，1 个空间' }))
-  expect(window.localStorage.getItem('nomo-selected-venue-id')).toBe('venue-office')
+  expect(window.localStorage.getItem('nomo-selected-venue-id:user-1')).toBe('venue-office')
 
   expect(screen.getByText('公司档案')).toBeInTheDocument()
   expect(screen.queryByText('家庭用品')).not.toBeInTheDocument()
