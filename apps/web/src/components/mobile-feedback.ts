@@ -1,6 +1,8 @@
 import { createContext, useContext } from 'react'
 import type { MobileSheetAction } from './MobileActionSheet'
 
+export type MobileAlertCloseReason = 'primary' | 'cancel' | 'escape'
+
 export type MobileAlertOptions = {
   key?: string
   owner?: string
@@ -10,7 +12,7 @@ export type MobileAlertOptions = {
   onPrimary?: () => void | Promise<void>
   cancelLabel?: string
   onCancel?: () => void | Promise<void>
-  onDismiss?: () => void
+  onDismiss?: (reason?: MobileAlertCloseReason) => void
   onActionError?: (error: unknown) => void
   primaryDisabled?: boolean
   primaryBusy?: boolean
@@ -24,7 +26,7 @@ export type FeedbackErrorOptions = {
   retry?: () => void | Promise<void>
   retryLabel?: string
   retrying?: boolean
-  onDismiss?: () => void
+  onDismiss?: (reason?: MobileAlertCloseReason) => void
   onActionError?: (error: unknown) => void
 }
 

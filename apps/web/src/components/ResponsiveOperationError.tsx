@@ -32,7 +32,7 @@ export function ResponsiveOperationError({ message, onRetry, busy = false, retry
       retry: onRetry ? () => { if (!busy) retryRef.current?.() } : undefined,
       retryLabel,
       retrying: busy,
-      onDismiss: () => { dismissedRef.current = true },
+      onDismiss: (reason) => { dismissedRef.current = reason === undefined || reason === 'cancel' || reason === 'escape' },
     })
   }, [busy, feedback, message, onRetry, owner, retryLabel])
 

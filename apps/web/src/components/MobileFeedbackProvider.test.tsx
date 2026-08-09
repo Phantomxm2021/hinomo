@@ -113,6 +113,46 @@ test('catches rejected async cancel actions and keeps the alert open', async () 
   await waitFor(() => expect(screen.getByRole('alertdialog', { name: '异步取消失败' })).toBeInTheDocument())
 })
 
+function AlertReplacementHarness({ pendingAction }: { pendingAction: () => Promise<void> }) {
+  const feedback = useMobileFeedback()
+  return (
+    <>
+      <button type="button" onClick={() => feedback.confirm({ key: 'alert-a', title: '提示 A', primaryLabel: '执行 A', onPrimary: pendingAction, onActionError: () => feedback.showAlert({ key: 'alert-a-error', title: 'A 操作失败' }) })}>打开 A</button>
+      <button type="button" onClick={() => feedback.confirm({ key: 'alert-b', title: '提示 B', primaryLabel: '执行 B' })}>替换为 B</button>
+    </>
+  )
+}
+
+test('does not let a resolved async action from replaced alert A close alert B', async () => {
+  let resolveA!: () => void
+  const pendingAction = () => new Promise<void>((resolve) => { resolveA = resolve })
+  render(<MobileFeedbackProvider><AlertReplacementHarness pendingAction={pendingAction} /></MobileFeedbackProvider>)
+
+  fireEvent.click(screen.getByRole('button', { name: '打开 A' }))
+  fireEvent.click(screen.getByRole('button', { name: '执行 A' }))
+  expect(screen.getByRole('button', { name: '执行 A' })).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: '替换为 B' }))
+  expect(screen.getByRole('alertdialog', { name: '提示 B' })).toBeInTheDocument()
+  resolveA()
+
+  await waitFor(() => expect(screen.getByRole('alertdialog', { name: '提示 B' })).toBeInTheDocument())
+  expect(screen.getByRole('button', { name: '执行 B' })).not.toBeDisabled()
+})
+
+test('does not let a rejected async action from replaced alert A mutate alert B', async () => {
+  let rejectA!: (error: Error) => void
+  const pendingAction = () => new Promise<void>((_, reject) => { rejectA = reject })
+  render(<MobileFeedbackProvider><AlertReplacementHarness pendingAction={pendingAction} /></MobileFeedbackProvider>)
+
+  fireEvent.click(screen.getByRole('button', { name: '打开 A' }))
+  fireEvent.click(screen.getByRole('button', { name: '执行 A' }))
+  fireEvent.click(screen.getByRole('button', { name: '替换为 B' }))
+  rejectA(new Error('A failed'))
+
+  await waitFor(() => expect(screen.getByRole('alertdialog', { name: '提示 B' })).toBeInTheDocument())
+  expect(screen.getByRole('button', { name: '执行 B' })).not.toBeDisabled()
+})
+
 test('presents recoverable upload choices in a safe-area action sheet', () => {
   render(<MobileFeedbackProvider><Harness /></MobileFeedbackProvider>)
   fireEvent.click(screen.getByRole('button', { name: '操作' }))

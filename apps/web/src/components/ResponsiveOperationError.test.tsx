@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { MobileFeedbackProvider } from './MobileFeedbackProvider'
 import { ResponsiveOperationError } from './ResponsiveOperationError'
@@ -65,6 +65,24 @@ test('does not reopen a dismissed message when the parent rerenders', () => {
     </MobileFeedbackProvider>,
   )
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+})
+
+test('reopens the alert when a retry fails while the source remains mounted', async () => {
+  const retry = vi.fn()
+  const view = render(
+    <MobileFeedbackProvider>
+      <ResponsiveOperationError message="刷新失败" onRetry={retry} />
+    </MobileFeedbackProvider>,
+  )
+
+  fireEvent.click(screen.getByRole('button', { name: '重试' }))
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  view.rerender(
+    <MobileFeedbackProvider>
+      <ResponsiveOperationError message="刷新失败" onRetry={retry} busy />
+    </MobileFeedbackProvider>,
+  )
+  await waitFor(() => expect(screen.getByRole('alertdialog', { name: '刷新失败' })).toBeInTheDocument())
 })
 
 test('unmounting an operation error cannot dismiss another owner’s alert', () => {

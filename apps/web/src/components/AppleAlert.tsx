@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useI18n } from '../i18n/I18nProvider'
 import { SYSTEM_ALERT_Z_INDEX } from './overlay-layers'
+import type { MobileAlertCloseReason } from './mobile-feedback'
 
 export type AppleAlertProps = {
   open: boolean
@@ -14,7 +15,7 @@ export type AppleAlertProps = {
   primaryDisabled?: boolean
   primaryBusy?: boolean
   onActionError?: (error: unknown) => void
-  onClose: () => void
+  onClose: (reason?: MobileAlertCloseReason) => void
 }
 
 function getFocusableButtons(container: HTMLElement | null) {
@@ -41,6 +42,45 @@ export function AppleAlert({ open, title, message, primaryLabel, onPrimary, canc
     buttons[0]?.focus()
   }, [primaryDisabled])
 
+  const reportActionError = useCallback((error: unknown) => {
+    try {
+      onActionError?.(error)
+    } catch {
+      // A feedback callback must never create an unhandled rejection.
+    }
+  }, [onActionError])
+
+  const runAction = useCallback((action: (() => void | Promise<void>) | undefined, reason: MobileAlertCloseReason) => {
+    if (actionPendingRef.current) return
+    actionPendingRef.current = true
+    setActionPending(true)
+
+    let result: void | Promise<void>
+    try {
+      result = action?.()
+    } catch (error) {
+      reportActionError(error)
+      actionPendingRef.current = false
+      setActionPending(false)
+      return
+    }
+
+    if (!result || typeof result !== 'object' || typeof result.then !== 'function') {
+      actionPendingRef.current = false
+      setActionPending(false)
+      onClose(reason)
+      return
+    }
+
+    void Promise.resolve(result)
+      .then(() => onClose(reason))
+      .catch(reportActionError)
+      .finally(() => {
+        actionPendingRef.current = false
+        setActionPending(false)
+      })
+  }, [onClose, reportActionError])
+
   useEffect(() => {
     if (!open) return
     previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -52,8 +92,7 @@ export function AppleAlert({ open, title, message, primaryLabel, onPrimary, canc
       if (event.key === 'Escape') {
         if (actionPendingRef.current) return
         event.preventDefault()
-        onCancel?.()
-        onClose()
+        runAction(onCancel, 'escape')
         return
       }
       if (event.key !== 'Tab') return
@@ -78,52 +117,13 @@ export function AppleAlert({ open, title, message, primaryLabel, onPrimary, canc
       previousFocusRef.current?.focus()
       previousFocusRef.current = null
     }
-  }, [focusFirstEnabledControl, onCancel, onClose, open])
+  }, [focusFirstEnabledControl, onCancel, onClose, open, runAction])
 
   useEffect(() => {
     if (open && primaryDisabled) focusFirstEnabledControl()
   }, [focusFirstEnabledControl, open, primaryDisabled])
 
   if (!open) return null
-
-  const reportActionError = (error: unknown) => {
-    try {
-      onActionError?.(error)
-    } catch {
-      // A feedback callback must never create an unhandled rejection.
-    }
-  }
-
-  const runAction = (action?: () => void | Promise<void>) => {
-    if (actionPendingRef.current) return
-    actionPendingRef.current = true
-    setActionPending(true)
-
-    let result: void | Promise<void>
-    try {
-      result = action?.()
-    } catch (error) {
-      reportActionError(error)
-      actionPendingRef.current = false
-      setActionPending(false)
-      return
-    }
-
-    if (!result || typeof result !== 'object' || typeof result.then !== 'function') {
-      actionPendingRef.current = false
-      setActionPending(false)
-      onClose()
-      return
-    }
-
-    void Promise.resolve(result)
-      .then(() => onClose())
-      .catch(reportActionError)
-      .finally(() => {
-        actionPendingRef.current = false
-        setActionPending(false)
-      })
-  }
 
   return createPortal(
     <div className="fixed inset-0 isolate grid place-items-center bg-ink/30 px-5 backdrop-blur-[3px]" data-overlay-layer="alert" style={{ zIndex: SYSTEM_ALERT_Z_INDEX }} role="presentation">
@@ -133,8 +133,8 @@ export function AppleAlert({ open, title, message, primaryLabel, onPrimary, canc
           {message ? <p className="mt-1.5 mb-0 text-[0.8125rem] leading-5 text-muted" id={messageId}>{message}</p> : null}
         </div>
         <div className={`grid border-t border-line/80 ${cancelLabel ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          {cancelLabel ? <button className="min-h-12 border-r border-line/80 bg-transparent px-3 text-[1.0625rem] text-brand disabled:opacity-45" type="button" disabled={actionPending} onClick={() => runAction(onCancel)}>{cancelLabel}</button> : null}
-          <button ref={primaryRef} className="min-h-12 bg-transparent px-3 text-[1.0625rem] font-semibold text-brand disabled:opacity-45" type="button" disabled={primaryDisabled || actionPending} aria-busy={(primaryBusy || actionPending) || undefined} onClick={() => runAction(onPrimary)}>{resolvedPrimaryLabel}</button>
+          {cancelLabel ? <button className="min-h-12 border-r border-line/80 bg-transparent px-3 text-[1.0625rem] text-brand disabled:opacity-45" type="button" disabled={actionPending} onClick={() => runAction(onCancel, 'cancel')}>{cancelLabel}</button> : null}
+          <button ref={primaryRef} className="min-h-12 bg-transparent px-3 text-[1.0625rem] font-semibold text-brand disabled:opacity-45" type="button" disabled={primaryDisabled || actionPending} aria-busy={(primaryBusy || actionPending) || undefined} onClick={() => runAction(onPrimary, 'primary')}>{resolvedPrimaryLabel}</button>
         </div>
       </section>
     </div>,
