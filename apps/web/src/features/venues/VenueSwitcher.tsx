@@ -75,6 +75,7 @@ export function VenueSwitcher({ venues, selectedId, onSelect }: {
                   <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true">{selected ? '✓' : ''}</span>
                   <span className="min-w-0 flex-1 truncate">{venue.name}</span>
                   {shared ? <span className="rounded-full bg-white/12 px-2 py-0.5 text-[0.65rem] font-bold text-white">{t('venues.sharedBadge')}</span> : null}
+                  {shared ? <span className="max-w-20 truncate text-xs font-medium text-white/55">{venue.owner_display_name ?? t('venueSharing.ownerFallback')}</span> : null}
                   <span className="text-xs font-medium text-white/45">{venue.space_count}</span>
                 </button>
               )

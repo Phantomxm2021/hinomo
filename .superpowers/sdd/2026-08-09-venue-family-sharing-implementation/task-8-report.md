@@ -22,3 +22,4 @@
 ## Review follow-up
 
 - The final review identified that revoked access could occur after the initial access lookup, that `useMutation` retained a raw invite token after close, and that member loading was unnecessarily serialized. The member page now handles denial from every access-dependent query, does not store the raw token in a mutation cache, and starts member loading in parallel with access lookup. Regression coverage was added for each behavior.
+- Follow-up review: shared switcher entries now visibly show the venue owner's display name, and revoked-access cleanup removes cached spaces, boxes, items, and search results before the `/app` redirect. Both behaviors have targeted regressions.

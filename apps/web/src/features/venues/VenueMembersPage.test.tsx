@@ -130,8 +130,11 @@ test('starts the member lookup alongside access lookup and redirects when the me
   resolveAccess?.({ venue_id: 'home', role: 'member', can_manage_members: false, member_count: 1, max_members: 5 })
   await waitFor(() => expect(screen.getByRole('button', { name: '退出场地' })).toBeInTheDocument())
 
+  const revokedContentKeys = [['spaces'], ['boxes'], ['items'], ['search-items']]
+  for (const queryKey of revokedContentKeys) client.setQueryData(queryKey, ['stale venue content'])
   mocks.members.mockRejectedValueOnce(Object.assign(new Error('venue_access_denied'), { code: 'venue_access_denied' }))
   await client.invalidateQueries({ queryKey: ['venue-members', 'home'] })
   expect(await screen.findByText('首页')).toBeInTheDocument()
   expect(client.getQueryData(['venues'])).toBeUndefined()
+  for (const queryKey of revokedContentKeys) expect(client.getQueryData(queryKey)).toBeUndefined()
 })

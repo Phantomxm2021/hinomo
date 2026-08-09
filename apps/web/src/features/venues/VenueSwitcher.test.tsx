@@ -33,7 +33,9 @@ test('opens beside the trigger, selects a venue, and links to venue management',
   const menu = screen.getByRole('menu', { name: '选择场地' })
   expect(menu).toHaveClass('absolute', 'right-0')
   expect(screen.getByRole('menuitem', { name: '场地管理' })).toHaveAttribute('href', '/app/venues')
-  expect(screen.getByRole('menuitemradio', { name: '公司，1 个空间，家庭共享，王小明' })).toHaveTextContent('家庭共享')
+  const sharedVenue = screen.getByRole('menuitemradio', { name: '公司，1 个空间，家庭共享，王小明' })
+  expect(sharedVenue).toHaveTextContent('家庭共享')
+  expect(sharedVenue).toHaveTextContent('王小明')
   await user.click(screen.getByRole('menuitemradio', { name: '公司，1 个空间，家庭共享，王小明' }))
 
   expect(onSelect).toHaveBeenCalledWith('office')

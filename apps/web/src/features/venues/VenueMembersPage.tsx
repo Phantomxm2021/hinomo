@@ -54,9 +54,7 @@ export function VenueMembersPage() {
   useEffect(() => {
     if (!accessDenied || accessDeniedHandled.current) return
     accessDeniedHandled.current = true
-    queryClient.removeQueries({ queryKey: ['venues'] })
-    queryClient.removeQueries({ queryKey: ['venue-access', venueId] })
-    queryClient.removeQueries({ queryKey: ['venue-members', venueId] })
+    for (const queryKey of affectedQueryKeys(venueId)) queryClient.removeQueries({ queryKey })
     queryClient.removeQueries({ queryKey: ['venue-invites', venueId] })
     navigate('/app', { replace: true })
   }, [accessDenied, navigate, queryClient, venueId])
