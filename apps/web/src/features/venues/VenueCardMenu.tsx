@@ -43,10 +43,10 @@ export function VenueCardMenu({ venue, invitesEnabled, onEdit }: VenueCardMenuPr
   }, [open])
 
   return (
-    <>
+    <div className="relative shrink-0 self-center" data-testid="venue-card-menu">
       <button
         ref={triggerRef}
-        className="absolute top-4 right-4 grid size-11 place-items-center rounded-control border border-line bg-canvas text-muted shadow-soft transition hover:bg-brand/10 hover:text-brand"
+        className="grid size-11 place-items-center rounded-full bg-transparent p-0 text-muted transition hover:text-ink"
         type="button"
         aria-label={t('venues.manageVenue', { name: venue.name })}
         aria-haspopup="menu"
@@ -56,11 +56,11 @@ export function VenueCardMenu({ venue, invitesEnabled, onEdit }: VenueCardMenuPr
         <AppIcon name="more" size={20} />
       </button>
       {open ? (
-        <div ref={menuRef} className="absolute top-16 right-4 z-30 grid min-w-48 gap-1 rounded-control border border-line bg-surface p-1.5 shadow-float" role="menu" aria-label={t('venues.cardMenu', { name: venue.name })}>
+        <div ref={menuRef} className="absolute top-[calc(100%+0.5rem)] right-0 z-40 grid min-w-52 gap-0.5 rounded-[1.05rem] border border-line/60 bg-surface/95 p-1.5 shadow-[0_18px_50px_rgb(64_45_32_/_18%)] backdrop-blur-xl" role="menu" aria-label={t('venues.cardMenu', { name: venue.name })}>
           {venue.role === 'owner' ? (
             <>
               <button
-                className="inline-flex min-h-11 items-center gap-3 rounded-control px-3 text-left text-sm font-bold text-ink hover:bg-canvas"
+                className="inline-flex min-h-12 w-full items-center gap-3 rounded-[0.75rem] px-3 text-left text-[0.9375rem] font-medium text-ink hover:bg-canvas"
                 type="button"
                 role="menuitem"
                 onClick={() => { onEdit(venue); closeMenu(false) }}
@@ -69,18 +69,19 @@ export function VenueCardMenu({ venue, invitesEnabled, onEdit }: VenueCardMenuPr
                 {t('venues.edit')}
               </button>
               <VenueInviteQuickAction venueId={venue.id} enabled={invitesEnabled} menuItem />
+              <div className="my-1 border-t border-line/60" aria-hidden="true" />
             </>
           ) : null}
-          <Link className="inline-flex min-h-11 items-center gap-3 rounded-control px-3 text-left text-sm font-bold text-ink no-underline hover:bg-canvas" role="menuitem" to={`/app/venues/${venue.id}/members`} onClick={() => closeMenu(false)}>
+          <Link className="inline-flex min-h-12 items-center gap-3 rounded-[0.75rem] px-3 text-left text-[0.9375rem] font-medium text-ink no-underline hover:bg-canvas" role="menuitem" to={`/app/venues/${venue.id}/members`} onClick={() => closeMenu(false)}>
             <AppIcon name="family" size={17} />
             {t('venues.members')}
           </Link>
-          <Link className="inline-flex min-h-11 items-center gap-3 rounded-control px-3 text-left text-sm font-bold text-ink no-underline hover:bg-canvas" role="menuitem" to={`/app/venues/${venue.id}/activity`} onClick={() => closeMenu(false)}>
+          <Link className="inline-flex min-h-12 items-center gap-3 rounded-[0.75rem] px-3 text-left text-[0.9375rem] font-medium text-ink no-underline hover:bg-canvas" role="menuitem" to={`/app/venues/${venue.id}/activity`} onClick={() => closeMenu(false)}>
             <AppIcon name="history" size={17} />
             {t('venueActivity.link')}
           </Link>
         </div>
       ) : null}
-    </>
+    </div>
   )
 }

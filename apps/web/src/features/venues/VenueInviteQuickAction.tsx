@@ -32,7 +32,7 @@ export function VenueInviteQuickAction({ venueId, enabled, menuItem = false }: V
   return (
     <div className="grid min-w-0 gap-1">
       <button
-        className="inline-flex min-h-11 items-center gap-3 rounded-control px-3 text-left text-sm font-bold text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex min-h-12 w-full items-center gap-3 rounded-[0.75rem] px-3 text-left text-[0.9375rem] font-medium text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-50"
         type="button"
         role={menuItem ? 'menuitem' : undefined}
         disabled={!enabled || pending}

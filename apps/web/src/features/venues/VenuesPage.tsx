@@ -133,14 +133,9 @@ export function VenuesPage() {
                 <span className="mt-2 block text-sm text-muted">{t('venues.spaces', { count: venue.space_count })}{venue.description ? ` · ${venue.description}` : ` · ${t('venues.descriptionUnset')}`} · {t('venues.memberCount', { count: venue.member_count, max: venue.max_members })}{venue.role === 'member' ? ` · ${t('venues.sharedWith', { owner: venue.owner_display_name ?? t('venueSharing.ownerFallback') })}` : ''}</span>
               </span>
             </>
-            return venue.role === 'member' ? (
-              <div className="relative grid min-h-32 overflow-hidden rounded-[1.35rem] border border-line bg-surface p-5 shadow-soft sm:p-6" data-testid={`venue-card-${venue.id}`} key={venue.id}>
-                <div className="pr-12">{details}</div>
-                <VenueCardMenu venue={venue} invitesEnabled={invitesEnabled} onEdit={(target) => { setEditTarget(target); setEditorOpen(true) }} />
-              </div>
-            ) : (
-              <div className="relative grid min-h-32 overflow-hidden rounded-[1.35rem] border border-line bg-surface p-5 shadow-soft sm:p-6" data-testid={`venue-card-${venue.id}`} key={venue.id}>
-                <div className="pr-12">{details}</div>
+            return (
+              <div className="relative grid min-h-32 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-[1.35rem] border border-line bg-surface p-5 shadow-soft sm:p-6" data-testid={`venue-card-${venue.id}`} key={venue.id}>
+                <div className="min-w-0">{details}</div>
                 <VenueCardMenu venue={venue} invitesEnabled={invitesEnabled} onEdit={(target) => { setEditTarget(target); setEditorOpen(true) }} />
               </div>
             )

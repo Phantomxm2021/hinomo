@@ -174,3 +174,22 @@ test('closes the venue action menu with Escape and restores focus to its trigger
   expect(within(card).queryByRole('menu')).not.toBeInTheDocument()
   expect(document.activeElement).toBe(trigger)
 })
+
+test('uses a centered transparent trigger and an unclipped Apple-style floating menu', async () => {
+  const user = userEvent.setup()
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(<MemoryRouter><QueryClientProvider client={client}><VenuesPage /></QueryClientProvider></MemoryRouter>)
+
+  const card = await screen.findByTestId('venue-card-home')
+  expect(card).not.toHaveClass('overflow-hidden')
+  const menuShell = within(card).getByTestId('venue-card-menu')
+  expect(menuShell).toHaveClass('self-center', 'relative')
+  const trigger = within(menuShell).getByRole('button', { name: '管理场地家里' })
+  expect(trigger).toHaveClass('bg-transparent')
+  expect(trigger).not.toHaveClass('border', 'border-line', 'bg-canvas', 'shadow-soft')
+
+  await user.click(trigger)
+  const menu = within(menuShell).getByRole('menu', { name: '家里场地操作' })
+  expect(menu).toHaveClass('absolute', 'right-0', 'z-40', 'backdrop-blur-xl')
+  expect(within(menu).getByRole('menuitem', { name: '编辑场地' })).toHaveClass('items-center', 'min-h-12')
+})
