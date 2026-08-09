@@ -10,6 +10,7 @@ import {
   createVenueInvite,
   getVenueAccessSummary,
   isVenueAccessDenied,
+  isVenueInviteError,
   leaveVenue,
   listVenueInvites,
   listVenueMembers,
@@ -41,7 +42,7 @@ export function VenueMembersPage() {
   const queryClient = useQueryClient()
   const [invite, setInvite] = useState<{ invite_id: string; token: string; expires_at: string } | null>(null)
   const [invitePending, setInvitePending] = useState(false)
-  const [inviteError, setInviteError] = useState(false)
+  const [inviteError, setInviteError] = useState<'member-limit' | 'generic' | false>(false)
   const [memberToRemove, setMemberToRemove] = useState<VenueMember | null>(null)
   const [leaveOpen, setLeaveOpen] = useState(false)
   const accessDeniedHandled = useRef(false)
@@ -102,7 +103,7 @@ export function VenueMembersPage() {
       setInvite(await createVenueInvite(venueId))
       await queryClient.invalidateQueries({ queryKey: ['venue-invites', venueId] })
     } catch (error) {
-      if (!clearRevokedVenue(error)) setInviteError(true)
+      if (!clearRevokedVenue(error)) setInviteError(isVenueInviteError(error, 'venue_member_limit_reached') ? 'member-limit' : 'generic')
     } finally {
       setInvitePending(false)
     }
@@ -132,7 +133,7 @@ export function VenueMembersPage() {
       {owner ? invitesEnabled ? <section className="grid gap-4 rounded-card border border-line bg-surface p-5" aria-labelledby="venue-invites-title">
         <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="m-0 text-section-title font-bold" id="venue-invites-title">{t('venueSharing.unusedInvites')}</h2><button className="inline-flex min-h-11 items-center gap-2 rounded-control bg-brand px-4 font-bold text-white disabled:opacity-50" type="button" disabled={invitePending} onClick={() => void createInvite()}><AppIcon name="share" />{invitePending ? t('venueSharing.creatingInvite') : t('venueSharing.createInvite')}</button></div>
         {invitesQuery.data?.filter((item) => item.status === 'active').map((item) => <div className="flex items-center justify-between gap-3 text-sm" key={item.invite_id}><span className="text-muted">{t('venueSharing.inviteExpiresAt', { date: displayDate(item.expires_at) })}</span><button className="min-h-11 rounded-control px-3 font-bold text-danger disabled:opacity-50" type="button" disabled={revokeInviteMutation.isPending} onClick={() => revokeInviteMutation.mutate(item.invite_id)}>{t('venueSharing.revoke')}</button></div>)}
-        {inviteError ? <p className="m-0 text-sm text-danger" role="alert">{t('venueSharing.actionError')}</p> : null}
+        {inviteError ? <p className="m-0 text-sm text-danger" role="alert">{inviteError === 'member-limit' ? t('venueSharing.memberLimitReached') : t('venueSharing.actionError')}</p> : null}
       </section> : null : <button className="justify-self-start min-h-11 rounded-control border border-danger px-4 font-bold text-danger" type="button" onClick={() => setLeaveOpen(true)}>{t('venueSharing.leaveVenue')}</button>}
 
       {invitesEnabled ? <VenueInviteDialog open={Boolean(invite)} invite={invite} onClose={closeInvite} /> : null}

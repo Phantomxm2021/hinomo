@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { useI18n } from '../../i18n/I18nProvider'
 import { VenueInviteDialog } from './VenueInviteDialog'
-import { createVenueInvite } from './venue-sharing.api'
+import { createVenueInvite, isVenueInviteError } from './venue-sharing.api'
 import type { VenueSummary } from './venues.api'
 
 type VenueCardMenuProps = {
@@ -17,7 +17,7 @@ export function VenueCardMenu({ venue, invitesEnabled, onEdit }: VenueCardMenuPr
   const [open, setOpen] = useState(false)
   const [invite, setInvite] = useState<{ invite_id: string; token: string; expires_at: string } | null>(null)
   const [invitePending, setInvitePending] = useState(false)
-  const [inviteError, setInviteError] = useState(false)
+  const [inviteError, setInviteError] = useState<'member-limit' | 'generic' | false>(false)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
@@ -33,8 +33,8 @@ export function VenueCardMenu({ venue, invitesEnabled, onEdit }: VenueCardMenuPr
     try {
       setInvite(await createVenueInvite(venue.id))
       closeMenu(false)
-    } catch {
-      setInviteError(true)
+    } catch (error) {
+      setInviteError(isVenueInviteError(error, 'venue_member_limit_reached') ? 'member-limit' : 'generic')
     } finally {
       setInvitePending(false)
     }
@@ -98,7 +98,7 @@ export function VenueCardMenu({ venue, invitesEnabled, onEdit }: VenueCardMenuPr
                 {invitePending ? t('venueSharing.creatingInvite') : t('venues.inviteFamily')}
               </button>
               {!invitesEnabled ? <span className="px-3 pb-1 text-xs text-muted">{t('venues.inviteDisabled')}</span> : null}
-              {inviteError ? <p className="m-0 px-3 pb-1 text-xs text-danger" role="alert">{t('venueSharing.actionError')}</p> : null}
+              {inviteError ? <p className="m-0 px-3 pb-1 text-xs text-danger" role="alert">{inviteError === 'member-limit' ? t('venueSharing.memberLimitReached') : t('venueSharing.actionError')}</p> : null}
               <div className="my-1 border-t border-line/60" aria-hidden="true" />
             </>
           ) : null}

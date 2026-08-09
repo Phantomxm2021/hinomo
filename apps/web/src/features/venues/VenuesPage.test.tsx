@@ -106,6 +106,20 @@ test('owner can invite family directly from the venue card without opening the e
   expect(screen.queryByRole('dialog', { name: '编辑场地' })).not.toBeInTheDocument()
 })
 
+test('explains when members or unused invitations have reserved all family seats', async () => {
+  const user = userEvent.setup()
+  mockCreateInvite.mockRejectedValue(Object.assign(new Error('venue_member_limit_reached'), { code: 'venue_member_limit_reached' }))
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(<MemoryRouter><QueryClientProvider client={client}><VenuesPage /></QueryClientProvider></MemoryRouter>)
+
+  const card = await screen.findByTestId('venue-card-home')
+  await user.click(within(card).getByRole('button', { name: '管理场地家里' }))
+  await user.click(within(screen.getByRole('menu', { name: '家里场地操作' })).getByRole('menuitem', { name: '邀请家人' }))
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('成员名额已满')
+  expect(screen.getByRole('alert')).toHaveTextContent('未使用邀请')
+})
+
 test('shows the invite action with a clear disabled explanation when rollout is off', async () => {
   vi.stubEnv('VITE_ENABLE_VENUE_INVITES', 'false')
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })

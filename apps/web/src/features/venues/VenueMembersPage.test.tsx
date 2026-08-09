@@ -115,6 +115,16 @@ test('member can leave, without owner controls, and immediately returns home aft
   }
 })
 
+test('explains when invitation seats are reserved by members or unused invitations', async () => {
+  const user = userEvent.setup()
+  mocks.createInvite.mockRejectedValue(Object.assign(new Error('venue_member_limit_reached'), { code: 'venue_member_limit_reached' }))
+  renderPage()
+
+  await user.click(await screen.findByRole('button', { name: '创建邀请' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('成员名额已满')
+  expect(screen.getByRole('alert')).toHaveTextContent('未使用邀请')
+})
+
 test('keeps invite creation closed when the deploy-time kill switch is disabled', async () => {
   vi.stubEnv('VITE_ENABLE_VENUE_INVITES', 'false')
   renderPage()
