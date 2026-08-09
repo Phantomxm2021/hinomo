@@ -322,6 +322,7 @@ export type Database = {
         Relationships: []
       }
       media_uploads: {
+        // Normal media uploads are stored under the canonical venue owner, even when a member creates them.
         Row: {
           box_id: string
           confirmed_at: string | null
@@ -337,32 +338,32 @@ export type Database = {
           status: Database['public']['Enums']['media_upload_status']
         }
         Insert: {
-          box_id: string
-          confirmed_at?: string | null
-          created_at?: string
-          expires_at: string
-          id?: string
-          item_id?: string | null
-          media_kind: Database['public']['Enums']['media_kind']
-          mime_type: string
-          object_key: string
-          owner_id: string
-          size_bytes: number
-          status?: Database['public']['Enums']['media_upload_status']
+          box_id?: never
+          confirmed_at?: never
+          created_at?: never
+          expires_at?: never
+          id?: never
+          item_id?: never
+          media_kind?: never
+          mime_type?: never
+          object_key?: never
+          owner_id?: never
+          size_bytes?: never
+          status?: never
         }
         Update: {
-          box_id?: string
-          confirmed_at?: string | null
-          created_at?: string
-          expires_at?: string
-          id?: string
-          item_id?: string | null
-          media_kind?: Database['public']['Enums']['media_kind']
-          mime_type?: string
-          object_key?: string
-          owner_id?: string
-          size_bytes?: number
-          status?: Database['public']['Enums']['media_upload_status']
+          box_id?: never
+          confirmed_at?: never
+          created_at?: never
+          expires_at?: never
+          id?: never
+          item_id?: never
+          media_kind?: never
+          mime_type?: never
+          object_key?: never
+          owner_id?: never
+          size_bytes?: never
+          status?: never
         }
         Relationships: [
           {
