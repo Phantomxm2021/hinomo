@@ -1,5 +1,5 @@
 begin;
-select plan(33);
+select plan(42);
 
 create extension if not exists "basejump-supabase_test_helpers" with schema tests;
 select tests.create_supabase_user('venue-activity-owner');
@@ -88,13 +88,19 @@ select is((select snapshot->>'quantity_before' || ':' || snapshot->>'quantity_af
   where entity_id = (select item_id from activity_state) and event_code = 'item_quantity_changed'), '3:6',
   'quantity event snapshots before and after values');
 
-update public.items set box_id = (select box_a_target_id from activity_state) where id = (select item_id from activity_state);
+update public.items set box_id = (select box_a_target_id from activity_state), quantity = 8 where id = (select item_id from activity_state);
 select is((select count(*)::integer from public.activity_logs where entity_id = (select item_id from activity_state)
   and venue_id = (select venue_a_id from activity_state) and event_code = 'item_moved'), 1,
-  'within-venue move writes one product event');
+  'within-venue move writes one product event when box and quantity change together');
+select is((select count(*)::integer from public.activity_logs where entity_id = (select item_id from activity_state)
+  and venue_id = (select venue_a_id from activity_state) and event_code = 'item_quantity_changed'), 2,
+  'one update changing box and quantity writes both product event types');
 select is((select snapshot #>> '{from,name}' || ':' || snapshot #>> '{to,name}' from public.activity_logs
   where entity_id = (select item_id from activity_state) and event_code = 'item_moved' order by created_at desc, id desc limit 1),
   'Camping bin:Outdoor bin', 'within-venue move snapshots both box names');
+select is((select snapshot->>'quantity_before' || ':' || snapshot->>'quantity_after' from public.activity_logs
+  where entity_id = (select item_id from activity_state) and event_code = 'item_quantity_changed' order by created_at desc, id desc limit 1), '6:8',
+  'combined item update snapshots the quantity change');
 
 update public.boxes set space_id = (select space_a_target_id from activity_state) where id = (select box_a_id from activity_state);
 select is((select count(*)::integer from public.activity_logs where entity_id = (select box_a_id from activity_state)
@@ -141,6 +147,15 @@ select is((select snapshot->>'entity_name' from public.activity_logs where entit
 select tests.authenticate_as('venue-activity-member');
 select ok(exists (select 1 from public.list_venue_activity((select venue_a_id from activity_state))),
   'current member can read venue activity');
+select ok((select count(*)::integer > 0 from public.list_venue_activity((select venue_a_id from activity_state),
+  (select member_id from activity_state))), 'activity feed filters by actor');
+select ok((select count(*)::integer > 0 and bool_and(event_code = 'item_moved')
+  from public.list_venue_activity((select venue_a_id from activity_state), null, 'item_moved')),
+  'activity feed filters by event code');
+select throws_ok($$select * from public.list_venue_activity((select venue_a_id from activity_state), null, null, null, null, 0)$$,
+  '22023', 'invalid venue activity limit', 'activity feed rejects a zero limit');
+select throws_ok($$select * from public.list_venue_activity((select venue_a_id from activity_state), null, null, null, null, 51)$$,
+  '22023', 'invalid venue activity limit', 'activity feed rejects a limit above fifty');
 create temporary table activity_first_page on commit drop as
 select * from public.list_venue_activity((select venue_a_id from activity_state), null, null, null, null, 1);
 select is((select count(*)::integer from activity_first_page), 1, 'activity feed honors a one-row page limit');
@@ -150,6 +165,9 @@ select ok(not exists (
     (select created_at from activity_first_page), (select id from activity_first_page), 50
   ) where id = (select id from activity_first_page)
 ), 'tuple cursor excludes the preceding activity row');
+select throws_ok($$select * from public.list_venue_activity((select venue_a_id from activity_state), null, null,
+  (select created_at from activity_first_page), null, 50)$$,
+  '22023', 'invalid venue activity cursor', 'activity feed rejects a half cursor');
 select ok(not exists (
   select 1 from (
     select created_at, id, lag(created_at) over (order by created_at desc, id desc) as previous_created_at,
@@ -160,6 +178,25 @@ select ok(not exists (
 
 select tests.clear_authentication();
 set local role postgres;
+insert into public.packing_sessions (id, box_id, owner_id, current_revision)
+select '23000000-0000-4000-8000-000000000041', box_a_target_id, owner_id, 1 from activity_state;
+insert into public.packing_detected_items (
+  id, session_id, box_id, analysis_revision, name, quantity_kind, quantity_value, visibility, model_id, prompt_version, published_at
+)
+select '23000000-0000-4000-8000-000000000042', '23000000-0000-4000-8000-000000000041', box_a_target_id, 1,
+  'Promoted lantern', 'exact', 1, 'clear', 'test-model', 'test-prompt', pg_catalog.now()
+from activity_state;
+insert into public.packing_item_promotions (
+  id, detected_item_id, session_id, owner_id, requested_by, target_item_id, target_object_key
+)
+select '23000000-0000-4000-8000-000000000043', '23000000-0000-4000-8000-000000000042',
+  '23000000-0000-4000-8000-000000000041', owner_id, member_id,
+  '23000000-0000-4000-8000-000000000044', 'users/activity-promotion.webp'
+from activity_state;
+select public.finalize_packing_item_promotion('23000000-0000-4000-8000-000000000043', 'image/webp', 128);
+select is((select count(*)::integer from public.activity_logs where entity_id = '23000000-0000-4000-8000-000000000044'
+  and event_code = 'item_created' and actor_id = (select member_id from activity_state)), 1,
+  'service-role promotion writes item creation with requested_by actor');
 delete from public.venue_members where venue_id = (select venue_a_id from activity_state)
   and user_id = (select member_id from activity_state);
 select tests.authenticate_as('venue-activity-owner');
@@ -167,6 +204,8 @@ select is((select actor_is_current from public.list_venue_activity((select venue
   (select member_id from activity_state), null, null, null, 50) where actor_id = (select member_id from activity_state) limit 1), false,
   'former member activity identifies a no-longer-current actor');
 select tests.authenticate_as('venue-activity-member');
+select is((select count(*)::integer from public.activity_logs where venue_id = (select venue_a_id from activity_state)
+  and event_code is not null), 0, 'revoked member cannot directly select product activity rows');
 select throws_ok($$select * from public.list_venue_activity((select venue_a_id from activity_state))$$,
   '42501', 'venue_access_denied', 'former member cannot read activity after leaving');
 select tests.authenticate_as('venue-activity-outsider');

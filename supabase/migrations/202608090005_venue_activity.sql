@@ -22,6 +22,26 @@ join public.spaces as spaces on spaces.id = boxes.space_id
 where logs.venue_id is null
   and logs.box_id = boxes.id;
 
+-- Product activity rows have no legacy box-owner fallback: current venue
+-- access is the privacy boundary, including after a member leaves.
+drop policy if exists activity_logs_select_actor_or_box_owner on public.activity_logs;
+create policy activity_logs_select_legacy_or_venue_access
+on public.activity_logs
+for select to authenticated
+using (
+  (event_code is not null and venue_id is not null and public.can_access_venue(venue_id))
+  or
+  (event_code is null and (
+    actor_id = auth.uid()
+    or exists (
+      select 1
+      from public.boxes as boxes
+      where boxes.id = box_id
+        and boxes.owner_id = auth.uid()
+    )
+  ))
+);
+
 create function private.write_venue_activity(
   p_venue_id uuid,
   p_actor_id uuid,

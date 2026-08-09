@@ -21,3 +21,9 @@
 ## Follow-up
 
 Start the local Supabase stack (for example, `supabase start`) and rerun `npm run test:db` before merging. This is required to validate the migration syntax and execute 023 alongside the existing database suite.
+
+## Review follow-up
+
+- Replaced the legacy `activity_logs` select policy for product rows: `event_code IS NOT NULL` now requires a non-null `venue_id` and current `can_access_venue(venue_id)`; only `event_code IS NULL` rows retain the actor/box-owner compatibility path. This prevents a departed member from reading product rows directly through `actor_id`.
+- Expanded 023 from 33 to 42 assertions. It now covers direct-table revocation, actor/event filters, limits 0 and 51, half-cursors, a combined item box-plus-quantity update emitting both event codes, and service-role promotion attribution through `requested_by`.
+- Fresh evidence after the review changes: `npm run typecheck` passed; `git diff --check` passed; the expanded `npm run test:db` attempt remained blocked before pgTAP by `ECONNREFUSED 127.0.0.1:54322`. No database-test success is claimed.
