@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ResponsiveEditorDialog } from '../../components/ResponsiveEditorDialog'
 import { useMobileFeedback } from '../../components/mobile-feedback'
@@ -8,6 +7,7 @@ import { classifyFeedbackError } from '../../lib/feedback-errors'
 import { isVenueAccessDenied } from './venue-sharing.api'
 import { VenueInviteDialog } from './VenueInviteDialog'
 import { VenueMembersPanel } from './VenueMembersPanel'
+import { VenueActivityPanel } from './VenueActivityPanel'
 import { createVenueInvite, type VenueInvite } from './venue-sharing.api'
 import { useQueryClient } from '@tanstack/react-query'
 import type { VenueSummary } from './venues.api'
@@ -26,6 +26,8 @@ export function VenueCardMenu({ venue, invitesEnabled, onEdit, onVenueAccessDeni
   const [open, setOpen] = useState(false)
   const [membersOpen, setMembersOpen] = useState(false)
   const [membersBusy, setMembersBusy] = useState(false)
+  const [activityOpen, setActivityOpen] = useState(false)
+  const [activityBusy, setActivityBusy] = useState(false)
   const [invite, setInvite] = useState<VenueInvite | null>(null)
   const [invitePending, setInvitePending] = useState(false)
   const invitePendingRef = useRef(false)
@@ -128,10 +130,10 @@ export function VenueCardMenu({ venue, invitesEnabled, onEdit, onVenueAccessDeni
             <AppIcon name="family" size={17} />
             {t('venues.members')}
           </button>
-          <Link className="inline-flex min-h-12 items-center gap-3 rounded-[0.75rem] px-3 text-left text-[0.9375rem] font-medium text-ink no-underline hover:bg-canvas" role="menuitem" to={`/app/venues/${venue.id}/activity`} onClick={() => closeMenu(false)}>
+          <button className="inline-flex min-h-12 w-full items-center gap-3 rounded-[0.75rem] px-3 text-left text-[0.9375rem] font-medium text-ink hover:bg-canvas" role="menuitem" type="button" onClick={() => { closeMenu(false); setActivityBusy(true); setActivityOpen(true) }}>
             <AppIcon name="history" size={17} />
             {t('venueActivity.link')}
-          </Link>
+          </button>
         </div>
       ) : null}
       <VenueInviteDialog open={Boolean(invite)} invite={invite} onClose={() => setInvite(null)} />
@@ -145,6 +147,17 @@ export function VenueCardMenu({ venue, invitesEnabled, onEdit, onVenueAccessDeni
         maxWidthClassName="max-w-xl"
       >
         <VenueMembersPanel venueId={venue.id} invitesEnabled={invitesEnabled} onBusyChange={setMembersBusy} />
+      </ResponsiveEditorDialog>
+      <ResponsiveEditorDialog
+        open={activityOpen}
+        title={`${t('venueActivity.title')}${venue.name}`}
+        busy={activityBusy}
+        onClose={() => setActivityOpen(false)}
+        returnFocusRef={triggerRef}
+        initialFocusSelector="select:not(:disabled)"
+        maxWidthClassName="max-w-3xl"
+      >
+        <VenueActivityPanel venueId={venue.id} onBusyChange={setActivityBusy} />
       </ResponsiveEditorDialog>
     </div>
   )

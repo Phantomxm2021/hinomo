@@ -7,7 +7,7 @@ import { I18nProvider } from '../../i18n/I18nProvider'
 import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { VenueCardMenu } from './VenueCardMenu'
 
-const mocks = vi.hoisted(() => ({ access: vi.fn(), members: vi.fn(), invites: vi.fn(), createInvite: vi.fn(), remove: vi.fn(), leave: vi.fn() }))
+const mocks = vi.hoisted(() => ({ access: vi.fn(), members: vi.fn(), activity: vi.fn(), invites: vi.fn(), createInvite: vi.fn(), remove: vi.fn(), leave: vi.fn() }))
 
 vi.mock('./venue-sharing.api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./venue-sharing.api')>()),
@@ -17,6 +17,10 @@ vi.mock('./venue-sharing.api', async (importOriginal) => ({
   createVenueInvite: mocks.createInvite,
   removeVenueMember: mocks.remove,
   leaveVenue: mocks.leave,
+}))
+vi.mock('./venue-activity.api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./venue-activity.api')>()),
+  listVenueActivity: mocks.activity,
 }))
 
 const venue = {
@@ -30,6 +34,7 @@ beforeEach(() => {
   mocks.members.mockReset().mockResolvedValue([
     { user_id: 'owner', role: 'owner', display_name: '王小明', avatar_url: null, joined_at: '2026-08-01T00:00:00Z', is_current: true },
   ])
+  mocks.activity.mockReset().mockResolvedValue([])
   mocks.invites.mockReset().mockResolvedValue([])
   mocks.createInvite.mockReset().mockResolvedValue({ invite_id: 'invite-1', token: 'raw-secret', expires_at: '2026-08-10T00:00:00Z', reusable: true })
   mocks.remove.mockReset().mockResolvedValue(undefined)
@@ -55,6 +60,39 @@ test('opens family members in an in-place dialog without changing the route', as
   expect(window.location.href).toBe(originalLocation)
   await user.click(screen.getByRole('button', { name: '关闭家庭成员家里' }))
   expect(screen.queryByRole('dialog', { name: '家庭成员家里' })).not.toBeInTheDocument()
+})
+
+test('opens recent activity in an in-place dialog without changing the route', async () => {
+  const user = userEvent.setup()
+  const originalLocation = window.location.href
+  render(<I18nProvider><MobileFeedbackProvider><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={['/app/venues']}><VenueCardMenu venue={venue} invitesEnabled onEdit={() => undefined} onVenueAccessDenied={() => undefined} /></MemoryRouter></QueryClientProvider></MobileFeedbackProvider></I18nProvider>)
+
+  await user.click(screen.getByRole('button', { name: '管理场地家里' }))
+  await user.click(screen.getByRole('menuitem', { name: '最近活动' }))
+
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  expect(screen.getByRole('dialog', { name: '最近活动家里' })).toBeInTheDocument()
+  expect(window.location.href).toBe(originalLocation)
+})
+
+test('keeps the activity dialog open while its initial request is pending', async () => {
+  let resolveActivity!: (value: never[]) => void
+  mocks.activity.mockReturnValue(new Promise((resolve) => { resolveActivity = resolve }))
+  const user = userEvent.setup()
+  render(<I18nProvider><MobileFeedbackProvider><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter><VenueCardMenu venue={venue} invitesEnabled onEdit={() => undefined} onVenueAccessDenied={() => undefined} /></MemoryRouter></QueryClientProvider></MobileFeedbackProvider></I18nProvider>)
+
+  await user.click(screen.getByRole('button', { name: '管理场地家里' }))
+  await user.click(screen.getByRole('menuitem', { name: '最近活动' }))
+  const dialog = screen.getByRole('dialog', { name: '最近活动家里' })
+  await waitFor(() => expect(dialog).toHaveAttribute('aria-busy', 'true'))
+  fireEvent.keyDown(document, { key: 'Escape' })
+  fireEvent.mouseDown(screen.getByTestId('editor-dialog-backdrop'))
+  expect(screen.getByRole('dialog', { name: '最近活动家里' })).toBeInTheDocument()
+
+  resolveActivity([])
+  await waitFor(() => expect(dialog).toHaveAttribute('aria-busy', 'false'))
+  fireEvent.keyDown(document, { key: 'Escape' })
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: '最近活动家里' })).not.toBeInTheDocument())
 })
 
 test('closes on Escape or backdrop click and restores focus to the menu trigger', async () => {

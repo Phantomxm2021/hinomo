@@ -79,7 +79,7 @@ test('lists venues and opens creation and editing from the dedicated page', asyn
   await user.click(within(homeCard).getByRole('button', { name: '管理场地家里' }))
   const homeMenu = within(homeCard).getByRole('menu', { name: '家里场地操作' })
   expect(within(homeMenu).getByRole('menuitem', { name: '家庭成员' })).toBeEnabled()
-  expect(within(homeMenu).getByRole('menuitem', { name: '最近活动' })).toHaveAttribute('href', '/app/venues/home/activity')
+  expect(within(homeMenu).getByRole('menuitem', { name: '最近活动' })).toBeEnabled()
   const officeCardAfter = screen.getByTestId('venue-card-office')
   await user.click(within(officeCardAfter).getByRole('button', { name: '管理场地公司' }))
   const officeMenuAfter = within(officeCardAfter).getByRole('menu', { name: '公司场地操作' })
