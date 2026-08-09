@@ -57,22 +57,30 @@ export async function listVenueActivity(input: {
 
 export function activityMessage(entry: VenueActivityEntry, t: Translate): string {
   const actor = entry.actor_display_name?.trim() || t('venueActivity.unknownActor')
+  const snapshot = snapshotRecord(entry.snapshot)
+  const direction = snapshot.direction
   const item = snapshotName(entry.snapshot, t('venueActivity.deletedItem'))
   const from = snapshotName(entry.snapshot, t('venueActivity.deletedBox'), 'from')
   const to = snapshotName(entry.snapshot, t('venueActivity.deletedBox'), 'to')
 
   switch (entry.event_code) {
     case 'item_created': return t('venueActivity.events.item_created', { actor, item })
-    case 'item_moved': return t('venueActivity.events.item_moved', { actor, item, from, to })
+    case 'item_moved':
+      if (direction === 'out') return t('venueActivity.events.item_moved_out', { actor, item, from })
+      if (direction === 'in') return t('venueActivity.events.item_moved_in', { actor, item, to })
+      return t('venueActivity.events.item_moved', { actor, item, from, to })
     case 'item_quantity_changed': {
-      const before = snapshotRecord(entry.snapshot).quantity_before
-      const after = snapshotRecord(entry.snapshot).quantity_after
+      const before = snapshot.quantity_before
+      const after = snapshot.quantity_after
       return t('venueActivity.events.item_quantity_changed', {
         actor, item, before: typeof before === 'number' || typeof before === 'string' ? before : '—',
         after: typeof after === 'number' || typeof after === 'string' ? after : '—',
       })
     }
     case 'item_deleted': return t('venueActivity.events.item_deleted', { actor, item })
-    case 'box_moved': return t('venueActivity.events.box_moved', { actor, box: item, from, to })
+    case 'box_moved':
+      if (direction === 'out') return t('venueActivity.events.box_moved_out', { actor, box: item, from })
+      if (direction === 'in') return t('venueActivity.events.box_moved_in', { actor, box: item, to })
+      return t('venueActivity.events.box_moved', { actor, box: item, from, to })
   }
 }

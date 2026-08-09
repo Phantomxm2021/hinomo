@@ -1,5 +1,5 @@
 begin;
-select plan(91);
+select plan(93);
 
 select ok(has_table_privilege('authenticated', 'public.spaces', 'select'), 'authenticated can select spaces');
 select ok(has_table_privilege('authenticated', 'public.spaces', 'insert'), 'authenticated can insert spaces');
@@ -11,6 +11,10 @@ select ok(not has_table_privilege('authenticated', 'public.boxes', 'insert'), 'a
 select ok(has_table_privilege('authenticated', 'public.boxes', 'delete'), 'authenticated can delete boxes');
 select ok(has_table_privilege('authenticated', 'public.items', 'select'), 'authenticated can select items');
 select ok(has_table_privilege('authenticated', 'public.items', 'delete'), 'authenticated can delete items');
+select ok(not has_column_privilege('authenticated', 'public.items', 'box_id', 'update'),
+  'authenticated users cannot move items with direct REST updates');
+select ok(has_column_privilege('authenticated', 'public.items', 'name', 'update'),
+  'authenticated users retain low-risk direct item edits');
 
 select ok(has_table_privilege('anon', 'public.boxes', 'select'), 'anonymous users can select public boxes through RLS');
 select ok(has_table_privilege('anon', 'public.items', 'select'), 'anonymous users can select public items through RLS');

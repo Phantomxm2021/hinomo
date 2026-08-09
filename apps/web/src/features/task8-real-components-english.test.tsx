@@ -174,7 +174,7 @@ test('packing photo deck uses English region and navigation labels', () => {
 
 test('packing checklist exposes the English failed-analysis stage', async () => {
   mocks.packingSessions.mockResolvedValue([{ id: 'session-1', box_id: 'box-1', status: 'failed', photo_count: 2, current_revision: 1 }])
-  render(<EnglishProvider><QueryClientProvider client={queryClient()}><PackingChecklistSection boxId="box-1" /></QueryClientProvider></EnglishProvider>)
+  render(<EnglishProvider><QueryClientProvider client={queryClient()}><PackingChecklistSection boxId="box-1" venueId={null} onVenueAccessDenied={() => undefined} /></QueryClientProvider></EnglishProvider>)
 
   expect(await screen.findByRole('button', { name: /AI smart list/i })).toBeInTheDocument()
   expect(screen.getByText('Analysis is incomplete. Tap to review or analyze again.')).toBeInTheDocument()

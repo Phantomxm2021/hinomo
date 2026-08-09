@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -9,17 +9,18 @@ import { VenueInviteDialog } from './VenueInviteDialog'
 import {
   createVenueInvite,
   getVenueAccessSummary,
-  isVenueInviteError,
+  isVenueAccessDenied,
   leaveVenue,
   listVenueInvites,
   listVenueMembers,
   removeVenueMember,
   revokeVenueInvite,
+  revokedVenueQueryKeys,
   type VenueMember,
 } from './venue-sharing.api'
 
 const affectedQueryKeys = (venueId: string) => [
-  ['venues'], ['venue-members', venueId], ['venue-access', venueId], ['venue-activity', venueId], ['spaces'], ['boxes'], ['items'], ['search-items'],
+  ...revokedVenueQueryKeys, ['venue-members', venueId], ['venue-invites', venueId], ['venue-access', venueId], ['venue-activity', venueId],
 ]
 
 function displayDate(value: string) {
@@ -44,20 +45,24 @@ export function VenueMembersPage() {
   const [memberToRemove, setMemberToRemove] = useState<VenueMember | null>(null)
   const [leaveOpen, setLeaveOpen] = useState(false)
   const accessDeniedHandled = useRef(false)
+  const invitesEnabled = import.meta.env.VITE_ENABLE_VENUE_INVITES === 'true'
   const accessQuery = useQuery({ queryKey: ['venue-access', venueId], queryFn: () => getVenueAccessSummary(venueId), retry: false, enabled: Boolean(venueId) })
   const membersQuery = useQuery({ queryKey: ['venue-members', venueId], queryFn: () => listVenueMembers(venueId), retry: false, enabled: Boolean(venueId) })
   const owner = accessQuery.data?.role === 'owner'
-  const invitesQuery = useQuery({ queryKey: ['venue-invites', venueId], queryFn: () => listVenueInvites(venueId), retry: false, enabled: Boolean(venueId) && owner })
+  const invitesQuery = useQuery({ queryKey: ['venue-invites', venueId], queryFn: () => listVenueInvites(venueId), retry: false, enabled: Boolean(venueId) && owner && invitesEnabled })
 
-  const accessDenied = [accessQuery.error, membersQuery.error, invitesQuery.error].some((error) => isVenueInviteError(error, 'venue_access_denied'))
-
-  useEffect(() => {
-    if (!accessDenied || accessDeniedHandled.current) return
+  const accessDeniedError = [accessQuery.error, membersQuery.error, invitesQuery.error].find(isVenueAccessDenied)
+  const clearRevokedVenue = useCallback((error: unknown) => {
+    if (!isVenueAccessDenied(error) || accessDeniedHandled.current) return false
     accessDeniedHandled.current = true
     for (const queryKey of affectedQueryKeys(venueId)) queryClient.removeQueries({ queryKey })
-    queryClient.removeQueries({ queryKey: ['venue-invites', venueId] })
     navigate('/app', { replace: true })
-  }, [accessDenied, navigate, queryClient, venueId])
+    return true
+  }, [navigate, queryClient, venueId])
+
+  useEffect(() => {
+    if (accessDeniedError) clearRevokedVenue(accessDeniedError)
+  }, [accessDeniedError, clearRevokedVenue])
 
   async function invalidateAffected() {
     await Promise.all(affectedQueryKeys(venueId).map((queryKey) => queryClient.invalidateQueries({ queryKey })))
@@ -66,10 +71,12 @@ export function VenueMembersPage() {
   const revokeInviteMutation = useMutation({
     mutationFn: (inviteId: string) => revokeVenueInvite(inviteId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['venue-invites', venueId] }),
+    onError: clearRevokedVenue,
   })
   const removeMemberMutation = useMutation({
     mutationFn: (member: VenueMember) => removeVenueMember(venueId, member.user_id),
     onSuccess: async () => { setMemberToRemove(null); await invalidateAffected() },
+    onError: clearRevokedVenue,
   })
   const leaveMutation = useMutation({
     mutationFn: () => leaveVenue(venueId),
@@ -79,6 +86,7 @@ export function VenueMembersPage() {
       queryClient.removeQueries({ queryKey: ['venues'] })
       navigate('/app', { replace: true })
     },
+    onError: clearRevokedVenue,
   })
 
   function closeInvite() {
@@ -87,21 +95,21 @@ export function VenueMembersPage() {
   }
 
   async function createInvite() {
-    if (invitePending) return
+    if (!invitesEnabled || invitePending) return
     setInvitePending(true)
     setInviteError(false)
     try {
       setInvite(await createVenueInvite(venueId))
       await queryClient.invalidateQueries({ queryKey: ['venue-invites', venueId] })
-    } catch {
-      setInviteError(true)
+    } catch (error) {
+      if (!clearRevokedVenue(error)) setInviteError(true)
     } finally {
       setInvitePending(false)
     }
   }
 
   if (accessQuery.isPending || membersQuery.isPending) return <PageState state="loading" label={t('venueSharing.membersLoading')} />
-  if (accessQuery.isError || membersQuery.isError || (owner && invitesQuery.isError)) return <PageState state="error" message={t('venueSharing.membersLoadError')} onRetry={() => { void accessQuery.refetch(); void membersQuery.refetch(); if (owner) void invitesQuery.refetch() }} />
+  if (accessQuery.isError || membersQuery.isError || (owner && invitesEnabled && invitesQuery.isError)) return <PageState state="error" message={t('venueSharing.membersLoadError')} onRetry={() => { void accessQuery.refetch(); void membersQuery.refetch(); if (owner && invitesEnabled) void invitesQuery.refetch() }} />
   if (!accessQuery.data) return null
 
   return (
@@ -121,13 +129,13 @@ export function VenueMembersPage() {
         ))}
       </div>
 
-      {owner ? <section className="grid gap-4 rounded-card border border-line bg-surface p-5" aria-labelledby="venue-invites-title">
+      {owner ? invitesEnabled ? <section className="grid gap-4 rounded-card border border-line bg-surface p-5" aria-labelledby="venue-invites-title">
         <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="m-0 text-section-title font-bold" id="venue-invites-title">{t('venueSharing.unusedInvites')}</h2><button className="inline-flex min-h-11 items-center gap-2 rounded-control bg-brand px-4 font-bold text-white disabled:opacity-50" type="button" disabled={invitePending} onClick={() => void createInvite()}><AppIcon name="share" />{invitePending ? t('venueSharing.creatingInvite') : t('venueSharing.createInvite')}</button></div>
         {invitesQuery.data?.filter((item) => item.status === 'active').map((item) => <div className="flex items-center justify-between gap-3 text-sm" key={item.invite_id}><span className="text-muted">{t('venueSharing.inviteExpiresAt', { date: displayDate(item.expires_at) })}</span><button className="min-h-11 rounded-control px-3 font-bold text-danger disabled:opacity-50" type="button" disabled={revokeInviteMutation.isPending} onClick={() => revokeInviteMutation.mutate(item.invite_id)}>{t('venueSharing.revoke')}</button></div>)}
         {inviteError ? <p className="m-0 text-sm text-danger" role="alert">{t('venueSharing.actionError')}</p> : null}
-      </section> : <button className="justify-self-start min-h-11 rounded-control border border-danger px-4 font-bold text-danger" type="button" onClick={() => setLeaveOpen(true)}>{t('venueSharing.leaveVenue')}</button>}
+      </section> : null : <button className="justify-self-start min-h-11 rounded-control border border-danger px-4 font-bold text-danger" type="button" onClick={() => setLeaveOpen(true)}>{t('venueSharing.leaveVenue')}</button>}
 
-      <VenueInviteDialog open={Boolean(invite)} invite={invite} onClose={closeInvite} />
+      {invitesEnabled ? <VenueInviteDialog open={Boolean(invite)} invite={invite} onClose={closeInvite} /> : null}
       <ConfirmDialog open={Boolean(memberToRemove)} title={t('venueSharing.removeMemberTitle')} description={t('venueSharing.removeMemberDescription')} confirmLabel={t('venueSharing.removeMemberTitle')} busyLabel={t('venueSharing.removingMember')} busy={removeMemberMutation.isPending} onCancel={() => setMemberToRemove(null)} onConfirm={() => { if (memberToRemove) removeMemberMutation.mutate(memberToRemove) }} />
       <ConfirmDialog open={leaveOpen} title={t('venueSharing.leaveVenueTitle')} description={t('venueSharing.leaveVenueDescription')} confirmLabel={t('venueSharing.leaveVenue')} busyLabel={t('venueSharing.leavingVenue')} busy={leaveMutation.isPending} onCancel={() => setLeaveOpen(false)} onConfirm={() => leaveMutation.mutate()} />
     </section>

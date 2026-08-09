@@ -38,6 +38,7 @@ function renderPage() {
 }
 
 beforeEach(() => {
+  vi.stubEnv('VITE_ENABLE_VENUE_INVITES', 'true')
   Object.values(mocks).forEach((mock) => mock.mockReset())
   mocks.access.mockResolvedValue({ venue_id: 'home', role: 'owner', can_manage_members: true, member_count: 3, max_members: 5 })
   mocks.members.mockResolvedValue([
@@ -50,7 +51,10 @@ beforeEach(() => {
   mocks.remove.mockResolvedValue(undefined)
   mocks.leave.mockResolvedValue(undefined)
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.unstubAllEnvs()
+})
 
 test('owner manages family members, active invitations, and clears the raw invite token on every close path', async () => {
   const user = userEvent.setup()
@@ -111,6 +115,16 @@ test('member can leave, without owner controls, and immediately returns home aft
   }
 })
 
+test('keeps invite creation closed when the deploy-time kill switch is disabled', async () => {
+  vi.stubEnv('VITE_ENABLE_VENUE_INVITES', 'false')
+  renderPage()
+
+  expect(await screen.findByText('3 / 5')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '创建邀请' })).not.toBeInTheDocument()
+  expect(screen.queryByText('未使用邀请')).not.toBeInTheDocument()
+  expect(mocks.invites).not.toHaveBeenCalled()
+})
+
 test('redirects after access is denied and clears the revoked venue cache without retrying the query', async () => {
   mocks.access.mockRejectedValue(Object.assign(new Error('venue_access_denied'), { code: 'venue_access_denied' }))
   const client = renderPage()
@@ -133,7 +147,7 @@ test('starts the member lookup alongside access lookup and redirects when the me
 
   const revokedContentKeys = [['spaces'], ['boxes'], ['items'], ['search-items']]
   for (const queryKey of revokedContentKeys) client.setQueryData(queryKey, ['stale venue content'])
-  mocks.members.mockRejectedValueOnce(Object.assign(new Error('venue_access_denied'), { code: 'venue_access_denied' }))
+  mocks.members.mockRejectedValueOnce({ code: '42501', message: 'item is not accessible' })
   await client.invalidateQueries({ queryKey: ['venue-members', 'home'] })
   expect(await screen.findByText('首页')).toBeInTheDocument()
   expect(client.getQueryData(['venues'])).toBeUndefined()

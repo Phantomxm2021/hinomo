@@ -28,11 +28,13 @@ export async function createItem(input: ItemInput) {
 }
 
 export async function updateItem(itemId: string, input: ItemUpdateInput) {
-  const { error } = await supabase.from('items').update(input).eq('id', itemId)
+  const { data, error } = await supabase.from('items').update(input).eq('id', itemId).select('id').maybeSingle()
   if (error) throw error
+  if (!data) throw Object.assign(new Error('item is not accessible'), { code: '42501' })
 }
 
 export async function deleteItem(itemId: string) {
-  const { error } = await supabase.from('items').delete().eq('id', itemId)
+  const { data, error } = await supabase.from('items').delete().eq('id', itemId).select('id').maybeSingle()
   if (error) throw error
+  if (!data) throw Object.assign(new Error('item is not accessible'), { code: '42501' })
 }

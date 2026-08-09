@@ -1,5 +1,5 @@
 begin;
-select plan(51);
+select plan(57);
 
 create extension if not exists "basejump-supabase_test_helpers" with schema tests;
 select tests.create_supabase_user('shared-content-owner');
@@ -15,15 +15,19 @@ create temporary table shared_content_state (
   second_owner_venue_id uuid not null,
   shared_space_id uuid not null,
   second_owner_space_id uuid not null,
+  member_owned_venue_id uuid not null,
+  member_owned_space_id uuid not null,
   owner_box_id uuid,
   member_box_id uuid,
+  member_owned_box_id uuid,
   member_item_id uuid
 ) on commit drop;
 grant select on shared_content_state to authenticated;
 
 insert into shared_content_state (
   owner_id, member_id, outsider_id, shared_venue_id, private_venue_id,
-  second_owner_venue_id, shared_space_id, second_owner_space_id
+  second_owner_venue_id, shared_space_id, second_owner_space_id,
+  member_owned_venue_id, member_owned_space_id
 ) values (
   tests.get_supabase_uid('shared-content-owner'),
   tests.get_supabase_uid('shared-content-member'),
@@ -32,7 +36,9 @@ insert into shared_content_state (
   '20000000-0000-4000-8000-000000000002',
   '20000000-0000-4000-8000-000000000003',
   '20000000-0000-4000-8000-000000000011',
-  '20000000-0000-4000-8000-000000000012'
+  '20000000-0000-4000-8000-000000000012',
+  '20000000-0000-4000-8000-000000000005',
+  '20000000-0000-4000-8000-000000000015'
 );
 
 select tests.authenticate_as('shared-content-owner');
@@ -106,13 +112,16 @@ select is((select owner_id from public.spaces where id = '20000000-0000-4000-800
   'direct member space insert cannot forge the venue owner');
 
 insert into public.venues (id, owner_id, name)
-values ('20000000-0000-4000-8000-000000000005', auth.uid(), 'Member personal venue');
+values ((select member_owned_venue_id from shared_content_state), auth.uid(), 'Member personal venue');
 insert into public.spaces (id, owner_id, venue_id, name)
-values ('20000000-0000-4000-8000-000000000015', auth.uid(), '20000000-0000-4000-8000-000000000005', 'Member personal space');
-select lives_ok(
-  $$select public.create_box('20000000-0000-4000-8000-000000000015', 'Member personal box', null, null, null, 'private')$$,
-  'member can create an independent personal box'
-);
+select member_owned_space_id, auth.uid(), member_owned_venue_id, 'Member personal space'
+from shared_content_state;
+with created as (
+  select public.create_box((select member_owned_space_id from shared_content_state), 'Member personal box', null, null, null, 'private') as box
+)
+update shared_content_state set member_owned_box_id = (created.box).id from created;
+select ok((select member_owned_box_id is not null from shared_content_state),
+  'member can create an independent personal box');
 select is((select box_count from public.get_box_plan_summary()), 1,
   'member has an independent personal box count');
 select is((select box_count from public.get_venue_box_plan_summary((select shared_venue_id from shared_content_state))), 2,
@@ -199,6 +208,11 @@ select throws_ok(
   'P0001', 'venue_access_denied', 'member cannot move a box to another venue'
 );
 
+select tests.clear_authentication();
+set local role postgres;
+insert into public.venue_members (venue_id, user_id)
+select member_owned_venue_id, owner_id from shared_content_state;
+
 select tests.authenticate_as('shared-content-outsider');
 select is((select count(*)::integer from public.venues where id = (select shared_venue_id from shared_content_state)), 0,
   'outsider cannot read the shared venue');
@@ -234,6 +248,43 @@ select lives_ok(
 select lives_ok(
   $$update public.boxes set visibility = 'public' where id = (select member_box_id from shared_content_state)$$,
   'owner direct box visibility update remains compatible'
+);
+insert into public.spaces (id, owner_id, venue_id, name)
+values ('20000000-0000-4000-8000-000000000016', auth.uid(), (select shared_venue_id from shared_content_state), 'Owner movable space');
+select lives_ok(
+  $$update public.spaces set venue_id = (select second_owner_venue_id from shared_content_state)
+    where id = '20000000-0000-4000-8000-000000000016'$$,
+  'owner direct space move remains compatible when both venues are owned'
+);
+select throws_ok(
+  $$update public.spaces set venue_id = (select member_owned_venue_id from shared_content_state)
+    where id = '20000000-0000-4000-8000-000000000016'$$,
+  'P0001', 'venue_access_denied',
+  'owner-member asymmetric REST space move cannot cross into a venue the caller only joins'
+);
+select lives_ok(
+  $$update public.space_layouts set space_id = (select second_owner_space_id from shared_content_state)
+    where space_id = (select id from member_created_space)$$,
+  'owner direct layout move remains compatible when both venues are owned'
+);
+select throws_ok(
+  $$update public.space_layouts set space_id = (select member_owned_space_id from shared_content_state)
+    where space_id = (select second_owner_space_id from shared_content_state)$$,
+  'P0001', 'venue_access_denied',
+  'owner-member asymmetric REST layout move cannot cross into a venue the caller only joins'
+);
+insert into public.items (id, box_id, name, quantity)
+values ('20000000-0000-4000-8000-000000000022', (select owner_box_id from shared_content_state), 'Owner movable item', 1);
+select lives_ok(
+  $$update public.items set name = 'Owner safe direct item edit'
+    where id = '20000000-0000-4000-8000-000000000022'$$,
+  'owner low-risk direct item edit remains compatible'
+);
+select throws_ok(
+  $$update public.items set box_id = (select member_owned_box_id from shared_content_state)
+    where id = '20000000-0000-4000-8000-000000000022'$$,
+  '42501', 'permission denied for table items',
+  'owner-member asymmetric REST item move is denied before it can bypass move_item'
 );
 select lives_ok(
   $$delete from public.boxes where id = (select member_box_id from shared_content_state)$$,

@@ -41,11 +41,12 @@ describe('message catalog', () => {
     expect(messages['zh-CN'].venues.sharedBadge).toBe('家庭共享')
   })
 
-  test('includes localized venue activity labels and the five event messages', () => {
+  test('includes localized venue activity labels and directional event messages', () => {
     expect(messages['zh-CN'].venueActivity.title).toBe('最近活动')
     expect(messages['en-US'].venueActivity.title).toBe('Recent activity')
     expect(Object.keys(messages['zh-CN'].venueActivity.events)).toEqual([
-      'item_created', 'item_moved', 'item_quantity_changed', 'item_deleted', 'box_moved',
+      'item_created', 'item_moved', 'item_moved_out', 'item_moved_in', 'item_quantity_changed',
+      'item_deleted', 'box_moved', 'box_moved_out', 'box_moved_in',
     ])
     expect(Object.values(messages['zh-CN'].venueActivity.eventLabels)).toEqual(['添加物品', '移动物品', '更改数量', '删除物品', '移动箱子'])
     expect(Object.values(messages['en-US'].venueActivity.eventLabels)).toEqual(['Item added', 'Item moved', 'Quantity changed', 'Item deleted', 'Box moved'])

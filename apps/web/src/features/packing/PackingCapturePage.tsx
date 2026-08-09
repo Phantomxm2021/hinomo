@@ -95,11 +95,12 @@ function useDirectCameraPreference() {
   return preferred
 }
 
-export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBlocked }: {
+export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBlocked, onVenueAccessDenied }: {
   boxId: string
   onClose: () => void
   onCompleted: () => void
   onBillingBlocked?: (reason: 'insufficient_credits', requiredCredits: number) => void
+  onVenueAccessDenied: (error: unknown) => void
 }) {
   const { t } = useI18n()
   const queryClient = useQueryClient()
@@ -143,6 +144,12 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
     queryFn: () => listPackingPhotos(sessionQuery.data?.id ?? ''),
     enabled: Boolean(sessionQuery.data?.id),
   })
+
+  useEffect(() => {
+    for (const error of [boxQuery.error, sessionQuery.error, photosQuery.error]) {
+      if (error) onVenueAccessDenied(error)
+    }
+  }, [boxQuery.error, onVenueAccessDenied, photosQuery.error, sessionQuery.error])
 
   const refreshPhotos = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['packing-photos', sessionQuery.data?.id] })
@@ -189,7 +196,8 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
       setUploadState('error')
       setCanRetryUploads(true)
       setErrorMessage({ key: persisted ? 'packing.uploadFailedStored' : 'packing.uploadFailedLost' })
-      throw new Error('packing photo upload failed')
+      onVenueAccessDenied(error)
+      throw new Error('packing photo upload failed', { cause: error })
     }
 
     try {
@@ -204,7 +212,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
       await refreshPhotos()
       setUploadState('idle')
     }
-  }, [refreshPhotos])
+  }, [onVenueAccessDenied, refreshPhotos])
 
   const enqueueDraft = useCallback((draft: PackingDraft, persisted = true) => {
     uploadQueueRef.current = uploadQueueRef.current.catch(() => undefined).then(() => uploadDraft(draft, persisted))
@@ -305,7 +313,8 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
     try {
       await deletePackingPhoto(photoId)
       await refreshPhotos()
-    } catch {
+    } catch (error) {
+      onVenueAccessDenied(error)
       setErrorMessage({ key: 'packing.removePhotoFailed' })
     } finally {
       setRemovingPhotoId(null)
@@ -353,6 +362,7 @@ export function PackingCaptureSheet({ boxId, onClose, onCompleted, onBillingBloc
         onBillingBlocked?.(billingError, Math.max(1, (photosQuery.data?.length ?? 0) + localDraftCount))
         return
       }
+      onVenueAccessDenied(error)
       reportPackingDevError('packing_finish_failed', {
         stage,
         sessionId: session.id,

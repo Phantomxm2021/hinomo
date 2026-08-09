@@ -96,16 +96,27 @@ export function isVenueInviteError(error: unknown, code?: VenueInviteErrorCode):
 }
 
 export function isVenueAccessDenied(error: unknown): boolean {
-  if (isVenueInviteError(error, 'venue_access_denied')) return true
-  if (!error || typeof error !== 'object') return false
-  const candidate = error as { code?: unknown; message?: unknown; details?: unknown }
-  return [candidate.code, candidate.message, candidate.details].some((value) =>
-    typeof value === 'string' && value.includes('venue_access_denied'),
-  )
+  const seen = new Set<object>()
+  let candidate: unknown = error
+
+  while (candidate && typeof candidate === 'object' && !seen.has(candidate)) {
+    seen.add(candidate)
+    const record = candidate as { code?: unknown; message?: unknown; details?: unknown; cause?: unknown }
+    if (record.code === '42501') return true
+    if ([record.code, record.message, record.details].some((value) => (
+      typeof value === 'string' && value.includes('venue_access_denied')
+    ))) return true
+    candidate = record.cause
+  }
+
+  return false
 }
 
 export const revokedVenueQueryKeys = [
-  ['venues'], ['venue-access'], ['spaces'], ['boxes'], ['box'], ['items'], ['search-items'], ['item-movements'], ['venue-activity'], ['box-plan'],
+  ['venues'], ['venue-access'], ['venue-members'], ['venue-invites'], ['spaces'], ['boxes'], ['box'], ['box-id'],
+  ['items'], ['search-items'], ['item-movements'], ['venue-activity'], ['box-plan'],
+  ['packing-session-active'], ['packing-sessions'], ['packing-photos'], ['packing-detected-items'],
+  ['packing-evidence-photo'], ['packing-item-promotion'], ['packing-media-url'],
 ] as const
 
 export async function getVenueAccessSummary(venueId: string): Promise<VenueAccessSummary> {

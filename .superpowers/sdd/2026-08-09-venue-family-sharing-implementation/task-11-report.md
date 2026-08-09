@@ -43,3 +43,27 @@
 ### Review-fix RED evidence
 
 - The revised desktop E2E initially timed out waiting for the item action because the mock box response omitted `spaces.venue_id`; without it, the real access-summary query cannot enable member content actions. It passed after that server-shape gap was fixed. The all-project run then exposed the desktop-only packing trigger; the spec now uses the responsive action sheet on iPhone and Pixel, and the final all-project run passed.
+
+## Final whole-branch review fix wave
+
+- Hardened direct shared-content writes: a direct space or layout parent change now requires ownership of both source and target venues, while low-risk owner field edits remain compatible. Direct `items.box_id` updates are explicitly revoked so item moves cannot bypass `move_item` availability, note and movement-history invariants; the item trigger retains a both-owner defense in depth.
+- Made revocation observable and cache-safe in the web client. Stable `venue_access_denied` and SQLSTATE `42501` values are recognized through recursive `cause` chains; zero-row item UPDATE/DELETE responses become stable 42501 denials. Capture and checklist queries/mutations forward raw failures, checklist polling performs an access-summary preflight, and the purge covers box-by-id, packing sessions/photos/detected items/evidence/promotions and signed packing media URLs.
+- Added directional in/out activity messages in Chinese and English so cross-venue snapshots do not invent deleted endpoints.
+- Added the fail-closed `VITE_ENABLE_VENUE_INVITES` build flag. The owner invite panel and invite query stay closed unless it is exactly `true`; Playwright explicitly enables it to preserve the full invite-flow assertions. The deployment runbook now documents closed-first deployment, staging smoke, production enablement, frontend rollback and reversible forward-migration RPC revocation.
+
+### Final-wave verification evidence
+
+| Command | Result |
+| --- | --- |
+| Focused migration/venue/item/packing/activity/member Vitest set | Passed: 8 files, 82 tests. |
+| Adjacent real-component/i18n Vitest set | Passed: 4 files, 29 tests. |
+| `npm test -- --run` | Passed: 108 files, 745 tests. |
+| `npx playwright test e2e/venue-family-sharing.spec.ts --workers=1 --reporter=line` | Passed: desktop Chromium, iPhone and Pixel; 3 tests in 33.7s. |
+| `npm run typecheck` | Passed. |
+| `npm run lint` | Passed (`oxlint`, no output/errors). |
+| `npm run build --workspace=@nomo/web` | Passed; existing large-chunk advisory only. |
+| `git diff --check` | Passed. |
+
+### Final-wave honest blocker
+
+- `npm run test:db` was invoked after the migration changes, but the local Supabase PostgreSQL endpoint refused `127.0.0.1:54322`. The new pgTAP privilege/asymmetric-owner cases therefore have source-contract coverage and are committed, but their live database execution remains a release-environment gate; no DB-pass claim is made here.

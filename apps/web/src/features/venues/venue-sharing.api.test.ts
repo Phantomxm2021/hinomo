@@ -10,6 +10,7 @@ import {
   listVenueInvites,
   listVenueMembers,
   removeVenueMember,
+  revokedVenueQueryKeys,
   revokeVenueInvite,
 } from './venue-sharing.api'
 
@@ -87,9 +88,27 @@ describe('venue sharing api', () => {
     await createVenueInvite('venue-1').catch((error: unknown) => expect(isVenueInviteError(error, code)).toBe(true))
   })
 
-  it('recognizes revocation errors from both mapped and direct RPC responses', () => {
+  it('recognizes stable revocation variants from mapped, RPC, and wrapped responses', () => {
     expect(isVenueAccessDenied({ code: 'venue_access_denied' })).toBe(true)
     expect(isVenueAccessDenied({ details: 'venue_access_denied' })).toBe(true)
+    expect(isVenueAccessDenied({ code: '42501', message: 'permission denied' })).toBe(true)
+    expect(isVenueAccessDenied(new Error('packing upload failed', {
+      cause: { code: '42501', message: 'packing session is not accessible' },
+    }))).toBe(true)
+    expect(isVenueAccessDenied({ message: 'space is not accessible' })).toBe(false)
     expect(isVenueAccessDenied(new Error('network unavailable'))).toBe(false)
+  })
+
+  it('includes every packing query family in revoked venue cache removal', () => {
+    expect(revokedVenueQueryKeys).toEqual(expect.arrayContaining([
+      ['packing-session-active'],
+      ['packing-sessions'],
+      ['packing-photos'],
+      ['packing-detected-items'],
+      ['packing-evidence-photo'],
+      ['packing-item-promotion'],
+      ['box-id'],
+      ['packing-media-url'],
+    ]))
   })
 })

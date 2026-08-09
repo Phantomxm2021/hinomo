@@ -998,9 +998,13 @@ const zhMessages = {
     events: {
       item_created: '{{actor}} 添加了 {{item}}',
       item_moved: '{{actor}} 将 {{item}} 从 {{from}} 移至 {{to}}',
+      item_moved_out: '{{actor}} 将 {{item}} 从 {{from}} 移出此场地',
+      item_moved_in: '{{actor}} 将 {{item}} 移入此场地的 {{to}}',
       item_quantity_changed: '{{actor}} 将 {{item}} 的数量从 {{before}} 改为 {{after}}',
       item_deleted: '{{actor}} 删除了 {{item}}',
       box_moved: '{{actor}} 将箱子 {{box}} 从 {{from}} 移至 {{to}}',
+      box_moved_out: '{{actor}} 将箱子 {{box}} 从 {{from}} 移出此场地',
+      box_moved_in: '{{actor}} 将箱子 {{box}} 移入此场地的 {{to}}',
     },
   },
   credits: {
@@ -2110,9 +2114,13 @@ const enMessages = {
     events: {
       item_created: '{{actor}} added {{item}}',
       item_moved: '{{actor}} moved {{item}} from {{from}} to {{to}}',
+      item_moved_out: '{{actor}} moved {{item}} out of this venue from {{from}}',
+      item_moved_in: '{{actor}} moved {{item}} into this venue to {{to}}',
       item_quantity_changed: '{{actor}} changed {{item}} from {{before}} to {{after}}',
       item_deleted: '{{actor}} deleted {{item}}',
       box_moved: '{{actor}} moved box {{box}} from {{from}} to {{to}}',
+      box_moved_out: '{{actor}} moved box {{box}} out of this venue from {{from}}',
+      box_moved_in: '{{actor}} moved box {{box}} into this venue to {{to}}',
     },
   },
   credits: {

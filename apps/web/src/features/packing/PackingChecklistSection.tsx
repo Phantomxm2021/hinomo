@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { useI18n } from '../../i18n/I18nProvider'
+import { getVenueAccessSummary } from '../venues/venue-sharing.api'
 import { PackingAuthorizedImage } from './PackingAuthorizedImage'
 import {
   getPackingPhoto,
@@ -32,7 +33,11 @@ function normalizedBbox(value: unknown): [number, number, number, number] | null
   return [x1, y1, x2, y2]
 }
 
-function EvidenceOverlay({ item, onClose }: { item: PackingDetectedItem; onClose: () => void }) {
+function EvidenceOverlay({ item, onClose, onVenueAccessDenied }: {
+  item: PackingDetectedItem
+  onClose: () => void
+  onVenueAccessDenied: (error: unknown) => void
+}) {
   const { t } = useI18n()
   const photoId = item.crop_source_photo_id ?? item.first_seen_photo_id
   const photoQuery = useQuery({
@@ -40,6 +45,9 @@ function EvidenceOverlay({ item, onClose }: { item: PackingDetectedItem; onClose
     queryFn: () => getPackingPhoto(photoId ?? ''),
     enabled: Boolean(photoId),
   })
+  useEffect(() => {
+    if (photoQuery.error) onVenueAccessDenied(photoQuery.error)
+  }, [onVenueAccessDenied, photoQuery.error])
   const bbox = normalizedBbox(item.crop_bbox)
 
   return createPortal(
@@ -61,11 +69,12 @@ function EvidenceOverlay({ item, onClose }: { item: PackingDetectedItem; onClose
   )
 }
 
-function ChecklistItem({ item, boxId, mergeTargets, onPromotionAccepted }: {
+function ChecklistItem({ item, boxId, mergeTargets, onPromotionAccepted, onVenueAccessDenied }: {
   item: PackingDetectedItem
   boxId: string
   mergeTargets: PackingDetectedItem[]
   onPromotionAccepted: (item: PackingDetectedItem, promotionId: string) => void
+  onVenueAccessDenied: (error: unknown) => void
 }) {
   const { t } = useI18n()
   const queryClient = useQueryClient()
@@ -89,14 +98,17 @@ function ChecklistItem({ item, boxId, mergeTargets, onPromotionAccepted }: {
       review_status: reviewStatus,
     }),
     onSuccess: () => { setEditing(false); void refresh() },
+    onError: (error) => onVenueAccessDenied(error),
   })
   const promotionMutation = useMutation({
     mutationFn: () => requestPackingItemPromotion(item.id),
     onSuccess: (promotion) => onPromotionAccepted(item, promotion.id),
+    onError: (error) => onVenueAccessDenied(error),
   })
   const mergeMutation = useMutation({
     mutationFn: () => mergeDetectedPackingItems(mergeTargetId, item.id),
     onSuccess: () => { setMerging(false); void refresh() },
+    onError: (error) => onVenueAccessDenied(error),
   })
 
   const canSave = name.trim().length > 0 && (quantityKind === 'unknown' || Number(quantityValue) > 0)
@@ -142,12 +154,16 @@ function ChecklistItem({ item, boxId, mergeTargets, onPromotionAccepted }: {
         </div>
       )}
       {updateMutation.isError || promotionMutation.isError || mergeMutation.isError ? <p className="mt-2 text-right text-xs font-bold text-danger">{t('packing.operationFailed')}</p> : null}
-      {showEvidence ? <EvidenceOverlay item={item} onClose={() => setShowEvidence(false)} /> : null}
+      {showEvidence ? <EvidenceOverlay item={item} onClose={() => setShowEvidence(false)} onVenueAccessDenied={onVenueAccessDenied} /> : null}
     </article>
   )
 }
 
-export function PackingChecklistSection({ boxId }: { boxId: string }) {
+export function PackingChecklistSection({ boxId, venueId, onVenueAccessDenied }: {
+  boxId: string
+  venueId: string | null
+  onVenueAccessDenied: (error: unknown) => void
+}) {
   const { t } = useI18n()
   const queryClient = useQueryClient()
   const launcherRef = useRef<HTMLButtonElement | null>(null)
@@ -155,13 +171,25 @@ export function PackingChecklistSection({ boxId }: { boxId: string }) {
   const [promotionTasks, setPromotionTasks] = useState<Array<{ item: PackingDetectedItem; promotionId: string }>>([])
   const [promotionError, setPromotionError] = useState<PackingTranslationError | null>(null)
   const handledPromotionsRef = useRef(new Set<string>())
-  const sessionsQuery = useQuery({ queryKey: ['packing-sessions', boxId], queryFn: () => listPackingSessions(boxId), refetchInterval: (query) => query.state.data?.some((session) => ['queued', 'processing'].includes(session.status)) ? 3000 : false })
+  const sessionsQuery = useQuery({
+    queryKey: ['packing-sessions', boxId],
+    queryFn: async () => {
+      if (venueId) await getVenueAccessSummary(venueId)
+      return listPackingSessions(boxId)
+    },
+    refetchInterval: (query) => query.state.data?.some((session) => ['queued', 'processing'].includes(session.status)) ? 3000 : false,
+    retry: false,
+  })
   const resultSession = sessionsQuery.data?.find((session) => !['capturing', 'uploading', 'canceled'].includes(session.status))
   const itemsQuery = useQuery({
     queryKey: ['packing-detected-items', boxId, resultSession?.id, resultSession?.current_revision],
-    queryFn: () => listDetectedPackingItems(boxId, resultSession?.id ?? '', resultSession?.current_revision ?? 0),
+    queryFn: async () => {
+      if (venueId) await getVenueAccessSummary(venueId)
+      return listDetectedPackingItems(boxId, resultSession?.id ?? '', resultSession?.current_revision ?? 0)
+    },
     enabled: Boolean(resultSession && resultSession.current_revision > 0),
     refetchInterval: 5000,
+    retry: false,
   })
   const activeSession = sessionsQuery.data?.find((session) => ['queued', 'processing', 'partial_failed', 'failed'].includes(session.status))
   const items = itemsQuery.data ?? []
@@ -175,7 +203,17 @@ export function PackingChecklistSection({ boxId }: { boxId: string }) {
   })
   const hiddenItemIds = new Set(promotionTasks.map((task) => task.item.id))
   const visibleItems = items.filter((item) => !hiddenItemIds.has(item.id))
-  const reanalysisMutation = useMutation({ mutationFn: () => requestPackingReanalysis(activeSession?.id ?? ''), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['packing-sessions', boxId] }) } })
+  const reanalysisMutation = useMutation({
+    mutationFn: () => requestPackingReanalysis(activeSession?.id ?? ''),
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['packing-sessions', boxId] }) },
+    onError: (error) => onVenueAccessDenied(error),
+  })
+
+  useEffect(() => {
+    for (const error of [sessionsQuery.error, itemsQuery.error, ...promotionQueries.map((query) => query.error)]) {
+      if (error) onVenueAccessDenied(error)
+    }
+  }, [itemsQuery.error, onVenueAccessDenied, promotionQueries, sessionsQuery.error])
 
   useEffect(() => {
     promotionTasks.forEach((task, index) => {
@@ -242,6 +280,7 @@ export function PackingChecklistSection({ boxId }: { boxId: string }) {
         promotionCount={promotionTasks.length}
         promotionError={promotionError}
         onPromotionAccepted={acceptPromotion}
+        onVenueAccessDenied={onVenueAccessDenied}
         reanalyzing={reanalysisMutation.isPending}
         onReanalyze={() => reanalysisMutation.mutate()}
         onClose={close}
@@ -250,7 +289,7 @@ export function PackingChecklistSection({ boxId }: { boxId: string }) {
   )
 }
 
-function PackingChecklistSheet({ open, items, boxId, activeSession, promotionCount, promotionError, reanalyzing, onPromotionAccepted, onReanalyze, onClose }: {
+function PackingChecklistSheet({ open, items, boxId, activeSession, promotionCount, promotionError, reanalyzing, onPromotionAccepted, onVenueAccessDenied, onReanalyze, onClose }: {
   open: boolean
   items: PackingDetectedItem[]
   boxId: string
@@ -259,6 +298,7 @@ function PackingChecklistSheet({ open, items, boxId, activeSession, promotionCou
   promotionError: PackingTranslationError | null
   reanalyzing: boolean
   onPromotionAccepted: (item: PackingDetectedItem, promotionId: string) => void
+  onVenueAccessDenied: (error: unknown) => void
   onReanalyze: () => void
   onClose: () => void
 }) {
@@ -304,7 +344,7 @@ function PackingChecklistSheet({ open, items, boxId, activeSession, promotionCou
             {promotionCount > 0 ? <div className="flex items-center gap-3 rounded-[1.1rem] border border-brand/15 bg-brand/5 p-4" role="status"><span className="size-4 animate-pulse rounded-full bg-brand" /><p className="font-bold text-ink">{t('packing.submittedBackground', { count: promotionCount })}</p></div> : null}
             {promotionError ? <p className="rounded-[1.1rem] border border-danger/20 bg-danger/5 p-4 font-bold text-danger" role="alert">{t(promotionError.key, promotionError.params)}</p> : null}
             {hasFailure ? <div className="flex items-center justify-between gap-3 rounded-[1.1rem] border border-danger/20 bg-danger/5 p-4"><p className="font-bold text-danger">{t('packing.partialResult')}</p><button className="min-h-10 shrink-0 rounded-control bg-danger px-4 font-bold text-white" type="button" disabled={reanalyzing} onClick={onReanalyze}>{reanalyzing ? t('packing.retryingAnalysis') : t('packing.retryAnalysis')}</button></div> : null}
-            {items.length > 0 ? <div className="overflow-hidden rounded-[1.25rem] bg-surface shadow-[inset_0_0_0_1px_rgba(79,64,48,0.06)]">{items.map((item) => <ChecklistItem key={item.id} item={item} boxId={boxId} mergeTargets={items.filter((candidate) => candidate.id !== item.id)} onPromotionAccepted={onPromotionAccepted} />)}</div> : !isProcessing && !hasFailure && promotionCount === 0 ? <p className="grid min-h-48 place-content-center text-center font-semibold text-muted">{t('packing.noReviewResults')}</p> : null}
+            {items.length > 0 ? <div className="overflow-hidden rounded-[1.25rem] bg-surface shadow-[inset_0_0_0_1px_rgba(79,64,48,0.06)]">{items.map((item) => <ChecklistItem key={item.id} item={item} boxId={boxId} mergeTargets={items.filter((candidate) => candidate.id !== item.id)} onPromotionAccepted={onPromotionAccepted} onVenueAccessDenied={onVenueAccessDenied} />)}</div> : !isProcessing && !hasFailure && promotionCount === 0 ? <p className="grid min-h-48 place-content-center text-center font-semibold text-muted">{t('packing.noReviewResults')}</p> : null}
           </div>
         </div>
       </section>

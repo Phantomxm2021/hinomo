@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { activityMessage, listVenueActivity, type VenueActivityEntry } from './venue-activity.api'
+import { messages } from '../../i18n/messages'
 
 const { mockRpc } = vi.hoisted(() => ({ mockRpc: vi.fn() }))
 
@@ -10,6 +11,18 @@ const entry: VenueActivityEntry = {
   event_code: 'item_moved', entity_type: 'item', entity_id: 'item-1',
   snapshot: { entity_name: 'Lantern', from: { name: 'Hall' }, to: { name: 'Garage' }, ignored: 'never render this' },
   created_at: '2026-08-09T12:00:00.000Z',
+}
+
+function translator(locale: 'zh-CN' | 'en-US') {
+  return (key: string, params?: Record<string, string | number | boolean>) => {
+    const template = key.split('.').reduce<unknown>((value, part) => (
+      value && typeof value === 'object' ? (value as Record<string, unknown>)[part] : undefined
+    ), messages[locale])
+    if (typeof template !== 'string') return key
+    return template.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (placeholder, name: string) => (
+      params?.[name] === undefined ? placeholder : String(params[name])
+    ))
+  }
 }
 
 describe('venue activity api', () => {
@@ -44,5 +57,24 @@ describe('venue activity api', () => {
     expect(activityMessage(entry, t)).not.toContain('never render this')
     expect(activityMessage({ ...entry, event_code: 'item_deleted', snapshot: { secret: 'nope' } }, t)).toContain('venueActivity.deletedItem')
     expect(activityMessage({ ...entry, event_code: 'box_moved', snapshot: { entity_name: 'Archive', from: {}, to: {} } }, t)).toContain('venueActivity.deletedBox')
+  })
+
+  it.each([
+    ['zh-CN', 'Lin 将 Lantern 从 Hall 移出此场地', 'Lin 将 Lantern 移入此场地的 Garage'],
+    ['en-US', 'Lin moved Lantern out of this venue from Hall', 'Lin moved Lantern into this venue to Garage'],
+  ] as const)('formats cross-venue item direction in %s without a deleted endpoint', (locale, outMessage, inMessage) => {
+    const t = translator(locale)
+    expect(activityMessage({ ...entry, snapshot: { entity_name: 'Lantern', from: { name: 'Hall' }, direction: 'out' } }, t)).toBe(outMessage)
+    expect(activityMessage({ ...entry, snapshot: { entity_name: 'Lantern', to: { name: 'Garage' }, direction: 'in' } }, t)).toBe(inMessage)
+  })
+
+  it.each([
+    ['zh-CN', 'Lin 将箱子 Archive 从 Hall 移出此场地', 'Lin 将箱子 Archive 移入此场地的 Garage'],
+    ['en-US', 'Lin moved box Archive out of this venue from Hall', 'Lin moved box Archive into this venue to Garage'],
+  ] as const)('formats cross-venue box direction in %s without a deleted endpoint', (locale, outMessage, inMessage) => {
+    const t = translator(locale)
+    const boxEntry = { ...entry, event_code: 'box_moved' as const }
+    expect(activityMessage({ ...boxEntry, snapshot: { entity_name: 'Archive', from: { name: 'Hall' }, direction: 'out' } }, t)).toBe(outMessage)
+    expect(activityMessage({ ...boxEntry, snapshot: { entity_name: 'Archive', to: { name: 'Garage' }, direction: 'in' } }, t)).toBe(inMessage)
   })
 })

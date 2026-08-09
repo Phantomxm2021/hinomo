@@ -7,6 +7,8 @@ import { PackingChecklistSection } from './PackingChecklistSection'
 const mocks = vi.hoisted(() => ({
   listSessions: vi.fn(), listItems: vi.fn(), updateItem: vi.fn(), promote: vi.fn(),
   reanalyze: vi.fn(), getPhoto: vi.fn(), getPromotion: vi.fn(), mergeItems: vi.fn(),
+  getVenueAccess: vi.fn(),
+  onVenueAccessDenied: vi.fn(),
 }))
 
 vi.mock('./packing.api', () => ({
@@ -20,6 +22,7 @@ vi.mock('./packing.api', () => ({
   mergeDetectedPackingItems: mocks.mergeItems,
 }))
 vi.mock('./PackingAuthorizedImage', () => ({ PackingAuthorizedImage: ({ alt }: { alt: string }) => <span>{alt}</span> }))
+vi.mock('../venues/venue-sharing.api', () => ({ getVenueAccessSummary: mocks.getVenueAccess }))
 
 const item = {
   id: 'detected-1', session_id: 'session-1', box_id: 'box-1', analysis_revision: 1,
@@ -33,13 +36,14 @@ const item = {
 
 function renderSection() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  const result = render(<QueryClientProvider client={queryClient}><PackingChecklistSection boxId="box-1" /></QueryClientProvider>)
+  const result = render(<QueryClientProvider client={queryClient}><PackingChecklistSection boxId="box-1" venueId="venue-1" onVenueAccessDenied={mocks.onVenueAccessDenied} /></QueryClientProvider>)
   return { ...result, queryClient }
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.listSessions.mockResolvedValue([{ id: 'session-1', status: 'ready', current_revision: 1 }])
+  mocks.getVenueAccess.mockResolvedValue({ venue_id: 'venue-1', role: 'member' })
   mocks.listItems.mockResolvedValue([item])
   mocks.updateItem.mockResolvedValue(undefined)
   mocks.promote.mockResolvedValue({ id: 'promotion-1', status: 'pending' })
@@ -70,6 +74,32 @@ test('keeps secondary review actions behind a compact menu', async () => {
   await user.click(screen.getByRole('button', { name: '更多白色充电器操作' }))
   expect(screen.getByRole('button', { name: '修改' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '忽略' })).toBeInTheDocument()
+})
+
+test('preflights the active checklist poll and forwards a stable access denial', async () => {
+  const error = { code: '42501', message: 'packing session is not accessible' }
+  const { queryClient } = renderSection()
+  await screen.findByRole('button', { name: /AI 智能清单/ })
+  const completedItemReads = mocks.listItems.mock.calls.length
+
+  mocks.getVenueAccess.mockRejectedValue(error)
+  await queryClient.invalidateQueries({ queryKey: ['packing-detected-items', 'box-1'] })
+
+  await waitFor(() => expect(mocks.onVenueAccessDenied).toHaveBeenCalledWith(error))
+  expect(mocks.listItems).toHaveBeenCalledTimes(completedItemReads)
+})
+
+test('forwards inaccessible nested checklist mutations to the venue revocation handler', async () => {
+  const user = userEvent.setup()
+  const error = { code: '42501', message: 'item is not accessible' }
+  mocks.updateItem.mockRejectedValue(error)
+  renderSection()
+  await user.click(await screen.findByRole('button', { name: /AI 智能清单/ }))
+  await user.click(screen.getByRole('button', { name: '更多白色充电器操作' }))
+  await user.click(screen.getByRole('button', { name: '修改' }))
+  await user.click(screen.getByRole('button', { name: '保存修正' }))
+
+  await waitFor(() => expect(mocks.onVenueAccessDenied).toHaveBeenCalledWith(error))
 })
 
 test('lets an estimated quantity join the formal checklist in one step', async () => {

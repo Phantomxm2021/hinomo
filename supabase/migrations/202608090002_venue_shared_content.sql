@@ -99,6 +99,11 @@ for delete to authenticated using (
   )
 );
 
+-- Parent changes are workflow operations: keep ordinary item field edits
+-- compatible, but force moves through move_item so availability and movement
+-- history invariants cannot be bypassed by a direct REST PATCH.
+revoke update (box_id) on table public.items from authenticated;
+
 create function private.enforce_space_venue_owner()
 returns trigger
 language plpgsql
@@ -112,8 +117,16 @@ begin
   if target_owner is null then
     raise exception using errcode = 'P0001', message = 'venue_access_denied';
   end if;
-  if tg_op = 'UPDATE' and not public.is_venue_owner(old.venue_id)
-    and (new.venue_id is distinct from old.venue_id or new.owner_id is distinct from old.owner_id) then
+  if tg_op = 'UPDATE' and new.venue_id is distinct from old.venue_id then
+    if not public.is_venue_owner(old.venue_id) then
+      raise exception using errcode = 'P0001', message = 'venue_owner_required';
+    end if;
+    if not public.is_venue_owner(new.venue_id) then
+      raise exception using errcode = 'P0001', message = 'venue_access_denied';
+    end if;
+  end if;
+  if tg_op = 'UPDATE' and new.owner_id is distinct from old.owner_id
+    and not public.is_venue_owner(old.venue_id) then
     raise exception using errcode = 'P0001', message = 'venue_owner_required';
   end if;
   new.owner_id := target_owner;
@@ -128,6 +141,7 @@ security definer
 set search_path = pg_catalog, public
 as $$
 declare
+  old_venue_id uuid;
   target_venue_id uuid;
   target_owner uuid;
 begin
@@ -137,9 +151,19 @@ begin
   if target_owner is null or not public.can_edit_venue_content(target_venue_id) then
     raise exception using errcode = 'P0001', message = 'venue_access_denied';
   end if;
-  if tg_op = 'UPDATE' and not public.is_venue_owner((select venue_id from public.spaces where id = old.space_id))
-    and (new.space_id is distinct from old.space_id or new.owner_id is distinct from old.owner_id) then
-    raise exception using errcode = 'P0001', message = 'venue_owner_required';
+  if tg_op = 'UPDATE' then
+    select spaces.venue_id into old_venue_id from public.spaces where spaces.id = old.space_id;
+    if new.space_id is distinct from old.space_id then
+      if not public.is_venue_owner(old_venue_id) then
+        raise exception using errcode = 'P0001', message = 'venue_owner_required';
+      end if;
+      if not public.is_venue_owner(target_venue_id) then
+        raise exception using errcode = 'P0001', message = 'venue_access_denied';
+      end if;
+    end if;
+    if new.owner_id is distinct from old.owner_id and not public.is_venue_owner(old_venue_id) then
+      raise exception using errcode = 'P0001', message = 'venue_owner_required';
+    end if;
   end if;
   new.owner_id := target_owner;
   return new;
@@ -200,7 +224,8 @@ begin
     select spaces.venue_id into old_venue_id
     from public.boxes join public.spaces on spaces.id = boxes.space_id
     where boxes.id = old.box_id;
-    if not public.is_venue_owner(old_venue_id) and target_venue_id is distinct from old_venue_id then
+    if target_venue_id is distinct from old_venue_id
+      and (not public.is_venue_owner(old_venue_id) or not public.is_venue_owner(target_venue_id)) then
       raise exception using errcode = 'P0001', message = 'venue_access_denied';
     end if;
   end if;

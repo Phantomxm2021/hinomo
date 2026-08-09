@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   compress: vi.fn(),
   onClose: vi.fn(),
   onCompleted: vi.fn(),
+  onVenueAccessDenied: vi.fn(),
 }))
 
 vi.mock('../boxes/boxes.api', () => ({ getBox: mocks.getBox }))
@@ -59,7 +60,7 @@ function renderSheet() {
   return render(
     <MemoryRouter>
       <QueryClientProvider client={client}>
-        <PackingCaptureSheet boxId="box-1" onClose={mocks.onClose} onCompleted={mocks.onCompleted} />
+        <PackingCaptureSheet boxId="box-1" onClose={mocks.onClose} onCompleted={mocks.onCompleted} onVenueAccessDenied={mocks.onVenueAccessDenied} />
       </QueryClientProvider>
     </MemoryRouter>,
   )
@@ -111,6 +112,15 @@ test('starts a zero-form packing session with only capture and finish actions', 
   expect(screen.queryByRole('button', { name: '继续拍照' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: '完成' })).toBeDisabled()
   expect(screen.queryByLabelText('物品名称')).not.toBeInTheDocument()
+})
+
+test('forwards an inaccessible packing session to the venue revocation handler', async () => {
+  const error = { code: '42501', message: 'packing session is not accessible' }
+  mocks.getOrCreateSession.mockRejectedValue(error)
+
+  renderSheet()
+
+  await waitFor(() => expect(mocks.onVenueAccessDenied).toHaveBeenCalledWith(error))
 })
 
 test('launches the system rear camera and requests JPEG on a coarse pointer device', async () => {

@@ -10,7 +10,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'VITE_SUPABASE_URL=http://127.0.0.1:54321 VITE_SUPABASE_ANON_KEY=e2e-anon-key VITE_PUBLIC_APP_ORIGIN=http://127.0.0.1:4173 npm run dev -- --host 127.0.0.1 --port 4173',
+    command: 'VITE_SUPABASE_URL=http://127.0.0.1:54321 VITE_SUPABASE_ANON_KEY=e2e-anon-key VITE_PUBLIC_APP_ORIGIN=http://127.0.0.1:4173 VITE_ENABLE_VENUE_INVITES=true npm run dev -- --host 127.0.0.1 --port 4173',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
   },

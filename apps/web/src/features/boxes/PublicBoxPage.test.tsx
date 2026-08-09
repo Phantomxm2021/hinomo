@@ -40,15 +40,19 @@ vi.mock('../media/AuthorizedImage', () => ({
   ),
 }))
 vi.mock('../packing/PackingCapturePage', () => ({
-  PackingCaptureSheet: ({ onClose }: { onClose: () => void }) => (
-    <section role="dialog" aria-label="AI 装箱"><button type="button" onClick={onClose}>关闭 AI 装箱</button></section>
+  PackingCaptureSheet: ({ onClose, onVenueAccessDenied }: { onClose: () => void; onVenueAccessDenied?: (error: unknown) => void }) => (
+    <section role="dialog" aria-label="AI 装箱"><button type="button" onClick={onClose}>关闭 AI 装箱</button><button type="button" onClick={() => onVenueAccessDenied?.({ code: '42501', message: 'space is not accessible' })}>模拟装箱撤权</button></section>
+  ),
+}))
+vi.mock('../packing/PackingChecklistSection', () => ({
+  PackingChecklistSection: ({ onVenueAccessDenied }: { onVenueAccessDenied?: (error: unknown) => void }) => (
+    <button type="button" onClick={() => onVenueAccessDenied?.({ code: '42501', message: 'item is not accessible' })}>模拟清单撤权</button>
   ),
 }))
 vi.mock('../credits/credits.api', () => ({ getCreditSummary: mockGetCreditSummary }))
-vi.mock('../venues/venue-sharing.api', () => ({
+vi.mock('../venues/venue-sharing.api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../venues/venue-sharing.api')>()),
   getVenueAccessSummary: mockGetVenueAccessSummary,
-  isVenueAccessDenied: (error: unknown) => Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'venue_access_denied'),
-  revokedVenueQueryKeys: [['venues'], ['venue-access'], ['spaces'], ['boxes'], ['box'], ['items'], ['search-items'], ['item-movements'], ['venue-activity'], ['box-plan']],
 }))
 vi.mock('./EditBoxModal', () => ({
   EditBoxModal: ({ open, onClose, onBusyChange, onVenueAccessDenied }: { open: boolean; onClose: () => void; onBusyChange?: (busy: boolean) => void; onVenueAccessDenied?: (error: unknown) => void }) => open ? (
@@ -284,6 +288,40 @@ test('clears shared venue data when an ordinary box edit reports revoked access'
   await user.click(screen.getByRole('button', { name: '模拟撤权保存失败' }))
 
   await waitFor(() => expect(client.getQueryData(['boxes'])).toBeUndefined())
+})
+
+test.each([
+  ['capture', '模拟装箱撤权'],
+  ['checklist', '模拟清单撤权'],
+] as const)('%s denial callback purges packing caches and leaves no stale private box visible', async (flow, denialButton) => {
+  const user = userEvent.setup()
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client.setQueryData(['packing-session-active', 'box-1'], { id: 'stale-private-session' })
+  client.setQueryData(['packing-detected-items', 'box-1'], [{ id: 'stale-private-item' }])
+  client.setQueryData(['box-id', 'box-1'], { id: 'stale-private-box' })
+  client.setQueryData(['packing-media-url', 'private-object'], 'https://private.example/signed')
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-1', owner_id: 'owner-1', public_id: 'private-1', box_code: 'BX-00001',
+    space_id: 'space-1', venue_id: 'venue-1', name: '共享工具', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库', updated_at: '2026-07-29T10:00:00Z', items: [],
+  })
+  mockGetVenueAccessSummary.mockResolvedValue({
+    venue_id: 'venue-1', role: 'member', can_delete_box: false, can_change_box_visibility: false, can_use_ai: true,
+  })
+  renderPublicBox({ user: { id: 'member-1' } } as Session, client, '/b/private-1')
+
+  if (flow === 'capture') {
+    const desktopActions = await screen.findByTestId('desktop-box-actions')
+    await user.click(within(desktopActions).getByRole('button', { name: 'AI 装箱' }))
+  }
+  await user.click(await screen.findByRole('button', { name: denialButton }))
+
+  expect(await screen.findByRole('heading', { name: '我的空间' })).toBeInTheDocument()
+  expect(client.getQueryData(['packing-session-active', 'box-1'])).toBeUndefined()
+  expect(client.getQueryData(['packing-detected-items', 'box-1'])).toBeUndefined()
+  expect(client.getQueryData(['box-id', 'box-1'])).toBeUndefined()
+  expect(client.getQueryData(['packing-media-url', 'private-object'])).toBeUndefined()
+  expect(screen.queryByRole('heading', { name: '共享工具' })).not.toBeInTheDocument()
 })
 
 test('opens the mobile plus menu with the owner box actions', async () => {

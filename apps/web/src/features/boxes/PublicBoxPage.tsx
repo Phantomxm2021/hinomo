@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -72,13 +72,13 @@ export function PublicBoxPage() {
     enabled: Boolean(session && boxQuery.data?.venue_id),
     retry: false,
   })
-  const clearRevokedVenue = (error: unknown) => {
+  const clearRevokedVenue = useCallback((error: unknown) => {
     if (!isVenueAccessDenied(error)) return
     for (const queryKey of revokedVenueQueryKeys) {
       queryClient.removeQueries({ queryKey })
     }
     navigate('/app', { replace: true })
-  }
+  }, [navigate, queryClient])
   useEffect(() => {
     const legacyOwner = !boxQuery.data?.venue_id && session?.user.id === boxQuery.data?.owner_id
     if (searchParams.get('capture') !== '1' || !boxQuery.data || (!legacyOwner && !accessQuery.data?.can_use_ai) || !creditQuery.data) return
@@ -389,6 +389,7 @@ export function PublicBoxPage() {
       {canUseAi && showPackingCapture ? (
         <PackingCaptureSheet
           boxId={box.id}
+          onVenueAccessDenied={clearRevokedVenue}
           onClose={() => setShowPackingCapture(false)}
           onBillingBlocked={(_reason, requiredCredits) => {
             setShowPackingCapture(false)
@@ -403,7 +404,7 @@ export function PublicBoxPage() {
         />
       ) : null}
 
-      {canUseAi ? <PackingChecklistSection boxId={box.id} /> : null}
+      {canUseAi ? <PackingChecklistSection boxId={box.id} venueId={box.venue_id ?? null} onVenueAccessDenied={clearRevokedVenue} /> : null}
 
       <section className="grid gap-3" aria-labelledby="box-items-heading">
         <div className="flex items-end justify-between gap-4">

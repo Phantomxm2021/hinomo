@@ -256,12 +256,12 @@ on table public.boxes to authenticated;
 ```text
 202608090001 → 002 → 003 → 004 → 005
 → npm run test:db
-→ Web frontend
-→ internal invite smoke test
-→ enable family invite entry
+→ production Web frontend (`VITE_ENABLE_VENUE_INVITES=false`)
+→ staging/preview invite smoke test (`VITE_ENABLE_VENUE_INVITES=true`)
+→ production Web frontend redeploy (`VITE_ENABLE_VENUE_INVITES=true`)
 ```
 
-其中 001 是成员与邀请权限，002 是共享内容与所有者箱子额度，003 是共享工作流，004 是共享 packing 权限，005 是活动流。先让新后端完整可用，再发布 Web 前端；邀请入口在内部冒烟通过前保持关闭。健康检查和运营查询只能由受控 SQL Editor 执行，查询结果不得复制邀请 token、access token、service role key、家庭内容或图片 URL。
+其中 001 是成员与邀请权限，002 是共享内容与所有者箱子额度，003 是共享工作流，004 是共享 packing 权限，005 是活动流。先让新后端完整可用，再发布 Web 前端。`VITE_ENABLE_VENUE_INVITES` 是构建时 kill switch：值不严格等于 `true` 时，成员页不会请求、创建、显示或撤销邀请；接受已有邀请的 token 路由保持可用。内部邀请冒烟必须在同一提交的 staging/preview 构建中把该变量设为 `true`，通过后才把生产变量改为 `true` 并重新构建、发布；仅修改变量而不重新部署不会改变已发布 bundle。健康检查和运营查询只能由受控 SQL Editor 执行，查询结果不得复制邀请 token、access token、service role key、家庭内容或图片 URL。
 
 ```sql
 -- 成员数不能超过所有者加四位成员。
@@ -332,7 +332,21 @@ order by count desc, most_recent desc;
 
 ### 向前回滚
 
-家庭共享回滚只允许关闭前端的家庭邀请入口，并在需要时提交一份经评审的 **forward migration** 来收紧新增共享写入。保留 `venue_members`、`venue_invites`、活动、packing 和审计表及全部数据；不得 `DROP` 表/函数、删除成员历史或反向执行 001–005。修复后重新部署兼容前端、执行 `npm run test:db`、内部邀请冒烟和本节 Test Mode 清单，再重新开启入口。
+家庭共享回滚先把生产 `VITE_ENABLE_VENUE_INVITES` 改为 `false`，重新构建并发布前端，以关闭邀请列表、创建和撤销入口。若旧 bundle 仍在流量中且必须立即阻断新邀请，提交一份经评审的 **forward migration**：
+
+```sql
+revoke execute on function public.create_venue_invite(uuid) from authenticated;
+notify pgrst, 'reload schema';
+```
+
+恢复时使用另一份经评审的 forward migration：
+
+```sql
+grant execute on function public.create_venue_invite(uuid) to authenticated;
+notify pgrst, 'reload schema';
+```
+
+保留接受已有 token 的路由以及 `venue_members`、`venue_invites`、活动、packing 和审计表及全部数据；不得 `DROP` 表/函数、删除成员历史或反向执行 001–005。修复后重新部署兼容前端、执行 `npm run test:db`、在 flag 为 `true` 的 staging/preview 完成内部邀请冒烟和本节 Test Mode 清单，再重新开启生产入口。
 
 ## Cloudflare R2
 
@@ -346,7 +360,7 @@ order by count desc, most_recent desc;
 - Root directory：`/`
 - Build command：`npm run build --workspace @nomo/web`
 - Output directory：`apps/web/dist`
-- Variables：`VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY`、`VITE_PUBLIC_APP_ORIGIN`
+- Variables：`VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY`、`VITE_PUBLIC_APP_ORIGIN`、`VITE_ENABLE_VENUE_INVITES`（生产首次发布和回滚时为 `false`；冒烟通过后的生产构建为 `true`）
 - SPA fallback：根目录 `wrangler.jsonc` 的 `assets.not_found_handling = "single-page-application"`
 
 ## 物品流转发布顺序
