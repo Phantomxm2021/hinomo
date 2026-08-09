@@ -24,7 +24,7 @@ describe('message catalog', () => {
     expect(messages['en-US'].boxes.purchaseDelayed).toBe('Payment status is still being confirmed. Please check again later.')
   })
 
-  test('explains that shared-venue members need the owner to unlock more boxes', () => {
+test('explains that shared-venue members need the owner to unlock more boxes', () => {
     expect(messages['zh-CN'].boxes.contactVenueOwner).toBe('请联系场所所有者解锁')
     expect(messages['en-US'].boxes.contactVenueOwner).toContain('venue owner')
   })
@@ -75,4 +75,14 @@ describe('message catalog', () => {
     expect(parseLocale('')).toBe('zh-CN')
     expect(parseLocale(null)).toBe('zh-CN')
   })
+})
+
+test('provides bilingual Apple alert copy for normalized operation failures', () => {
+  expect(messages['zh-CN'].common.operationFailed).toBe('操作未完成')
+  expect(messages['zh-CN'].common.networkError).toContain('网络')
+  expect(messages['en-US'].common.operationFailed).toBe('Action couldn’t be completed')
+  expect(messages['en-US'].common.permissionDenied).toContain('permission')
+  expect(messages['en-US'].common.ownerRequired).toContain('venue owner')
+  expect(messages['zh-CN'].venueSharing.inviteExpired).toContain('过期')
+  expect(messages['en-US'].venueSharing.inviteRevoked).toContain('revoked')
 })

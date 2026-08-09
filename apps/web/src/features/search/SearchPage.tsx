@@ -163,10 +163,10 @@ export function SearchPage() {
       ) : null}
       {bothInitialError ? <PageState state="error" message={t('search.error')} onRetry={() => void Promise.all([boxesQuery.refetch(), resultsQuery.refetch()])} /> : null}
       {!bothInitialError && boxesQuery.isError ? (
-        <ResponsiveOperationError message={boxesInitialError ? t('search.boxesErrorInitial') : t('search.boxesErrorRefresh')} busy={boxesQuery.isFetching} onRetry={() => void boxesQuery.refetch()} />
+        <ResponsiveOperationError message={boxesInitialError ? t('search.boxesErrorInitial') : t('search.boxesErrorRefresh')} error={boxesQuery.error} busy={boxesQuery.isFetching} onRetry={() => void boxesQuery.refetch()} />
       ) : null}
       {!bothInitialError && resultsQuery.isError ? (
-        <ResponsiveOperationError message={itemsInitialError ? t('search.itemsErrorInitial') : t('search.itemsErrorRefresh')} busy={resultsQuery.isFetching} onRetry={() => void resultsQuery.refetch()} />
+        <ResponsiveOperationError message={itemsInitialError ? t('search.itemsErrorInitial') : t('search.itemsErrorRefresh')} error={resultsQuery.error} busy={resultsQuery.isFetching} onRetry={() => void resultsQuery.refetch()} />
       ) : null}
 
       {!isLoading && !boxesInitialError && matchingBoxes.length > 0 ? (

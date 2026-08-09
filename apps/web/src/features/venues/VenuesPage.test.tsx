@@ -3,6 +3,7 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { VenuesPage } from './VenuesPage'
 
 const { mockListVenues, mockCreateVenue, mockUpdateVenue, mockDeleteVenue, mockCreateInvite } = vi.hoisted(() => ({
@@ -89,7 +90,7 @@ test('lists venues and opens creation and editing from the dedicated page', asyn
 test('owner can invite family directly from the venue card without opening the editor', async () => {
   const user = userEvent.setup()
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(<MemoryRouter><QueryClientProvider client={client}><VenuesPage /></QueryClientProvider></MemoryRouter>)
+  render(<MobileFeedbackProvider><MemoryRouter><QueryClientProvider client={client}><VenuesPage /></QueryClientProvider></MemoryRouter></MobileFeedbackProvider>)
 
   const card = await screen.findByTestId('venue-card-home')
   await user.click(within(card).getByRole('button', { name: '管理场地家里' }))
@@ -110,14 +111,14 @@ test('explains when members or unused invitations have reserved all family seats
   const user = userEvent.setup()
   mockCreateInvite.mockRejectedValue(Object.assign(new Error('venue_member_limit_reached'), { code: 'venue_member_limit_reached' }))
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(<MemoryRouter><QueryClientProvider client={client}><VenuesPage /></QueryClientProvider></MemoryRouter>)
+  render(<MobileFeedbackProvider><MemoryRouter><QueryClientProvider client={client}><VenuesPage /></QueryClientProvider></MemoryRouter></MobileFeedbackProvider>)
 
   const card = await screen.findByTestId('venue-card-home')
   await user.click(within(card).getByRole('button', { name: '管理场地家里' }))
   await user.click(within(screen.getByRole('menu', { name: '家里场地操作' })).getByRole('menuitem', { name: '邀请家人' }))
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('成员名额已满')
-  expect(screen.getByRole('alert')).toHaveTextContent('未使用邀请')
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('成员名额已满')
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('未使用邀请')
 })
 
 test('shows the invite action with a clear disabled explanation when rollout is off', async () => {

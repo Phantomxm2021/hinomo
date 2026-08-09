@@ -436,7 +436,7 @@ export function BoxesPage() {
       ) : null}
       {catalogueError && !hasCatalogueData ? <PageState state="error" message={t('boxes.loadError')} onRetry={() => { void boxesQuery.refetch(); void venuesQuery.refetch() }} /> : null}
       {catalogueError && hasCatalogueData ? (
-        <ResponsiveOperationError message={t('boxes.refreshError')} busy={boxesQuery.isFetching || venuesQuery.isFetching} onRetry={() => { void boxesQuery.refetch(); void venuesQuery.refetch() }} />
+        <ResponsiveOperationError message={t('boxes.refreshError')} error={boxesQuery.error ?? venuesQuery.error} busy={boxesQuery.isFetching || venuesQuery.isFetching} onRetry={() => { void boxesQuery.refetch(); void venuesQuery.refetch() }} />
       ) : null}
       {hasCatalogueData && boxes.length > 0 ? (
         <div className="flex min-w-0 items-center gap-3">
@@ -550,6 +550,7 @@ export function BoxesPage() {
       {checkoutMutation.isError && errorCode(checkoutMutation.error) !== 'entitlement_already_owned' ? (
         <ResponsiveOperationError
           message={t('boxes.billingUnavailable')}
+          error={checkoutMutation.error}
           busy={checkoutMutation.isPending}
           onRetry={() => checkoutMutation.mutate()}
         />

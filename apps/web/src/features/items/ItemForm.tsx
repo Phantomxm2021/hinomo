@@ -240,7 +240,7 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChang
         <label className="font-bold text-ink" htmlFor="item-description">{t('itemForm.descriptionOptional')}</label>
         <textarea className="w-full rounded-control border border-line bg-canvas px-3 py-3 text-ink focus:border-brand" id="item-description" rows={3} {...register('description')} />
       </div>
-      {mutation.isError ? <ResponsiveOperationError message={t('itemForm.saveError')} /> : null}
+      {mutation.isError ? <ResponsiveOperationError message={t('itemForm.saveError')} error={mutation.error} /> : null}
       {mediaStatus ? <p className="hidden lg:block" role="status">{t('boxes.mediaProcessing', { status: t(mediaStatus) })}</p> : null}
       {mediaError ? (
         <div className="hidden gap-3 rounded-control border border-danger/30 bg-danger/5 p-4 lg:grid" role="alert">

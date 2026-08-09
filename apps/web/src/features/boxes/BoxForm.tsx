@@ -237,10 +237,10 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimi
         </header>
       ) : null}
       {spacesQuery.isError ? (
-        <ResponsiveOperationError message={t('boxes.spaceRefreshError')} busy={spacesQuery.isFetching} onRetry={() => void spacesQuery.refetch()} />
+        <ResponsiveOperationError message={t('boxes.spaceRefreshError')} error={spacesQuery.error} busy={spacesQuery.isFetching} onRetry={() => void spacesQuery.refetch()} />
       ) : null}
       {editing && boxQuery.isError ? (
-        <ResponsiveOperationError message={t('boxes.refreshContentError')} busy={boxQuery.isFetching} onRetry={() => void boxQuery.refetch()} />
+        <ResponsiveOperationError message={t('boxes.refreshContentError')} error={boxQuery.error} busy={boxQuery.isFetching} onRetry={() => void boxQuery.refetch()} />
       ) : null}
       <form className={`grid gap-3 [&_label]:font-bold [&_label]:text-ink ${presentation === 'page' ? 'rounded-shell border border-line bg-surface p-5 md:p-6' : ''}`} onSubmit={submit} noValidate>
         <label htmlFor="box-space">{t('spaces.title')}</label>
@@ -303,7 +303,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimi
         </div>
 
         {(createMutation.isError && !isBoxLimitReached(createMutation.error)) || updateMutation.isError ? (
-          <ResponsiveOperationError message={t('boxes.saveError')} />
+          <ResponsiveOperationError message={t('boxes.saveError')} error={createMutation.error ?? updateMutation.error} />
         ) : null}
         {saved ? <p className="hidden lg:block" role="status">{t('boxes.saved')}</p> : null}
         {mediaStatus ? <p className="hidden lg:block" role="status">{t('boxes.mediaProcessing', { status: t(mediaStatus) })}</p> : null}

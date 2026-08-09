@@ -270,7 +270,7 @@ export function PublicBoxPage() {
         </div>
       </nav>
       {boxQuery.isError ? (
-        <ResponsiveOperationError message={t('boxes.detailRefreshError')} busy={boxQuery.isFetching} onRetry={() => void boxQuery.refetch()} />
+        <ResponsiveOperationError message={t('boxes.detailRefreshError')} error={boxQuery.error} busy={boxQuery.isFetching} onRetry={() => void boxQuery.refetch()} />
       ) : null}
       <section data-testid="box-summary" className="hidden gap-4 border-0 bg-transparent p-0 lg:grid lg:grid-cols-[minmax(16rem,0.8fr)_1.2fr] lg:gap-6 lg:rounded-shell lg:border lg:border-line lg:bg-surface lg:p-5">
         <div data-testid="box-cover" className="hidden aspect-[4/3] min-h-0 overflow-hidden rounded-[1.5rem] bg-placeholder lg:block lg:min-h-56 lg:rounded-card">
@@ -325,9 +325,9 @@ export function PublicBoxPage() {
           onRetry={printError.requiresReload ? () => window.location.reload() : () => void printLabel()}
         />
       ) : null}
-      {movementMutation.isError ? <ResponsiveOperationError message={t('boxes.movementError')} /> : null}
-      {targetBoxesQuery.isError ? <ResponsiveOperationError message={t('boxes.targetBoxesError')} busy={targetBoxesQuery.isFetching} onRetry={() => void targetBoxesQuery.refetch()} /> : null}
-      {movementHistoryQuery.isError ? <ResponsiveOperationError message={t('boxes.historyError')} busy={movementHistoryQuery.isFetching} onRetry={() => void movementHistoryQuery.refetch()} /> : null}
+      {movementMutation.isError ? <ResponsiveOperationError message={t('boxes.movementError')} error={movementMutation.error} /> : null}
+      {targetBoxesQuery.isError ? <ResponsiveOperationError message={t('boxes.targetBoxesError')} error={targetBoxesQuery.error} busy={targetBoxesQuery.isFetching} onRetry={() => void targetBoxesQuery.refetch()} /> : null}
+      {movementHistoryQuery.isError ? <ResponsiveOperationError message={t('boxes.historyError')} error={movementHistoryQuery.error} busy={movementHistoryQuery.isFetching} onRetry={() => void movementHistoryQuery.refetch()} /> : null}
 
       <MobileActionSheet
         open={canEditContent && showMobileActions}

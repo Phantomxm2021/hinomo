@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { AppIcon } from '../../components/AppIcon'
+import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { useI18n } from '../../i18n/I18nProvider'
 import { createVenueSchema } from './venue.schema'
 import type { VenueInput, VenueSummary } from './venues.api'
@@ -68,7 +69,7 @@ export function VenueEditorDialog({ open, venue, pending, error, onClose, onSubm
           <label className="font-bold" htmlFor="venue-description">{t('venues.descriptionOptional')}</label>
           <textarea className="min-h-24 resize-y rounded-control border border-line bg-surface px-3 py-2" id="venue-description" value={description} readOnly={pending} onChange={(event) => setDescription(event.target.value)} />
           {validationError ? <p className="text-danger" role="alert">{t(validationError.key, validationError.params)}</p> : null}
-          {error ? <p className="text-danger" role="alert">{t('venues.saveError')}</p> : null}
+          {error ? <ResponsiveOperationError message={t('venues.saveError')} /> : null}
           {defaultVenue ? <p className="text-sm text-muted">{t('venues.defaultHint')}</p> : null}
           {venue && venue.space_count > 0 ? <p className="text-sm text-muted">{t('venues.deleteBlocked', { count: venue.space_count })}</p> : null}
           <div className="mt-3 flex flex-wrap justify-end gap-2">

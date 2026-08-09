@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { I18nProvider } from '../../i18n/I18nProvider'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { VenueMembersPage } from './VenueMembersPage'
 
 const mocks = vi.hoisted(() => ({
@@ -30,9 +31,9 @@ vi.mock('./VenueInviteDialog', () => ({
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
-    <I18nProvider><QueryClientProvider client={client}><MemoryRouter initialEntries={['/app/venues/home/members']}>
+    <I18nProvider><MobileFeedbackProvider><QueryClientProvider client={client}><MemoryRouter initialEntries={['/app/venues/home/members']}>
       <Routes><Route path="/app/venues/:venueId/members" element={<VenueMembersPage />} /><Route path="/app" element={<p>首页</p>} /></Routes>
-    </MemoryRouter></QueryClientProvider></I18nProvider>,
+    </MemoryRouter></QueryClientProvider></MobileFeedbackProvider></I18nProvider>,
   )
   return client
 }
@@ -121,8 +122,8 @@ test('explains when invitation seats are reserved by members or unused invitatio
   renderPage()
 
   await user.click(await screen.findByRole('button', { name: '创建邀请' }))
-  expect(await screen.findByRole('alert')).toHaveTextContent('成员名额已满')
-  expect(screen.getByRole('alert')).toHaveTextContent('未使用邀请')
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('成员名额已满')
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('未使用邀请')
 })
 
 test('keeps invite creation closed when the deploy-time kill switch is disabled', async () => {

@@ -3,6 +3,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { MobileFeedbackProvider } from './MobileFeedbackProvider'
 import { ResponsiveOperationError } from './ResponsiveOperationError'
 import { useMobileFeedback } from './mobile-feedback'
+import { I18nProvider } from '../i18n/I18nProvider'
 
 afterEach(cleanup)
 
@@ -101,4 +102,18 @@ test('unmounting an operation error cannot dismiss another owner’s alert', () 
     </MobileFeedbackProvider>,
   )
   expect(screen.getByRole('alertdialog', { name: '独立错误' })).toBeInTheDocument()
+})
+
+test('normalizes a backend operation error into a shared Apple alert', () => {
+  render(
+    <I18nProvider>
+      <MobileFeedbackProvider>
+        <ResponsiveOperationError message="创建邀请失败" error={{ details: { code: 'venue_member_limit_reached' } }} />
+      </MobileFeedbackProvider>
+    </I18nProvider>,
+  )
+
+  const dialog = screen.getByRole('alertdialog', { name: '操作未完成' })
+  expect(dialog).toHaveTextContent('成员名额已满；未使用邀请也会占用名额')
+  expect(dialog).not.toHaveTextContent('创建邀请失败')
 })

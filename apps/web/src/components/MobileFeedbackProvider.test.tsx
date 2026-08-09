@@ -23,6 +23,7 @@ function Harness() {
       <button type="button" onClick={() => feedback.showActionSheet({ title: '图片上传失败', actions: [{ label: '重试上传', onSelect: vi.fn() }, { label: '暂不上传', onSelect: vi.fn() }] })}>操作</button>
       <button type="button" onClick={() => feedback.error({ key: 'boxes.refresh', title: '无法加载箱子', message: '请检查网络', retry: vi.fn() })}>全局错误</button>
       <button type="button" onClick={() => feedback.error({ key: 'boxes.refresh', title: '无法加载箱子', message: '请检查网络', retry: vi.fn() })}>重复错误</button>
+      <button type="button" onClick={() => feedback.error({ key: 'spaces.save', title: '无法保存空间', message: '请稍后重试' })}>空间错误</button>
       <button type="button" onClick={() => feedback.confirm({ title: '删除箱子', message: '此操作无法撤销', primaryLabel: '删除', cancelLabel: '取消', onPrimary: vi.fn() })}>确认操作</button>
       <button type="button" onClick={() => feedback.confirm({ title: '异步失败', primaryLabel: '提交', cancelLabel: '取消', onPrimary: () => Promise.reject(new Error('primary failed')), onActionError: vi.fn() })}>异步主操作</button>
       <button type="button" onClick={() => feedback.confirm({ title: '异步取消失败', primaryLabel: '提交', cancelLabel: '取消', onCancel: () => Promise.reject(new Error('cancel failed')), onActionError: vi.fn() })}>异步取消</button>
@@ -84,6 +85,16 @@ test('replaces an identical global error instead of stacking alert dialogs', () 
   fireEvent.click(screen.getByRole('button', { name: '重复错误' }))
 
   expect(screen.getAllByRole('alertdialog')).toHaveLength(1)
+})
+
+test('replaces a previous feature error with the latest feature error', () => {
+  render(<MobileFeedbackProvider><Harness /></MobileFeedbackProvider>)
+  fireEvent.click(screen.getByRole('button', { name: '全局错误' }))
+  fireEvent.click(screen.getByRole('button', { name: '空间错误' }))
+
+  expect(screen.getAllByRole('alertdialog')).toHaveLength(1)
+  expect(screen.getByRole('alertdialog', { name: '无法保存空间' })).toHaveTextContent('请稍后重试')
+  expect(screen.queryByRole('alertdialog', { name: '无法加载箱子' })).not.toBeInTheDocument()
 })
 
 test('supports cancel and primary actions through the shared confirmation alert', () => {

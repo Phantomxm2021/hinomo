@@ -42,3 +42,27 @@ test('normalizes permission, network, and unknown errors to stable message keys'
     retryable: false,
   })
 })
+
+test('recognizes venue access and owner errors from nested details without leaking backend text', () => {
+  expect(classifyFeedbackError({ details: { cause: { code: 'venue_access_denied', message: 'policy denied' } } })).toEqual({
+    titleKey: 'common.operationFailed',
+    messageKey: 'common.permissionDenied',
+    retryable: false,
+  })
+  expect(classifyFeedbackError({ message: 'venue_owner_required' })).toEqual({
+    titleKey: 'common.operationFailed',
+    messageKey: 'common.ownerRequired',
+    retryable: false,
+  })
+})
+
+test('handles cyclic backend errors safely while still finding a known code', () => {
+  const error: { message: string; cause?: unknown } = { message: 'raw backend text' }
+  error.cause = { details: { code: 'venue_invite_revoked' }, cause: error }
+
+  expect(classifyFeedbackError(error)).toEqual({
+    titleKey: 'common.operationFailed',
+    messageKey: 'venueSharing.inviteRevoked',
+    retryable: false,
+  })
+})

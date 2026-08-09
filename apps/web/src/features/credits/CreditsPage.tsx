@@ -71,7 +71,7 @@ export function CreditsPage() {
           </div>
         </section>
       </> : null}
-      {checkoutMutation.isError ? <ResponsiveOperationError message={t('credits.paymentFailed')} /> : null}
+      {checkoutMutation.isError ? <ResponsiveOperationError message={t('credits.paymentFailed')} error={checkoutMutation.error} /> : null}
       <p className="px-4 text-center text-xs leading-5 text-muted">{t('credits.legal')}</p>
     </section>
   )

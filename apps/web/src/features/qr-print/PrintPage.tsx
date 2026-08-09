@@ -229,7 +229,7 @@ export function PrintPage() {
       </header>
 
       {boxesQuery.isError && boxesQuery.data !== undefined ? (
-        <ResponsiveOperationError message={t('print.refreshError')} busy={boxesQuery.isFetching} onRetry={() => void boxesQuery.refetch()} />
+        <ResponsiveOperationError message={t('print.refreshError')} error={boxesQuery.error} busy={boxesQuery.isFetching} onRetry={() => void boxesQuery.refetch()} />
       ) : null}
       {content}
       {progress ? (

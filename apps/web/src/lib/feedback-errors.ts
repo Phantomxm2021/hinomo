@@ -10,6 +10,8 @@ const knownMessages: Record<string, Omit<FeedbackErrorClassification, 'titleKey'
   venue_invite_revoked: { messageKey: 'venueSharing.inviteRevoked', retryable: false },
   venue_invite_missing: { messageKey: 'venueSharing.inviteNotFound', retryable: false },
   venue_invite_not_found: { messageKey: 'venueSharing.inviteNotFound', retryable: false },
+  venue_access_denied: { messageKey: 'common.permissionDenied', retryable: false },
+  venue_owner_required: { messageKey: 'common.ownerRequired', retryable: false },
   '42501': { messageKey: 'common.permissionDenied', retryable: false },
 }
 

@@ -461,7 +461,7 @@ export function SpacesPage() {
               />
               {errors.description ? <p id="space-description-error" role="alert">{errors.description.message}</p> : null}
               {createMutation.isError || updateMutation.isError ? (
-                <ResponsiveOperationError message={t('spaces.saveError')} />
+                <ResponsiveOperationError message={t('spaces.saveError')} error={createMutation.error ?? updateMutation.error} />
               ) : null}
               {editorPending ? (
                 <p className="hidden lg:block" role="status" aria-live="polite">{t('spaces.saving')}</p>
@@ -498,7 +498,7 @@ export function SpacesPage() {
         : null}
 
       {blockedMessage ? <ResponsiveOperationError message={blockedMessage} /> : null}
-      {deleteMutation.isError ? <ResponsiveOperationError message={t('spaces.deleteError')} /> : null}
+      {deleteMutation.isError ? <ResponsiveOperationError message={t('spaces.deleteError')} error={deleteMutation.error} /> : null}
       {spacesQuery.isPending && spacesQuery.data === undefined ? (
         <SkeletonGroup className="grid gap-5" label={t('spaces.loading')}>
           <div className="flex items-center justify-between gap-3">
@@ -550,10 +550,11 @@ export function SpacesPage() {
           </div>
           {view === 'plan' && layoutEditMode ? <p className="text-meta text-muted" role="status">{t('spaces.layoutInstructions')}{layoutsQuery.isSuccess ? t('spaces.layoutAutoSaved') : t('spaces.layoutLocalOnly')}</p> : null}
           {view === 'plan' && layoutStorageUnavailable ? <ResponsiveOperationError message={t('spaces.layoutMigration')} /> : null}
-          {view === 'plan' && layoutsQuery.isError && !layoutStorageUnavailable ? <ResponsiveOperationError message={t('spaces.layoutLoadError')} busy={layoutsQuery.isFetching} retryLabel={t('spaces.retryLayout')} onRetry={() => void layoutsQuery.refetch()} /> : null}
+          {view === 'plan' && layoutsQuery.isError && !layoutStorageUnavailable ? <ResponsiveOperationError message={t('spaces.layoutLoadError')} error={layoutsQuery.error} busy={layoutsQuery.isFetching} retryLabel={t('spaces.retryLayout')} onRetry={() => void layoutsQuery.refetch()} /> : null}
           {layoutMutation.isError ? (
             <ResponsiveOperationError
               message={t('spaces.layoutSaveError')}
+              error={layoutMutation.error}
               busy={layoutMutation.isPending}
               retryLabel={t('spaces.retryLayoutSave')}
               onRetry={layoutMutation.variables ? () => layoutMutation.mutate(layoutMutation.variables!) : undefined}

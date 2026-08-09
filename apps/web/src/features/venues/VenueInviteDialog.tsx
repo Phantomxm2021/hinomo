@@ -1,7 +1,9 @@
 import QRCode from 'qrcode'
 import { useEffect, useMemo, useState } from 'react'
 import { ResponsiveEditorDialog } from '../../components/ResponsiveEditorDialog'
+import { useMobileFeedback } from '../../components/mobile-feedback'
 import { useI18n } from '../../i18n/I18nProvider'
+import { classifyFeedbackError } from '../../lib/feedback-errors'
 import { publicAppOrigin } from '../../lib/env'
 import { revokeVenueInvite } from './venue-sharing.api'
 
@@ -14,32 +16,35 @@ export type VenueInviteDialogProps = {
 
 export function VenueInviteDialog({ open, invite, onClose }: VenueInviteDialogProps) {
   const { t } = useI18n()
+  const feedback = useMobileFeedback()
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [error, setError] = useState(false)
   const inviteUrl = useMemo(() => invite ? `${publicAppOrigin().replace(/\/+$/, '')}/join/venue#token=${invite.token}` : null, [invite])
 
   useEffect(() => {
     let active = true
     setQrDataUrl(null)
     setCopied(false)
-    setError(false)
     if (!open || !inviteUrl) return () => { active = false }
     void QRCode.toDataURL(inviteUrl, { errorCorrectionLevel: 'M', margin: 2, width: 1024 })
       .then((dataUrl) => { if (active) setQrDataUrl(dataUrl) })
-      .catch(() => { if (active) setError(true) })
+      .catch((error) => {
+        if (!active) return
+        const classification = classifyFeedbackError(error)
+        feedback.error({ key: 'venue.invite.qr', title: t(classification.titleKey), message: t(classification.messageKey) })
+      })
     return () => { active = false }
-  }, [inviteUrl, open])
+  }, [feedback, inviteUrl, open, t])
 
   async function copy() {
     if (!inviteUrl || busy) return
-    setError(false)
     try {
       await window.navigator.clipboard.writeText(inviteUrl)
       setCopied(true)
-    } catch {
-      setError(true)
+    } catch (error) {
+      const classification = classifyFeedbackError(error)
+      feedback.error({ key: 'venue.invite.copy', title: t(classification.titleKey), message: t(classification.messageKey) })
     }
   }
 
@@ -49,7 +54,6 @@ export function VenueInviteDialog({ open, invite, onClose }: VenueInviteDialogPr
       await copy()
       return
     }
-    setError(false)
     try {
       await window.navigator.share({ title: t('venueSharing.shareTitle'), text: t('venueSharing.shareText'), url: inviteUrl })
     } catch {
@@ -60,12 +64,12 @@ export function VenueInviteDialog({ open, invite, onClose }: VenueInviteDialogPr
   async function revoke() {
     if (!invite || busy) return
     setBusy(true)
-    setError(false)
     try {
       await revokeVenueInvite(invite.invite_id)
       onClose()
-    } catch {
-      setError(true)
+    } catch (error) {
+      const classification = classifyFeedbackError(error)
+      feedback.error({ key: `venue.invite.revoke:${invite.invite_id}`, title: t(classification.titleKey), message: t(classification.messageKey) })
     } finally {
       setBusy(false)
     }
@@ -86,7 +90,6 @@ export function VenueInviteDialog({ open, invite, onClose }: VenueInviteDialogPr
           <p className="m-0 text-xs leading-5 text-muted">{t('venueSharing.revokeHint')}</p>
           <button className="min-h-11 justify-self-end rounded-control px-3 font-bold text-danger transition hover:bg-danger/5 disabled:opacity-50" type="button" disabled={busy || !invite} onClick={() => void revoke()}>{busy ? t('venueSharing.revoking') : t('venueSharing.revoke')}</button>
         </div>
-        {error ? <p className="m-0 text-sm text-danger" role="alert">{t('venueSharing.actionError')}</p> : null}
       </div>
     </ResponsiveEditorDialog>
   )
