@@ -4,6 +4,7 @@ import { createBox, createMockState, createSpace, installMockBackend, register }
 
 const OWNER_ID = '11111111-1111-4111-8111-111111111111'
 const MEMBER_ID = '22222222-2222-4222-8222-222222222222'
+const zxingBrowserScript = new URL('../../../node_modules/@zxing/browser/umd/zxing-browser.min.js', import.meta.url)
 
 async function createInviteFromVenueCard(page: Parameters<typeof installMockBackend>[0], rapid = false) {
   await page.goto('/app/venues')
@@ -77,6 +78,18 @@ test('venue card keeps one latest reusable QR, invalidates its prior token, and 
   const latestQrSrc = await latestDialog.getByAltText('场地邀请二维码').getAttribute('src')
   expect(latestQrSrc).toBeTruthy()
   expect(latestQrSrc).not.toBe(firstQrSrc)
+  await page.addScriptTag({ path: zxingBrowserScript.pathname })
+  const latestQrPayload = await page.evaluate(async (source) => {
+    type DecodedResult = { getText: () => string }
+    type QrReader = { decodeFromImageElement: (image: HTMLImageElement) => Promise<DecodedResult> }
+    type ZxingWindow = typeof window & { ZXingBrowser: { BrowserQRCodeReader: new () => QrReader } }
+    const image = new Image()
+    image.src = source
+    await image.decode()
+    const reader = new (window as ZxingWindow).ZXingBrowser.BrowserQRCodeReader()
+    return (await reader.decodeFromImageElement(image)).getText()
+  }, latestQrSrc!)
+  expect(latestQrPayload).toBe(`http://127.0.0.1:4173/join/venue#token=${latest!.token}`)
   expect(state.invites.filter((invite) => invite.revokedAt === null && invite.expiresAt > new Date().toISOString())).toHaveLength(1)
 
   const staleContext = await browser.newContext()
