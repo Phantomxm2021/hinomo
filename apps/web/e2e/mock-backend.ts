@@ -39,8 +39,15 @@ type CreditSummary = {
 
 type VenueMember = { venue_id: string; user_id: string; invited_by: string | null; joined_at: string }
 type VenueInvite = {
-  id: string; venue_id: string; created_by: string; token: string; created_at: string; expires_at: string
-  accepted_by: string | null; accepted_at: string | null; revoked_at: string | null
+  id: string
+  venue_id: string
+  created_by: string
+  token: string
+  createdAt: string
+  expiresAt: string
+  reusable: boolean
+  revokedAt: string | null
+  acceptedUserIds: string[]
 }
 type VenueActivity = {
   id: string; venue_id: string; actor_id: string | null; event_code: 'item_created' | 'item_moved' | 'item_quantity_changed' | 'item_deleted' | 'box_moved'
@@ -57,6 +64,8 @@ export type MockState = {
   profiles: Profile[]
   members: VenueMember[]
   invites: VenueInvite[]
+  inviteCreateRequests: number
+  authUserIds: Record<string, string>
   activity: VenueActivity[]
   packingSessions: PackingSession[]
   boxPlan: BoxPlan
@@ -77,6 +86,8 @@ export const createMockState = ({ boxCount = 0, unlimitedBoxes = false }: {
   profiles: [],
   members: [],
   invites: [],
+  inviteCreateRequests: 0,
+  authUserIds: {},
   activity: [],
   packingSessions: [],
   boxPlan: {
@@ -119,6 +130,7 @@ function eqValue(url: URL, field: string) {
 
 export async function installMockBackend(page: Page, state: MockState) {
   let currentUserId: string | null = null
+  let currentUserEmail: string | null = null
   const now = () => new Date().toISOString()
   const error = (route: Route, code: string, status = 400) => json(route, { code: 'P0001', message: code, details: null, hint: null }, status)
   const venueForSpace = (spaceId: string) => state.spaces.find((space) => space.id === spaceId)?.venue_id
@@ -131,6 +143,25 @@ export async function installMockBackend(page: Page, state: MockState) {
     venueId && userId && state.venues.some((venue) => venue.id === venueId && venue.owner_id === userId),
   )
   const creditSummaryFor = (userId: string) => state.creditSummaries[userId] ?? state.creditSummary
+  const userIdForEmail = (email: string) => {
+    const normalizedEmail = email.trim().toLowerCase()
+    const existing = state.authUserIds[normalizedEmail]
+    if (existing) return existing
+    const userId = normalizedEmail === 'owner@example.com'
+      ? '11111111-1111-4111-8111-111111111111'
+      : normalizedEmail === 'other@example.com'
+        ? '22222222-2222-4222-8222-222222222222'
+        : `00000000-0000-4000-8000-${String(Object.keys(state.authUserIds).length + 1).padStart(12, '0')}`
+    state.authUserIds[normalizedEmail] = userId
+    return userId
+  }
+  const inviteStatus = (invite: VenueInvite) => {
+    if (invite.revokedAt) return 'revoked'
+    if (!invite.reusable && invite.acceptedUserIds.length > 0) return 'used'
+    if (invite.expiresAt <= now()) return 'expired'
+    if (1 + state.members.filter((member) => member.venue_id === invite.venue_id).length >= 5) return 'full'
+    return 'active'
+  }
   const venuePlan = (venueId: string) => {
     const ownerId = state.venues.find((venue) => venue.id === venueId)?.owner_id
     const boxCount = state.boxes.filter((box) => box.owner_id === ownerId).length
@@ -163,9 +194,8 @@ export async function installMockBackend(page: Page, state: MockState) {
     if (url.pathname === '/auth/v1/signup' || url.pathname === '/auth/v1/token') {
       const credentials = request.postDataJSON() as { email?: string }
       const email = credentials.email ?? `user-${Date.now()}@example.com`
-      currentUserId = email.includes('other')
-        ? '22222222-2222-4222-8222-222222222222'
-        : '11111111-1111-4111-8111-111111111111'
+      currentUserEmail = email
+      currentUserId = userIdForEmail(email)
       if (!state.profiles.some((profile) => profile.id === currentUserId)) {
         state.profiles.push({ id: currentUserId, display_name: email.split('@')[0], avatar_object_key: null, locale: 'zh-CN', onboarding_welcome_seen_at: null })
       }
@@ -189,11 +219,12 @@ export async function installMockBackend(page: Page, state: MockState) {
     }
     if (url.pathname === '/auth/v1/user') {
       return currentUserId
-        ? json(route, authUser(currentUserId, 'owner@example.com'))
+        ? json(route, authUser(currentUserId, currentUserEmail ?? 'owner@example.com'))
         : json(route, { message: 'not authenticated' }, 401)
     }
     if (url.pathname === '/auth/v1/logout' && method === 'POST') {
       currentUserId = null
+      currentUserEmail = null
       return route.fulfill({ status: 204, body: '' })
     }
 
@@ -252,11 +283,26 @@ export async function installMockBackend(page: Page, state: MockState) {
     if (url.pathname === '/rest/v1/rpc/create_venue_invite' && method === 'POST' && currentUserId) {
       const { p_venue_id: venueId } = request.postDataJSON() as { p_venue_id: string }
       if (!isVenueOwner(venueId)) return error(route, 'venue_access_denied')
-      const active = state.invites.filter((invite) => invite.venue_id === venueId && !invite.accepted_at && !invite.revoked_at && invite.expires_at > now())
-      if (1 + state.members.filter((member) => member.venue_id === venueId).length + active.length >= 5) return error(route, 'venue_member_limit_reached')
-      const invite: VenueInvite = { id: `invite-${state.invites.length + 1}`, venue_id: venueId, created_by: currentUserId, token: `venue-invite-${state.invites.length + 1}`, created_at: now(), expires_at: new Date(Date.now() + 86_400_000).toISOString(), accepted_by: null, accepted_at: null, revoked_at: null }
+      state.inviteCreateRequests += 1
+      if (1 + state.members.filter((member) => member.venue_id === venueId).length >= 5) return error(route, 'venue_member_limit_reached')
+      for (const activeInvite of state.invites) {
+        if (activeInvite.venue_id === venueId && !activeInvite.revokedAt && activeInvite.expiresAt > now() && (activeInvite.reusable || activeInvite.acceptedUserIds.length === 0)) {
+          activeInvite.revokedAt = now()
+        }
+      }
+      const invite: VenueInvite = {
+        id: `invite-${state.invites.length + 1}`,
+        venue_id: venueId,
+        created_by: currentUserId,
+        token: `venue-invite-${state.invites.length + 1}`,
+        createdAt: now(),
+        expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+        reusable: true,
+        revokedAt: null,
+        acceptedUserIds: [],
+      }
       state.invites.push(invite)
-      return json(route, [{ invite_id: invite.id, token: invite.token, expires_at: invite.expires_at }])
+      return json(route, [{ invite_id: invite.id, token: invite.token, expires_at: invite.expiresAt, reusable: invite.reusable }])
     }
 
     if (url.pathname === '/rest/v1/rpc/inspect_venue_invite' && method === 'POST') {
@@ -265,28 +311,47 @@ export async function installMockBackend(page: Page, state: MockState) {
       if (!invite) return json(route, [{ venue_id: null, venue_name: null, owner_display_name: null, status: 'missing', expires_at: null, current_user_state: currentUserId ? 'eligible' : 'anonymous' }])
       const venue = state.venues.find((candidate) => candidate.id === invite.venue_id)!
       const currentUserState = !currentUserId ? 'anonymous' : isVenueOwner(venue.id) ? 'owner' : canAccessVenue(venue.id) ? 'member' : 'eligible'
-      const status = invite.accepted_at ? 'used' : invite.revoked_at ? 'revoked' : invite.expires_at <= now() ? 'expired' : 1 + state.members.filter((member) => member.venue_id === venue.id).length >= 5 ? 'full' : 'active'
-      return json(route, [{ venue_id: venue.id, venue_name: venue.name, owner_display_name: state.profiles.find((profile) => profile.id === venue.owner_id)?.display_name ?? null, status, expires_at: invite.expires_at, current_user_state: currentUserState }])
+      return json(route, [{ venue_id: venue.id, venue_name: venue.name, owner_display_name: state.profiles.find((profile) => profile.id === venue.owner_id)?.display_name ?? null, status: inviteStatus(invite), expires_at: invite.expiresAt, current_user_state: currentUserState }])
     }
 
     if (url.pathname === '/rest/v1/rpc/accept_venue_invite' && method === 'POST' && currentUserId) {
       const { p_token: token } = request.postDataJSON() as { p_token: string }
       const invite = state.invites.find((candidate) => candidate.token === token)
       if (!invite) return error(route, 'venue_invite_missing')
-      if (canAccessVenue(invite.venue_id)) return json(route, [{ venue_id: invite.venue_id, result: 'already_member' }])
-      if (invite.accepted_at) return error(route, 'venue_invite_used')
-      if (invite.revoked_at) return error(route, 'venue_invite_revoked')
-      if (invite.expires_at <= now()) return error(route, 'venue_invite_expired')
+      if (state.members.some((member) => member.venue_id === invite.venue_id && member.user_id === currentUserId)) return json(route, [{ venue_id: invite.venue_id, result: 'already_member' }])
+      if (invite.revokedAt) return error(route, 'venue_invite_revoked')
+      if (!invite.reusable && invite.acceptedUserIds.length > 0) return error(route, 'venue_invite_used')
+      if (invite.expiresAt <= now()) return error(route, 'venue_invite_expired')
+      if (isVenueOwner(invite.venue_id)) return error(route, 'venue_owner_cannot_join')
       if (1 + state.members.filter((member) => member.venue_id === invite.venue_id).length >= 5) return error(route, 'venue_member_limit_reached')
       state.members.push({ venue_id: invite.venue_id, user_id: currentUserId, invited_by: invite.created_by, joined_at: now() })
-      invite.accepted_by = currentUserId; invite.accepted_at = now()
+      invite.acceptedUserIds.push(currentUserId)
       return json(route, [{ venue_id: invite.venue_id, result: 'joined' }])
     }
 
     if (url.pathname === '/rest/v1/rpc/list_venue_invites' && method === 'POST' && currentUserId) {
       const { p_venue_id: venueId } = request.postDataJSON() as { p_venue_id: string }
       if (!isVenueOwner(venueId)) return error(route, 'venue_access_denied')
-      return json(route, state.invites.filter((invite) => invite.venue_id === venueId).map((invite) => ({ invite_id: invite.id, created_at: invite.created_at, expires_at: invite.expires_at, status: invite.accepted_at ? 'used' : invite.revoked_at ? 'revoked' : 'active' })))
+      return json(route, state.invites
+        .filter((invite) => invite.venue_id === venueId)
+        .map((invite) => ({
+          invite_id: invite.id,
+          created_at: invite.createdAt,
+          expires_at: invite.expiresAt,
+          status: inviteStatus(invite),
+          reusable: invite.reusable,
+          accepted_count: invite.acceptedUserIds.length,
+        })))
+    }
+
+    if (url.pathname === '/rest/v1/rpc/revoke_venue_invite' && method === 'POST' && currentUserId) {
+      const { p_invite_id: inviteId } = request.postDataJSON() as { p_invite_id: string }
+      const invite = state.invites.find((candidate) => candidate.id === inviteId)
+      if (!invite || !isVenueOwner(invite.venue_id)) return error(route, 'venue_access_denied')
+      if (invite.revokedAt) return error(route, 'venue_invite_revoked')
+      if (!invite.reusable && invite.acceptedUserIds.length > 0) return error(route, 'venue_invite_used')
+      invite.revokedAt = now()
+      return json(route, null)
     }
 
     if (url.pathname === '/rest/v1/rpc/remove_venue_member' && method === 'POST' && currentUserId) {

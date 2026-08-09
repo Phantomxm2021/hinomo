@@ -5,6 +5,124 @@ import { createBox, createMockState, createSpace, installMockBackend, register }
 const OWNER_ID = '11111111-1111-4111-8111-111111111111'
 const MEMBER_ID = '22222222-2222-4222-8222-222222222222'
 
+async function createInviteFromVenueCard(page: Parameters<typeof installMockBackend>[0], rapid = false) {
+  await page.goto('/app/venues')
+  const card = page.getByTestId(`venue-card-venue-default-${OWNER_ID}`)
+  await expect(card).toBeVisible()
+  await card.getByRole('button', { name: '管理场地默认' }).click()
+  const menu = card.getByRole('menu', { name: '默认场地操作' })
+  const createInvite = menu.getByRole('menuitem', { name: '邀请家人' })
+  if (rapid) {
+    // Browser users can tap repeatedly before the first render commits. Keep
+    // the events in one turn to prove the production pending guard works.
+    await createInvite.evaluate((button) => {
+      for (let index = 0; index < 10; index += 1) button.click()
+    })
+  } else {
+    await createInvite.click()
+  }
+  const dialog = page.getByRole('dialog', { name: '分享场地邀请' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByAltText('场地邀请二维码')).toBeVisible()
+  return dialog
+}
+
+async function joinReusableInvite(browser: Parameters<typeof test>[0]['browser'], state: ReturnType<typeof createMockState>, email: string, token: string) {
+  const context = await browser.newContext()
+  const page = await context.newPage()
+  await installMockBackend(page, state)
+  await register(page, email)
+  await page.goto(`/join/venue#token=${token}`)
+  await page.getByRole('button', { name: '加入场地' }).click()
+  await expect(page).toHaveURL(/\/app$/)
+  return { context, page }
+}
+
+test('venue card keeps one latest reusable QR, invalidates its prior token, and routes share failures through the Apple alert', async ({ browser, page }) => {
+  const state = createMockState()
+  await page.addInitScript(() => {
+    Object.defineProperty(window.navigator, 'share', {
+      configurable: true,
+      value: async () => { throw new Error('simulated share failure') },
+    })
+  })
+  await installMockBackend(page, state)
+  await register(page, 'owner@example.com')
+
+  const firstDialog = await createInviteFromVenueCard(page, true)
+  await expect.poll(() => state.invites.length).toBe(1)
+  expect(state.inviteCreateRequests).toBe(1)
+  expect(state.invites[0]).toMatchObject({ reusable: true, acceptedUserIds: [] })
+  const firstToken = state.invites[0]!.token
+  await firstDialog.getByRole('button', { name: '分享邀请链接' }).click()
+  await expect(page.getByRole('alertdialog')).toBeVisible()
+  await page.getByRole('alertdialog').getByRole('button', { name: '好' }).click()
+  await firstDialog.getByRole('button', { name: '关闭分享场地邀请' }).click()
+
+  await createInviteFromVenueCard(page)
+  await expect.poll(() => state.invites.length).toBe(2)
+  const [first, latest] = state.invites
+  expect(first).toMatchObject({ revokedAt: expect.any(String) })
+  expect(latest).toMatchObject({ reusable: true, revokedAt: null })
+  expect(state.invites.filter((invite) => invite.revokedAt === null && invite.expiresAt > new Date().toISOString())).toHaveLength(1)
+
+  const staleContext = await browser.newContext()
+  const staleMember = await staleContext.newPage()
+  await installMockBackend(staleMember, state)
+  await register(staleMember, 'stale-member@example.com')
+  await staleMember.goto(`/join/venue#token=${firstToken}`)
+  await expect(staleMember.getByRole('heading', { name: '邀请已被撤销' })).toBeVisible()
+  await staleContext.close()
+
+  // Direct REST writes are intentionally denied; owners must use the invite RPC.
+  const denial = await page.evaluate(async () => {
+    const response = await fetch('http://127.0.0.1:54321/rest/v1/venue_invites', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ venue_id: 'venue-default-11111111-1111-4111-8111-111111111111' }),
+    })
+    return { status: response.status, body: await response.json() }
+  })
+  expect(denial).toMatchObject({ status: 403, body: { code: '42501' } })
+})
+
+test('the latest reusable QR joins distinct members through the five-seat cap and recognizes a repeat visitor', async ({ browser, page }) => {
+  const state = createMockState()
+  await installMockBackend(page, state)
+  await register(page, 'owner@example.com')
+  const dialog = await createInviteFromVenueCard(page)
+  const token = state.invites[0]?.token
+  expect(token).toBeTruthy()
+  await dialog.getByRole('button', { name: '关闭分享场地邀请' }).click()
+
+  const joined = await Promise.all([
+    joinReusableInvite(browser, state, 'member-one@example.com', token!),
+    joinReusableInvite(browser, state, 'member-two@example.com', token!),
+    joinReusableInvite(browser, state, 'member-three@example.com', token!),
+    joinReusableInvite(browser, state, 'member-four@example.com', token!),
+  ])
+  expect(state.invites[0]).toMatchObject({ reusable: true, acceptedUserIds: expect.arrayContaining([
+    expect.any(String), expect.any(String), expect.any(String), expect.any(String),
+  ]) })
+  expect(state.members.filter((member) => member.venue_id === `venue-default-${OWNER_ID}`)).toHaveLength(4)
+
+  // The same signed-in member sees the existing-member path rather than
+  // consuming a second acceptance or a second seat.
+  await joined[0]!.page.goto(`/join/venue#token=${token}`)
+  await expect(joined[0]!.page.getByRole('heading', { name: '你已是该场地成员' })).toBeVisible()
+  expect(state.invites[0]!.acceptedUserIds).toHaveLength(4)
+
+  const overflowContext = await browser.newContext()
+  const overflow = await overflowContext.newPage()
+  await installMockBackend(overflow, state)
+  await register(overflow, 'member-overflow@example.com')
+  await overflow.goto(`/join/venue#token=${token}`)
+  await expect(overflow.getByRole('heading', { name: '场地成员已满' })).toBeVisible()
+
+  await overflowContext.close()
+  await Promise.all(joined.map(({ context }) => context.close()))
+})
+
 async function openNewItem(page: Parameters<typeof installMockBackend>[0]) {
   const desktopAction = page.getByRole('button', { name: '新增物品', exact: true })
   if (await desktopAction.isVisible()) {
