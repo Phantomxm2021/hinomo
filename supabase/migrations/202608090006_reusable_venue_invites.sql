@@ -27,6 +27,34 @@ where invites.accepted_by is not null
   and invites.accepted_at is not null
 on conflict (invite_id, user_id) do nothing;
 
+-- Rollout policy for legacy pending invites: before this migration, an owner
+-- could have multiple active single-use QR codes. Keep only the newest token
+-- per venue (created_at DESC, id DESC) and revoke older active tokens now;
+-- future create_venue_invite calls continue to replace every active token.
+with legacy_active as (
+  select
+    invites.id,
+    invites.venue_id,
+    pg_catalog.row_number() over (
+      partition by invites.venue_id
+      order by invites.created_at desc, invites.id desc
+    ) as invite_rank
+  from public.venue_invites as invites
+  where invites.accepted_at is null
+    and invites.revoked_at is null
+    and invites.expires_at > pg_catalog.now()
+), revoked_invites as (
+  update public.venue_invites as invites
+  set revoked_at = pg_catalog.now()
+  from legacy_active
+  where invites.id = legacy_active.id
+    and legacy_active.invite_rank > 1
+  returning invites.venue_id
+)
+insert into private.venue_membership_audit (venue_id, actor_id, event_code)
+select revoked_invites.venue_id, null, 'invite_revoked'
+from revoked_invites;
+
 -- The return record adds `reusable`, so PostgreSQL requires replacing this
 -- function rather than CREATE OR REPLACE.
 drop function public.create_venue_invite(uuid);

@@ -10,6 +10,10 @@ const workflowMigration = readFileSync(
   resolve(process.cwd(), '../../supabase/migrations/202608090003_venue_shared_workflows.sql'),
   'utf8',
 )
+const reusableInviteMigration = readFileSync(
+  resolve(process.cwd(), '../../supabase/migrations/202608090006_reusable_venue_invites.sql'),
+  'utf8',
+)
 
 function migrationFunction(name: string) {
   const start = migration.indexOf(`create function private.${name}()`)
@@ -65,5 +69,25 @@ describe('venue shared workflow SQL contracts', () => {
       /select items, spaces\.venue_id into current_item, source_venue_id/i,
     )
     expect(workflowMigration.match(/select items\.\*\s+into current_item/gi)).toHaveLength(3)
+  })
+})
+
+describe('reusable venue invite migration contracts', () => {
+  it('keeps only the newest active legacy invite and audits older revocations', () => {
+    expect(reusableInviteMigration).toMatch(
+      /row_number\(\)\s+over\s*\(\s*partition by invites\.venue_id\s+order by invites\.created_at desc, invites\.id desc\s*\)/i,
+    )
+    expect(reusableInviteMigration).toMatch(
+      /update public\.venue_invites[\s\S]*set revoked_at[\s\S]*from legacy_active[\s\S]*invite_rank\s*>\s*1/i,
+    )
+    expect(reusableInviteMigration).toMatch(
+      /event_code\s*\)\s*select[\s\S]*'invite_revoked'/i,
+    )
+  })
+
+  it('backfills accepted legacy invites into the private acceptance history', () => {
+    expect(reusableInviteMigration).toMatch(
+      /insert into private\.venue_invite_acceptances[\s\S]*select invites\.id, invites\.accepted_by, invites\.accepted_at/i,
+    )
   })
 })
