@@ -19,8 +19,6 @@ import {
   type PackingDetectedItem,
 } from './packing.api'
 
-type PackingTranslationError = { key: string; params?: Record<string, string | number | boolean> }
-
 function quantityLabel(t: ReturnType<typeof useI18n>['t'], kind: string, value: number | null): string {
   if (kind === 'unknown' || value === null) return t('packing.quantityUnknown')
   if (kind === 'at_least') return t('packing.quantityAtLeast', { count: value })
@@ -192,7 +190,6 @@ export function PackingChecklistSection({ boxId, venueId, onVenueAccessDenied }:
   const launcherRef = useRef<HTMLButtonElement | null>(null)
   const [open, setOpen] = useState(false)
   const [promotionTasks, setPromotionTasks] = useState<Array<{ item: PackingDetectedItem; promotionId: string }>>([])
-  const [promotionError, setPromotionError] = useState<PackingTranslationError | null>(null)
   const handledPromotionsRef = useRef(new Set<string>())
   const sessionsQuery = useQuery({
     queryKey: ['packing-sessions', boxId],
@@ -244,7 +241,6 @@ export function PackingChecklistSection({ boxId, venueId, onVenueAccessDenied }:
       if (!status || !['completed', 'failed'].includes(status) || handledPromotionsRef.current.has(task.promotionId)) return
       handledPromotionsRef.current.add(task.promotionId)
       if (status === 'failed') {
-        setPromotionError({ key: 'packing.promotionFailed', params: { name: task.item.name } })
         feedback.error({
           key: `packing.promotion:${task.promotionId}`,
           title: t('common.operationFailed'),
@@ -264,7 +260,6 @@ export function PackingChecklistSection({ boxId, venueId, onVenueAccessDenied }:
   }, [boxId, feedback, promotionQueries, promotionTasks, queryClient, t])
 
   const acceptPromotion = useCallback((item: PackingDetectedItem, promotionId: string) => {
-    setPromotionError(null)
     handledPromotionsRef.current.delete(promotionId)
     queryClient.removeQueries({ queryKey: ['packing-item-promotion', promotionId], exact: true })
     setPromotionTasks((current) => current.some((task) => task.promotionId === promotionId)
@@ -306,7 +301,6 @@ export function PackingChecklistSection({ boxId, venueId, onVenueAccessDenied }:
         boxId={boxId}
         activeSession={activeSession}
         promotionCount={promotionTasks.length}
-        promotionError={promotionError}
         onPromotionAccepted={acceptPromotion}
         onVenueAccessDenied={onVenueAccessDenied}
         reanalyzing={reanalysisMutation.isPending}
@@ -317,13 +311,12 @@ export function PackingChecklistSection({ boxId, venueId, onVenueAccessDenied }:
   )
 }
 
-function PackingChecklistSheet({ open, items, boxId, activeSession, promotionCount, promotionError, reanalyzing, onPromotionAccepted, onVenueAccessDenied, onReanalyze, onClose }: {
+function PackingChecklistSheet({ open, items, boxId, activeSession, promotionCount, reanalyzing, onPromotionAccepted, onVenueAccessDenied, onReanalyze, onClose }: {
   open: boolean
   items: PackingDetectedItem[]
   boxId: string
   activeSession: Awaited<ReturnType<typeof listPackingSessions>>[number] | undefined
   promotionCount: number
-  promotionError: PackingTranslationError | null
   reanalyzing: boolean
   onPromotionAccepted: (item: PackingDetectedItem, promotionId: string) => void
   onVenueAccessDenied: (error: unknown) => void
@@ -370,7 +363,6 @@ function PackingChecklistSheet({ open, items, boxId, activeSession, promotionCou
             </div>
             {isProcessing ? <div className="flex items-center gap-3 rounded-[1.1rem] border border-brand/15 bg-brand/5 p-4" role="status"><span className="size-4 animate-pulse rounded-full bg-brand" /><div><p className="font-bold text-ink">{t('packing.processingPhotos', { count: activeSession?.photo_count ?? 0 })}</p><p className="mt-1 text-sm text-muted">{t('packing.processingHint')}</p></div></div> : null}
             {promotionCount > 0 ? <div className="flex items-center gap-3 rounded-[1.1rem] border border-brand/15 bg-brand/5 p-4" role="status"><span className="size-4 animate-pulse rounded-full bg-brand" /><p className="font-bold text-ink">{t('packing.submittedBackground', { count: promotionCount })}</p></div> : null}
-            {promotionError ? <p className="rounded-[1.1rem] border border-danger/20 bg-danger/5 p-4 font-bold text-danger" role="alert">{t(promotionError.key, promotionError.params)}</p> : null}
             {hasFailure ? <div className="flex items-center justify-between gap-3 rounded-[1.1rem] border border-danger/20 bg-danger/5 p-4"><p className="font-bold text-danger">{t('packing.partialResult')}</p><button className="min-h-10 shrink-0 rounded-control bg-danger px-4 font-bold text-white" type="button" disabled={reanalyzing} onClick={onReanalyze}>{reanalyzing ? t('packing.retryingAnalysis') : t('packing.retryAnalysis')}</button></div> : null}
             {items.length > 0 ? <div className="overflow-hidden rounded-[1.25rem] bg-surface shadow-[inset_0_0_0_1px_rgba(79,64,48,0.06)]">{items.map((item) => <ChecklistItem key={item.id} item={item} boxId={boxId} mergeTargets={items.filter((candidate) => candidate.id !== item.id)} onPromotionAccepted={onPromotionAccepted} onVenueAccessDenied={onVenueAccessDenied} />)}</div> : !isProcessing && !hasFailure && promotionCount === 0 ? <p className="grid min-h-48 place-content-center text-center font-semibold text-muted">{t('packing.noReviewResults')}</p> : null}
           </div>
