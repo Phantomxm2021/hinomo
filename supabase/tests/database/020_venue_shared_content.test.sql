@@ -1,5 +1,5 @@
 begin;
-select plan(46);
+select plan(51);
 
 create extension if not exists "basejump-supabase_test_helpers" with schema tests;
 select tests.create_supabase_user('shared-content-owner');
@@ -105,6 +105,19 @@ select lives_ok(
 select is((select owner_id from public.spaces where id = '20000000-0000-4000-8000-000000000014'), (select owner_id from shared_content_state),
   'direct member space insert cannot forge the venue owner');
 
+insert into public.venues (id, owner_id, name)
+values ('20000000-0000-4000-8000-000000000005', auth.uid(), 'Member personal venue');
+insert into public.spaces (id, owner_id, venue_id, name)
+values ('20000000-0000-4000-8000-000000000015', auth.uid(), '20000000-0000-4000-8000-000000000005', 'Member personal space');
+select lives_ok(
+  $$select public.create_box('20000000-0000-4000-8000-000000000015', 'Member personal box', null, null, null, 'private')$$,
+  'member can create an independent personal box'
+);
+select is((select box_count from public.get_box_plan_summary()), 1,
+  'member has an independent personal box count');
+select is((select box_count from public.get_venue_box_plan_summary((select shared_venue_id from shared_content_state))), 2,
+  'member personal boxes do not consume the shared venue owner quota');
+
 with created as (
   select public.create_box((select id from member_created_space), 'Member box', null, null, null, 'private') as box
 )
@@ -116,6 +129,16 @@ select is((select box_count from public.get_venue_box_plan_summary((select share
 select throws_ok(
   $$select public.create_box((select id from member_created_space), 'Over limit', null, null, null, 'private')$$,
   'P0001', 'box_limit_reached', 'member is limited by the venue owner box quota'
+);
+select tests.clear_authentication();
+select set_config('request.jwt.claim.role', 'service_role', true);
+select public.grant_account_entitlement((select member_id from shared_content_state), 'boxes_unlimited_lifetime', 'test', 'shared-content-member-unlimited', null);
+select tests.authenticate_as('shared-content-member');
+select is((select unlimited_boxes from public.get_venue_box_plan_summary((select shared_venue_id from shared_content_state))), false,
+  'member unlimited entitlement does not make the venue owner quota unlimited');
+select throws_ok(
+  $$select public.create_box((select id from member_created_space), 'Still over owner limit', null, null, null, 'private')$$,
+  'P0001', 'box_limit_reached', 'member entitlement cannot bypass the venue owner box quota'
 );
 select lives_ok(
   $$select public.update_box((select member_box_id from shared_content_state), (select shared_space_id from shared_content_state), 'Moved member box', null, 'Shelf', null, 'private')$$,
