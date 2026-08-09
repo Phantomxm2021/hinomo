@@ -386,6 +386,7 @@ export type Database = {
         Row: {
           box_id: string
           completed_at: string | null
+          created_by: string | null
           created_at: string
           current_revision: number
           id: string
@@ -403,6 +404,7 @@ export type Database = {
         Insert: {
           box_id: string
           completed_at?: string | null
+          created_by?: string | null
           created_at?: string
           current_revision?: number
           id?: string
@@ -528,6 +530,7 @@ export type Database = {
           id: string
           last_error_code: string | null
           owner_id: string
+          requested_by: string | null
           session_id: string
           status: Database['public']['Enums']['packing_promotion_status']
           target_item_id: string
