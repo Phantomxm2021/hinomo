@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { createMemoryRouter, MemoryRouter, RouterProvider, type InitialEntry } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../../i18n/I18nProvider'
 import { RegisterPage } from './RegisterPage'
@@ -17,6 +17,18 @@ describe('RegisterPage', () => {
     mockSignUp.mockResolvedValue({ data: { session: null }, error: null })
   })
   afterEach(cleanup)
+
+  function renderRegister(returnTo?: string) {
+    const entry: InitialEntry = returnTo ? { pathname: '/register', state: { returnTo } } : '/register'
+    const router = createMemoryRouter([
+      { path: '/register', element: <RegisterPage /> },
+      { path: '/join/venue', element: <h1>加入场地</h1> },
+      { path: '/app', element: <h1>我的收纳</h1> },
+      { path: '/login', element: <h1>登录页</h1> },
+    ], { initialEntries: [entry] })
+    render(<I18nProvider><RouterProvider router={router} /></I18nProvider>)
+    return router
+  }
 
   it('shows guidance and only enables registration for a valid complete form', async () => {
     const user = userEvent.setup()
@@ -107,5 +119,33 @@ describe('RegisterPage', () => {
 
     expect(screen.getByRole('button', { name: '注册' })).toBeDisabled()
     expect(mockSignUp).not.toHaveBeenCalled()
+  })
+
+  it('preserves the venue return target for the sign-in link and an immediate session', async () => {
+    const user = userEvent.setup()
+    mockSignUp.mockResolvedValue({ data: { session: { access_token: 'token' } }, error: null })
+    renderRegister('/join/venue')
+
+    expect(screen.getByRole('link', { name: '返回登录' })).toHaveAttribute('href', '/login')
+    await user.type(screen.getByLabelText('昵称'), '小诺')
+    await user.type(screen.getByLabelText('邮箱'), 'new@example.com')
+    await user.type(screen.getByLabelText('密码'), 'secure-password')
+    await user.click(screen.getByRole('checkbox', { name: /我已阅读并同意/ }))
+    await user.click(screen.getByRole('button', { name: '注册' }))
+
+    expect(await screen.findByRole('heading', { name: '加入场地' })).toBeInTheDocument()
+  })
+
+  it('rejects an unsafe registration return target', async () => {
+    const user = userEvent.setup()
+    mockSignUp.mockResolvedValue({ data: { session: { access_token: 'token' } }, error: null })
+    renderRegister('//evil.example')
+    await user.type(screen.getByLabelText('昵称'), '小诺')
+    await user.type(screen.getByLabelText('邮箱'), 'new@example.com')
+    await user.type(screen.getByLabelText('密码'), 'secure-password')
+    await user.click(screen.getByRole('checkbox', { name: /我已阅读并同意/ }))
+    await user.click(screen.getByRole('button', { name: '注册' }))
+
+    expect(await screen.findByRole('heading', { name: '我的收纳' })).toBeInTheDocument()
   })
 })

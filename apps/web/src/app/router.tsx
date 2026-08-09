@@ -13,6 +13,7 @@ import { ScannerPage } from '../features/scanner/ScannerPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { SpacesPage } from '../features/spaces/SpacesPage'
 import { VenuesPage } from '../features/venues/VenuesPage'
+import { JoinVenuePage } from '../features/venues/JoinVenuePage'
 import { MyPage } from '../features/profile/MyPage'
 import { AccountDetailsPage } from '../features/profile/AccountDetailsPage'
 import { GeneralSettingsPage } from '../features/profile/GeneralSettingsPage'
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
     }),
   },
   { path: '/b/:publicId', element: <PublicBoxPage /> },
+  { path: '/join/venue', element: <JoinVenuePage /> },
   {
     path: '/app',
     element: <RequireAuth />,

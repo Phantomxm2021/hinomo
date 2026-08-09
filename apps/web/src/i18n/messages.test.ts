@@ -24,6 +24,12 @@ describe('message catalog', () => {
     expect(messages['en-US'].boxes.purchaseDelayed).toBe('Payment status is still being confirmed. Please check again later.')
   })
 
+  test('includes localized single-use venue invitation states', () => {
+    expect(messages['zh-CN'].venueSharing.inviteLimit).toContain('24 小时')
+    expect(messages['en-US'].venueSharing.inviteLimit).toContain('24 hours')
+    expect(messages['zh-CN'].venueSharing.revoked).not.toBe(messages['en-US'].venueSharing.revoked)
+  })
+
   test('keeps Simplified Chinese and English leaf keys in sync', () => {
     const chineseKeys = leafPaths(messages['zh-CN']).sort()
     const englishKeys = leafPaths(messages['en-US']).sort()

@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState, type FormEvent } from 'react'
 import { useForm } from 'react-hook-form'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { useI18n } from '../../i18n/I18nProvider'
 import { supabase } from '../../lib/supabase'
@@ -10,10 +10,13 @@ import { getAuthErrorKey, type AuthErrorKey } from './auth-errors'
 import { createRegisterSchema, type RegisterValues } from './auth.schemas'
 import { AuthField, AuthOptions, AuthPageFrame, AuthSubmitButton } from './AuthFormPrimitives'
 import { useLocalizedFormValidation } from './useLocalizedFormValidation'
+import { safeReturnTo } from './safe-return-to'
 
 export function RegisterPage() {
   const { locale, t } = useI18n()
+  const location = useLocation()
   const navigate = useNavigate()
+  const returnTo = safeReturnTo((location.state as { returnTo?: unknown } | null)?.returnTo)
   const [submitErrorKey, setSubmitErrorKey] = useState<AuthErrorKey | null>(null)
   const [success, setSuccess] = useState(false)
   const [submitAttempted, setSubmitAttempted] = useState(false)
@@ -58,7 +61,7 @@ export function RegisterPage() {
         return
       }
       if (data.session) {
-        navigate('/app', { replace: true })
+        navigate(returnTo, { replace: true })
         return
       }
       setSuccess(true)
@@ -77,7 +80,7 @@ export function RegisterPage() {
       {success ? (
         <div className="auth-register-success">
           <p role="status">{t('auth.success.register')}</p>
-          <Link className="auth-secondary-link" to="/login">{t('auth.register.signIn')}</Link>
+          <Link className="auth-secondary-link" to="/login" state={{ returnTo }}>{t('auth.register.signIn')}</Link>
         </div>
       ) : (
         <>
@@ -153,7 +156,7 @@ export function RegisterPage() {
           </form>
           <AuthOptions>
             <span>{t('auth.register.hasAccount')}</span>
-            <Link to="/login">{t('auth.register.signIn')}</Link>
+            <Link to="/login" state={{ returnTo }}>{t('auth.register.signIn')}</Link>
           </AuthOptions>
         </>
       )}

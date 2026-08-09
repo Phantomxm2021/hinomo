@@ -9,12 +9,7 @@ import { getAuthErrorKey, type AuthErrorKey } from './auth-errors'
 import { createCredentialsSchema, type Credentials } from './auth.schemas'
 import { AuthField, AuthOptions, AuthPageFrame, AuthSubmitButton } from './AuthFormPrimitives'
 import { useLocalizedFormValidation } from './useLocalizedFormValidation'
-
-function safeReturnTo(value: unknown) {
-  return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
-    ? value
-    : '/app'
-}
+import { safeReturnTo } from './safe-return-to'
 
 export function LoginPage() {
   const { locale, t } = useI18n()
@@ -97,7 +92,7 @@ export function LoginPage() {
         />
       </form>
       <AuthOptions>
-        <Link to="/register">{t('auth.login.register')}</Link>
+        <Link to="/register" state={{ returnTo: safeReturnTo((location.state as { returnTo?: unknown } | null)?.returnTo) }}>{t('auth.login.register')}</Link>
         <Link to="/forgot-password">{t('auth.forgotPassword.title')}</Link>
       </AuthOptions>
     </AuthPageFrame>

@@ -35,6 +35,7 @@ function renderLogin(returnTo?: string) {
       { path: '/login', element: <LoginPage /> },
       { path: '/app/boxes', element: <h1>箱子</h1> },
       { path: '/app', element: <h1>我的收纳</h1> },
+      { path: '/join/venue', element: <h1>加入场地</h1> },
     ],
     { initialEntries: [entry] },
   )
@@ -105,6 +106,14 @@ describe('LoginPage', () => {
     expect(await screen.findByRole('heading', { name: '箱子' })).toBeInTheDocument()
   })
 
+  it('returns to the venue invitation after signing in', async () => {
+    renderLogin('/join/venue')
+
+    await submitValidCredentials()
+
+    expect(await screen.findByRole('heading', { name: '加入场地' })).toBeInTheDocument()
+  })
+
   it('refreshes touched field validation when the global locale changes', async () => {
     const user = userEvent.setup()
     renderLogin()
@@ -152,5 +161,13 @@ describe('LoginPage', () => {
     expect(
       await screen.findByRole('heading', { name: '我的收纳' }),
     ).toBeInTheDocument()
+  })
+
+  it('rejects an absolute return target', async () => {
+    renderLogin('https://evil.example/steal-session')
+
+    await submitValidCredentials()
+
+    expect(await screen.findByRole('heading', { name: '我的收纳' })).toBeInTheDocument()
   })
 })

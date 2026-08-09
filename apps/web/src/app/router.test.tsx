@@ -8,3 +8,10 @@ test('matches the AI credit store before the app fallback route', () => {
   expect(matches?.map((match) => match.route.path)).toContain('me/credits')
   expect(matches?.at(-1)?.route.path).toBe('me/credits')
 })
+
+test('matches the public venue join page outside the protected app routes', () => {
+  const matches = matchRoutes(router.routes, '/join/venue')
+
+  expect(matches?.at(-1)?.route.path).toBe('/join/venue')
+  expect(matches?.some((match) => match.route.path === '/app')).toBe(false)
+})
