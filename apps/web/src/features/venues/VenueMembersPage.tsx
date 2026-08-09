@@ -46,6 +46,7 @@ export function VenueMembersPage() {
   const [invite, setInvite] = useState<VenueInvite | null>(null)
   const [invitePending, setInvitePending] = useState(false)
   const invitePendingRef = useRef(false)
+  const [inviteToRevoke, setInviteToRevoke] = useState<string | null>(null)
   const [memberToRemove, setMemberToRemove] = useState<VenueMember | null>(null)
   const [leaveOpen, setLeaveOpen] = useState(false)
   const accessDeniedHandled = useRef(false)
@@ -76,7 +77,6 @@ export function VenueMembersPage() {
   const revokeInviteMutation = useMutation({
     mutationFn: (inviteId: string) => revokeVenueInvite(inviteId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['venue-invites', venueId] }),
-    onError: clearRevokedVenue,
   })
   const removeMemberMutation = useMutation({
     mutationFn: (member: VenueMember) => removeVenueMember(venueId, member.user_id),
@@ -97,6 +97,30 @@ export function VenueMembersPage() {
   function closeInvite() {
     setInvite(null)
     void queryClient.invalidateQueries({ queryKey: ['venue-invites', venueId] })
+  }
+
+  function requestRevokeInvite(inviteId: string) {
+    if (inviteToRevoke || revokeInviteMutation.isPending) return
+    setInviteToRevoke(inviteId)
+    feedback.confirm({
+      key: `venue.invite.revoke:${inviteId}`,
+      title: t('venueSharing.revokeConfirmTitle'),
+      message: t('venueSharing.revokeHint'),
+      primaryLabel: t('venueSharing.revoke'),
+      cancelLabel: t('common.cancel'),
+      onPrimary: () => revokeInviteMutation.mutateAsync(inviteId),
+      onDismiss: () => setInviteToRevoke(null),
+      onActionError: (error) => {
+        setInviteToRevoke(null)
+        if (clearRevokedVenue(error)) return
+        const classification = classifyFeedbackError(error)
+        feedback.error({
+          key: `venue.invite.revoke:${inviteId}:error`,
+          title: t(classification.titleKey),
+          message: t(classification.messageKey),
+        })
+      },
+    })
   }
 
   async function createInvite() {
@@ -144,7 +168,7 @@ export function VenueMembersPage() {
 
       {owner ? invitesEnabled ? <section className="grid gap-4 rounded-card border border-line bg-surface p-5" aria-labelledby="venue-invites-title">
         <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="m-0 text-section-title font-bold" id="venue-invites-title">{t('venueSharing.unusedInvites')}</h2><button className="inline-flex min-h-11 items-center gap-2 rounded-control bg-brand px-4 font-bold text-white disabled:opacity-50" type="button" disabled={invitePending} onClick={() => void createInvite()}><AppIcon name="share" />{invitePending ? t('venueSharing.creatingInvite') : t('venueSharing.createInvite')}</button></div>
-        {activeInvite ? <div className="flex items-center justify-between gap-3 text-sm" key={activeInvite.invite_id}><span className="text-muted">{t('venueSharing.inviteExpiresAt', { date: displayDate(activeInvite.expires_at) })}</span><button className="min-h-11 rounded-control px-3 font-bold text-danger disabled:opacity-50" type="button" disabled={revokeInviteMutation.isPending} onClick={() => revokeInviteMutation.mutate(activeInvite.invite_id)}>{t('venueSharing.revoke')}</button></div> : null}
+        {activeInvite ? <div className="flex items-center justify-between gap-3 text-sm" key={activeInvite.invite_id}><span className="text-muted">{t('venueSharing.inviteExpiresAt', { date: displayDate(activeInvite.expires_at) })}</span><button className="min-h-11 rounded-control px-3 font-bold text-danger disabled:opacity-50" type="button" disabled={Boolean(inviteToRevoke) || revokeInviteMutation.isPending} onClick={() => requestRevokeInvite(activeInvite.invite_id)}>{t('venueSharing.revoke')}</button></div> : null}
       </section> : null : <button className="justify-self-start min-h-11 rounded-control border border-danger px-4 font-bold text-danger" type="button" onClick={() => setLeaveOpen(true)}>{t('venueSharing.leaveVenue')}</button>}
 
       {invitesEnabled ? <VenueInviteDialog open={Boolean(invite)} invite={invite} onClose={closeInvite} /> : null}

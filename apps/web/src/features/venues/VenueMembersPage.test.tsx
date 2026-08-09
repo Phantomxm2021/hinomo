@@ -111,6 +111,9 @@ test('owner manages family members, active invitations, and clears the raw invit
   expect(client.getMutationCache().getAll().some((mutation) => JSON.stringify(mutation.state.data).includes('raw-secret'))).toBe(false)
 
   await user.click(screen.getByRole('button', { name: '撤销邀请' }))
+  expect(mocks.revoke).not.toHaveBeenCalled()
+  const revokeConfirmation = await screen.findByRole('alertdialog', { name: '撤销邀请？' })
+  await user.click(within(revokeConfirmation).getByRole('button', { name: '撤销邀请' }))
   await waitFor(() => expect(mocks.revoke).toHaveBeenCalledWith('invite-1'))
   expect(invalidate).toHaveBeenCalledWith({ queryKey: ['venue-invites', 'home'] })
 
