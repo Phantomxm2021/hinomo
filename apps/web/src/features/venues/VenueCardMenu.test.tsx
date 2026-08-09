@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { I18nProvider } from '../../i18n/I18nProvider'
+import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { VenueCardMenu } from './VenueCardMenu'
 
@@ -26,6 +27,12 @@ vi.mock('./venue-activity.api', async (importOriginal) => ({
 const venue = {
   id: 'home', name: '家里', description: null, is_default: true, space_count: 1,
   role: 'owner' as const, owner_display_name: null, owner_id: 'owner', member_count: 2, max_members: 5,
+}
+
+function EnglishLocale() {
+  const { setLocale } = useI18n()
+  useEffect(() => setLocale('en-US'), [setLocale])
+  return null
 }
 
 beforeEach(() => {
@@ -73,6 +80,17 @@ test('opens recent activity in an in-place dialog without changing the route', a
   expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   expect(screen.getByRole('dialog', { name: '最近活动家里' })).toBeInTheDocument()
   expect(window.location.href).toBe(originalLocation)
+})
+
+test('uses the localized activity venue title and hides the page heading in the modal', async () => {
+  const user = userEvent.setup()
+  render(<I18nProvider><EnglishLocale /><MobileFeedbackProvider><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={['/app/venues']}><VenueCardMenu venue={venue} invitesEnabled onEdit={() => undefined} onVenueAccessDenied={() => undefined} /></MemoryRouter></QueryClientProvider></MobileFeedbackProvider></I18nProvider>)
+
+  await user.click(await screen.findByRole('button', { name: 'Manage 家里' }))
+  await user.click(screen.getByRole('menuitem', { name: 'Recent activity' }))
+
+  const dialog = screen.getByRole('dialog', { name: 'Recent activity for 家里' })
+  expect(within(dialog).queryByRole('heading', { level: 1 })).not.toBeInTheDocument()
 })
 
 test('keeps the activity dialog open while its initial request is pending', async () => {

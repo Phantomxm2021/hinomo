@@ -25,10 +25,12 @@ function cursorFor(entries: VenueActivityEntry[]): VenueActivityCursor | undefin
 
 type VenueActivityPanelProps = {
   venueId: string
+  /** Renders the full-page heading when true; dialogs provide their own title. */
+  showHeader?: boolean
   onBusyChange?: (busy: boolean) => void
 }
 
-export function VenueActivityPanel({ venueId, onBusyChange }: VenueActivityPanelProps) {
+export function VenueActivityPanel({ venueId, showHeader = false, onBusyChange }: VenueActivityPanelProps) {
   const { locale, t } = useI18n()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -74,9 +76,9 @@ export function VenueActivityPanel({ venueId, onBusyChange }: VenueActivityPanel
   if (membersQuery.isError) return <PageState state="error" message={t('venueActivity.membersLoadError')} onRetry={() => void membersQuery.refetch()} />
 
   return (
-    <section className="mx-auto grid w-full max-w-3xl gap-6" aria-labelledby="venue-activity-title">
+    <section className={showHeader ? 'mx-auto grid w-full max-w-3xl gap-6' : 'grid gap-5'} aria-labelledby={showHeader ? 'venue-activity-title' : undefined} aria-label={showHeader ? undefined : t('venueActivity.title')}>
       <header className="grid gap-4 sm:flex sm:items-end sm:justify-between">
-        <div><p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">{t('venues.sharedBadge')}</p><h1 className="m-0 text-page-title font-extrabold" id="venue-activity-title">{t('venueActivity.title')}</h1></div>
+        {showHeader ? <div><p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">{t('venues.sharedBadge')}</p><h1 className="m-0 text-page-title font-extrabold" id="venue-activity-title">{t('venueActivity.title')}</h1></div> : null}
         <div className="grid gap-2 sm:grid-cols-2">
           <label className="grid gap-1 text-sm font-medium" htmlFor="activity-member-filter">{t('venueActivity.memberFilter')}<select className="min-h-11 rounded-control border border-line bg-surface px-3" id="activity-member-filter" value={actorId ?? ''} onChange={(event) => setActorId(event.target.value || null)} disabled={membersQuery.isPending}><option value="">{t('venueActivity.allMembers')}</option>{membersQuery.data?.map((member) => <option key={member.user_id} value={member.user_id}>{member.display_name || t('venueActivity.unknownActor')}</option>)}</select></label>
           <label className="grid gap-1 text-sm font-medium" htmlFor="activity-event-filter">{t('venueActivity.eventFilter')}<select className="min-h-11 rounded-control border border-line bg-surface px-3" id="activity-event-filter" value={eventCode ?? ''} onChange={(event) => setEventCode(event.target.value ? event.target.value as VenueActivityEvent : null)}><option value="">{t('venueActivity.allEvents')}</option>{eventCodes.map((event) => <option key={event} value={event}>{t(`venueActivity.eventLabels.${event}`)}</option>)}</select></label>

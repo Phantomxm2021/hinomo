@@ -150,7 +150,7 @@ export function VenueCardMenu({ venue, invitesEnabled, onEdit, onVenueAccessDeni
       </ResponsiveEditorDialog>
       <ResponsiveEditorDialog
         open={activityOpen}
-        title={`${t('venueActivity.title')}${venue.name}`}
+        title={t('venues.activityVenue', { name: venue.name })}
         busy={activityBusy}
         onClose={() => setActivityOpen(false)}
         returnFocusRef={triggerRef}
