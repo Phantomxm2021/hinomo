@@ -11,10 +11,12 @@ import { userDisplayName } from './account-name'
 import { AccountAvatar, AvatarUploadControl, ReadOnlyAccountField } from './account-view'
 import { getAvatarDownload, getProfile, uploadAvatar } from './profile.api'
 import { useI18n } from '../../i18n/I18nProvider'
+import { useMobileFeedback } from '../../components/mobile-feedback'
 
 export function UserAccountMenu() {
   const { session } = useAuth()
   const { t } = useI18n()
+  const feedback = useMobileFeedback()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [dialog, setDialog] = useState<'profile' | null>(null)
@@ -36,6 +38,11 @@ export function UserAccountMenu() {
       await queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
       await queryClient.invalidateQueries({ queryKey: ['profile-avatar', user?.id] })
     },
+    onError: () => feedback.error({
+      key: 'profile.avatar.upload',
+      title: t('common.operationFailed'),
+      message: t('profile.avatarUploadFailed'),
+    }),
   })
 
   if (!user) return null
@@ -45,7 +52,16 @@ export function UserAccountMenu() {
     || (Boolean(profileQuery.data?.avatar_object_key) && avatarQuery.isPending)
 
   async function signOut() {
-    await supabase.auth.signOut()
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+    } catch {
+      feedback.error({
+        key: 'profile.sign-out',
+        title: t('common.operationFailed'),
+        message: t('common.operationError'),
+      })
+    }
   }
 
   return (
@@ -125,7 +141,6 @@ export function UserAccountMenu() {
               pendingLabel={t('profile.uploadingAvatar')}
               changeLabel={t('profile.changeAvatar')}
             />
-            {avatarMutation.isError ? <p role="alert">{t('profile.avatarUploadFailed')}</p> : null}
             <ReadOnlyAccountField label={t('profile.nickname')} value={name} />
             <ReadOnlyAccountField label={t('profile.email')} value={user.email ?? t('profile.emailNotSet')} />
           </div>

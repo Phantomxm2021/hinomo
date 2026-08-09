@@ -151,14 +151,15 @@ test('member can leave, without owner controls, and immediately returns home aft
   }
 })
 
-test('explains when invitation seats are reserved by members or unused invitations', async () => {
+test('explains that reusable invitations do not reserve member seats', async () => {
   const user = userEvent.setup()
   mocks.createInvite.mockRejectedValue(Object.assign(new Error('venue_member_limit_reached'), { code: 'venue_member_limit_reached' }))
   renderPage()
 
   await user.click(await screen.findByRole('button', { name: '创建邀请' }))
   expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('成员名额已满')
-  expect(screen.getByRole('alertdialog')).toHaveTextContent('未使用邀请')
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('邀请链接不会占用名额')
+  expect(screen.getByRole('alertdialog')).not.toHaveTextContent('未使用邀请')
 })
 
 test('retries a transient member-page invite failure through the global Apple alert', async () => {
@@ -198,6 +199,7 @@ test('routes access denial from a revoke retry through venue cleanup and navigat
   const alert = await screen.findByRole('alertdialog', { name: '操作未完成' })
   await user.click(within(alert).getByRole('button', { name: '重试' }))
 
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('你没有执行此操作的权限')
   expect(await screen.findByText('首页')).toBeInTheDocument()
   expect(mocks.revoke).toHaveBeenCalledTimes(2)
   expect(removeQueries).toHaveBeenCalledWith({ queryKey: ['venues'] })
@@ -213,14 +215,44 @@ test('keeps invite creation closed when the deploy-time kill switch is disabled'
   expect(mocks.invites).not.toHaveBeenCalled()
 })
 
-test('redirects after access is denied and clears the revoked venue cache without retrying the query', async () => {
+test('shows Apple permission feedback before redirecting after access is denied while loading', async () => {
   mocks.access.mockRejectedValue(Object.assign(new Error('venue_access_denied'), { code: 'venue_access_denied' }))
   const client = renderPage()
   const removeQueries = vi.spyOn(client, 'removeQueries')
 
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('你没有执行此操作的权限')
   expect(await screen.findByText('首页')).toBeInTheDocument()
   expect(removeQueries).toHaveBeenCalledWith({ queryKey: ['venues'] })
   expect(mocks.access).toHaveBeenCalledTimes(1)
+})
+
+test('shows Apple permission feedback before cleanup when removing a member loses access', async () => {
+  const user = userEvent.setup()
+  mocks.remove.mockRejectedValue(Object.assign(new Error('venue_access_denied'), { code: 'venue_access_denied' }))
+  const client = renderPage()
+  const removeQueries = vi.spyOn(client, 'removeQueries')
+
+  await user.click(await screen.findByRole('button', { name: '移除李小红' }))
+  await user.click(within(screen.getByRole('alertdialog', { name: '移除成员' })).getByRole('button', { name: '移除成员' }))
+
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('你没有执行此操作的权限')
+  expect(await screen.findByText('首页')).toBeInTheDocument()
+  expect(removeQueries).toHaveBeenCalledWith({ queryKey: ['venues'] })
+})
+
+test('shows Apple permission feedback before cleanup when leaving loses access', async () => {
+  const user = userEvent.setup()
+  mocks.access.mockResolvedValue({ venue_id: 'home', role: 'member', can_manage_members: false, member_count: 2, max_members: 5 })
+  mocks.leave.mockRejectedValue(Object.assign(new Error('venue_access_denied'), { code: 'venue_access_denied' }))
+  const client = renderPage()
+  const removeQueries = vi.spyOn(client, 'removeQueries')
+
+  await user.click(await screen.findByRole('button', { name: '退出场地' }))
+  await user.click(within(screen.getByRole('alertdialog', { name: '退出场地' })).getByRole('button', { name: '退出场地' }))
+
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('你没有执行此操作的权限')
+  expect(await screen.findByText('首页')).toBeInTheDocument()
+  expect(removeQueries).toHaveBeenCalledWith({ queryKey: ['venues'] })
 })
 
 test('starts the member lookup alongside access lookup and redirects when the members request discovers revoked access', async () => {
@@ -237,6 +269,7 @@ test('starts the member lookup alongside access lookup and redirects when the me
   for (const queryKey of revokedContentKeys) client.setQueryData(queryKey, ['stale venue content'])
   mocks.members.mockRejectedValueOnce({ code: '42501', message: 'item is not accessible' })
   await client.invalidateQueries({ queryKey: ['venue-members', 'home'] })
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('你没有执行此操作的权限')
   expect(await screen.findByText('首页')).toBeInTheDocument()
   expect(client.getQueryData(['venues'])).toBeUndefined()
   for (const queryKey of revokedContentKeys) expect(client.getQueryData(queryKey)).toBeUndefined()

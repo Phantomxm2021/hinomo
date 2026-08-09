@@ -72,13 +72,22 @@ describe('LocaleProfileSync', () => {
     expect(mockUpdateLocale).toHaveBeenCalledTimes(2)
   })
 
-  test('reports a non-blocking save error in the active locale', async () => {
+  test('reports a non-blocking save error through the global Apple feedback in the active locale', async () => {
     const user = userEvent.setup()
     mockUpdateLocale.mockRejectedValue(new Error('network'))
     const api = renderSync(session)
 
-    await waitFor(() => expect(api.notify).toHaveBeenCalledWith('语言保存失败，请重试'))
+    await waitFor(() => expect(api.error).toHaveBeenCalledWith(expect.objectContaining({
+      key: 'profile.locale.sync:user-1:zh-CN',
+      title: '操作未完成',
+      message: '语言保存失败，请重试',
+    })))
+    expect(api.notify).not.toHaveBeenCalled()
     await user.click(document.querySelector('button')!)
-    await waitFor(() => expect(api.notify).toHaveBeenCalledWith('Could not save language. Please try again.'))
+    await waitFor(() => expect(api.error).toHaveBeenCalledWith(expect.objectContaining({
+      key: 'profile.locale.sync:user-1:en-US',
+      title: 'Action couldn’t be completed',
+      message: 'Could not save language. Please try again.',
+    })))
   })
 })

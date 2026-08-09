@@ -34,7 +34,11 @@ export function AccountDetailsPage() {
       await queryClient.invalidateQueries({ queryKey: ['profile-avatar', user?.id] })
       feedback.notify(t('profile.avatarUpdated'))
     },
-    onError: () => feedback.notify(t('profile.avatarUploadFailed')),
+    onError: () => feedback.error({
+      key: 'profile.avatar.upload',
+      title: t('common.operationFailed'),
+      message: t('profile.avatarUploadFailed'),
+    }),
   })
 
   if (!user) return null

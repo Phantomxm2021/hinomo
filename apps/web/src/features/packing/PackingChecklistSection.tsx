@@ -2,8 +2,10 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AppIcon } from '../../components/AppIcon'
+import { useMobileFeedback } from '../../components/mobile-feedback'
 import { useI18n } from '../../i18n/I18nProvider'
-import { getVenueAccessSummary } from '../venues/venue-sharing.api'
+import { classifyFeedbackError } from '../../lib/feedback-errors'
+import { getVenueAccessSummary, isVenueAccessDenied } from '../venues/venue-sharing.api'
 import { PackingAuthorizedImage } from './PackingAuthorizedImage'
 import {
   getPackingPhoto,
@@ -33,12 +35,30 @@ function normalizedBbox(value: unknown): [number, number, number, number] | null
   return [x1, y1, x2, y2]
 }
 
+function usePackingErrorReporter(scope: string, onVenueAccessDenied: (error: unknown) => void) {
+  const { t } = useI18n()
+  const feedback = useMobileFeedback()
+  return useCallback((error: unknown) => {
+    if (isVenueAccessDenied(error)) {
+      onVenueAccessDenied(error)
+      return
+    }
+    const classification = classifyFeedbackError(error)
+    feedback.error({
+      key: `packing.${scope}`,
+      title: t(classification.titleKey),
+      message: t(classification.messageKey),
+    })
+  }, [feedback, onVenueAccessDenied, scope, t])
+}
+
 function EvidenceOverlay({ item, onClose, onVenueAccessDenied }: {
   item: PackingDetectedItem
   onClose: () => void
   onVenueAccessDenied: (error: unknown) => void
 }) {
   const { t } = useI18n()
+  const reportError = usePackingErrorReporter(`evidence:${item.id}`, onVenueAccessDenied)
   const photoId = item.crop_source_photo_id ?? item.first_seen_photo_id
   const photoQuery = useQuery({
     queryKey: ['packing-evidence-photo', photoId],
@@ -46,8 +66,8 @@ function EvidenceOverlay({ item, onClose, onVenueAccessDenied }: {
     enabled: Boolean(photoId),
   })
   useEffect(() => {
-    if (photoQuery.error) onVenueAccessDenied(photoQuery.error)
-  }, [onVenueAccessDenied, photoQuery.error])
+    if (photoQuery.error) reportError(photoQuery.error)
+  }, [photoQuery.error, reportError])
   const bbox = normalizedBbox(item.crop_bbox)
 
   return createPortal(
@@ -78,6 +98,7 @@ function ChecklistItem({ item, boxId, mergeTargets, onPromotionAccepted, onVenue
 }) {
   const { t } = useI18n()
   const queryClient = useQueryClient()
+  const reportError = usePackingErrorReporter(`item:${item.id}`, onVenueAccessDenied)
   const [editing, setEditing] = useState(false)
   const [showEvidence, setShowEvidence] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -98,17 +119,17 @@ function ChecklistItem({ item, boxId, mergeTargets, onPromotionAccepted, onVenue
       review_status: reviewStatus,
     }),
     onSuccess: () => { setEditing(false); void refresh() },
-    onError: (error) => onVenueAccessDenied(error),
+    onError: reportError,
   })
   const promotionMutation = useMutation({
     mutationFn: () => requestPackingItemPromotion(item.id),
     onSuccess: (promotion) => onPromotionAccepted(item, promotion.id),
-    onError: (error) => onVenueAccessDenied(error),
+    onError: reportError,
   })
   const mergeMutation = useMutation({
     mutationFn: () => mergeDetectedPackingItems(mergeTargetId, item.id),
     onSuccess: () => { setMerging(false); void refresh() },
-    onError: (error) => onVenueAccessDenied(error),
+    onError: reportError,
   })
 
   const canSave = name.trim().length > 0 && (quantityKind === 'unknown' || Number(quantityValue) > 0)
@@ -165,7 +186,9 @@ export function PackingChecklistSection({ boxId, venueId, onVenueAccessDenied }:
   onVenueAccessDenied: (error: unknown) => void
 }) {
   const { t } = useI18n()
+  const feedback = useMobileFeedback()
   const queryClient = useQueryClient()
+  const reportError = usePackingErrorReporter(`checklist:${boxId}`, onVenueAccessDenied)
   const launcherRef = useRef<HTMLButtonElement | null>(null)
   const [open, setOpen] = useState(false)
   const [promotionTasks, setPromotionTasks] = useState<Array<{ item: PackingDetectedItem; promotionId: string }>>([])
@@ -206,14 +229,14 @@ export function PackingChecklistSection({ boxId, venueId, onVenueAccessDenied }:
   const reanalysisMutation = useMutation({
     mutationFn: () => requestPackingReanalysis(activeSession?.id ?? ''),
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['packing-sessions', boxId] }) },
-    onError: (error) => onVenueAccessDenied(error),
+    onError: reportError,
   })
 
   useEffect(() => {
     for (const error of [sessionsQuery.error, itemsQuery.error, ...promotionQueries.map((query) => query.error)]) {
-      if (error) onVenueAccessDenied(error)
+      if (error) reportError(error)
     }
-  }, [itemsQuery.error, onVenueAccessDenied, promotionQueries, sessionsQuery.error])
+  }, [itemsQuery.error, promotionQueries, reportError, sessionsQuery.error])
 
   useEffect(() => {
     promotionTasks.forEach((task, index) => {
@@ -222,6 +245,11 @@ export function PackingChecklistSection({ boxId, venueId, onVenueAccessDenied }:
       handledPromotionsRef.current.add(task.promotionId)
       if (status === 'failed') {
         setPromotionError({ key: 'packing.promotionFailed', params: { name: task.item.name } })
+        feedback.error({
+          key: `packing.promotion:${task.promotionId}`,
+          title: t('common.operationFailed'),
+          message: t('packing.promotionFailed', { name: task.item.name }),
+        })
         setPromotionTasks((current) => current.filter((candidate) => candidate.promotionId !== task.promotionId))
         return
       }
@@ -233,7 +261,7 @@ export function PackingChecklistSection({ boxId, venueId, onVenueAccessDenied }:
         setPromotionTasks((current) => current.filter((candidate) => candidate.promotionId !== task.promotionId))
       })
     })
-  }, [boxId, promotionQueries, promotionTasks, queryClient])
+  }, [boxId, feedback, promotionQueries, promotionTasks, queryClient, t])
 
   const acceptPromotion = useCallback((item: PackingDetectedItem, promotionId: string) => {
     setPromotionError(null)

@@ -61,10 +61,15 @@ export function VenueMembersPage() {
   const clearRevokedVenue = useCallback((error: unknown) => {
     if (!isVenueAccessDenied(error) || accessDeniedHandled.current) return false
     accessDeniedHandled.current = true
+    feedback.error({
+      key: `venue.access.denied:${venueId}`,
+      title: t('common.operationFailed'),
+      message: t('common.permissionDenied'),
+    })
     for (const queryKey of affectedQueryKeys(venueId)) queryClient.removeQueries({ queryKey })
     navigate('/app', { replace: true })
     return true
-  }, [navigate, queryClient, venueId])
+  }, [feedback, navigate, queryClient, t, venueId])
 
   useEffect(() => {
     if (accessDeniedError) clearRevokedVenue(accessDeniedError)

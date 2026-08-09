@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { AuthContext } from '../auth/auth-context'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { AccountDetailsPage } from './AccountDetailsPage'
 
 const { mockGetAvatarDownload, mockGetProfile, mockUploadAvatar } = vi.hoisted(() => ({
@@ -32,7 +33,7 @@ function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <MemoryRouter>
-      <QueryClientProvider client={client}>
+      <MobileFeedbackProvider><QueryClientProvider client={client}>
         <AuthContext.Provider value={{
           session: { user: { id: 'user-1', email: 'lin@example.com', user_metadata: { display_name: '林家' } } } as unknown as Session,
           loading: false,
@@ -40,7 +41,7 @@ function renderPage() {
         }}>
           <AccountDetailsPage />
         </AuthContext.Provider>
-      </QueryClientProvider>
+      </QueryClientProvider></MobileFeedbackProvider>
     </MemoryRouter>,
   )
 }
@@ -66,4 +67,15 @@ test('uploads an avatar from the account details page', async () => {
   await user.upload(await screen.findByLabelText('更换头像'), file)
 
   await waitFor(() => expect(mockUploadAvatar.mock.calls[0]?.[0]).toBe(file))
+})
+
+test('reports avatar upload failures through the global Apple feedback', async () => {
+  const user = userEvent.setup()
+  mockUploadAvatar.mockRejectedValue(new Error('upload failed'))
+  renderPage()
+  const file = new File(['avatar'], 'avatar.png', { type: 'image/png' })
+
+  await user.upload(await screen.findByLabelText('更换头像'), file)
+
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('头像上传失败，请重试')
 })

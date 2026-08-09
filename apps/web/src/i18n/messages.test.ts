@@ -41,6 +41,13 @@ test('explains that shared-venue members need the owner to unlock more boxes', (
     expect(messages['zh-CN'].venues.sharedBadge).toBe('家庭共享')
   })
 
+  test('clarifies in both locales that reusable invites do not reserve member seats', () => {
+    expect(messages['zh-CN'].venueSharing.memberLimitReached).toContain('邀请链接不会占用名额')
+    expect(messages['zh-CN'].venueSharing.memberLimitReached).not.toContain('未使用邀请')
+    expect(messages['en-US'].venueSharing.memberLimitReached).toContain('Invitation links do not reserve seats')
+    expect(messages['en-US'].venueSharing.memberLimitReached).not.toContain('unused invitations')
+  })
+
   test('includes localized venue activity labels and directional event messages', () => {
     expect(messages['zh-CN'].venueActivity.title).toBe('最近活动')
     expect(messages['en-US'].venueActivity.title).toBe('Recent activity')

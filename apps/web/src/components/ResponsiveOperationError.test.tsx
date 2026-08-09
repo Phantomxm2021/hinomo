@@ -115,7 +115,7 @@ test('normalizes a backend operation error into a shared Apple alert', () => {
 
   const dialog = screen.getByRole('alertdialog', { name: '操作未完成' })
   expect(dialog).toHaveTextContent('创建邀请失败')
-  expect(dialog).toHaveTextContent('成员名额已满；未使用邀请也会占用名额')
+  expect(dialog).toHaveTextContent('成员名额已满；邀请链接不会占用名额')
 })
 
 test('does not offer retry for permission errors even when a retry callback exists', () => {

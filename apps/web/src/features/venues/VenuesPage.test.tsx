@@ -117,10 +117,27 @@ test('serializes rapid card-menu invite taps into one creation request', async (
   await userEvent.setup().click(within(card).getByRole('button', { name: '管理场地家里' }))
   const invite = within(screen.getByRole('menu', { name: '家里场地操作' })).getByRole('menuitem', { name: '邀请家人' })
   fireEvent.click(invite)
+  expect(screen.queryByRole('menu', { name: '家里场地操作' })).not.toBeInTheDocument()
   fireEvent.click(invite)
   fireEvent.click(invite)
   expect(mockCreateInvite).toHaveBeenCalledOnce()
   resolveInvite({ invite_id: 'invite-1', token: 'invite-token', expires_at: '2026-08-10T00:00:00Z', reusable: true })
+})
+
+test('closes the card menu immediately while invite creation is slow or fails', async () => {
+  let rejectInvite!: (error: unknown) => void
+  mockCreateInvite.mockReturnValue(new Promise((_resolve, reject) => { rejectInvite = reject }))
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(<MobileFeedbackProvider><MemoryRouter><QueryClientProvider client={client}><VenuesPage /></QueryClientProvider></MemoryRouter></MobileFeedbackProvider>)
+
+  const card = await screen.findByTestId('venue-card-home')
+  await userEvent.setup().click(within(card).getByRole('button', { name: '管理场地家里' }))
+  fireEvent.click(within(screen.getByRole('menu', { name: '家里场地操作' })).getByRole('menuitem', { name: '邀请家人' }))
+
+  expect(screen.queryByRole('menu', { name: '家里场地操作' })).not.toBeInTheDocument()
+  rejectInvite(new TypeError('Failed to fetch'))
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toBeInTheDocument()
+  expect(screen.queryByRole('menu', { name: '家里场地操作' })).not.toBeInTheDocument()
 })
 
 test('retries a transient card invite failure through the global Apple alert', async () => {
@@ -154,7 +171,7 @@ test('clears venue caches and navigates home when card invite access is revoked'
   expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('你没有执行此操作的权限')
 })
 
-test('explains when members or unused invitations have reserved all family seats', async () => {
+test('explains that reusable invitations do not reserve family seats', async () => {
   const user = userEvent.setup()
   mockCreateInvite.mockRejectedValue(Object.assign(new Error('venue_member_limit_reached'), { code: 'venue_member_limit_reached' }))
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -165,7 +182,8 @@ test('explains when members or unused invitations have reserved all family seats
   await user.click(within(screen.getByRole('menu', { name: '家里场地操作' })).getByRole('menuitem', { name: '邀请家人' }))
 
   expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('成员名额已满')
-  expect(screen.getByRole('alertdialog')).toHaveTextContent('未使用邀请')
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('邀请链接不会占用名额')
+  expect(screen.getByRole('alertdialog')).not.toHaveTextContent('未使用邀请')
 })
 
 test('shows the invite action with a clear disabled explanation when rollout is off', async () => {

@@ -27,7 +27,11 @@ export function LocaleProfileSync() {
 
     let active = true
     void updateLocale(locale).catch(() => {
-      if (active) feedback.notify(t('settings.languageSaveFailed'))
+      if (active) feedback.error({
+        key: `profile.locale.sync:${userId}:${locale}`,
+        title: t('common.operationFailed'),
+        message: t('settings.languageSaveFailed'),
+      })
     })
 
     return () => {

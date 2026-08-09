@@ -36,11 +36,11 @@ export function VenueCardMenu({ venue, invitesEnabled, onEdit, onVenueAccessDeni
   async function openInvite() {
     if (!invitesEnabled || invitePendingRef.current) return
     invitePendingRef.current = true
+    closeMenu(false)
     setInvitePending(true)
     try {
       setInvite(await createVenueInvite(venue.id))
       await queryClient.invalidateQueries({ queryKey: ['venue-invites', venue.id] })
-      closeMenu(false)
     } catch (error) {
       if (isVenueAccessDenied(error)) {
         onVenueAccessDenied(error)

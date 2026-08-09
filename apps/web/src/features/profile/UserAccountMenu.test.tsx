@@ -8,20 +8,23 @@ import { AuthContext } from '../auth/auth-context'
 import { I18nProvider } from '../../i18n/I18nProvider'
 import { useI18n } from '../../i18n/I18nProvider'
 import { UserAccountMenu } from './UserAccountMenu'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 
-const { mockGetAvatarDownload, mockGetCreditSummary, mockGetProfile } = vi.hoisted(() => ({
+const { mockGetAvatarDownload, mockGetCreditSummary, mockGetProfile, mockUploadAvatar, mockSignOut } = vi.hoisted(() => ({
   mockGetAvatarDownload: vi.fn(),
   mockGetCreditSummary: vi.fn(),
   mockGetProfile: vi.fn(),
+  mockUploadAvatar: vi.fn(),
+  mockSignOut: vi.fn(),
 }))
 
 vi.mock('./profile.api', () => ({
   getAvatarDownload: mockGetAvatarDownload,
   getProfile: mockGetProfile,
   updateLocale: vi.fn(),
-  uploadAvatar: vi.fn(),
+  uploadAvatar: mockUploadAvatar,
 }))
-vi.mock('../../lib/supabase', () => ({ supabase: { auth: { signOut: vi.fn() } } }))
+vi.mock('../../lib/supabase', () => ({ supabase: { auth: { signOut: mockSignOut } } }))
 vi.mock('../credits/credits.api', () => ({ getCreditSummary: mockGetCreditSummary }))
 
 afterEach(cleanup)
@@ -29,12 +32,14 @@ beforeEach(() => {
   mockGetAvatarDownload.mockReset()
   mockGetCreditSummary.mockReset().mockResolvedValue({ credits_available: 82, credits_reserved: 3 })
   mockGetProfile.mockReset()
+  mockUploadAvatar.mockReset().mockResolvedValue('blob:avatar')
+  mockSignOut.mockReset().mockResolvedValue(undefined)
 })
 
 function renderMenu() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <I18nProvider>
+    <I18nProvider><MobileFeedbackProvider>
       <MemoryRouter>
         <QueryClientProvider client={client}>
         <AuthContext.Provider value={{
@@ -47,7 +52,7 @@ function renderMenu() {
           </AuthContext.Provider>
         </QueryClientProvider>
       </MemoryRouter>
-    </I18nProvider>,
+    </MobileFeedbackProvider></I18nProvider>,
   )
 }
 
@@ -128,4 +133,35 @@ test('falls back to session data after a profile error', async () => {
   expect(await screen.findByText('user')).toBeInTheDocument()
   expect(screen.getByText('user@example.com')).toBeInTheDocument()
   expect(screen.queryByRole('status', { name: '正在加载账户资料' })).not.toBeInTheDocument()
+})
+
+test('reports avatar upload failures through the global Apple feedback', async () => {
+  const user = userEvent.setup()
+  mockGetProfile.mockResolvedValue({
+    id: 'user-1', display_name: '小诺', avatar_object_key: null, locale: 'zh-CN',
+  })
+  mockUploadAvatar.mockRejectedValue(new Error('upload failed'))
+  renderMenu()
+
+  await screen.findByText('小诺')
+  await user.click(screen.getByRole('button', { name: '打开账户菜单' }))
+  await user.click(screen.getByRole('menuitem', { name: '账户信息' }))
+  await user.upload(screen.getByLabelText('更换头像'), new File(['avatar'], 'avatar.png', { type: 'image/png' }))
+
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('头像上传失败，请重试')
+})
+
+test('reports sign-out failures through the global Apple feedback', async () => {
+  const user = userEvent.setup()
+  mockGetProfile.mockResolvedValue({
+    id: 'user-1', display_name: '小诺', avatar_object_key: null, locale: 'zh-CN',
+  })
+  mockSignOut.mockResolvedValue({ error: new Error('sign out failed') })
+  renderMenu()
+
+  await screen.findByText('小诺')
+  await user.click(screen.getByRole('button', { name: '打开账户菜单' }))
+  await user.click(screen.getByRole('menuitem', { name: '退出登录' }))
+
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('暂时无法完成此操作，请稍后再试')
 })

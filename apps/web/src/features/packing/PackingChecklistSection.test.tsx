@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { PackingChecklistSection } from './PackingChecklistSection'
 
 const mocks = vi.hoisted(() => ({
@@ -22,7 +23,10 @@ vi.mock('./packing.api', () => ({
   mergeDetectedPackingItems: mocks.mergeItems,
 }))
 vi.mock('./PackingAuthorizedImage', () => ({ PackingAuthorizedImage: ({ alt }: { alt: string }) => <span>{alt}</span> }))
-vi.mock('../venues/venue-sharing.api', () => ({ getVenueAccessSummary: mocks.getVenueAccess }))
+vi.mock('../venues/venue-sharing.api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../venues/venue-sharing.api')>()),
+  getVenueAccessSummary: mocks.getVenueAccess,
+}))
 
 const item = {
   id: 'detected-1', session_id: 'session-1', box_id: 'box-1', analysis_revision: 1,
@@ -36,7 +40,7 @@ const item = {
 
 function renderSection() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  const result = render(<QueryClientProvider client={queryClient}><PackingChecklistSection boxId="box-1" venueId="venue-1" onVenueAccessDenied={mocks.onVenueAccessDenied} /></QueryClientProvider>)
+  const result = render(<MobileFeedbackProvider><QueryClientProvider client={queryClient}><PackingChecklistSection boxId="box-1" venueId="venue-1" onVenueAccessDenied={mocks.onVenueAccessDenied} /></QueryClientProvider></MobileFeedbackProvider>)
   return { ...result, queryClient }
 }
 
@@ -102,6 +106,19 @@ test('forwards inaccessible nested checklist mutations to the venue revocation h
   await waitFor(() => expect(mocks.onVenueAccessDenied).toHaveBeenCalledWith(error))
 })
 
+test('reports non-permission checklist mutation failures through global Apple feedback', async () => {
+  const user = userEvent.setup()
+  mocks.updateItem.mockRejectedValue(new Error('update failed'))
+  renderSection()
+  await user.click(await screen.findByRole('button', { name: /AI 智能清单/ }))
+  await user.click(screen.getByRole('button', { name: '更多白色充电器操作' }))
+  await user.click(screen.getByRole('button', { name: '修改' }))
+  await user.click(screen.getByRole('button', { name: '保存修正' }))
+
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('暂时无法完成此操作，请稍后再试')
+  expect(mocks.onVenueAccessDenied).not.toHaveBeenCalled()
+})
+
 test('lets an estimated quantity join the formal checklist in one step', async () => {
   const user = userEvent.setup()
   mocks.listItems.mockResolvedValue([{ ...item, quantity_kind: 'at_least', quantity_value: 3 }])
@@ -130,6 +147,8 @@ test('restores the detected item when background promotion fails', async () => {
   await user.click(await screen.findByRole('button', { name: /AI 智能清单/ }))
   await user.click(await screen.findByRole('button', { name: '加入清单' }))
   expect(await screen.findByRole('alert')).toHaveTextContent('白色充电器加入失败，请重试')
+  expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('白色充电器加入失败，请重试')
+  await user.click(screen.getByRole('button', { name: '好' }))
   mocks.getPromotion.mockResolvedValue({ id: 'promotion-1', status: 'pending' })
   await user.click(await screen.findByRole('button', { name: '加入清单' }))
   expect(await screen.findByText('已提交 1 项，正在后台加入清单')).toBeInTheDocument()
