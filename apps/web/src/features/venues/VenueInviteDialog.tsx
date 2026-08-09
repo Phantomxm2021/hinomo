@@ -8,6 +8,7 @@ import { revokeVenueInvite } from './venue-sharing.api'
 export type VenueInviteDialogProps = {
   open: boolean
   invite: { invite_id: string; token: string; expires_at: string } | null
+  /** The owner clears the raw invite token from its state before closing the dialog. */
   onClose: () => void
 }
 

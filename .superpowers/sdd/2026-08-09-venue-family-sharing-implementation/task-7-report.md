@@ -21,3 +21,9 @@
 ## Scope
 
 - Member-management UI remains deliberately out of scope for this task.
+- `VenueInviteDialog` is intentionally not mounted by a production page yet. Task 8 owns that reachability work: it must create the owner invite, open the dialog, clear the raw token in its parent on every close path (including after revoke), and cover that end-to-end owner flow.
+
+## Round 1 security follow-up
+
+- Tightened `safeReturnTo` to reject backslashes as well as protocol-relative and absolute targets. A return path such as `/\\evil.test/steal-session` can be normalized by browsers into a cross-origin authority URL, so it now falls back to `/app`.
+- Added a direct regression test for that escape form.
