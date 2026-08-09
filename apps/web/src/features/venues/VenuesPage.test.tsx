@@ -59,5 +59,7 @@ test('lists venues and opens creation and editing from the dedicated page', asyn
   expect(screen.queryByRole('dialog', { name: '编辑场地' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: '编辑场地家里' })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: '家庭成员家里' })).toHaveAttribute('href', '/app/venues/home/members')
+  expect(screen.getByRole('link', { name: '最近活动家里' })).toHaveAttribute('href', '/app/venues/home/activity')
+  expect(screen.getByRole('link', { name: '最近活动公司' })).toHaveAttribute('href', '/app/venues/office/activity')
   expect(screen.getByRole('link', { name: '家庭成员公司' })).toHaveTextContent('家庭共享 · 王小明')
 })

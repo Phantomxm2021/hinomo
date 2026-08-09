@@ -133,11 +133,14 @@ export function VenuesPage() {
               <span className="grid size-10 place-items-center rounded-full bg-canvas text-muted transition group-hover:bg-brand/10 group-hover:text-brand"><AppIcon name="chevron-right" size={20} /></span>
             </>
             return venue.role === 'member' ? (
-              <Link className="group grid min-h-32 w-full grid-cols-[1fr_auto] items-center gap-4 rounded-[1.35rem] border border-line bg-surface p-5 text-left no-underline shadow-soft transition hover:-translate-y-0.5 hover:border-brand/35 sm:p-6" aria-label={t('venues.membersVenue', { name: venue.name })} key={venue.id} to={`/app/venues/${venue.id}/members`}>{details}</Link>
+              <div className="grid gap-2" key={venue.id}>
+                <Link className="group grid min-h-32 w-full grid-cols-[1fr_auto] items-center gap-4 rounded-[1.35rem] border border-line bg-surface p-5 text-left no-underline shadow-soft transition hover:-translate-y-0.5 hover:border-brand/35 sm:p-6" aria-label={t('venues.membersVenue', { name: venue.name })} to={`/app/venues/${venue.id}/members`}>{details}</Link>
+                <Link className="inline-flex min-h-11 items-center gap-2 justify-self-start px-3 font-bold text-brand-strong no-underline" aria-label={t('venues.activityVenue', { name: venue.name })} to={`/app/venues/${venue.id}/activity`}>{t('venueActivity.link')}</Link>
+              </div>
             ) : (
               <div className="grid gap-2" key={venue.id}>
                 <button className="group grid min-h-32 w-full grid-cols-[1fr_auto] items-center gap-4 rounded-[1.35rem] border border-line bg-surface p-5 text-left shadow-soft transition hover:-translate-y-0.5 hover:border-brand/35 sm:p-6" type="button" aria-label={t('venues.editVenue', { name: venue.name })} onClick={() => { setEditTarget(venue); setEditorOpen(true) }}>{details}</button>
-                <Link className="inline-flex min-h-11 items-center gap-2 justify-self-start px-3 font-bold text-brand-strong no-underline" aria-label={t('venues.membersVenue', { name: venue.name })} to={`/app/venues/${venue.id}/members`}><AppIcon name="family" />{t('venues.members')}</Link>
+                <div className="flex flex-wrap gap-2"><Link className="inline-flex min-h-11 items-center gap-2 justify-self-start px-3 font-bold text-brand-strong no-underline" aria-label={t('venues.membersVenue', { name: venue.name })} to={`/app/venues/${venue.id}/members`}><AppIcon name="family" />{t('venues.members')}</Link><Link className="inline-flex min-h-11 items-center gap-2 justify-self-start px-3 font-bold text-brand-strong no-underline" aria-label={t('venues.activityVenue', { name: venue.name })} to={`/app/venues/${venue.id}/activity`}>{t('venueActivity.link')}</Link></div>
               </div>
             )
           })}

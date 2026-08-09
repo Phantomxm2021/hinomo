@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PageState } from '../../components/PageState'
@@ -108,7 +108,7 @@ export function VenueMembersPage() {
     <section className="mx-auto grid w-full max-w-3xl gap-6" aria-labelledby="venue-members-title">
       <header className="flex items-center justify-between gap-4">
         <div><p className="mb-1 text-meta font-medium tracking-eyebrow text-muted">{t('venues.sharedBadge')}</p><h1 className="m-0 text-page-title font-extrabold" id="venue-members-title">{t('venueSharing.membersTitle')}</h1></div>
-        <span className="rounded-full bg-brand/10 px-3 py-2 font-bold text-brand-strong">{t('venueSharing.memberLimit', { count: accessQuery.data.member_count, max: accessQuery.data.max_members })}</span>
+        <div className="flex items-center gap-3"><Link className="min-h-11 rounded-control px-3 py-2 font-bold text-brand-strong no-underline" to={`/app/venues/${venueId}/activity`}>{t('venueActivity.link')}</Link><span className="rounded-full bg-brand/10 px-3 py-2 font-bold text-brand-strong">{t('venueSharing.memberLimit', { count: accessQuery.data.member_count, max: accessQuery.data.max_members })}</span></div>
       </header>
 
       <div className="grid gap-3">

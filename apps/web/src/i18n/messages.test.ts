@@ -41,6 +41,15 @@ describe('message catalog', () => {
     expect(messages['zh-CN'].venues.sharedBadge).toBe('家庭共享')
   })
 
+  test('includes localized venue activity labels and the five event messages', () => {
+    expect(messages['zh-CN'].venueActivity.title).toBe('最近活动')
+    expect(messages['en-US'].venueActivity.title).toBe('Recent activity')
+    expect(Object.keys(messages['zh-CN'].venueActivity.events)).toEqual([
+      'item_created', 'item_moved', 'item_quantity_changed', 'item_deleted', 'box_moved',
+    ])
+    expect(messages['zh-CN'].venueActivity.departed).toBe('已离开')
+  })
+
   test('keeps Simplified Chinese and English leaf keys in sync', () => {
     const chineseKeys = leafPaths(messages['zh-CN']).sort()
     const englishKeys = leafPaths(messages['en-US']).sort()

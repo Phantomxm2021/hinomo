@@ -21,3 +21,9 @@ test('matches the protected venue family members page before the app fallback ro
 
   expect(matches?.at(-1)?.route.path).toBe('venues/:venueId/members')
 })
+
+test('matches the protected venue activity page before the app fallback route', () => {
+  const matches = matchRoutes(router.routes, '/app/venues/home/activity')
+
+  expect(matches?.at(-1)?.route.path).toBe('venues/:venueId/activity')
+})

@@ -15,6 +15,7 @@ import { SpacesPage } from '../features/spaces/SpacesPage'
 import { VenuesPage } from '../features/venues/VenuesPage'
 import { JoinVenuePage } from '../features/venues/JoinVenuePage'
 import { VenueMembersPage } from '../features/venues/VenueMembersPage'
+import { VenueActivityPage } from '../features/venues/VenueActivityPage'
 import { MyPage } from '../features/profile/MyPage'
 import { AccountDetailsPage } from '../features/profile/AccountDetailsPage'
 import { GeneralSettingsPage } from '../features/profile/GeneralSettingsPage'
@@ -68,6 +69,7 @@ export const router = createBrowserRouter([
           { path: 'spaces', element: <SpacesPage /> },
           { path: 'venues', element: <VenuesPage /> },
           { path: 'venues/:venueId/members', element: <VenueMembersPage /> },
+          { path: 'venues/:venueId/activity', element: <VenueActivityPage /> },
           { path: 'me', element: <MyPage /> },
           { path: 'me/account', element: <AccountDetailsPage /> },
           { path: 'me/credits', element: <CreditsPage /> },

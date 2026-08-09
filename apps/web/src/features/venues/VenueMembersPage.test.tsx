@@ -63,6 +63,7 @@ test('owner manages family members, active invitations, and clears the raw invit
   expect(screen.getByText('李小红')).toBeInTheDocument()
   expect(screen.getByText('李小红').parentElement).toHaveTextContent('成员')
   expect(screen.getByRole('button', { name: '创建邀请' })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: '最近活动' })).toHaveAttribute('href', '/app/venues/home/activity')
   expect(screen.getByText('未使用邀请')).toBeInTheDocument()
   expect(await screen.findByRole('button', { name: '撤销邀请' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '移除李小红' })).toBeInTheDocument()
