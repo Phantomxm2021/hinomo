@@ -147,8 +147,9 @@ select is((select snapshot->>'entity_name' from public.activity_logs where entit
 select tests.authenticate_as('venue-activity-member');
 select ok(exists (select 1 from public.list_venue_activity((select venue_a_id from activity_state))),
   'current member can read venue activity');
-select ok((select count(*)::integer > 0 from public.list_venue_activity((select venue_a_id from activity_state),
-  (select member_id from activity_state))), 'activity feed filters by actor');
+select ok((select count(*)::integer > 0 and bool_and(actor_id = (select member_id from activity_state))
+  from public.list_venue_activity((select venue_a_id from activity_state),
+    (select member_id from activity_state))), 'activity feed filters by actor');
 select ok((select count(*)::integer > 0 and bool_and(event_code = 'item_moved')
   from public.list_venue_activity((select venue_a_id from activity_state), null, 'item_moved')),
   'activity feed filters by event code');
