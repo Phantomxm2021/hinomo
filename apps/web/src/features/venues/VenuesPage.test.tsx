@@ -101,6 +101,7 @@ test('owner can invite family directly from the venue card without opening the e
   await user.click(inviteButton)
 
   expect(mockCreateInvite).toHaveBeenCalledWith('home')
+  expect(screen.queryByRole('menu', { name: '家里场地操作' })).not.toBeInTheDocument()
   expect(await screen.findByRole('dialog', { name: '分享场地邀请' })).toBeInTheDocument()
   expect(screen.queryByRole('dialog', { name: '编辑场地' })).not.toBeInTheDocument()
 })

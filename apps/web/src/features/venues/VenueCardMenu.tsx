@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { useI18n } from '../../i18n/I18nProvider'
-import { VenueInviteQuickAction } from './VenueInviteQuickAction'
+import { VenueInviteDialog } from './VenueInviteDialog'
+import { createVenueInvite } from './venue-sharing.api'
 import type { VenueSummary } from './venues.api'
 
 type VenueCardMenuProps = {
@@ -14,12 +15,29 @@ type VenueCardMenuProps = {
 export function VenueCardMenu({ venue, invitesEnabled, onEdit }: VenueCardMenuProps) {
   const { t } = useI18n()
   const [open, setOpen] = useState(false)
+  const [invite, setInvite] = useState<{ invite_id: string; token: string; expires_at: string } | null>(null)
+  const [invitePending, setInvitePending] = useState(false)
+  const [inviteError, setInviteError] = useState(false)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   function closeMenu(restoreFocus: boolean) {
     setOpen(false)
     if (restoreFocus) window.requestAnimationFrame(() => triggerRef.current?.focus())
+  }
+
+  async function openInvite() {
+    if (!invitesEnabled || invitePending) return
+    setInvitePending(true)
+    setInviteError(false)
+    try {
+      setInvite(await createVenueInvite(venue.id))
+      closeMenu(false)
+    } catch {
+      setInviteError(true)
+    } finally {
+      setInvitePending(false)
+    }
   }
 
   useEffect(() => {
@@ -68,7 +86,19 @@ export function VenueCardMenu({ venue, invitesEnabled, onEdit }: VenueCardMenuPr
                 <AppIcon name="edit" size={17} />
                 {t('venues.edit')}
               </button>
-              <VenueInviteQuickAction venueId={venue.id} enabled={invitesEnabled} menuItem />
+              <button
+                className="inline-flex min-h-12 w-full items-center gap-3 rounded-[0.75rem] px-3 text-left text-[0.9375rem] font-medium text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+                role="menuitem"
+                disabled={!invitesEnabled || invitePending}
+                title={!invitesEnabled ? t('venues.inviteDisabled') : undefined}
+                onClick={() => void openInvite()}
+              >
+                <AppIcon name="share" size={17} />
+                {invitePending ? t('venueSharing.creatingInvite') : t('venues.inviteFamily')}
+              </button>
+              {!invitesEnabled ? <span className="px-3 pb-1 text-xs text-muted">{t('venues.inviteDisabled')}</span> : null}
+              {inviteError ? <p className="m-0 px-3 pb-1 text-xs text-danger" role="alert">{t('venueSharing.actionError')}</p> : null}
               <div className="my-1 border-t border-line/60" aria-hidden="true" />
             </>
           ) : null}
@@ -82,6 +112,7 @@ export function VenueCardMenu({ venue, invitesEnabled, onEdit }: VenueCardMenuPr
           </Link>
         </div>
       ) : null}
+      <VenueInviteDialog open={Boolean(invite)} invite={invite} onClose={() => setInvite(null)} />
     </div>
   )
 }
