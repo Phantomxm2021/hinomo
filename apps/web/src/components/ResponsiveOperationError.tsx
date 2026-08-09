@@ -47,7 +47,9 @@ export function ResponsiveOperationError({ message, onRetry, busy = false, retry
       cancelLabel,
       onCancel,
       onActionError,
-      onDismiss: (reason) => { dismissedRef.current = reason === undefined || reason === 'cancel' || reason === 'escape' },
+      onDismiss: (reason) => {
+        dismissedRef.current = reason === undefined || reason === 'cancel' || reason === 'escape' || (!canRetry && reason === 'primary')
+      },
     }
     if (typeof feedback.error === 'function') {
       feedback.error(options)

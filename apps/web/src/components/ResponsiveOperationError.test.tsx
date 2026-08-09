@@ -132,6 +132,29 @@ test('does not offer retry for permission errors even when a retry callback exis
   expect(within(dialog).queryByRole('button', { name: '重试' })).not.toBeInTheDocument()
 })
 
+test('does not reopen a dismissed non-retryable error when the parent rerenders', () => {
+  const view = render(
+    <I18nProvider>
+      <MobileFeedbackProvider>
+        <ResponsiveOperationError message="保存箱子失败" error={{ code: 'venue_access_denied' }} onRetry={vi.fn()} />
+      </MobileFeedbackProvider>
+    </I18nProvider>,
+  )
+
+  const dialog = screen.getByRole('alertdialog', { name: '操作未完成' })
+  fireEvent.click(within(dialog).getByRole('button', { name: '好' }))
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+
+  view.rerender(
+    <I18nProvider>
+      <MobileFeedbackProvider>
+        <ResponsiveOperationError message="保存箱子失败" error={{ code: 'venue_access_denied' }} onRetry={vi.fn()} />
+      </MobileFeedbackProvider>
+    </I18nProvider>,
+  )
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+})
+
 test('keeps retry available for an unknown operation error when a retry callback exists', () => {
   const retry = vi.fn()
   render(
