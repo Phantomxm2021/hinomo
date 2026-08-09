@@ -15,7 +15,8 @@
     "test:worker": "deno test --config supabase/functions/packing-worker/deno.json supabase/functions/packing-worker",
     "build:worker": "deno check --config supabase/functions/packing-worker/deno.json supabase/functions/packing-worker/index.ts",
     "test:e2e": "npm run test:e2e --workspace=@nomo/web",
-    "test:db": "supabase test db"
+    "test:db": "supabase test db",
+    "test:venue-sharing-concurrency": "node scripts/test-venue-sharing-concurrency.mjs"
   },
   "devDependencies": {
     "deno-bin": "2.2.7",

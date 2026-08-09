@@ -1,6 +1,6 @@
 # Nomo Privacy Policy
 
-**Effective date: August 3, 2026**
+**Effective date: August 9, 2026**
 
 Nomo values your privacy. This policy explains how the operator of the Nomo service ("we," "us," or "our") collects, uses, stores, and shares information when you use Nomo websites, applications, and related services.
 
@@ -40,26 +40,30 @@ We do not sell your personal information. We may share information only when nec
 - To comply with applicable law, a court order, or a lawful request from an authorized body; or
 - To protect the rights and safety of users, the public, us, or the service.
 
-## 6. Storage, retention, and international processing
+## 6. Family-shared venues
+
+Members of the same venue can see each other’s display names, avatars, shared content, and activity snapshots. Historical display-name snapshots remain after a member leaves so that shared members can understand actions that already occurred. An invitation-link holder can view minimal venue information before joining (the venue name, owner display name, and invitation status); send an invitation link only to someone you intend to join that venue.
+
+## 7. Storage, retention, and international processing
 
 We or our providers may process information outside your country or region. We retain information only as long as reasonably necessary for the purposes described in this policy. After account deletion, some information may remain for a limited period because of backup cycles, security, fraud prevention, financial, or legal obligations.
 
-## 7. Security
+## 8. Security
 
 We use reasonable technical and organizational safeguards. No network transmission or storage method can guarantee absolute security. Use a unique, secure password and protect your login credentials and public QR codes.
 
-## 8. Your choices and rights
+## 9. Your choices and rights
 
 Depending on applicable law, you may have rights to access, correct, export, or delete personal information; restrict or object to certain processing; and withdraw consent. You can update certain account information through the product. For other requests, contact the service operator using the support channel published on the official Nomo deployment page.
 
-## 9. Children
+## 10. Children
 
 Nomo is not directed to children below the minimum age for digital services in their location. If you are below the age of legal majority where you live, use the service only with the consent and guidance of a parent or guardian.
 
-## 10. Changes to this policy
+## 11. Changes to this policy
 
 We may update this policy. If a change is material, we will provide notice through the service or another reasonable method and update the effective date at the top of this document.
 
-## 11. Contact us
+## 12. Contact us
 
 For questions about this policy or our handling of personal information, contact the service operator using the support channel published on the official Nomo deployment page.

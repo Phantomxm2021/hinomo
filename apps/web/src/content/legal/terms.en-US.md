@@ -28,7 +28,11 @@ You represent that you have the rights necessary to submit and process your cont
 
 When you make a box public or share a related link or QR code, anyone who obtains it may be able to access the associated content. You are responsible for choosing appropriate visibility settings and ensuring public content does not contain information that should remain private.
 
-## 6. Acceptable use
+## 6. Family-shared venues
+
+Owners are responsible for issuing and revoking invitations and must invite only people with whom they are authorized to share the relevant content. Members may delete items but may not delete boxes, spaces, or venues. The owner’s box allowance is separate from each member’s own AI Credits: new boxes in a shared venue use the venue owner’s box allowance, while AI features use the Credits of the member who starts them.
+
+## 7. Acceptable use
 
 You must not:
 
@@ -39,11 +43,11 @@ You must not:
 - Use the service for fraud, harassment, impersonation, or unlawful content; or
 - Send unreasonable automated traffic or use the service in a way that impairs other users.
 
-## 7. Intelligent features
+## 8. Intelligent features
 
 Image recognition, automatic naming, and other intelligent features may produce inaccurate, incomplete, or inappropriate results. Review results before relying on, publishing, or acting on them. These features do not constitute professional advice.
 
-## 8. Paid features and credits
+## 9. Paid features and credits
 
 Some features may require payment or consume service credits. Before purchase, the checkout page will present applicable pricing, taxes, credits, and principal conditions. Except where applicable law or the checkout terms require otherwise, consumed digital credits are not refundable or transferable.
 
@@ -55,26 +59,26 @@ In these terms, “lifetime” means that the entitlement has no preset expirati
 
 If an Unlimited Boxes order receives a full refund, we may revoke the entitlement and the corresponding future permission to create boxes above the free limit. Revocation will not delete, lock, or downgrade boxes created before revocation; you may continue to view, edit, delete, and manage those boxes and their items. Whether you may create more boxes after revocation depends on the then-current free limit and the number of boxes held by your account. Refund eligibility, procedure, and other effects remain subject to applicable law and the conditions shown at Checkout.
 
-## 9. Third-party services
+## 10. Third-party services
 
 The service may depend on or link to third-party authentication, storage, payment, AI, or other services. Third parties may process information under their own terms and policies.
 
-## 10. Suspension and termination
+## 11. Suspension and termination
 
 You may stop using the service at any time. We may restrict, suspend, or terminate access if you materially or repeatedly violate these terms, create a security risk, or if law requires us to do so. Where reasonable and legally permitted, we will provide advance notice.
 
-## 11. Disclaimers and limitation of liability
+## 12. Disclaimers and limitation of liability
 
 We use reasonable technical and organizational measures to provide the service, but do not promise that it will always be uninterrupted, error-free, or suitable for every purpose. To the maximum extent permitted by applicable law, our liability for indirect, incidental, special, or consequential damages is limited. Nothing in these terms excludes liability or consumer rights that cannot lawfully be excluded or limited.
 
-## 12. Changes to these terms
+## 13. Changes to these terms
 
 We may update these terms. For material changes, we will notify you through the service or another reasonable method. Continued use after the change takes effect means that you accept the updated terms, except where applicable law requires separate consent.
 
-## 13. Governing law and disputes
+## 14. Governing law and disputes
 
 The governing law and dispute-resolution terms depend on the operator information published on the official Nomo deployment page and any mandatory local law. These terms do not affect rights you have under mandatory consumer-protection law.
 
-## 14. Contact us
+## 15. Contact us
 
 For questions about these terms, contact the service operator using the support channel published on the official Nomo deployment page.

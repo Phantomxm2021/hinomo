@@ -249,6 +249,81 @@ on table public.boxes to authenticated;
 
 该授权只用于短时救援窗口，期间记录绕过 `create_box` 的风险和所有新建箱子；不得恢复无关角色权限。修复前端并确认新缓存已退出后，再提交另一份 forward migration 重新撤销上述列级权限，运行 `007_api_privileges.test.sql`，并确认所有权益、tombstone、Webhook 历史和箱子数据仍然存在。任何回滚方案都不得通过删除数据或 `DROP` 表／函数完成。
 
+## 家庭共享场地发布、健康检查与向前回滚
+
+家庭共享必须按以下固定顺序发布，不得跳过或重排。每个迁移完成后确认 PostgREST schema reload 成功，再进入下一步：
+
+```text
+202608090001 → 002 → 003 → 004 → 005
+→ npm run test:db
+→ Web frontend
+→ internal invite smoke test
+→ enable family invite entry
+```
+
+其中 001 是成员与邀请权限，002 是共享内容与所有者箱子额度，003 是共享工作流，004 是共享 packing 权限，005 是活动流。先让新后端完整可用，再发布 Web 前端；邀请入口在内部冒烟通过前保持关闭。健康检查和运营查询只能由受控 SQL Editor 执行，查询结果不得复制邀请 token、access token、service role key、家庭内容或图片 URL。
+
+```sql
+-- 成员数不能超过所有者加四位成员。
+select venue_id, count(*) + 1 as member_count
+from public.venue_members
+group by venue_id
+having count(*) + 1 > 5;
+
+-- 有效邀请不得超过剩余席位。
+select venues.id as venue_id,
+       count(*) filter (where invites.accepted_at is null and invites.revoked_at is null
+         and invites.expires_at > pg_catalog.now()) as active_invites,
+       5 - 1 - count(members.user_id) as remaining_seats
+from public.venues as venues
+left join public.venue_members as members on members.venue_id = venues.id
+left join public.venue_invites as invites on invites.venue_id = venues.id
+group by venues.id
+having count(*) filter (where invites.accepted_at is null and invites.revoked_at is null
+  and invites.expires_at > pg_catalog.now()) > 5 - 1 - count(members.user_id);
+
+-- 关键内容事件必须有 actor；未知 actor 仅允许历史保留场景另行人工说明。
+select id, venue_id, event_code, created_at
+from public.activity_logs
+where event_code in ('item_created', 'item_moved', 'item_quantity_changed', 'item_deleted', 'box_moved')
+  and actor_id is null
+order by created_at desc;
+
+-- 一个场地只能有一个所有者，且所有者不可同时成为 venue_members 行。
+select venues.id, venues.owner_id, members.user_id
+from public.venues as venues
+join public.venue_members as members
+  on members.venue_id = venues.id and members.user_id = venues.owner_id;
+
+-- 最近私有 membership audit 变更。
+select venue_id, actor_id, subject_user_id, event_code, created_at
+from private.venue_membership_audit
+order by created_at desc
+limit 100;
+
+-- 最近服务端拒绝/错误聚合（以部署日志的结构化 code 字段为准）。
+select error_code, count(*) as count, max(created_at) as most_recent
+from private.request_error_logs
+where created_at >= pg_catalog.now() - interval '24 hours'
+  and error_code in ('venue_access_denied', 'venue_member_limit_reached', 'venue_invite_used')
+group by error_code
+order by count desc, most_recent desc;
+```
+
+最后一条假设部署环境将结构化 access-denied/error 日志写入 `private.request_error_logs`；当前仓库没有产品 analytics provider。没有该受控日志表时，改在受控日志平台按相同 error code 聚合，发布记录不得声称已采集产品漏斗或转化数据。
+
+### Test Mode 验收
+
+- 邀请过期、撤销和复用均显示稳定错误；最后一个席位只能保有一条有效邀请，两个账号同时接受同一邀请时只加入一人。
+- 成员可以创建第 3 个共享箱子；第 4 个由所有者额度拒绝，成员只看到联系所有者的说明而没有购买入口。
+- 成员发起 packing 时使用成员本人的 AI Credits；所有者的无限箱子权益或余额不会转移给成员。
+- 撤权后的旧标签/二维码下一次服务端请求即拒绝；跨场地读取不泄露空间、箱子、物品或活动；猜测 R2 object key 不能得到对象。
+- 使用本地 Supabase 执行 `npm run test:venue-sharing-concurrency`。期望输出仅为 `last-seat-reservation: second invite rejected` 和 `last-seat-race: 1 joined, 1 venue_invite_used`；不要把 token 写入 CI 日志。
+
+### 向前回滚
+
+家庭共享回滚只允许关闭前端的家庭邀请入口，并在需要时提交一份经评审的 **forward migration** 来收紧新增共享写入。保留 `venue_members`、`venue_invites`、活动、packing 和审计表及全部数据；不得 `DROP` 表/函数、删除成员历史或反向执行 001–005。修复后重新部署兼容前端、执行 `npm run test:db`、内部邀请冒烟和本节 Test Mode 清单，再重新开启入口。
+
 ## Cloudflare R2
 
 - Bucket 必须保持 private。
