@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { useI18n } from '../../i18n/I18nProvider'
+import { VenueCardMenu } from './VenueCardMenu'
 import { VenueEditorDialog } from './VenueEditorDialog'
-import { VenueInviteQuickAction } from './VenueInviteQuickAction'
 import {
   createVenue,
   deleteVenue,
@@ -132,23 +132,16 @@ export function VenuesPage() {
                 </span>
                 <span className="mt-2 block text-sm text-muted">{t('venues.spaces', { count: venue.space_count })}{venue.description ? ` · ${venue.description}` : ` · ${t('venues.descriptionUnset')}`} · {t('venues.memberCount', { count: venue.member_count, max: venue.max_members })}{venue.role === 'member' ? ` · ${t('venues.sharedWith', { owner: venue.owner_display_name ?? t('venueSharing.ownerFallback') })}` : ''}</span>
               </span>
-              <span className="grid size-10 place-items-center rounded-full bg-canvas text-muted transition group-hover:bg-brand/10 group-hover:text-brand"><AppIcon name="chevron-right" size={20} /></span>
             </>
             return venue.role === 'member' ? (
-              <div className="grid overflow-hidden rounded-[1.35rem] border border-line bg-surface shadow-soft" data-testid={`venue-card-${venue.id}`} key={venue.id}>
-                <Link className="group grid min-h-32 w-full grid-cols-[1fr_auto] items-center gap-4 p-5 text-left no-underline transition hover:bg-canvas/45 sm:p-6" aria-label={t('venues.membersVenue', { name: venue.name })} to={`/app/venues/${venue.id}/members`}>{details}</Link>
-                <div className="flex flex-wrap items-center gap-1 border-t border-line/70 px-3 py-2 sm:px-4">
-                  <Link className="inline-flex min-h-11 items-center gap-2 rounded-control px-3 font-bold text-brand-strong no-underline hover:bg-canvas" aria-label={t('venues.activityVenue', { name: venue.name })} to={`/app/venues/${venue.id}/activity`}>{t('venueActivity.link')}</Link>
-                </div>
+              <div className="relative grid min-h-32 overflow-hidden rounded-[1.35rem] border border-line bg-surface p-5 shadow-soft sm:p-6" data-testid={`venue-card-${venue.id}`} key={venue.id}>
+                <div className="pr-12">{details}</div>
+                <VenueCardMenu venue={venue} invitesEnabled={invitesEnabled} onEdit={(target) => { setEditTarget(target); setEditorOpen(true) }} />
               </div>
             ) : (
-              <div className="grid overflow-hidden rounded-[1.35rem] border border-line bg-surface shadow-soft" data-testid={`venue-card-${venue.id}`} key={venue.id}>
-                <button className="group grid min-h-32 w-full grid-cols-[1fr_auto] items-center gap-4 p-5 text-left transition hover:bg-canvas/45 sm:p-6" type="button" aria-label={t('venues.editVenue', { name: venue.name })} onClick={() => { setEditTarget(venue); setEditorOpen(true) }}>{details}</button>
-                <div className="flex flex-wrap items-center gap-1 border-t border-line/70 px-3 py-2 sm:px-4">
-                  <VenueInviteQuickAction venueId={venue.id} enabled={invitesEnabled} />
-                  <Link className="inline-flex min-h-11 items-center gap-2 rounded-control px-3 font-bold text-brand-strong no-underline hover:bg-canvas" aria-label={t('venues.membersVenue', { name: venue.name })} to={`/app/venues/${venue.id}/members`}><AppIcon name="family" />{t('venues.members')}</Link>
-                  <Link className="inline-flex min-h-11 items-center gap-2 rounded-control px-3 font-bold text-brand-strong no-underline hover:bg-canvas" aria-label={t('venues.activityVenue', { name: venue.name })} to={`/app/venues/${venue.id}/activity`}>{t('venueActivity.link')}</Link>
-                </div>
+              <div className="relative grid min-h-32 overflow-hidden rounded-[1.35rem] border border-line bg-surface p-5 shadow-soft sm:p-6" data-testid={`venue-card-${venue.id}`} key={venue.id}>
+                <div className="pr-12">{details}</div>
+                <VenueCardMenu venue={venue} invitesEnabled={invitesEnabled} onEdit={(target) => { setEditTarget(target); setEditorOpen(true) }} />
               </div>
             )
           })}

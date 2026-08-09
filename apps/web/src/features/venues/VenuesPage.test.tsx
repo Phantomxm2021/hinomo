@@ -60,20 +60,30 @@ test('lists venues and opens creation and editing from the dedicated page', asyn
   expect(within(navigation).getByRole('button', { name: '返回' })).toBeInTheDocument()
   expect(within(navigation).getByText('场地管理')).toHaveClass('text-center', 'font-bold')
   expect(within(navigation).getByRole('button', { name: '创建场地' })).toHaveClass('size-11', 'rounded-full')
-  expect(await screen.findByRole('button', { name: '编辑场地家里' })).toHaveTextContent('3 个空间 · 常住地址')
-  expect(screen.getByRole('link', { name: '家庭成员公司' })).toHaveTextContent('1 个空间 · 未填写描述')
+  expect(await screen.findByRole('button', { name: '管理场地家里' })).toBeInTheDocument()
+  expect(screen.getByTestId('venue-card-home')).toHaveTextContent('3 个空间 · 常住地址')
+  const officeCard = screen.getByTestId('venue-card-office')
+  await user.click(within(officeCard).getByRole('button', { name: '管理场地公司' }))
+  const officeMenu = screen.getByRole('menu', { name: '公司场地操作' })
+  expect(within(officeMenu).getByRole('menuitem', { name: '家庭成员' })).toHaveTextContent('家庭成员')
+  expect(officeCard).toHaveTextContent('1 个空间 · 未填写描述')
 
   await user.click(within(navigation).getByRole('button', { name: '创建场地' }))
   expect(screen.getByRole('dialog', { name: '创建场地' })).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '关闭场地编辑器' }))
 
-  expect(screen.getByRole('link', { name: '家庭成员公司' })).toHaveAttribute('href', '/app/venues/office/members')
   expect(screen.queryByRole('dialog', { name: '编辑场地' })).not.toBeInTheDocument()
-  expect(screen.getByRole('button', { name: '编辑场地家里' })).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: '家庭成员家里' })).toHaveAttribute('href', '/app/venues/home/members')
-  expect(screen.getByRole('link', { name: '最近活动家里' })).toHaveAttribute('href', '/app/venues/home/activity')
-  expect(screen.getByRole('link', { name: '最近活动公司' })).toHaveAttribute('href', '/app/venues/office/activity')
-  expect(screen.getByRole('link', { name: '家庭成员公司' })).toHaveTextContent('家庭共享 · 王小明')
+  expect(screen.getByRole('button', { name: '管理场地家里' })).toBeInTheDocument()
+  const homeCard = screen.getByTestId('venue-card-home')
+  await user.click(within(homeCard).getByRole('button', { name: '管理场地家里' }))
+  const homeMenu = within(homeCard).getByRole('menu', { name: '家里场地操作' })
+  expect(within(homeMenu).getByRole('menuitem', { name: '家庭成员' })).toHaveAttribute('href', '/app/venues/home/members')
+  expect(within(homeMenu).getByRole('menuitem', { name: '最近活动' })).toHaveAttribute('href', '/app/venues/home/activity')
+  const officeCardAfter = screen.getByTestId('venue-card-office')
+  await user.click(within(officeCardAfter).getByRole('button', { name: '管理场地公司' }))
+  const officeMenuAfter = within(officeCardAfter).getByRole('menu', { name: '公司场地操作' })
+  expect(within(officeMenuAfter).getByRole('menuitem', { name: '家庭成员' })).toHaveAttribute('href', '/app/venues/office/members')
+  expect(officeCardAfter).toHaveTextContent('家庭共享 · 王小明')
 })
 
 test('owner can invite family directly from the venue card without opening the editor', async () => {
@@ -81,9 +91,12 @@ test('owner can invite family directly from the venue card without opening the e
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(<MemoryRouter><QueryClientProvider client={client}><VenuesPage /></QueryClientProvider></MemoryRouter>)
 
-  const inviteButton = await screen.findByRole('button', { name: '邀请家人' })
+  const card = await screen.findByTestId('venue-card-home')
+  await user.click(within(card).getByRole('button', { name: '管理场地家里' }))
+  const menu = screen.getByRole('menu', { name: '家里场地操作' })
+  const inviteButton = within(menu).getByRole('menuitem', { name: '邀请家人' })
   expect(inviteButton).toBeEnabled()
-  expect(screen.getByRole('button', { name: '编辑场地家里' })).toHaveTextContent('1 / 5 位家庭成员')
+  expect(screen.getByTestId('venue-card-home')).toHaveTextContent('1 / 5 位家庭成员')
 
   await user.click(inviteButton)
 
@@ -97,7 +110,9 @@ test('shows the invite action with a clear disabled explanation when rollout is 
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(<MemoryRouter><QueryClientProvider client={client}><VenuesPage /></QueryClientProvider></MemoryRouter>)
 
-  const inviteButton = await screen.findByRole('button', { name: '邀请家人' })
+  const card = await screen.findByTestId('venue-card-home')
+  await userEvent.setup().click(within(card).getByRole('button', { name: '管理场地家里' }))
+  const inviteButton = within(screen.getByRole('menu', { name: '家里场地操作' })).getByRole('menuitem', { name: '邀请家人' })
   expect(inviteButton).toBeDisabled()
   expect(screen.getByText('邀请功能暂未开启')).toBeInTheDocument()
 })
@@ -106,9 +121,10 @@ test('does not show invite controls on a member venue card', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(<MemoryRouter><QueryClientProvider client={client}><VenuesPage /></QueryClientProvider></MemoryRouter>)
 
-  const memberCard = (await screen.findByRole('link', { name: /家庭成员公司/ })).parentElement
-  expect(memberCard).not.toBeNull()
-  expect(within(memberCard as HTMLElement).queryByRole('button', { name: '邀请家人' })).not.toBeInTheDocument()
+  const memberCard = await screen.findByTestId('venue-card-office')
+  await userEvent.setup().click(within(memberCard).getByRole('button', { name: '管理场地公司' }))
+  const memberMenu = screen.getByRole('menu', { name: '公司场地操作' })
+  expect(within(memberMenu).queryByRole('menuitem', { name: '邀请家人' })).not.toBeInTheDocument()
 })
 
 test('keeps the owner venue summary and actions inside one card surface', async () => {
@@ -117,6 +133,44 @@ test('keeps the owner venue summary and actions inside one card surface', async 
 
   const card = await screen.findByTestId('venue-card-home')
   expect(card).toHaveClass('rounded-[1.35rem]', 'border', 'bg-surface')
-  expect(within(card).getByRole('button', { name: '邀请家人' })).toBeInTheDocument()
-  expect(within(card).getByRole('link', { name: '家庭成员家里' })).toBeInTheDocument()
+  expect(within(card).queryByRole('menu')).not.toBeInTheDocument()
+  await userEvent.setup().click(within(card).getByRole('button', { name: '管理场地家里' }))
+  const menu = within(card).getByRole('menu', { name: '家里场地操作' })
+  expect(within(menu).getByRole('menuitem', { name: '邀请家人' })).toBeInTheDocument()
+  expect(within(menu).getByRole('menuitem', { name: '家庭成员' })).toBeInTheDocument()
+})
+
+test('opens venue editing only from the card action menu, never from the card body', async () => {
+  const user = userEvent.setup()
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(<MemoryRouter><QueryClientProvider client={client}><VenuesPage /></QueryClientProvider></MemoryRouter>)
+
+  const card = await screen.findByTestId('venue-card-home')
+  expect(within(card).queryByRole('button', { name: '编辑场地家里' })).not.toBeInTheDocument()
+  expect(within(card).getByRole('button', { name: '管理场地家里' })).toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: '编辑场地' })).not.toBeInTheDocument()
+
+  await user.click(within(card).getByRole('button', { name: '管理场地家里' }))
+  const menu = screen.getByRole('menu', { name: '家里场地操作' })
+  expect(within(menu).getByRole('menuitem', { name: '编辑场地' })).toBeInTheDocument()
+  expect(within(menu).getByRole('menuitem', { name: '邀请家人' })).toBeInTheDocument()
+  expect(within(menu).getByRole('menuitem', { name: '家庭成员' })).toBeInTheDocument()
+  expect(within(menu).getByRole('menuitem', { name: '最近活动' })).toBeInTheDocument()
+
+  await user.click(within(menu).getByRole('menuitem', { name: '编辑场地' }))
+  expect(screen.getByRole('dialog', { name: '编辑场地' })).toBeInTheDocument()
+})
+
+test('closes the venue action menu with Escape and restores focus to its trigger', async () => {
+  const user = userEvent.setup()
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(<MemoryRouter><QueryClientProvider client={client}><VenuesPage /></QueryClientProvider></MemoryRouter>)
+
+  const card = await screen.findByTestId('venue-card-home')
+  const trigger = within(card).getByRole('button', { name: '管理场地家里' })
+  await user.click(trigger)
+  expect(within(card).getByRole('menu', { name: '家里场地操作' })).toBeInTheDocument()
+  await user.keyboard('{Escape}')
+  expect(within(card).queryByRole('menu')).not.toBeInTheDocument()
+  expect(document.activeElement).toBe(trigger)
 })

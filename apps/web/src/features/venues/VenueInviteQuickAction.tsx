@@ -7,9 +7,10 @@ import { VenueInviteDialog } from './VenueInviteDialog'
 type VenueInviteQuickActionProps = {
   venueId: string
   enabled: boolean
+  menuItem?: boolean
 }
 
-export function VenueInviteQuickAction({ venueId, enabled }: VenueInviteQuickActionProps) {
+export function VenueInviteQuickAction({ venueId, enabled, menuItem = false }: VenueInviteQuickActionProps) {
   const { t } = useI18n()
   const [invite, setInvite] = useState<{ invite_id: string; token: string; expires_at: string } | null>(null)
   const [pending, setPending] = useState(false)
@@ -31,8 +32,9 @@ export function VenueInviteQuickAction({ venueId, enabled }: VenueInviteQuickAct
   return (
     <div className="grid min-w-0 gap-1">
       <button
-        className="inline-flex min-h-11 items-center gap-2 rounded-control bg-brand px-4 font-bold text-white transition hover:bg-brand-strong disabled:cursor-not-allowed disabled:bg-placeholder disabled:text-muted"
+        className="inline-flex min-h-11 items-center gap-3 rounded-control px-3 text-left text-sm font-bold text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-50"
         type="button"
+        role={menuItem ? 'menuitem' : undefined}
         disabled={!enabled || pending}
         title={!enabled ? t('venues.inviteDisabled') : undefined}
         onClick={() => void openInvite()}
