@@ -22,6 +22,8 @@ function renderSync(session: Session | null, feedback: Partial<MobileFeedbackApi
     notify: vi.fn(),
     showAlert: vi.fn(),
     showActionSheet: vi.fn(),
+    error: vi.fn(),
+    confirm: vi.fn(),
     dismiss: vi.fn(),
     ...feedback,
   }
