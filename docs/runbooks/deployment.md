@@ -270,17 +270,27 @@ from public.venue_members
 group by venue_id
 having count(*) + 1 > 5;
 
--- 有效邀请不得超过剩余席位。
+-- 有效邀请不得超过剩余席位。成员和邀请先分别聚合，避免多成员、多邀请
+-- 的 join 相乘而把两边计数都放大。
+with member_counts as (
+  select venue_id, count(*) as member_count
+  from public.venue_members
+  group by venue_id
+), active_invites as (
+  select venue_id, count(*) as active_invite_count
+  from public.venue_invites
+  where accepted_at is null
+    and revoked_at is null
+    and expires_at > pg_catalog.now()
+  group by venue_id
+)
 select venues.id as venue_id,
-       count(*) filter (where invites.accepted_at is null and invites.revoked_at is null
-         and invites.expires_at > pg_catalog.now()) as active_invites,
-       5 - 1 - count(members.user_id) as remaining_seats
+       coalesce(active_invites.active_invite_count, 0) as active_invites,
+       5 - 1 - coalesce(member_counts.member_count, 0) as remaining_seats
 from public.venues as venues
-left join public.venue_members as members on members.venue_id = venues.id
-left join public.venue_invites as invites on invites.venue_id = venues.id
-group by venues.id
-having count(*) filter (where invites.accepted_at is null and invites.revoked_at is null
-  and invites.expires_at > pg_catalog.now()) > 5 - 1 - count(members.user_id);
+left join member_counts on member_counts.venue_id = venues.id
+left join active_invites on active_invites.venue_id = venues.id
+where coalesce(active_invites.active_invite_count, 0) > 5 - 1 - coalesce(member_counts.member_count, 0);
 
 -- 关键内容事件必须有 actor；未知 actor 仅允许历史保留场景另行人工说明。
 select id, venue_id, event_code, created_at

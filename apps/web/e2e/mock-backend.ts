@@ -62,6 +62,7 @@ export type MockState = {
   boxPlan: BoxPlan
   boxCheckout: BoxCheckout
   creditSummary: CreditSummary
+  creditSummaries: Record<string, CreditSummary>
 }
 
 export const createMockState = ({ boxCount = 0, unlimitedBoxes = false }: {
@@ -86,6 +87,7 @@ export const createMockState = ({ boxCount = 0, unlimitedBoxes = false }: {
   },
   boxCheckout: { result: 'success', pending: false, releasePlanRequests: [] },
   creditSummary: { credits_available: 0, credits_reserved: 0 },
+  creditSummaries: {},
 })
 
 export function completeBoxUnlimitedPurchase(state: MockState) {
@@ -128,6 +130,7 @@ export async function installMockBackend(page: Page, state: MockState) {
   const isVenueOwner = (venueId: string | undefined, userId = currentUserId) => Boolean(
     venueId && userId && state.venues.some((venue) => venue.id === venueId && venue.owner_id === userId),
   )
+  const creditSummaryFor = (userId: string) => state.creditSummaries[userId] ?? state.creditSummary
   const venuePlan = (venueId: string) => {
     const ownerId = state.venues.find((venue) => venue.id === venueId)?.owner_id
     const boxCount = state.boxes.filter((box) => box.owner_id === ownerId).length
@@ -309,7 +312,7 @@ export async function installMockBackend(page: Page, state: MockState) {
     }
 
     if (url.pathname === '/rest/v1/rpc/get_credit_summary' && method === 'POST' && currentUserId) {
-      return json(route, [state.creditSummary])
+      return json(route, [creditSummaryFor(currentUserId)])
     }
 
     if (url.pathname === '/rest/v1/rpc/list_credit_transactions' && method === 'POST' && currentUserId) {
@@ -413,6 +416,7 @@ export async function installMockBackend(page: Page, state: MockState) {
       }
       if (method === 'DELETE' && currentUserId) {
         const venueId = eqValue(url, 'id')
+        if (!isVenueOwner(venueId)) return json(route, { code: '42501', message: 'new row violates row-level security policy', details: null, hint: null }, 403)
         if (state.spaces.some((space) => space.venue_id === venueId)) return json(route, { code: '23503', message: 'venue is not empty' }, 409)
         state.venues = state.venues.filter((venue) => venue.id !== venueId || venue.owner_id !== currentUserId)
         return json(route, null, 204)
@@ -440,7 +444,12 @@ export async function installMockBackend(page: Page, state: MockState) {
         return json(route, { id: space.id }, 201)
       }
       if (method === 'DELETE' && currentUserId) {
-        return json(route, { code: '42501', message: 'new row violates row-level security policy', details: null, hint: null }, 403)
+        const spaceId = eqValue(url, 'id')
+        const venueId = venueForSpace(spaceId ?? '')
+        if (!isVenueOwner(venueId)) return json(route, { code: '42501', message: 'new row violates row-level security policy', details: null, hint: null }, 403)
+        if (state.boxes.some((box) => box.space_id === spaceId)) return json(route, { code: '23503', message: 'space is not empty' }, 409)
+        state.spaces = state.spaces.filter((space) => space.id !== spaceId)
+        return route.fulfill({ status: 204, body: '' })
       }
     }
 
@@ -499,6 +508,7 @@ export async function installMockBackend(page: Page, state: MockState) {
             ...box,
             cover_object_key: null,
             spaces: {
+              venue_id: space.venue_id,
               name: space.name,
               venues: { name: state.venues.find((venue) => venue.id === space.venue_id)?.name ?? '' },
             },
@@ -609,6 +619,15 @@ export async function installMockBackend(page: Page, state: MockState) {
       const session: PackingSession = { id: `packing-${state.packingSessions.length + 1}`, box_id: boxId, owner_id: box.owner_id, created_by: currentUserId, status: 'capturing' }
       state.packingSessions.push(session)
       return json(route, session)
+    }
+
+    if (url.pathname === '/rest/v1/packing_sessions' && method === 'GET' && currentUserId) {
+      const boxId = eqValue(url, 'box_id')
+      return json(route, state.packingSessions.filter((session) => session.box_id === boxId && canAccessVenue(venueForBox(session.box_id))))
+    }
+
+    if (url.pathname === '/rest/v1/item_movements' && method === 'GET' && currentUserId) {
+      return json(route, [])
     }
 
     return json(route, { message: `Unhandled mock request: ${method} ${url.pathname}` }, 500)

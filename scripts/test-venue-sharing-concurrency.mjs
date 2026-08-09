@@ -1,5 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 
+const nodeMajor = Number(process.versions.node.split('.')[0])
+if (!Number.isInteger(nodeMajor) || nodeMajor < 20) {
+  throw new Error('test:venue-sharing-concurrency requires Node.js 20 or newer')
+}
+
 const required = (name) => {
   const value = process.env[name]
   if (!value) throw new Error(`missing ${name}`)
