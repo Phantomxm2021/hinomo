@@ -26,6 +26,8 @@ export type FeedbackErrorOptions = {
   retry?: () => void | Promise<void>
   retryLabel?: string
   retrying?: boolean
+  cancelLabel?: string
+  onCancel?: () => void | Promise<void>
   onDismiss?: (reason?: MobileAlertCloseReason) => void
   onActionError?: (error: unknown) => void
 }

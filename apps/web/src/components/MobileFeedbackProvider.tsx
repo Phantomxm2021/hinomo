@@ -53,18 +53,22 @@ export function MobileFeedbackProvider({ children }: PropsWithChildren) {
         message: options.message,
         primaryLabel: options.retry ? (options.retrying ? t('common.retrying') : options.retryLabel ?? t('common.retry')) : t('common.ok'),
         onPrimary: options.retry,
-        cancelLabel: options.retry ? t('common.cancel') : undefined,
+        cancelLabel: options.cancelLabel ?? (options.retry ? t('common.cancel') : undefined),
+        onCancel: options.onCancel,
         primaryDisabled: options.retrying,
         primaryBusy: options.retrying,
         onDismiss: options.onDismiss,
-        onActionError: () => showAlert({
-          key: `${options.key}:action-error`,
-          owner: options.owner,
-          title: t('common.operationFailed'),
-          message: t('common.operationError'),
-          onDismiss: options.onDismiss,
-          onActionError: options.onActionError,
-        }),
+        onActionError: (error) => {
+          try { options.onActionError?.(error) } catch { /* caller diagnostics must not break fallback */ }
+          showAlert({
+            key: `${options.key}:action-error`,
+            owner: options.owner,
+            title: t('common.operationFailed'),
+            message: t('common.operationError'),
+            onDismiss: options.onDismiss,
+            onActionError: options.onActionError,
+          })
+        },
       })
     },
     confirm: showAlert,

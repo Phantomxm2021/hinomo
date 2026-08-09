@@ -309,7 +309,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimi
             <button className="min-h-11 w-fit rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold text-danger" type="button" onClick={() => void retryCoverUpload()}>{t('boxes.retryUpload')}</button>
           </div>
         ) : null}
-        {mediaError ? <ResponsiveOperationError message={t('boxes.coverUploadError')} onRetry={() => void retryCoverUpload()} /> : null}
+        {mediaError ? <ResponsiveOperationError message={t('boxes.coverUploadError')} onRetry={() => void retryCoverUpload()} onCancel={pendingBox ? finishWithoutCover : undefined} cancelLabel={pendingBox ? t('boxes.skipCover') : undefined} /> : null}
         {!editing && pendingBox ? null : (
           <button
             className="mt-2 min-h-12 w-full rounded-control border border-brand bg-brand px-5 py-2 font-bold text-white hover:bg-brand-strong sm:min-h-11 sm:w-auto"

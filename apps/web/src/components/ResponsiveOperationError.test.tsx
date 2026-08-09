@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { MobileFeedbackProvider } from './MobileFeedbackProvider'
 import { ResponsiveOperationError } from './ResponsiveOperationError'
@@ -114,6 +114,34 @@ test('normalizes a backend operation error into a shared Apple alert', () => {
   )
 
   const dialog = screen.getByRole('alertdialog', { name: '操作未完成' })
+  expect(dialog).toHaveTextContent('创建邀请失败')
   expect(dialog).toHaveTextContent('成员名额已满；未使用邀请也会占用名额')
-  expect(dialog).not.toHaveTextContent('创建邀请失败')
+})
+
+test('does not offer retry for permission errors even when a retry callback exists', () => {
+  render(
+    <I18nProvider>
+      <MobileFeedbackProvider>
+        <ResponsiveOperationError message="保存箱子失败" error={{ code: 'venue_access_denied' }} onRetry={vi.fn()} />
+      </MobileFeedbackProvider>
+    </I18nProvider>,
+  )
+
+  const dialog = screen.getByRole('alertdialog', { name: '操作未完成' })
+  expect(dialog).toHaveTextContent('你没有执行此操作的权限')
+  expect(within(dialog).queryByRole('button', { name: '重试' })).not.toBeInTheDocument()
+})
+
+test('keeps retry available for an unknown operation error when a retry callback exists', () => {
+  const retry = vi.fn()
+  render(
+    <I18nProvider>
+      <MobileFeedbackProvider>
+        <ResponsiveOperationError message="保存箱子失败" error={new Error('Unexpected database payload')} onRetry={retry} />
+      </MobileFeedbackProvider>
+    </I18nProvider>,
+  )
+
+  const dialog = screen.getByRole('alertdialog', { name: '操作未完成' })
+  expect(within(dialog).getByRole('button', { name: '重试' })).toBeInTheDocument()
 })

@@ -1,7 +1,7 @@
 export type FeedbackErrorClassification = {
   titleKey: 'common.operationFailed'
   messageKey: string
-  retryable: boolean
+  retryable?: boolean
 }
 
 const knownMessages: Record<string, Omit<FeedbackErrorClassification, 'titleKey'>> = {
@@ -32,5 +32,5 @@ export function classifyFeedbackError(error: unknown): FeedbackErrorClassificati
   if (values.some((value) => /failed to fetch|networkerror|network request failed/i.test(value))) {
     return { titleKey: 'common.operationFailed', messageKey: 'common.networkError', retryable: true }
   }
-  return { titleKey: 'common.operationFailed', messageKey: 'common.operationError', retryable: false }
+  return { titleKey: 'common.operationFailed', messageKey: 'common.operationError', retryable: undefined }
 }

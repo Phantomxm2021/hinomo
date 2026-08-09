@@ -231,7 +231,7 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChang
           <button className="min-h-11 w-fit rounded-control border border-danger/30 bg-surface px-4 font-bold text-danger" type="button" onClick={() => void retryImageUpload()}>{t('itemForm.retryUpload')}</button>
         </div>
       ) : null}
-      {mediaError ? <ResponsiveOperationError message={t('itemForm.imageUploadPartial')} onRetry={() => void retryImageUpload()} /> : null}
+      {mediaError ? <ResponsiveOperationError message={t('itemForm.imageUploadPartial')} onRetry={() => void retryImageUpload()} onCancel={onSaved} cancelLabel={t('itemForm.skipUpload')} /> : null}
       <div className="fixed inset-x-4 bottom-[max(1rem,var(--safe-area-bottom))] z-20 flex flex-wrap justify-end gap-2 rounded-control border border-line bg-surface/95 p-2 shadow-float backdrop-blur min-[360px]:inset-x-5 lg:static lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
         {item && onDelete ? <button className="mr-auto min-h-11 rounded-control border border-danger/30 bg-danger/5 px-4 font-bold text-danger" type="button" disabled={busy} onClick={() => { if (!busy) onDelete() }}>{t('itemForm.delete')}</button> : null}
         {onCancel ? <button className="min-h-11 rounded-control border border-line bg-canvas px-4 font-bold text-ink" type="button" disabled={busy} onClick={() => { if (!busy) onCancel() }}>{t('itemForm.cancel')}</button> : null}

@@ -231,7 +231,7 @@ test('can finish a pending box without its failed cover upload', async () => {
   await user.click(screen.getByRole('button', { name: '创建箱子' }))
   await screen.findByText('箱子记录已创建，但封面未完成。')
   expect(onBusyChange).toHaveBeenLastCalledWith(true)
-  await user.click(screen.getByRole('button', { name: '暂不上传封面' }))
+  await user.click(within(screen.getByRole('alertdialog', { name: '图片上传失败，已保留填写内容。' })).getByRole('button', { name: '暂不上传封面' }))
 
   expect(onCompleted).toHaveBeenCalledWith(box)
   expect(mockCreateBox).toHaveBeenCalledTimes(1)

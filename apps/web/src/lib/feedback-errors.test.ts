@@ -39,7 +39,7 @@ test('normalizes permission, network, and unknown errors to stable message keys'
   expect(classifyFeedbackError(new Error('Unexpected database payload'))).toEqual({
     titleKey: 'common.operationFailed',
     messageKey: 'common.operationError',
-    retryable: false,
+    retryable: undefined,
   })
 })
 

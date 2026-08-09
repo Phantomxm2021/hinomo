@@ -1,16 +1,17 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { BoxForm } from './BoxForm'
 
-const { mockCreateBox, mockGetBox, mockListSpaces, mockUpdateBox, mockUploadReset } = vi.hoisted(() => ({
+const { mockCreateBox, mockGetBox, mockListSpaces, mockUpdateBox, mockUpload, mockUploadReset } = vi.hoisted(() => ({
   mockCreateBox: vi.fn(),
   mockGetBox: vi.fn(),
   mockListSpaces: vi.fn(),
   mockUpdateBox: vi.fn(),
+  mockUpload: vi.fn(),
   mockUploadReset: vi.fn(),
 }))
 
@@ -21,15 +22,15 @@ vi.mock('./boxes.api', () => ({
 }))
 vi.mock('../spaces/spaces.api', () => ({ listSpaces: mockListSpaces }))
 vi.mock('../media/useMediaUpload', () => ({
-  useMediaUpload: () => ({ stage: 'idle', upload: vi.fn(), reset: mockUploadReset }),
+  useMediaUpload: () => ({ stage: 'idle', upload: mockUpload, reset: mockUploadReset }),
 }))
 
-function renderForm(onLimitReached = vi.fn(), boxId?: string, onVenueAccessDenied = vi.fn()) {
+function renderForm(onLimitReached = vi.fn(), boxId?: string, onVenueAccessDenied = vi.fn(), onCompleted = vi.fn()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <MemoryRouter>
       <MobileFeedbackProvider><QueryClientProvider client={client}>
-        <BoxForm boxId={boxId} presentation="modal" onLimitReached={onLimitReached} onVenueAccessDenied={onVenueAccessDenied} />
+        <BoxForm boxId={boxId} presentation="modal" onLimitReached={onLimitReached} onVenueAccessDenied={onVenueAccessDenied} onCompleted={onCompleted} />
       </QueryClientProvider></MobileFeedbackProvider>
     </MemoryRouter>,
   )
@@ -41,6 +42,7 @@ beforeEach(() => {
   mockGetBox.mockReset()
   mockListSpaces.mockReset()
   mockUpdateBox.mockReset()
+  mockUpload.mockReset()
   mockUploadReset.mockReset()
   mockListSpaces.mockResolvedValue([
     { id: 'space-home', name: '家', description: null, box_count: 3 },
@@ -115,4 +117,21 @@ test('forwards revoked access from a box create mutation to the page handler', a
   await user.click(screen.getByRole('button', { name: '创建箱子' }))
 
   await waitFor(() => expect(onVenueAccessDenied).toHaveBeenCalledWith({ code: 'venue_access_denied' }))
+})
+
+test('continues with the created box when its cover upload is skipped', async () => {
+  const user = userEvent.setup()
+  const onCompleted = vi.fn()
+  mockCreateBox.mockResolvedValue({ id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', name: '无封面箱' })
+  mockUpload.mockRejectedValueOnce(new Error('upload failed'))
+  renderForm(vi.fn(), undefined, vi.fn(), onCompleted)
+
+  await user.selectOptions(await screen.findByLabelText('空间'), 'space-home')
+  await user.type(screen.getByLabelText('箱子名称'), '无封面箱')
+  await user.upload(screen.getByLabelText('箱子封面（可选）'), new File(['cover'], 'cover.png', { type: 'image/png' }))
+  await user.click(screen.getByRole('button', { name: '创建箱子' }))
+
+  const dialog = await screen.findByRole('alertdialog', { name: '图片上传失败，已保留填写内容。' })
+  await user.click(within(dialog).getByRole('button', { name: '暂不上传封面' }))
+  expect(onCompleted).toHaveBeenCalledOnce()
 })

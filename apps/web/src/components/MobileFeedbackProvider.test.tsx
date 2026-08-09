@@ -5,9 +5,11 @@ import { useMobileFeedback } from './mobile-feedback'
 import { SYSTEM_ACTION_SHEET_Z_INDEX, SYSTEM_ALERT_Z_INDEX, SYSTEM_NOTICE_Z_INDEX } from './overlay-layers'
 
 const initialViewportWidth = window.innerWidth
+const asyncFeedbackError = vi.hoisted(() => vi.fn())
 
 afterEach(() => {
   cleanup()
+  asyncFeedbackError.mockReset()
   vi.useRealTimers()
   document.body.style.overflow = ''
   window.innerWidth = initialViewportWidth
@@ -27,6 +29,7 @@ function Harness() {
       <button type="button" onClick={() => feedback.confirm({ title: '删除箱子', message: '此操作无法撤销', primaryLabel: '删除', cancelLabel: '取消', onPrimary: vi.fn() })}>确认操作</button>
       <button type="button" onClick={() => feedback.confirm({ title: '异步失败', primaryLabel: '提交', cancelLabel: '取消', onPrimary: () => Promise.reject(new Error('primary failed')), onActionError: vi.fn() })}>异步主操作</button>
       <button type="button" onClick={() => feedback.confirm({ title: '异步取消失败', primaryLabel: '提交', cancelLabel: '取消', onCancel: () => Promise.reject(new Error('cancel failed')), onActionError: vi.fn() })}>异步取消</button>
+      <button type="button" onClick={() => feedback.error({ key: 'async.error', title: '异步错误', retry: () => Promise.reject(new Error('retry failed')), onActionError: asyncFeedbackError })}>全局异步错误</button>
     </>
   )
 }
@@ -122,6 +125,15 @@ test('catches rejected async cancel actions and keeps the alert open', async () 
   fireEvent.click(screen.getByRole('button', { name: '取消' }))
 
   await waitFor(() => expect(screen.getByRole('alertdialog', { name: '异步取消失败' })).toBeInTheDocument())
+})
+
+test('calls the provided action-error callback before showing the retry fallback', async () => {
+  render(<MobileFeedbackProvider><Harness /></MobileFeedbackProvider>)
+  fireEvent.click(screen.getByRole('button', { name: '全局异步错误' }))
+  fireEvent.click(screen.getByRole('button', { name: '重试' }))
+
+  await waitFor(() => expect(asyncFeedbackError).toHaveBeenCalledWith(expect.any(Error)))
+  await waitFor(() => expect(screen.getByRole('alertdialog', { name: '操作未完成' })).toBeInTheDocument())
 })
 
 function AlertReplacementHarness({ pendingAction }: { pendingAction: () => Promise<void> }) {

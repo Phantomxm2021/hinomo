@@ -19,7 +19,10 @@ export function VenueInviteDialog({ open, invite, onClose }: VenueInviteDialogPr
   const feedback = useMobileFeedback()
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [sharePending, setSharePending] = useState(false)
+  const [copyPending, setCopyPending] = useState(false)
   const [copied, setCopied] = useState(false)
+  const inviteActionPending = sharePending || copyPending
   const inviteUrl = useMemo(() => invite ? `${publicAppOrigin().replace(/\/+$/, '')}/join/venue#token=${invite.token}` : null, [invite])
 
   useEffect(() => {
@@ -38,28 +41,34 @@ export function VenueInviteDialog({ open, invite, onClose }: VenueInviteDialogPr
   }, [feedback, inviteUrl, open, t])
 
   async function copy() {
-    if (!inviteUrl || busy) return
+    if (!inviteUrl || busy || inviteActionPending) return
+    setCopyPending(true)
     try {
       await window.navigator.clipboard.writeText(inviteUrl)
       setCopied(true)
     } catch (error) {
       const classification = classifyFeedbackError(error)
       feedback.error({ key: 'venue.invite.copy', title: t(classification.titleKey), message: t(classification.messageKey) })
+    } finally {
+      setCopyPending(false)
     }
   }
 
   async function share() {
-    if (!inviteUrl || busy) return
+    if (!inviteUrl || busy || inviteActionPending) return
     if (typeof window.navigator.share !== 'function') {
       await copy()
       return
     }
+    setSharePending(true)
     try {
       await window.navigator.share({ title: t('venueSharing.shareTitle'), text: t('venueSharing.shareText'), url: inviteUrl })
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       const classification = classifyFeedbackError(error)
       feedback.error({ key: 'venue.invite.share', title: t(classification.titleKey), message: t(classification.messageKey) })
+    } finally {
+      setSharePending(false)
     }
   }
 
@@ -85,12 +94,12 @@ export function VenueInviteDialog({ open, invite, onClose }: VenueInviteDialogPr
           {qrDataUrl ? <img className="size-52 max-w-full object-contain" src={qrDataUrl} alt={t('venueSharing.qrAlt')} /> : <p role="status">{t('venueSharing.qrLoading')}</p>}
         </div>
         <div className="grid gap-3" data-testid="venue-invite-actions">
-          <button className="order-first min-h-12 rounded-control bg-brand px-4 font-bold text-white shadow-soft transition hover:bg-brand-strong disabled:opacity-50" type="button" disabled={busy || !inviteUrl} onClick={() => void share()}>{t('venueSharing.share')}</button>
-          <button className="min-h-12 rounded-control border border-line px-4 font-bold transition hover:bg-canvas disabled:opacity-50" type="button" disabled={busy || !inviteUrl} onClick={() => void copy()}>{copied ? t('venueSharing.copied') : t('venueSharing.copy')}</button>
+          <button className="order-first min-h-12 rounded-control bg-brand px-4 font-bold text-white shadow-soft transition hover:bg-brand-strong disabled:opacity-50" type="button" disabled={busy || inviteActionPending || !inviteUrl} onClick={() => void share()}>{t('venueSharing.share')}</button>
+          <button className="min-h-12 rounded-control border border-line px-4 font-bold transition hover:bg-canvas disabled:opacity-50" type="button" disabled={busy || inviteActionPending || !inviteUrl} onClick={() => void copy()}>{copied ? t('venueSharing.copied') : t('venueSharing.copy')}</button>
         </div>
         <div className="grid gap-2 border-t border-line/70 pt-4" data-testid="venue-invite-danger-zone">
           <p className="m-0 text-xs leading-5 text-muted">{t('venueSharing.revokeHint')}</p>
-          <button className="min-h-11 justify-self-end rounded-control px-3 font-bold text-danger transition hover:bg-danger/5 disabled:opacity-50" type="button" disabled={busy || !invite} onClick={() => void revoke()}>{busy ? t('venueSharing.revoking') : t('venueSharing.revoke')}</button>
+          <button className="min-h-11 justify-self-end rounded-control px-3 font-bold text-danger transition hover:bg-danger/5 disabled:opacity-50" type="button" disabled={busy || inviteActionPending || !invite} onClick={() => void revoke()}>{busy ? t('venueSharing.revoking') : t('venueSharing.revoke')}</button>
         </div>
       </div>
     </ResponsiveEditorDialog>

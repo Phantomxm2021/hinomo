@@ -91,3 +91,23 @@ test('keeps user-cancelled share sheets quiet', async () => {
   await user.click(screen.getByRole('button', { name: '分享邀请链接' }))
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
 })
+
+test('serializes share and copy so rapid clicks cannot duplicate invite actions', async () => {
+  const user = userEvent.setup()
+  let resolveShare!: () => void
+  mocks.share.mockReturnValue(new Promise<void>((resolve) => { resolveShare = resolve }))
+  renderDialog()
+
+  const share = screen.getByRole('button', { name: '分享邀请链接' })
+  const copy = screen.getByRole('button', { name: '复制邀请链接' })
+  await user.click(share)
+  expect(share).toBeDisabled()
+  expect(copy).toBeDisabled()
+  await user.click(share)
+  await user.click(copy)
+  expect(mocks.share).toHaveBeenCalledOnce()
+  expect(mocks.copy).not.toHaveBeenCalled()
+
+  resolveShare()
+  await waitFor(() => expect(share).not.toBeDisabled())
+})

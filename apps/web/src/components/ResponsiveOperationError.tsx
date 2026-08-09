@@ -8,10 +8,13 @@ type ResponsiveOperationErrorProps = {
   onRetry?: () => void
   busy?: boolean
   retryLabel?: string
+  cancelLabel?: string
+  onCancel?: () => void | Promise<void>
+  onActionError?: (error: unknown) => void
   error?: unknown
 }
 
-export function ResponsiveOperationError({ message, onRetry, busy = false, retryLabel, error }: ResponsiveOperationErrorProps) {
+export function ResponsiveOperationError({ message, onRetry, busy = false, retryLabel, cancelLabel, onCancel, onActionError, error }: ResponsiveOperationErrorProps) {
   const feedback = useMobileFeedback()
   const { t } = useI18n()
   const owner = useId()
@@ -20,7 +23,8 @@ export function ResponsiveOperationError({ message, onRetry, busy = false, retry
   const previousMessageRef = useRef(message)
   const classification = error === undefined ? null : classifyFeedbackError(error)
   const title = classification ? t(classification.titleKey) : message
-  const description = classification ? t(classification.messageKey) : undefined
+  const description = classification ? `${message} ${t(classification.messageKey)}` : undefined
+  const canRetry = Boolean(onRetry) && (classification?.retryable ?? true)
 
   useEffect(() => {
     retryRef.current = onRetry
@@ -37,9 +41,12 @@ export function ResponsiveOperationError({ message, onRetry, busy = false, retry
       owner,
       title,
       message: description,
-      retry: onRetry ? () => { if (!busy) retryRef.current?.() } : undefined,
+      retry: canRetry ? () => { if (!busy) retryRef.current?.() } : undefined,
       retryLabel,
       retrying: busy,
+      cancelLabel,
+      onCancel,
+      onActionError,
       onDismiss: (reason) => { dismissedRef.current = reason === undefined || reason === 'cancel' || reason === 'escape' },
     }
     if (typeof feedback.error === 'function') {
@@ -55,11 +62,14 @@ export function ResponsiveOperationError({ message, onRetry, busy = false, retry
       message: options.message,
       primaryLabel: options.retry ? options.retryLabel : undefined,
       onPrimary: options.retry,
+      cancelLabel: options.cancelLabel,
+      onCancel: options.onCancel,
+      onActionError: options.onActionError,
       onDismiss: options.onDismiss,
       primaryDisabled: options.retrying,
       primaryBusy: options.retrying,
     })
-  }, [busy, description, feedback, message, onRetry, owner, retryLabel, title])
+  }, [busy, canRetry, cancelLabel, description, feedback, message, onActionError, onCancel, onRetry, owner, retryLabel, title])
 
   useEffect(() => () => feedback.dismiss(owner), [feedback, owner])
 

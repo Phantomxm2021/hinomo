@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useEffect, type PropsWithChildren } from 'react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
@@ -324,6 +324,26 @@ test('preserves fields and retries only the failed image upload', async () => {
 
   expect(mockCreateItem).toHaveBeenCalledOnce()
   expect(mockUpload).toHaveBeenCalledTimes(2)
+  expect(onSaved).toHaveBeenCalledOnce()
+})
+
+test('continues without the failed image upload from the secondary Apple action', async () => {
+  const user = userEvent.setup()
+  const onSaved = vi.fn()
+  mockCreateItem.mockResolvedValue({ id: 'item-1' })
+  mockUpload.mockRejectedValueOnce(new Error('upload failed'))
+  render(
+    <MobileFeedbackProvider><QueryClientProvider client={new QueryClient()}>
+      <ItemForm boxId="box-1" onSaved={onSaved} />
+    </QueryClientProvider></MobileFeedbackProvider>,
+  )
+
+  await user.type(screen.getByLabelText('物品名称'), '可跳过图片的物品')
+  await user.upload(screen.getByLabelText('选择物品图片'), new File(['image'], 'skip.webp', { type: 'image/webp' }))
+  await user.click(screen.getByRole('button', { name: '保存' }))
+
+  const dialog = await screen.findByRole('alertdialog', { name: '图片上传失败，已保留填写内容。' })
+  await user.click(within(dialog).getByRole('button', { name: '暂不上传' }))
   expect(onSaved).toHaveBeenCalledOnce()
 })
 
