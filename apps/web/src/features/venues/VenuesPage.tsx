@@ -7,6 +7,7 @@ import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { useI18n } from '../../i18n/I18nProvider'
 import { VenueCardMenu } from './VenueCardMenu'
 import { VenueEditorDialog } from './VenueEditorDialog'
+import { isVenueAccessDenied, revokedVenueQueryKeys } from './venue-sharing.api'
 import {
   createVenue,
   deleteVenue,
@@ -48,6 +49,12 @@ export function VenuesPage() {
   function openCreate() {
     setEditTarget(null)
     setEditorOpen(true)
+  }
+
+  function handleVenueAccessDenied(error: unknown) {
+    if (!isVenueAccessDenied(error)) return
+    for (const queryKey of revokedVenueQueryKeys) queryClient.removeQueries({ queryKey })
+    navigate('/app', { replace: true })
   }
 
   async function saveVenue(input: VenueInput) {
@@ -136,7 +143,7 @@ export function VenuesPage() {
             return (
               <div className="relative grid min-h-32 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-[1.35rem] border border-line bg-surface p-5 shadow-soft sm:p-6" data-testid={`venue-card-${venue.id}`} key={venue.id}>
                 <div className="min-w-0">{details}</div>
-                <VenueCardMenu venue={venue} invitesEnabled={invitesEnabled} onEdit={(target) => { setEditTarget(target); setEditorOpen(true) }} />
+                <VenueCardMenu venue={venue} invitesEnabled={invitesEnabled} onEdit={(target) => { setEditTarget(target); setEditorOpen(true) }} onVenueAccessDenied={handleVenueAccessDenied} />
               </div>
             )
           })}

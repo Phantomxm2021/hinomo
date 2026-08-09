@@ -4,6 +4,7 @@ import { AppIcon } from '../../components/AppIcon'
 import { useMobileFeedback } from '../../components/mobile-feedback'
 import { useI18n } from '../../i18n/I18nProvider'
 import { classifyFeedbackError } from '../../lib/feedback-errors'
+import { isVenueAccessDenied } from './venue-sharing.api'
 import { VenueInviteDialog } from './VenueInviteDialog'
 import { createVenueInvite, type VenueInvite } from './venue-sharing.api'
 import { useQueryClient } from '@tanstack/react-query'
@@ -13,9 +14,10 @@ type VenueCardMenuProps = {
   venue: VenueSummary
   invitesEnabled: boolean
   onEdit: (venue: VenueSummary) => void
+  onVenueAccessDenied: (error: unknown) => void
 }
 
-export function VenueCardMenu({ venue, invitesEnabled, onEdit }: VenueCardMenuProps) {
+export function VenueCardMenu({ venue, invitesEnabled, onEdit, onVenueAccessDenied }: VenueCardMenuProps) {
   const { t } = useI18n()
   const feedback = useMobileFeedback()
   const queryClient = useQueryClient()
@@ -40,11 +42,16 @@ export function VenueCardMenu({ venue, invitesEnabled, onEdit }: VenueCardMenuPr
       await queryClient.invalidateQueries({ queryKey: ['venue-invites', venue.id] })
       closeMenu(false)
     } catch (error) {
+      if (isVenueAccessDenied(error)) {
+        onVenueAccessDenied(error)
+        return
+      }
       const classification = classifyFeedbackError(error)
       feedback.error({
         key: `venue.invite.create:${venue.id}`,
         title: t(classification.titleKey),
         message: t(classification.messageKey),
+        retry: classification.retryable ? () => openInvite() : undefined,
       })
     } finally {
       invitePendingRef.current = false

@@ -40,7 +40,10 @@ test('copies the newest reusable invitation token after the owner replaces an in
   rerender(<I18nProvider><MobileFeedbackProvider><VenueInviteDialog open invite={{ invite_id: 'invite-2', token: 'latest-token', expires_at: '2026-08-10T01:00:00Z', reusable: true }} onClose={vi.fn()} /></MobileFeedbackProvider></I18nProvider>)
   await waitFor(() => expect(mocks.qr).toHaveBeenLastCalledWith('https://nomo.example/join/venue#token=latest-token', expect.any(Object)))
 
+  const latestCopy = vi.fn().mockResolvedValue(undefined)
+  Object.defineProperty(window.navigator, 'clipboard', { configurable: true, value: { writeText: latestCopy } })
   await user.click(screen.getByRole('button', { name: '复制邀请链接' }))
+  expect(latestCopy).toHaveBeenCalledWith('https://nomo.example/join/venue#token=latest-token')
   expect(await screen.findByRole('button', { name: '已复制邀请链接' })).toBeInTheDocument()
 })
 
@@ -70,11 +73,45 @@ test('asks for an Apple-style destructive confirmation before revoking the invit
   expect(mocks.revoke).not.toHaveBeenCalled()
   const confirmation = await screen.findByRole('alertdialog', { name: '撤销邀请？' })
   await user.click(within(confirmation).getByRole('button', { name: '撤销邀请' }))
-  expect(screen.getByRole('button', { name: '撤销中…' })).toBeDisabled()
-  expect(screen.getByRole('button', { name: '复制邀请链接' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: '撤销中…', hidden: true })).toBeDisabled()
+  expect(screen.getByRole('button', { name: '复制邀请链接', hidden: true })).toBeDisabled()
   resolve?.()
   await waitFor(() => expect(props.onClose).toHaveBeenCalled())
   expect(mocks.revoke).toHaveBeenCalledWith('invite-1')
+})
+
+test('temporarily hides the underlying invite dialog from assistive technology during revoke confirmation', async () => {
+  const user = userEvent.setup()
+  renderDialog()
+  await user.click(screen.getByRole('button', { name: '撤销邀请' }))
+
+  expect(await screen.findByRole('alertdialog', { name: '撤销邀请？' })).toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: '分享场地邀请' })).not.toBeInTheDocument()
+  expect(screen.getByTestId('editor-dialog-backdrop')).toHaveAttribute('aria-hidden', 'true')
+})
+
+test('offers retry for transient copy failures and retries the exact clipboard operation', async () => {
+  const user = userEvent.setup()
+  const copy = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce(undefined)
+  Object.defineProperty(window.navigator, 'clipboard', { configurable: true, value: { writeText: copy } })
+  renderDialog()
+
+  await user.click(screen.getByRole('button', { name: '复制邀请链接' }))
+  const alert = await screen.findByRole('alertdialog', { name: '操作未完成' })
+  await user.click(within(alert).getByRole('button', { name: '重试' }))
+  await waitFor(() => expect(copy).toHaveBeenCalledTimes(2))
+})
+
+test('offers retry for transient share failures and retries the exact share operation', async () => {
+  const user = userEvent.setup()
+  const share = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce(undefined)
+  Object.defineProperty(window.navigator, 'share', { configurable: true, value: share })
+  renderDialog()
+
+  await user.click(screen.getByRole('button', { name: '分享邀请链接' }))
+  const alert = await screen.findByRole('alertdialog', { name: '操作未完成' })
+  await user.click(within(alert).getByRole('button', { name: '重试' }))
+  await waitFor(() => expect(share).toHaveBeenCalledTimes(2))
 })
 
 test('supports Escape, contains focus, restores focus, and uses the mobile safe-area padding', async () => {

@@ -81,6 +81,7 @@ test('renders no more than one current active reusable invite row', async () => 
   renderPage()
 
   await waitFor(() => expect(screen.getAllByRole('button', { name: '撤销邀请' })).toHaveLength(1))
+  expect(screen.getByText('当前邀请 · 已邀请 1 位成员')).toBeInTheDocument()
 })
 afterEach(() => {
   cleanup()
@@ -157,6 +158,18 @@ test('explains when invitation seats are reserved by members or unused invitatio
   await user.click(await screen.findByRole('button', { name: '创建邀请' }))
   expect(await screen.findByRole('alertdialog', { name: '操作未完成' })).toHaveTextContent('成员名额已满')
   expect(screen.getByRole('alertdialog')).toHaveTextContent('未使用邀请')
+})
+
+test('retries a transient member-page invite failure through the global Apple alert', async () => {
+  const user = userEvent.setup()
+  mocks.createInvite.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce({ invite_id: 'invite-retry', token: 'retry-secret', expires_at: '2026-08-10T00:00:00Z', reusable: true })
+  renderPage()
+
+  await user.click(await screen.findByRole('button', { name: '创建邀请' }))
+  const alert = await screen.findByRole('alertdialog', { name: '操作未完成' })
+  await user.click(within(alert).getByRole('button', { name: '重试' }))
+  await waitFor(() => expect(mocks.createInvite).toHaveBeenCalledTimes(2))
+  expect(await screen.findByRole('dialog', { name: '邀请对话框' })).toHaveTextContent('retry-secret')
 })
 
 test('keeps invite creation closed when the deploy-time kill switch is disabled', async () => {

@@ -28,6 +28,7 @@ export function AppleAlert({ open, title, message, primaryLabel, onPrimary, canc
   const messageId = useId()
   const dialogRef = useRef<HTMLElement | null>(null)
   const primaryRef = useRef<HTMLButtonElement | null>(null)
+  const alertRootRef = useRef<HTMLDivElement | null>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
   const actionPendingRef = useRef(false)
   const [actionPending, setActionPending] = useState(false)
@@ -120,13 +121,34 @@ export function AppleAlert({ open, title, message, primaryLabel, onPrimary, canc
   }, [focusFirstEnabledControl, onCancel, onClose, open, runAction])
 
   useEffect(() => {
+    if (!open || !alertRootRef.current) return
+    const hiddenElements = Array.from(document.querySelectorAll<HTMLElement>('[data-overlay-layer]:not([data-overlay-layer="alert"]), [data-testid="editor-dialog-backdrop"]')).filter((element) => element !== alertRootRef.current && !alertRootRef.current?.contains(element))
+    const snapshots = hiddenElements.map((element) => ({
+      element,
+      ariaHidden: element.getAttribute('aria-hidden'),
+      inert: element.inert,
+    }))
+    for (const element of hiddenElements) {
+      element.setAttribute('aria-hidden', 'true')
+      element.inert = true
+    }
+    return () => {
+      for (const { element, ariaHidden, inert } of snapshots) {
+        if (ariaHidden === null) element.removeAttribute('aria-hidden')
+        else element.setAttribute('aria-hidden', ariaHidden)
+        element.inert = inert
+      }
+    }
+  }, [open])
+
+  useEffect(() => {
     if (open && primaryDisabled) focusFirstEnabledControl()
   }, [focusFirstEnabledControl, open, primaryDisabled])
 
   if (!open) return null
 
   return createPortal(
-    <div className="fixed inset-0 isolate grid place-items-center bg-ink/30 px-5 backdrop-blur-[3px]" data-overlay-layer="alert" style={{ zIndex: SYSTEM_ALERT_Z_INDEX }} role="presentation">
+    <div ref={alertRootRef} className="fixed inset-0 isolate grid place-items-center bg-ink/30 px-5 backdrop-blur-[3px]" data-overlay-layer="alert" style={{ zIndex: SYSTEM_ALERT_Z_INDEX }} role="presentation">
       <section ref={dialogRef} className="w-full max-w-[22rem] overflow-hidden rounded-[1.25rem] border border-white/45 bg-surface/95 text-center shadow-[0_24px_70px_rgb(48_39_30_/_24%)] backdrop-blur-xl" role="alertdialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={message ? messageId : undefined}>
         <div className="px-6 pt-6 pb-5">
           <h2 className="m-0 text-[1.0625rem] font-semibold tracking-[-0.01em] text-ink" id={titleId}>{title}</h2>

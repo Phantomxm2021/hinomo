@@ -48,7 +48,7 @@ export function VenueInviteDialog({ open, invite, onClose }: VenueInviteDialogPr
       setCopied(true)
     } catch (error) {
       const classification = classifyFeedbackError(error)
-      feedback.error({ key: 'venue.invite.copy', title: t(classification.titleKey), message: t(classification.messageKey) })
+      feedback.error({ key: 'venue.invite.copy', title: t(classification.titleKey), message: t(classification.messageKey), retry: classification.retryable ? () => copy() : undefined })
     } finally {
       setCopyPending(false)
     }
@@ -66,7 +66,7 @@ export function VenueInviteDialog({ open, invite, onClose }: VenueInviteDialogPr
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       const classification = classifyFeedbackError(error)
-      feedback.error({ key: 'venue.invite.share', title: t(classification.titleKey), message: t(classification.messageKey) })
+      feedback.error({ key: 'venue.invite.share', title: t(classification.titleKey), message: t(classification.messageKey), retry: classification.retryable ? () => share() : undefined })
     } finally {
       setSharePending(false)
     }
