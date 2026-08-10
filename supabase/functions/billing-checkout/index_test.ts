@@ -70,3 +70,13 @@ testSource('standard Checkout disables Managed Payments and enables Alipay and W
     'Checkout must explicitly allow card, Alipay, and WeChat Pay',
   )
 })
+
+testSource('standard Checkout configures WeChat Pay for web clients', async () => {
+  const source = await checkoutSource()
+
+  assertContains(
+    source,
+    "wechat_pay: { client: 'web' }",
+    'Checkout must configure WeChat Pay for browser payments',
+  )
+})

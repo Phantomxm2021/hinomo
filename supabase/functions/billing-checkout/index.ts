@@ -72,6 +72,9 @@ Deno.serve(async (request) => {
       line_items: [{ price: requiredStripePriceId(action.env), quantity: 1 }],
       managed_payments: { enabled: false },
       payment_method_types: ['card', 'alipay', 'wechat_pay'],
+      payment_method_options: {
+        wechat_pay: { client: 'web' },
+      },
       success_url: appUrl(boxPurchase
         ? '/app/boxes?purchase=success&session_id={CHECKOUT_SESSION_ID}'
         : '/app/me/credits?checkout=success'),
