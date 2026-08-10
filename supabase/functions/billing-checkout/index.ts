@@ -10,6 +10,7 @@ import {
   serviceDatabase,
   stripeClient,
 } from '../_shared/billing.ts'
+import type Stripe from 'npm:stripe@18.5.0'
 
 type CheckoutAction = 'credits_20' | 'credits_100' | 'credits_500' | 'boxes_unlimited'
 type CheckoutConfig =
@@ -61,11 +62,16 @@ Deno.serve(async (request) => {
     if ('entitlementCode' in action) metadata.entitlement_code = action.entitlementCode
     else metadata.credit_amount = String(action.credits)
     const boxPurchase = checkoutAction === 'boxes_unlimited'
-    const session = await stripeClient().checkout.sessions.create({
+    type StandardCheckoutSessionCreateParams = Stripe.Checkout.SessionCreateParams & {
+      managed_payments: { enabled: false }
+    }
+    const sessionParams: StandardCheckoutSessionCreateParams = {
       mode: 'payment',
       customer,
       client_reference_id: user.id,
       line_items: [{ price: requiredStripePriceId(action.env), quantity: 1 }],
+      managed_payments: { enabled: false },
+      payment_method_types: ['card', 'alipay', 'wechat_pay'],
       success_url: appUrl(boxPurchase
         ? '/app/boxes?purchase=success&session_id={CHECKOUT_SESSION_ID}'
         : '/app/me/credits?checkout=success'),
@@ -75,7 +81,8 @@ Deno.serve(async (request) => {
       allow_promotion_codes: !boxPurchase,
       billing_address_collection: 'auto',
       metadata,
-    })
+    }
+    const session = await stripeClient().checkout.sessions.create(sessionParams)
     if (!session.url) throw new Error('checkout_url_missing')
     return json(request, { url: session.url })
   } catch (error) {

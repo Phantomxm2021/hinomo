@@ -60,10 +60,13 @@ testSource('owned unlimited-box entitlement is rejected before creating Checkout
   assertContains(source, "{ error: 'entitlement_already_owned' }, 409", 'Owned entitlement must return stable HTTP 409')
 })
 
-testSource('Managed Payments Checkout does not send unsupported payment_method_types', async () => {
+testSource('standard Checkout disables Managed Payments and enables Alipay and WeChat Pay', async () => {
   const source = await checkoutSource()
 
-  if (source.includes('payment_method_types:')) {
-    throw new Error('Managed Payments Checkout must omit payment_method_types')
-  }
+  assertContains(source, 'managed_payments: { enabled: false }', 'Checkout must opt out of Managed Payments')
+  assertContains(
+    source,
+    "payment_method_types: ['card', 'alipay', 'wechat_pay']",
+    'Checkout must explicitly allow card, Alipay, and WeChat Pay',
+  )
 })
