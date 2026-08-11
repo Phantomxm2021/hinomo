@@ -294,6 +294,42 @@ test('preserves the selected space when the box onboarding CTA navigates to box 
   await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/app/boxes?create=1&onboarding=box&space=space-new'))
 })
 
+test('canonicalizes encoded selected space when the box onboarding CTA navigates to box creation', async () => {
+  mockGetProfile.mockResolvedValue({ id: 'user-1', onboarding_welcome_seen_at: '2026-08-10T00:00:00.000Z' })
+  mockListSpaces.mockResolvedValue([
+    { id: 'space home/1', venue_id: 'venue-home', venue_name: '默认', name: '储藏室', description: null, box_count: 0, item_count: 0 },
+  ])
+  mockListBoxes.mockResolvedValue([])
+  const user = userEvent.setup()
+  renderDashboardWithNavigation('/app?onboarding=box&space=space home/1')
+
+  const dialog = await screen.findByRole('dialog', { name: '开始使用 Nomo' })
+  await user.click(within(dialog).getByRole('button', { name: '创建第一个箱子' }))
+
+  await waitFor(() => {
+    const [pathname, search] = screen.getByTestId('location').textContent!.split('?')
+    expect(pathname).toBe('/app/boxes')
+    expect(new URLSearchParams(search).toString()).toBe('create=1&onboarding=box&space=space+home%2F1')
+  })
+})
+
+test('keeps the item onboarding CTA on the first box without onboarding parameters', async () => {
+  mockGetProfile.mockResolvedValue({ id: 'user-1', onboarding_welcome_seen_at: '2026-08-10T00:00:00.000Z' })
+  mockListSpaces.mockResolvedValue([
+    { id: 'space-home', venue_id: 'venue-home', venue_name: '默认', name: '储藏室', description: null, box_count: 1, item_count: 0 },
+  ])
+  mockListBoxes.mockResolvedValue([
+    { id: 'box-1', public_id: 'first-box', box_code: 'BX-1', name: '露营用品', space_id: 'space-home', location: null, visibility: 'private', space_name: '储藏室', cover_object_key: null, item_count: 0, updated_at: '2026-08-03' },
+  ])
+  const user = userEvent.setup()
+  renderDashboardWithNavigation()
+
+  const dialog = await screen.findByRole('dialog', { name: '开始使用 Nomo' })
+  await user.click(within(dialog).getByRole('button', { name: '记录箱内物品' }))
+
+  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/b/first-box'))
+})
+
 test('does not show onboarding for an account that already has items', async () => {
   mockListSpaces.mockResolvedValue([
     { id: 'space-home', venue_id: 'venue-home', venue_name: '默认', name: '客厅', description: null, box_count: 1, item_count: 1 },
