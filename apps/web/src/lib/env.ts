@@ -5,6 +5,8 @@ export const env = z
     VITE_SUPABASE_URL: z.string().url(),
     VITE_SUPABASE_ANON_KEY: z.string().min(1),
     VITE_PUBLIC_APP_ORIGIN: z.string().url(),
+    VITE_POSTHOG_KEY: z.string().min(1).optional(),
+    VITE_POSTHOG_HOST: z.string().url().optional(),
   })
   .parse(import.meta.env)
 

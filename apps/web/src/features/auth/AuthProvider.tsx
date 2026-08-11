@@ -1,5 +1,11 @@
 import type { Session } from '@supabase/supabase-js'
-import { useSyncExternalStore, type PropsWithChildren } from 'react'
+import { useEffect, useSyncExternalStore, type PropsWithChildren } from 'react'
+import {
+  getAnalyticsConsent,
+  identifyAnalyticsUser,
+  resetAnalyticsUser,
+  subscribeAnalyticsConsent,
+} from '../../lib/analytics'
 import {
   getAuthSessionSnapshot,
   subscribeAuthSession,
@@ -37,6 +43,19 @@ function LiveAuthProvider({ children }: PropsWithChildren) {
     getAuthSessionSnapshot,
     getAuthSessionSnapshot,
   )
+  const analyticsConsent = useSyncExternalStore(
+    subscribeAnalyticsConsent,
+    getAnalyticsConsent,
+    getAnalyticsConsent,
+  )
+
+  useEffect(() => {
+    if (liveAuthState.session && analyticsConsent === 'accepted') {
+      identifyAnalyticsUser(liveAuthState.session.user.id)
+      return
+    }
+    if (!liveAuthState.session) resetAnalyticsUser()
+  }, [analyticsConsent, liveAuthState.session])
 
   return (
     <AuthContext.Provider value={liveAuthState}>

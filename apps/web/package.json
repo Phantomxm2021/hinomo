@@ -19,6 +19,7 @@
     "@zxing/browser": "^0.2.1",
     "browser-image-compression": "^2.0.2",
     "jspdf": "^4.2.1",
+    "posthog-js": "^1.415.1",
     "qrcode": "^1.5.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

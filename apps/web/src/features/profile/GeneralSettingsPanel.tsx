@@ -1,6 +1,8 @@
 import type { Locale } from '../../i18n/locale'
 import { LanguageSwitcher } from '../../components/LanguageSwitcher'
 import { useI18n } from '../../i18n/I18nProvider'
+import { getAnalyticsConsent, setAnalyticsConsent, subscribeAnalyticsConsent } from '../../lib/analytics'
+import { useSyncExternalStore } from 'react'
 
 type GeneralSettingsPanelProps = {
   locale: Locale
@@ -11,6 +13,7 @@ type GeneralSettingsPanelProps = {
 /** Shared general-settings content used by both the mobile page and desktop dialog. */
 export function GeneralSettingsPanel({ locale, onLocaleChange, presentation }: GeneralSettingsPanelProps) {
   const { t } = useI18n()
+  const analyticsConsent = useSyncExternalStore(subscribeAnalyticsConsent, getAnalyticsConsent, getAnalyticsConsent)
   const headingClassName = presentation === 'dialog' ? 'm-0 text-meta font-medium text-muted' : 'm-0 px-4 text-meta font-medium text-muted'
   const cardClassName = presentation === 'dialog'
     ? 'overflow-hidden rounded-shell border border-line bg-surface shadow-soft'
@@ -26,6 +29,21 @@ export function GeneralSettingsPanel({ locale, onLocaleChange, presentation }: G
         <div className={rowClassName}>
           <span>{t('settings.language')}</span>
           <LanguageSwitcher locale={locale} onChange={onLocaleChange} />
+        </div>
+      </section>
+      <h2 className={headingClassName}>Analytics</h2>
+      <section className={cardClassName} role="group" aria-label="Analytics settings">
+        <div className={rowClassName}>
+          <span>Content-free analytics</span>
+          <select
+            aria-label="Analytics"
+            className="rounded-full border border-line bg-surface px-3 py-2 text-meta font-bold text-ink outline-none transition focus-visible:ring-2 focus-visible:ring-brand/40"
+            value={analyticsConsent === 'accepted' ? 'accepted' : 'declined'}
+            onChange={(event) => setAnalyticsConsent(event.target.value as 'accepted' | 'declined')}
+          >
+            <option value="accepted">Allowed</option>
+            <option value="declined">Not allowed</option>
+          </select>
         </div>
       </section>
     </div>
