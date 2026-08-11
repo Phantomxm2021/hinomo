@@ -73,8 +73,11 @@ export function CreditsPage() {
             <div className="grid gap-3 border-t border-line/60 bg-brand/5 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
               <div className="min-w-0">
                 <strong className="block text-base text-ink">{t('credits.unlimitedTitle')}</strong>
-                <p className="m-0 mt-1 text-sm text-muted">{t('credits.unlimitedBody')}</p>
-                <span className="mt-2 block text-xs font-semibold text-muted">{t('credits.unlimitedNoRenewal')}</span>
+                <p className="m-0 mt-1 text-sm text-muted">
+                  <span>{t('credits.unlimitedBody')}</span>
+                  <span aria-hidden="true"> · </span>
+                  <span>{t('credits.unlimitedNoRenewal')}</span>
+                </p>
               </div>
               <div className="flex items-center justify-between gap-3 sm:justify-end">
                 <strong className="shrink-0 text-sm text-ink">{t('credits.unlimitedPrice')}</strong>

@@ -106,8 +106,8 @@ export function ThreeBoxResetPage() {
         </section>
 
         <section className="mx-auto grid max-w-6xl gap-6 px-5 py-20 sm:px-8 md:grid-cols-2">
-          <article className="rounded-[2rem] bg-brand p-8 text-white"><h2 className="text-3xl font-extrabold tracking-[-0.04em]">{t('threeBoxReset.free.title')}</h2><p className="mt-4 max-w-md leading-7 text-white/85">{t('threeBoxReset.free.body')}</p></article>
-          <article className="rounded-[2rem] bg-ink p-8 text-white" data-testid="founding-lifetime-offer"><h2 className="text-3xl font-extrabold tracking-[-0.04em]">{t('threeBoxReset.founder.title')}</h2><p className="mt-4 text-2xl font-bold text-[#efac8e]">{t('threeBoxReset.founder.price')}</p><p className="mt-3 max-w-md leading-7 text-white/75">{t('threeBoxReset.founder.body')}</p></article>
+          <article className="rounded-[2rem] bg-brand p-8 text-white" data-testid="three-box-free-offer"><h2 className="text-3xl font-extrabold tracking-[-0.04em] text-white">{t('threeBoxReset.free.title')}</h2><p className="mt-4 max-w-md leading-7 text-white/85">{t('threeBoxReset.free.body')}</p></article>
+          <article className="rounded-[2rem] bg-ink p-8 text-white" data-testid="founding-lifetime-offer"><h2 className="text-3xl font-extrabold tracking-[-0.04em] text-white">{t('threeBoxReset.founder.title')}</h2><p className="mt-4 text-2xl font-bold text-[#efac8e]">{t('threeBoxReset.founder.price')}</p><p className="mt-3 max-w-md leading-7 text-white/75">{t('threeBoxReset.founder.body')}</p></article>
         </section>
 
         <section className="bg-[#df6538] px-5 py-16 text-center text-white sm:px-8"><Link className="inline-flex min-h-13 items-center justify-center rounded-full bg-white px-8 font-bold text-ink no-underline shadow-float" to={primaryHref}>{t('threeBoxReset.finalCta')}</Link></section>

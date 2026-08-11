@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../../i18n/I18nProvider'
@@ -61,9 +61,13 @@ it('renders the English three-box reset conversion path', () => {
   expect(screen.getByText(/20 non-expiring bonus AI Credits/)).toBeVisible()
   expect(screen.getByText(/Add Nomo to your Home Screen/)).toBeVisible()
 
+  const freeOffer = screen.getByTestId('three-box-free-offer')
+  const founderOffer = screen.getByTestId('founding-lifetime-offer')
+  expect(within(freeOffer).getByRole('heading')).toHaveClass('text-white')
+  expect(within(founderOffer).getByRole('heading')).toHaveClass('text-white')
+
   const demo = screen.getByTestId('three-box-demo')
   const workflow = screen.getByTestId('three-box-workflow')
-  const founderOffer = screen.getByTestId('founding-lifetime-offer')
   expect(demo.compareDocumentPosition(founderOffer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   expect(workflow.compareDocumentPosition(founderOffer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   expect(screen.getByRole('link', { name: 'Support' }))
