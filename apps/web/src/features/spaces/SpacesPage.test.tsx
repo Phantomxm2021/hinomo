@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useEffect, type PropsWithChildren } from 'react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { AppShell } from '../../app/AppShell'
 import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
@@ -71,6 +71,35 @@ function renderSpaces(initialEntry = '/app/spaces') {
   }
 
   return { queryClient, ...render(<SpacesPage />, { wrapper: Wrapper }) }
+}
+
+function RouteLocation() {
+  const location = useLocation()
+  return <output data-testid="route-location">{`${location.pathname}${location.search}`}</output>
+}
+
+function renderOnboardingSpaces(initialEntry = '/app/spaces?create=1&onboarding=space') {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+
+  function Wrapper({ children }: PropsWithChildren) {
+    return (
+      <I18nProvider><MobileFeedbackProvider><MemoryRouter initialEntries={[initialEntry]}>
+        <div data-app-shell>
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        </div>
+      </MemoryRouter></MobileFeedbackProvider></I18nProvider>
+    )
+  }
+
+  return render(
+    <Routes>
+      <Route path="/app/spaces" element={<SpacesPage />} />
+      <Route path="/app" element={<RouteLocation />} />
+    </Routes>,
+    { wrapper: Wrapper },
+  )
 }
 
 function deferred<T>() {
@@ -286,6 +315,33 @@ test('opens the space editor directly for onboarding and explains a box prerequi
   const dialog = await screen.findByRole('dialog', { name: '创建空间' })
   expect(within(dialog).getByText('创建箱子前，需要先告诉 Nomo 它放在哪个空间。')).toBeInTheDocument()
   expect(within(dialog).getByLabelText('场地')).toHaveValue('venue-home')
+})
+
+test('continues onboarding to box creation after creating a space', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([])
+  mockCreateSpace.mockResolvedValue({ id: 'space-new' })
+  renderOnboardingSpaces()
+
+  const dialog = await screen.findByRole('dialog', { name: '创建空间' })
+  await user.type(within(dialog).getByLabelText('空间名称'), '客厅')
+  await user.click(within(dialog).getByRole('button', { name: '创建空间' }))
+
+  expect(await screen.findByTestId('route-location')).toHaveTextContent('/app?onboarding=box&space=space-new')
+  expect(screen.queryByText('空间已创建')).not.toBeInTheDocument()
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+test('returns to the space onboarding step when creation is cancelled', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([])
+  renderOnboardingSpaces()
+
+  const dialog = await screen.findByRole('dialog', { name: '创建空间' })
+  await user.click(within(dialog).getByRole('button', { name: '取消' }))
+
+  expect(await screen.findByTestId('route-location')).toHaveTextContent('/app?onboarding=space')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
 
 test('isolates and restores the real application shell around the portalled editor', async () => {

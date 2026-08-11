@@ -177,13 +177,17 @@ export function SpacesPage() {
 
   const closeEditor = useCallback(() => {
     if (editorPending) return
+    if (searchParams.get('onboarding') === 'space') {
+      navigate('/app?onboarding=space', { replace: true })
+      return
+    }
     setEditorOpen(false)
     setEditTarget(null)
     reset({ venue_id: '', name: '', description: '' })
     resetCreateMutation()
     resetUpdateMutation()
     clearCreateRequest()
-  }, [clearCreateRequest, editorPending, reset, resetCreateMutation, resetUpdateMutation])
+  }, [clearCreateRequest, editorPending, navigate, reset, resetCreateMutation, resetUpdateMutation, searchParams])
 
   useEffect(() => {
     if (!editorOpen && editorOpenerRef.current) restoreEditorFocus()
@@ -236,7 +240,11 @@ export function SpacesPage() {
       if (editTarget) {
         await updateMutation.mutateAsync({ id: editTarget.id, input })
       } else {
-        await createMutation.mutateAsync(input)
+        const created = await createMutation.mutateAsync(input)
+        if (searchParams.get('onboarding') === 'space') {
+          navigate(`/app?onboarding=box&space=${encodeURIComponent(created.id)}`, { replace: true })
+          return
+        }
       }
       feedback.notify(editTarget ? t('spaces.updated') : t('spaces.created'))
       setEditorOpen(false)
