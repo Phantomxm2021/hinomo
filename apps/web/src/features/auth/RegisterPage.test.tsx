@@ -81,6 +81,8 @@ describe('RegisterPage', () => {
       'href',
       '/legal/privacy?lang=zh-CN',
     )
+    expect(screen.getByRole('checkbox', { name: '接收整理建议和一次性创始人优惠。我可以随时停止接收这些邮件。' })).toBeInTheDocument()
+    expect(screen.getByRole('main')).not.toHaveTextContent(/订阅|取消订阅/)
     expect(submitButton).toBeDisabled()
 
     await user.type(screen.getByLabelText('昵称'), '小诺')
@@ -141,8 +143,9 @@ describe('RegisterPage', () => {
     mockSignUp.mockResolvedValue({ data: { user: { id: 'user-123' }, session: null }, error: null })
     renderRegister(undefined, '?campaign=three_box_reset')
 
-    const contactOptIn = screen.getByRole('checkbox', { name: /Email me setup tips/ })
+    const contactOptIn = screen.getByRole('checkbox', { name: 'Email me setup tips and the one-time founder offer. I can stop receiving these emails at any time.' })
     expect(contactOptIn).not.toBeChecked()
+    expect(screen.getByRole('main')).not.toHaveTextContent(/subscription|unsubscribe/i)
     await user.type(screen.getByLabelText('Nickname'), 'Nomo')
     await user.type(screen.getByLabelText('Email'), 'new@example.com')
     await user.type(screen.getByLabelText('Password'), 'secure-password')

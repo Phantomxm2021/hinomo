@@ -51,7 +51,7 @@ Image recognition, automatic naming, and other intelligent features may produce 
 
 Some features may require payment or consume service credits. Before purchase, the checkout page will present applicable pricing, taxes, credits, and principal conditions. Except where applicable law or the checkout terms require otherwise, consumed digital credits are not refundable or transferable.
 
-“Unlimited Boxes” is a one-time digital entitlement tied to the Nomo account used for the purchase. Its currently displayed price is HK$38; the amount, currency, taxes, and other transaction terms shown on the final Stripe Checkout page before you confirm payment are the terms that apply. This entitlement is not a subscription and does not auto-renew. After payment succeeds and we confirm the entitlement, you may create boxes without the free box limit while the entitlement remains active.
+“Unlimited Boxes” is a one-time digital entitlement tied to the Nomo account used for the purchase. Its currently displayed price is US$9; the amount, currency, taxes, and other transaction terms shown on the final Stripe Checkout page before you confirm payment are the terms that apply. This entitlement is not a subscription and does not auto-renew. After payment succeeds and we confirm the entitlement, you may create boxes without the free box limit while the entitlement remains active.
 
 The Unlimited Boxes entitlement does not include AI Credits. Image recognition and other features that require AI Credits remain separately charged and are subject to their own prices, balances, and consumption rules.
 
