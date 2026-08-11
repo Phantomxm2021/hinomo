@@ -8,34 +8,47 @@ import { CreditsPage } from './CreditsPage'
 const mocks = vi.hoisted(() => ({
   summary: vi.fn(), transactions: vi.fn(), checkout: vi.fn(),
 }))
+const analytics = vi.hoisted(() => ({ captureGrowthEvent: vi.fn() }))
 vi.mock('./credits.api', () => ({
   getCreditSummary: mocks.summary,
   listCreditTransactions: mocks.transactions,
   startCheckout: mocks.checkout,
 }))
+vi.mock('../../lib/analytics', () => analytics)
 
-function renderPage() {
-  return render(<MemoryRouter><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><CreditsPage /></QueryClientProvider></MemoryRouter>)
+function renderPage(initialEntry = '/app/me/credits') {
+  return render(<MemoryRouter initialEntries={[initialEntry]}><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><CreditsPage /></QueryClientProvider></MemoryRouter>)
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.transactions.mockResolvedValue([])
   mocks.checkout.mockReturnValue(new Promise(() => undefined))
+  analytics.captureGrowthEvent.mockReset()
 })
 afterEach(cleanup)
 
-test('offers one-time credit packs without a subscription', async () => {
+test('offers the USD one-time credit packs without a subscription', async () => {
   mocks.summary.mockResolvedValue({ credits_available: 0, credits_reserved: 0 })
   renderPage()
   const user = userEvent.setup()
 
   expect(await screen.findByText('不自动续费')).toBeInTheDocument()
-  expect(screen.getByText('HK$12')).toBeInTheDocument()
-  expect(screen.getByText('HK$42')).toBeInTheDocument()
-  expect(screen.getByText('HK$148')).toBeInTheDocument()
+  expect(screen.getByText('US$2.99')).toBeInTheDocument()
+  expect(screen.getByText('US$9.99')).toBeInTheDocument()
+  expect(screen.getByText('US$34.99')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: /购买 20 credits/ }))
   expect(mocks.checkout).toHaveBeenCalledWith('credits_20')
+})
+
+test('records credit purchase completion only on the Checkout return', async () => {
+  mocks.summary.mockResolvedValue({ credits_available: 20, credits_reserved: 0 })
+  renderPage('/app/me/credits?checkout=success&checkout_product=credits_20')
+
+  await vi.waitFor(() => expect(analytics.captureGrowthEvent).toHaveBeenCalledWith('purchase_completed', {
+    product: 'credits_20',
+    confirmation: 'checkout_return',
+  }))
 })
 
 test('shows available and reserved credits without subscription controls', async () => {

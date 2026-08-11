@@ -3,6 +3,7 @@ import { required, serviceDatabase, stripeClient } from '../_shared/billing.ts'
 
 const BOXES_UNLIMITED_ACTION = 'boxes_unlimited'
 const BOXES_UNLIMITED_ENTITLEMENT = 'boxes_unlimited_lifetime'
+const FOUNDING_LIFETIME_OFFER = 'founding_lifetime_v1'
 const creditActions = {
   credits_20: 20,
   credits_100: 100,
@@ -48,8 +49,11 @@ async function fulfillCheckoutSession(
   if (session.mode === 'payment' && session.payment_status === 'paid') {
     const checkoutAction = session.metadata?.checkout_action
     const entitlementCode = session.metadata?.entitlement_code
+    const offerCode = session.metadata?.offer_code
     if (checkoutAction === BOXES_UNLIMITED_ACTION) {
-      if (entitlementCode !== 'boxes_unlimited_lifetime') throw new Error('entitlement_metadata_invalid')
+      if (entitlementCode !== 'boxes_unlimited_lifetime' || offerCode !== 'founding_lifetime_v1') {
+        throw new Error('entitlement_metadata_invalid')
+      }
       const { data: grant, error: grantError } = await database.rpc('grant_account_entitlement', {
         p_user_id: userId,
         p_entitlement_code: BOXES_UNLIMITED_ENTITLEMENT,
@@ -61,6 +65,16 @@ async function fulfillCheckoutSession(
       const entitlementGrant = grant?.[0]
       if (!entitlementGrant) throw new Error('entitlement_grant_empty')
       if (!entitlementGrant.entitlement_id) return 'refunded_paid_entitlement'
+      const { error: bonusError } = await database.rpc('grant_credits', {
+        p_user_id: userId,
+        p_kind: 'promotional',
+        p_credit_amount: 20,
+        p_effective_at: new Date().toISOString(),
+        p_expires_at: null,
+        p_source_reference: `founding-lifetime-bonus:${session.id}`,
+        p_description: 'Founding Lifetime bonus',
+      })
+      if (bonusError) throw bonusError
       if (entitlementGrant.duplicate_active) return 'duplicate_paid_entitlement'
       return null
     }
@@ -103,14 +117,23 @@ async function handleEvent(event: Stripe.Event): Promise<EventResultCode> {
     const checkoutAction = checkout.metadata?.checkout_action
     let error: unknown
     if (checkoutAction === BOXES_UNLIMITED_ACTION) {
-      if (checkout.metadata?.entitlement_code !== BOXES_UNLIMITED_ENTITLEMENT) {
+      if (
+        checkout.metadata?.entitlement_code !== BOXES_UNLIMITED_ENTITLEMENT
+        || checkout.metadata?.offer_code !== FOUNDING_LIFETIME_OFFER
+      ) {
         throw new Error('entitlement_metadata_invalid')
       }
       const result = await database.rpc('revoke_account_entitlement', {
         p_source_provider: 'stripe',
         p_source_reference: `checkout:${checkout.id}`,
       })
-      error = result.error
+      if (result.error) throw result.error
+      const bonusResult = await database.rpc('revoke_unused_credits', {
+        p_kind: 'promotional',
+        p_source_reference: `founding-lifetime-bonus:${checkout.id}`,
+        p_description: '退款后收回创始人赠送额度',
+      })
+      error = bonusResult.error
     } else {
       const credits = creditAmount(checkoutAction)
       if (!credits || Number(checkout.metadata?.credit_amount) !== credits) throw new Error('credit_pack_invalid')

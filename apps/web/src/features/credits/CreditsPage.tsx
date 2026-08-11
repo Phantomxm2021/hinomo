@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '../../components/AppIcon'
 import { PageState } from '../../components/PageState'
@@ -7,13 +7,18 @@ import { ResponsiveOperationError } from '../../components/ResponsiveOperationEr
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { useMobileFeedback } from '../../components/mobile-feedback'
 import { useI18n } from '../../i18n/I18nProvider'
+import { captureGrowthEvent, type CheckoutProduct } from '../../lib/analytics'
 import { getCreditSummary, listCreditTransactions, startCheckout, type CheckoutAction } from './credits.api'
 
 const packs: { action: CheckoutAction; credits: number; price: string; captionKey: 'packLight' | 'packHome' | 'packLarge' }[] = [
-  { action: 'credits_20', credits: 20, price: 'HK$12', captionKey: 'packLight' },
-  { action: 'credits_100', credits: 100, price: 'HK$42', captionKey: 'packHome' },
-  { action: 'credits_500', credits: 500, price: 'HK$148', captionKey: 'packLarge' },
+  { action: 'credits_20', credits: 20, price: 'US$2.99', captionKey: 'packLight' },
+  { action: 'credits_100', credits: 100, price: 'US$9.99', captionKey: 'packHome' },
+  { action: 'credits_500', credits: 500, price: 'US$34.99', captionKey: 'packLarge' },
 ]
+
+function checkoutProduct(value: string | null): CheckoutProduct | null {
+  return value === 'credits_20' || value === 'credits_100' || value === 'credits_500' ? value : null
+}
 
 export function CreditsPage() {
   const navigate = useNavigate()
@@ -24,9 +29,15 @@ export function CreditsPage() {
   const summaryQuery = useQuery({ queryKey: ['credit-summary'], queryFn: getCreditSummary })
   const transactionsQuery = useQuery({ queryKey: ['credit-transactions'], queryFn: () => listCreditTransactions(20) })
   const checkoutMutation = useMutation({ mutationFn: (action: CheckoutAction) => startCheckout(action) })
+  const completedCheckoutRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (searchParams.get('checkout') !== 'success') return
+    const product = checkoutProduct(searchParams.get('checkout_product'))
+    if (product && completedCheckoutRef.current !== product) {
+      completedCheckoutRef.current = product
+      captureGrowthEvent('purchase_completed', { product, confirmation: 'checkout_return' })
+    }
     void queryClient.invalidateQueries({ queryKey: ['credit-summary'] })
     void queryClient.invalidateQueries({ queryKey: ['credit-transactions'] })
     feedback.notify(t('credits.paymentComplete'))

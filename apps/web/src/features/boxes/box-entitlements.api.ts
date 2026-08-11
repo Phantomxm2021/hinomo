@@ -1,4 +1,5 @@
 import type { Database } from '../../lib/database.types'
+import { captureGrowthEvent } from '../../lib/analytics'
 import { supabase } from '../../lib/supabase'
 
 export type BoxPlanSummary = Database['public']['Functions']['get_box_plan_summary']['Returns'][number]
@@ -32,6 +33,7 @@ export async function startBoxUnlimitedCheckout(): Promise<never> {
     throw new Error(code ?? data?.error ?? 'billing_unavailable')
   }
   if (!data?.url) throw new Error(data?.error ?? 'billing_unavailable')
+  captureGrowthEvent('checkout_started', { product: 'founding_lifetime' })
   window.location.assign(data.url)
   return new Promise<never>(() => undefined)
 }

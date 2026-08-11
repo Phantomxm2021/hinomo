@@ -5,6 +5,7 @@ const { mockInvoke, mockRpc } = vi.hoisted(() => ({
   mockInvoke: vi.fn(),
   mockRpc: vi.fn(),
 }))
+const analytics = vi.hoisted(() => ({ captureGrowthEvent: vi.fn() }))
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
@@ -12,10 +13,12 @@ vi.mock('../../lib/supabase', () => ({
     rpc: mockRpc,
   },
 }))
+vi.mock('../../lib/analytics', () => analytics)
 
 beforeEach(() => {
   mockInvoke.mockReset()
   mockRpc.mockReset()
+  analytics.captureGrowthEvent.mockReset()
 })
 
 afterEach(() => {
@@ -73,10 +76,21 @@ test('redirects to the unlimited-box checkout returned by billing', async () => 
   void startBoxUnlimitedCheckout()
   await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('https://checkout.example/boxes'))
 
+  expect(analytics.captureGrowthEvent).toHaveBeenCalledWith('checkout_started', { product: 'founding_lifetime' })
+  expect(analytics.captureGrowthEvent.mock.invocationCallOrder[0]).toBeLessThan(assign.mock.invocationCallOrder[0])
+
   expect(mockInvoke).toHaveBeenCalledWith('billing-checkout', {
     method: 'POST',
     body: { action: 'boxes_unlimited' },
   })
+})
+
+test('does not record a founder checkout start when billing returns no redirect URL', async () => {
+  mockInvoke.mockResolvedValue({ data: { error: 'billing_unavailable' }, error: null })
+
+  await expect(startBoxUnlimitedCheckout()).rejects.toThrow('billing_unavailable')
+
+  expect(analytics.captureGrowthEvent).not.toHaveBeenCalled()
 })
 
 test('surfaces the billing service error when checkout is unavailable', async () => {

@@ -8,6 +8,8 @@ import { BoxesPage } from './BoxesPage'
 import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 
+const analytics = vi.hoisted(() => ({ captureGrowthEvent: vi.fn() }))
+
 const {
   mockDeleteBox,
   mockGetVenueAccessSummary,
@@ -53,6 +55,7 @@ vi.mock('./box-entitlements.api', () => ({
   getVenueBoxPlanSummary: mockGetBoxPlanSummary,
   startBoxUnlimitedCheckout: mockStartBoxUnlimitedCheckout,
 }))
+vi.mock('../../lib/analytics', () => analytics)
 
 vi.mock('../venues/venue-sharing.api', () => ({
   getVenueAccessSummary: mockGetVenueAccessSummary,
@@ -230,6 +233,7 @@ beforeEach(() => {
   mockListBoxes.mockReset()
   mockListVenues.mockReset()
   mockNotify.mockReset()
+  analytics.captureGrowthEvent.mockReset()
   mockStartBoxUnlimitedCheckout.mockReset()
   mockGetBoxPlanSummary.mockResolvedValue({
     box_count: 2,
@@ -839,6 +843,10 @@ test('opens creation after a successful purchase return confirms the entitlement
   expect(screen.getByTestId('location')).not.toHaveTextContent('purchase=')
   expect(screen.getByTestId('location')).not.toHaveTextContent('session_id=')
   expect(await screen.findByRole('status', { name: '无限箱子已永久解锁' })).toBeInTheDocument()
+  expect(analytics.captureGrowthEvent).toHaveBeenCalledWith('purchase_completed', {
+    product: 'founding_lifetime',
+    confirmation: 'entitlement_confirmed',
+  })
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['boxes'] })
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['box-plan'] })
 })
@@ -903,7 +911,7 @@ test('keeps checkout busy until navigation and shows a retryable billing error w
   renderBoxes('/app/boxes?create=1')
 
   await user.click(await screen.findByRole('button', { name: '模拟额度竞态' }))
-  await user.click(screen.getByRole('button', { name: 'HK$38 永久解锁' }))
+  await user.click(screen.getByRole('button', { name: 'US$9 one-time' }))
 
   const error = await screen.findByRole('alertdialog')
   expect(error).toHaveTextContent('暂时无法完成此操作')
@@ -928,7 +936,7 @@ test('refreshes an already-owned entitlement and resumes creation instead of sho
 
   await screen.findByText('3 / 3 · 已达免费上限')
   await user.click(screen.getByRole('button', { name: '创建箱子' }))
-  await user.click(screen.getByRole('button', { name: 'HK$38 永久解锁' }))
+  await user.click(screen.getByRole('button', { name: 'US$9 one-time' }))
 
   expect(await screen.findByRole('dialog', { name: '创建箱子' })).toBeInTheDocument()
   expect(screen.queryByRole('dialog', { name: '免费版最多可保有 3 个箱子' })).not.toBeInTheDocument()

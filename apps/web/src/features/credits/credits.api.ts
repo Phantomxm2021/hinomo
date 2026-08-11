@@ -1,4 +1,5 @@
 import type { Database } from '../../lib/database.types'
+import { captureGrowthEvent } from '../../lib/analytics'
 import { supabase } from '../../lib/supabase'
 
 export type CreditSummary = Database['public']['Functions']['get_credit_summary']['Returns'][number]
@@ -22,18 +23,19 @@ export async function listCreditTransactions(limit = 20): Promise<CreditTransact
   return data ?? []
 }
 
-async function billingRedirect(body: object): Promise<never> {
+async function billingRedirect(body: object, product: CheckoutAction): Promise<never> {
   const { data, error } = await supabase.functions.invoke<{ url?: string; error?: string }>('billing-checkout', {
     method: 'POST',
     body: body ?? {},
   })
   if (error || !data?.url) throw new Error(data?.error ?? 'billing_unavailable')
+  captureGrowthEvent('checkout_started', { product })
   window.location.assign(data.url)
   return new Promise<never>(() => undefined)
 }
 
 export function startCheckout(action: CheckoutAction): Promise<never> {
-  return billingRedirect({ action })
+  return billingRedirect({ action }, action)
 }
 
 export function packingBillingError(error: unknown): 'insufficient_credits' | null {

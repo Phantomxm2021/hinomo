@@ -59,8 +59,10 @@ Deno.serve(async (request) => {
       supabase_user_id: user.id,
       checkout_action: checkoutAction,
     }
-    if ('entitlementCode' in action) metadata.entitlement_code = action.entitlementCode
-    else metadata.credit_amount = String(action.credits)
+    if ('entitlementCode' in action) {
+      metadata.entitlement_code = action.entitlementCode
+      metadata.offer_code = 'founding_lifetime_v1'
+    } else metadata.credit_amount = String(action.credits)
     const boxPurchase = checkoutAction === 'boxes_unlimited'
     type StandardCheckoutSessionCreateParams = Stripe.Checkout.SessionCreateParams & {
       managed_payments: { enabled: false }
@@ -77,7 +79,7 @@ Deno.serve(async (request) => {
       },
       success_url: appUrl(boxPurchase
         ? '/app/boxes?purchase=success&session_id={CHECKOUT_SESSION_ID}'
-        : '/app/me/credits?checkout=success'),
+        : `/app/me/credits?checkout=success&checkout_product=${checkoutAction}`),
       cancel_url: appUrl(boxPurchase
         ? '/app/boxes?purchase=canceled&session_id={CHECKOUT_SESSION_ID}'
         : '/app/me/credits?checkout=canceled'),

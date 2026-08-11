@@ -22,7 +22,7 @@
 - 测试 Supabase 项目和生产 Supabase 项目彼此独立。
 - Cloudflare R2 bucket 为 private，R2 凭据已在 Supabase Vault 中配置。
 - Cloudflare Pages 可以重新构建并发布前端。
-- Stripe Test Mode 已创建 HK$38.00 的 one-time Price；Live Mode 之后另建一份，不能复用。
+- Stripe Test Mode 已创建 `US$2.99`、`US$9.99`、`US$34.99` 和 `US$9 one-time` 的四个 one-time Price；Live Mode 必须另建对应四个对象，不能复用。
 - 你有权限访问 Supabase SQL Editor、Function Secrets、Stripe Webhook Endpoint 和 Cloudflare Pages。
 
 如果是全新项目，AI 装箱、R2、Credits 的首次配置请按[详细参考附录](./deployment-details-archive.md)完成；当前主流程只负责本次版本的发布顺序。
@@ -111,8 +111,8 @@ where grants.user_id = '<controlled-test-user-uuid>'::uuid
 
 注意：
 
-- HK$38 必须是 one-time Price，不创建 recurring Price。
-- Test 和 Live 的 Price、Secret Key、Webhook Secret、Endpoint 完全分开。
+- `US$2.99`、`US$9.99`、`US$34.99` 和 `US$9 one-time` 都必须是 one-time Price，不创建 recurring Price。
+- Test 和 Live 的每个 Price、Secret Key、Webhook Secret、Endpoint 完全分开；继续使用 `STRIPE_CREDIT_20_PRICE_ID`、`STRIPE_CREDIT_100_PRICE_ID`、`STRIPE_CREDIT_500_PRICE_ID`、`STRIPE_BOXES_UNLIMITED_PRICE_ID`，不改变量名。
 - 任何 Stripe Secret、Supabase service-role key、R2 Secret 都不能放进 `apps/web/.env` 或任何 `VITE_` 变量。
 - Webhook Endpoint 使用：`https://<project-ref>.supabase.co/functions/v1/stripe-webhook`。
 
@@ -131,11 +131,11 @@ supabase functions deploy packing-worker --no-verify-jwt
 
 先在 Test Mode 完成以下最小清单：
 
-- 免费账号同时保有 3 个箱子后，创建第 4 个箱子显示 HK$38 付费墙；已有箱子仍可使用。
+- 免费账号同时保有 3 个箱子后，创建第 4 个箱子显示 `US$9 one-time` 创始人付费墙（无限箱子 + 20 bonus AI Credits，无订阅）；已有箱子仍可使用。
 - 取消 Checkout 后，箱子数、权益和 AI Credits 不变，并可再次购买。
 - 完成付款后，Webhook 发放一条 active 无限箱子权益，确认到账后可创建第 4、5 个箱子。
 - 延迟付款期间只显示“正在确认”，不提前显示已解锁；`async_payment_failed` 不发放权益或 Credits。
-- 重放同一 Stripe Event/Checkout Session 不重复发放；全额退款撤销未来新增权限，但已有箱子不删除、不锁定。
+- 重放同一 Stripe Event/Checkout Session 不重复发放；全额退款撤销未来新增权限并收回未使用的 20 promotional bonus Credits，但已有箱子不删除、不锁定；部分退款人工审核。
 - 创建一个场所所有者和成员：邀请过期/撤销/复用、最后席位并发、成员共享内容、成员 AI Credits、撤权后的缓存清理均符合预期。
 
 运行仓库检查：
@@ -176,11 +176,11 @@ Cloudflare Pages：
 
 只有测试清单全部通过后才切换 Live Mode：
 
-1. 在 Stripe Live Mode 另建 HK$38.00 one-time Price。
+1. 在 Stripe Live Mode 另建 `US$2.99`、`US$9.99`、`US$34.99` 和 `US$9 one-time` 四个 one-time Price。
 2. 配置对应的 `sk_live_...`、Live Webhook Secret、Live Price ID 和生产 Origin。
 3. 新建生产 Webhook Endpoint，并订阅上面四种事件；不要复用 Test Endpoint 或 Secret。
 4. 按测试环境同样顺序执行迁移、Functions、前端和缓存等待。
-5. 用受控生产账号做一次最小冒烟：Checkout 显示 HK$38.00、权益只发放一次、AI Credits 不变化。
+5. 用受控生产账号做一次最小冒烟：Checkout 显示 `US$9 one-time`、权益只发放一次、发放 20 bonus AI Credits，重放不重复发放。
 
 ## 7. 出问题时怎么处理
 

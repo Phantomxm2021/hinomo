@@ -21,6 +21,7 @@ import {
   filterBoxes,
 } from './box-catalogue'
 import { getVenueBoxPlanSummary, startBoxUnlimitedCheckout } from './box-entitlements.api'
+import { captureGrowthEvent } from '../../lib/analytics'
 import { deleteBox, listBoxesForVenue, type BoxSummary, type CreatedBox } from './boxes.api'
 import { BoxLimitPaywall } from './BoxLimitPaywall'
 import { CreateBoxModal } from './CreateBoxModal'
@@ -218,6 +219,10 @@ export function BoxesPage() {
       const result = await boxPlanQuery.refetch()
       if (purchaseConfirmationRunRef.current !== run) return
       if (result.data?.unlimited_boxes) {
+        captureGrowthEvent('purchase_completed', {
+          product: 'founding_lifetime',
+          confirmation: 'entitlement_confirmed',
+        })
         continueCreation(t('boxes.purchaseUnlocked'))
         return
       }

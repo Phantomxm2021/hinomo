@@ -40,6 +40,7 @@ testSource('unlimited boxes carries controlled metadata and returns to the boxes
 
   assertContains(source, 'checkout_action:', 'Checkout metadata must identify the controlled action')
   assertContains(source, 'metadata.entitlement_code', 'Checkout metadata must identify the entitlement')
+  assertContains(source, "metadata.offer_code = 'founding_lifetime_v1'", 'Founder checkout must carry a controlled offer code')
   assertContains(source, 'supabase_user_id:', 'Checkout metadata must identify the authenticated user')
   assertContains(source, "/app/boxes?purchase=success&session_id={CHECKOUT_SESSION_ID}", 'Successful box purchases must return to boxes with support correlation')
   assertContains(source, "/app/boxes?purchase=canceled&session_id={CHECKOUT_SESSION_ID}", 'Canceled box purchases must return to boxes with support correlation')

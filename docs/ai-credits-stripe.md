@@ -21,15 +21,31 @@
 
 ## 3. 售卖方式
 
-首发支持三个 Stripe 一次性 Price，商店和 Stripe 必须保持一致：
+首发支持四个 Stripe 一次性 Price，商店和 Stripe 必须保持一致：
 
-- 20 credits：`HK$12`，单价 `HK$0.60/credit`，轻量整理；
-- 100 credits：`HK$42`，单价 `HK$0.42/credit`，整屋收纳，相比入门包优惠 30%；
-- 500 credits：`HK$148`，单价 `HK$0.296/credit`，大量整理，相比入门包优惠约 51%。
+- 20 credits：`US$2.99`，轻量整理；
+- 100 credits：`US$9.99`，整屋收纳；
+- 500 credits：`US$34.99`，大量整理；
+- Founding Lifetime：`US$9 one-time`，无限箱子、20 个永久有效的赠送 AI Credits，不订阅。
 
-前端显示上述含税前标价，但不传 Price ID，只传 `credits_20|credits_100|credits_500`。Edge Function 使用环境变量 allowlist 映射 Stripe Price，Checkout 始终为 `mode=payment`。税费、换汇和当地支付方式可在 Checkout 最终确认；任何调价必须在同一发布中同步本文、前端和 Stripe Price。
+前端显示上述含税前标价，但不传 Price ID，只传 `credits_20|credits_100|credits_500|boxes_unlimited`。Edge Function 使用现有环境变量 allowlist（`STRIPE_CREDIT_20_PRICE_ID`、`STRIPE_CREDIT_100_PRICE_ID`、`STRIPE_CREDIT_500_PRICE_ID`、`STRIPE_BOXES_UNLIMITED_PRICE_ID`）映射 Stripe Price，Checkout 始终为 `mode=payment`。每个环境都必须分别创建四个 Test 和四个 Live 的 one-time Price 对象，绝不跨 Mode 复用 Price ID 或更改这些环境变量名称。税费、换汇和当地支付方式可在 Checkout 最终确认；任何调价必须在同一发布中同步本文、前端和 Stripe Price。
 
-### 3.1 成本与毛利基线
+### 3.1 Founding Lifetime 名额运营
+
+首发不自动保留名额。运营人员只读查询成功且仍 active 的 Stripe 无限箱子权益：
+
+```sql
+select count(*) as active_founding_lifetime_entitlements
+from public.account_entitlements
+where source_provider = 'stripe'
+  and source_reference like 'checkout:%'
+  and entitlement_code = 'boxes_unlimited_lifetime'
+  and status = 'active';
+```
+
+计数达到 `80` 时复核活动；达到 `90` 时准备 `US$19` 的 one-time Price；达到 `100` 时停止面向新用户展示或销售 `US$9` 首发优惠。Phase One 不自动预留、锁定或分配名额。
+
+### 3.2 成本与毛利基线
 
 Qwen3-VL Plus 中国区在输入不超过 32K 时的官方原价为输入 `¥1/百万 Token`、输出 `¥10/百万 Token`。Qwen3-VL 图像约每 `32×32` 像素一个视觉 Token。根据当前 Atlas + 原图定位 + 裁剪验证链路，首发成本预算为：
 
@@ -71,8 +87,8 @@ purchase / promotion / refund
 
 - `billing-checkout`：验证用户，确保 Stripe Customer，根据受控 action 创建一次性 Checkout Session。
 - `stripe-webhook`：使用原始请求体校验签名，处理 `checkout.session.completed` 和 `charge.refunded`。
-- 付款成功后以 Checkout Session ID 作为幂等源发放长期有效 purchased grant。
-- 全额退款收回该订单尚未使用的 credits；已消耗额度不会生成负余额。部分退款首发不自动按比例收回，需人工审核。
+- 付款成功后以 Checkout Session ID 作为幂等源发放长期有效 purchased grant。Founding Lifetime 还必须同时携带受控 `offer_code='founding_lifetime_v1'`，并以 `founding-lifetime-bonus:<checkout-session-id>` 幂等发放 20 个永不过期 promotional Credits；重复活跃权益同样执行该幂等 bonus grant，已退款 tombstone 则不发放。
+- 全额退款收回该订单尚未使用的 credits；Founding Lifetime 全额退款还必须撤销权益并按相同 founder-bonus source 收回未使用的 promotional Credits。已消耗额度不会生成负余额。部分退款首发不自动按比例收回，需人工审核。
 - 不部署 Customer Portal，不订阅 invoice 或 `customer.subscription.*` 事件。
 
 ## 7. Apple App UI 规范

@@ -15,16 +15,17 @@ test('does not render a dialog while closed', () => {
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
 
-test('renders the lifetime unlock offer as a modal dialog', () => {
+test('renders the USD founding lifetime offer as a modal dialog', () => {
   render(<BoxLimitPaywall open busy={false} onClose={vi.fn()} onPurchase={vi.fn()} />)
 
   const dialog = screen.getByRole('dialog')
   expect(dialog).toHaveAttribute('aria-modal', 'true')
   expect(dialog).toHaveTextContent('免费版最多可保有 3 个箱子')
-  expect(dialog).toHaveTextContent('HK$38 永久解锁')
+  expect(dialog).toHaveTextContent('US$9 one-time')
+  expect(dialog).toHaveTextContent('20 bonus AI Credits')
   expect(dialog).toHaveTextContent('暂不需要')
-  expect(dialog).toHaveTextContent('一次性付款，不订阅、不自动续费')
-  expect(dialog).toHaveTextContent('AI 图片识别 Credits 需单独购买')
+  expect(dialog).toHaveTextContent('no subscription')
+  expect(dialog).toHaveTextContent('AI 图片识别 Credits 仍可单独购买')
   expect(dialog.parentElement).toHaveAttribute('data-overlay-layer', 'box-limit-paywall')
 })
 
@@ -33,7 +34,7 @@ test('starts one checkout when purchase is selected', async () => {
   const onPurchase = vi.fn()
   render(<BoxLimitPaywall open busy={false} onClose={vi.fn()} onPurchase={onPurchase} />)
 
-  await user.click(screen.getByRole('button', { name: 'HK$38 永久解锁' }))
+  await user.click(screen.getByRole('button', { name: 'US$9 one-time' }))
 
   expect(onPurchase).toHaveBeenCalledTimes(1)
 })

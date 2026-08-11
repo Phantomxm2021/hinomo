@@ -32,7 +32,12 @@ testSource('paid unlimited-box checkout grants an account entitlement instead of
   assertContains(source, "session.mode === 'payment'", 'Entitlements require payment Checkout mode')
   assertContains(source, "session.payment_status === 'paid'", 'Entitlements require paid Checkout status')
   assertContains(source, "entitlementCode !== 'boxes_unlimited_lifetime'", 'Webhook must validate controlled metadata')
+  assertContains(source, "offerCode !== 'founding_lifetime_v1'", 'Webhook must validate the controlled founder offer')
   assertContains(source, "database.rpc('grant_account_entitlement'", 'Box payments must grant an entitlement')
+  assertContains(source, "p_kind: 'promotional'", 'Founder bonus must be promotional')
+  assertContains(source, 'founding-lifetime-bonus:${session.id}', 'Founder bonus source must be checkout-idempotent')
+  assertContains(source, 'p_credit_amount: 20', 'Founder bonus must contain twenty credits')
+  assertContains(source, 'p_expires_at: null', 'Founder bonus must not expire')
   assertContains(source, "database.rpc('grant_credits'", 'Credit purchases must keep their existing grant path')
 })
 
@@ -50,6 +55,8 @@ testSource('full box refund revokes its entitlement while partial refund stays o
 
   assertContains(source, 'checkoutAction === BOXES_UNLIMITED_ACTION', 'Refund handling must identify box purchases')
   assertContains(source, "database.rpc('revoke_account_entitlement'", 'Full box refunds must revoke entitlement')
+  assertContains(source, "p_kind: 'promotional'", 'Full founder refunds must revoke the bonus as promotional credits')
+  assertContains(source, 'founding-lifetime-bonus:${checkout.id}', 'Full founder refunds must target the founder bonus source')
   assertContains(source, "p_source_provider: 'stripe'", 'Refund revocation must target the Stripe source')
   assertContains(source, "p_source_reference: `checkout:${checkout.id}`", 'Refund revocation must target its Checkout')
   assertContains(source, "'partial_refund_manual_review'", 'Partial refunds must leave an observable review result')
