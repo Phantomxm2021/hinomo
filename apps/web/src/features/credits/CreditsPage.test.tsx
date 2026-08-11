@@ -6,13 +6,16 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { CreditsPage } from './CreditsPage'
 
 const mocks = vi.hoisted(() => ({
-  summary: vi.fn(), transactions: vi.fn(), checkout: vi.fn(),
+  summary: vi.fn(), transactions: vi.fn(), checkout: vi.fn(), unlimitedCheckout: vi.fn(),
 }))
 const analytics = vi.hoisted(() => ({ captureGrowthEvent: vi.fn() }))
 vi.mock('./credits.api', () => ({
   getCreditSummary: mocks.summary,
   listCreditTransactions: mocks.transactions,
   startCheckout: mocks.checkout,
+}))
+vi.mock('../boxes/box-entitlements.api', () => ({
+  startBoxUnlimitedCheckout: mocks.unlimitedCheckout,
 }))
 vi.mock('../../lib/analytics', () => analytics)
 
@@ -23,7 +26,8 @@ function renderPage(initialEntry = '/app/me/credits') {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.transactions.mockResolvedValue([])
-  mocks.checkout.mockReturnValue(new Promise(() => undefined))
+  mocks.checkout.mockResolvedValue(undefined)
+  mocks.unlimitedCheckout.mockResolvedValue(undefined)
   analytics.captureGrowthEvent.mockReset()
 })
 afterEach(cleanup)
@@ -37,8 +41,15 @@ test('offers the USD one-time credit packs without a subscription', async () => 
   expect(screen.getByText('US$2.99')).toBeInTheDocument()
   expect(screen.getByText('US$9.99')).toBeInTheDocument()
   expect(screen.getByText('US$34.99')).toBeInTheDocument()
+  expect(screen.getByText('无限箱子')).toBeInTheDocument()
+  expect(screen.getByText('US$9 一次付费')).toBeInTheDocument()
+  expect(screen.getByText('不限箱子，永久解锁')).toBeInTheDocument()
+  expect(screen.getByText('一次付费 · 不自动续费')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: /购买 20 credits/ }))
   expect(mocks.checkout).toHaveBeenCalledWith('credits_20')
+  await user.click(screen.getByRole('button', { name: /解锁无限箱子/ }))
+  expect(mocks.unlimitedCheckout).toHaveBeenCalledTimes(1)
+  expect(mocks.unlimitedCheckout.mock.calls[0]?.[0]).toBeUndefined()
 })
 
 test('records credit purchase completion only on the Checkout return', async () => {

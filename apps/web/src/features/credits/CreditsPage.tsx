@@ -8,6 +8,7 @@ import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { useMobileFeedback } from '../../components/mobile-feedback'
 import { useI18n } from '../../i18n/I18nProvider'
 import { captureGrowthEvent, type CheckoutProduct } from '../../lib/analytics'
+import { startBoxUnlimitedCheckout } from '../boxes/box-entitlements.api'
 import { getCreditSummary, listCreditTransactions, startCheckout, type CheckoutAction } from './credits.api'
 
 const packs: { action: CheckoutAction; credits: number; price: string; captionKey: 'packLight' | 'packHome' | 'packLarge' }[] = [
@@ -29,6 +30,7 @@ export function CreditsPage() {
   const summaryQuery = useQuery({ queryKey: ['credit-summary'], queryFn: getCreditSummary })
   const transactionsQuery = useQuery({ queryKey: ['credit-transactions'], queryFn: () => listCreditTransactions(20) })
   const checkoutMutation = useMutation({ mutationFn: (action: CheckoutAction) => startCheckout(action) })
+  const unlimitedCheckoutMutation = useMutation({ mutationFn: startBoxUnlimitedCheckout })
   const completedCheckoutRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -67,7 +69,18 @@ export function CreditsPage() {
         <section className="grid content-start gap-2">
           <h2 className="m-0 px-4 text-meta font-medium text-muted">{t('credits.purchase')}</h2>
           <div className="overflow-hidden rounded-card bg-surface shadow-soft lg:border lg:border-line">
-            {packs.map((pack) => <button className="flex min-h-17 w-full items-center gap-3 border-b border-line/60 px-4 text-left last:border-b-0 disabled:opacity-50" type="button" disabled={checkoutMutation.isPending} onClick={() => checkoutMutation.mutate(pack.action)} key={pack.action}><span className="grid size-10 place-items-center rounded-[0.8rem] bg-brand/10 font-extrabold text-brand">{pack.credits}</span><span className="min-w-0 flex-1"><strong className="block">{t('credits.purchasePack', { count: pack.credits })}</strong><span className="text-sm text-muted">{t(`credits.${pack.captionKey}`)} · {t('credits.validForever')}</span></span><strong className="shrink-0 text-sm text-ink">{pack.price}</strong><AppIcon name="chevron-right" className="text-muted" /></button>)}
+            {packs.map((pack) => <button className="flex min-h-17 w-full items-center gap-3 border-b border-line/60 px-4 text-left last:border-b-0 disabled:opacity-50" type="button" disabled={checkoutMutation.isPending || unlimitedCheckoutMutation.isPending} onClick={() => checkoutMutation.mutate(pack.action)} key={pack.action}><span className="grid size-10 place-items-center rounded-[0.8rem] bg-brand/10 font-extrabold text-brand">{pack.credits}</span><span className="min-w-0 flex-1"><strong className="block">{t('credits.purchasePack', { count: pack.credits })}</strong><span className="text-sm text-muted">{t(`credits.${pack.captionKey}`)} · {t('credits.validForever')}</span></span><strong className="shrink-0 text-sm text-ink">{pack.price}</strong><AppIcon name="chevron-right" className="text-muted" /></button>)}
+            <div className="grid gap-3 border-t border-line/60 bg-brand/5 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+              <div className="min-w-0">
+                <strong className="block text-base text-ink">{t('credits.unlimitedTitle')}</strong>
+                <p className="m-0 mt-1 text-sm text-muted">{t('credits.unlimitedBody')}</p>
+                <span className="mt-2 block text-xs font-semibold text-muted">{t('credits.unlimitedNoRenewal')}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3 sm:justify-end">
+                <strong className="shrink-0 text-sm text-ink">{t('credits.unlimitedPrice')}</strong>
+                <button className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1 rounded-control bg-brand px-4 text-sm font-bold text-white shadow-soft disabled:opacity-50" type="button" disabled={checkoutMutation.isPending || unlimitedCheckoutMutation.isPending} onClick={() => unlimitedCheckoutMutation.mutate()}>{t('credits.unlimitedButton')}<AppIcon name="chevron-right" size={18} /></button>
+              </div>
+            </div>
           </div>
         </section>
         </div>
@@ -82,7 +95,7 @@ export function CreditsPage() {
           </div>
         </section>
       </> : null}
-      {checkoutMutation.isError ? <ResponsiveOperationError message={t('credits.paymentFailed')} error={checkoutMutation.error} /> : null}
+      {checkoutMutation.isError || unlimitedCheckoutMutation.isError ? <ResponsiveOperationError message={t('credits.paymentFailed')} error={checkoutMutation.error ?? unlimitedCheckoutMutation.error} /> : null}
       <p className="px-4 text-center text-xs leading-5 text-muted">{t('credits.legal')}</p>
     </section>
   )
