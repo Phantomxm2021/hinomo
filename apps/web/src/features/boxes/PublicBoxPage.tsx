@@ -24,6 +24,8 @@ import { PackingChecklistSection } from '../packing/PackingChecklistSection'
 import { PackingCaptureSheet } from '../packing/PackingCapturePage'
 import { CreditGateSheet } from '../credits/CreditGateSheet'
 import { getCreditSummary } from '../credits/credits.api'
+import { OnboardingWelcomeDialog } from '../dashboard/OnboardingWelcomeDialog'
+import { getOnboardingProgress } from '../dashboard/onboarding-progress'
 import { getBoxByPublicId, listBoxes } from './boxes.api'
 import { EditBoxModal } from './EditBoxModal'
 
@@ -42,6 +44,7 @@ export function PublicBoxPage() {
   const deleteReturnFocusRef = useRef<HTMLElement | null>(null)
   const itemInteractionTriggerRef = useRef<HTMLButtonElement | null>(null)
   const itemEditorReturnFocusRef = useRef<HTMLElement | null>(null)
+  const suppressOnboardingItemOpenRef = useRef(false)
   const [showItemForm, setShowItemForm] = useState(false)
   const [showPackingCapture, setShowPackingCapture] = useState(false)
   const [creditGate, setCreditGate] = useState<{
@@ -72,6 +75,16 @@ export function PublicBoxPage() {
     enabled: Boolean(session && boxQuery.data?.venue_id),
     retry: false,
   })
+  const onboardingLegacyOwner = !boxQuery.data?.venue_id && session?.user.id === boxQuery.data?.owner_id
+  const onboardingCanEditContent = onboardingLegacyOwner || accessQuery.data?.role === 'owner' || accessQuery.data?.role === 'member'
+  const onboardingItem = searchParams.get('onboarding') === 'item'
+    && boxQuery.data?.items.length === 0
+    && onboardingCanEditContent
+  useEffect(() => {
+    if (!suppressOnboardingItemOpenRef.current && onboardingItem && searchParams.get('createItem') === '1' && !showItemForm && !editingItem) {
+      setShowItemForm(true)
+    }
+  }, [editingItem, onboardingItem, searchParams, showItemForm])
   const clearRevokedVenue = useCallback((error: unknown) => {
     if (!isVenueAccessDenied(error)) return
     for (const queryKey of revokedVenueQueryKeys) {
@@ -227,12 +240,19 @@ export function PublicBoxPage() {
     setMovementItem(item)
   }
   const refreshItems = async () => {
-    setShowItemForm(false)
-    setEditingItem(null)
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['box', publicId] }),
       queryClient.invalidateQueries({ queryKey: ['items', box.id] }),
     ])
+    if (onboardingItem) {
+      suppressOnboardingItemOpenRef.current = true
+      const next = new URLSearchParams(searchParams)
+      next.delete('onboarding')
+      next.delete('createItem')
+      setSearchParams(next, { replace: true })
+    }
+    setShowItemForm(false)
+    setEditingItem(null)
   }
   const printLabel = async () => {
     setPrinting(true)
@@ -367,6 +387,17 @@ export function PublicBoxPage() {
         />
       ) : null}
 
+      {onboardingItem && searchParams.get('createItem') !== '1' ? (
+        <OnboardingWelcomeDialog
+          open
+          busy={false}
+          progress={getOnboardingProgress({ hasSpace: true, hasBox: true, hasItem: false, firstBoxPublicId: publicId })}
+          actionHref={`/b/${encodeURIComponent(publicId)}?onboarding=item&createItem=1`}
+          onClose={() => undefined}
+          onStart={(actionHref) => navigate(actionHref, { replace: true })}
+        />
+      ) : null}
+
       {canEditContent ? (
         <ItemEditorDialog
           open={showItemForm || Boolean(editingItem)}
@@ -375,7 +406,15 @@ export function PublicBoxPage() {
           returnFocusRef={itemEditorReturnFocusRef}
           onBusyChange={setEditorBusy}
           onSaved={() => void refreshItems()}
-          onClose={() => { setShowItemForm(false); setEditingItem(null) }}
+          onClose={() => {
+            if (onboardingItem && searchParams.get('createItem') === '1') {
+              const next = new URLSearchParams(searchParams)
+              next.delete('createItem')
+              setSearchParams(next, { replace: true })
+            }
+            setShowItemForm(false)
+            setEditingItem(null)
+          }}
           onDelete={editingItem ? () => {
             deleteReturnFocusRef.current = itemInteractionTriggerRef.current ?? mobileActionsButtonRef.current
             setShowItemForm(false)

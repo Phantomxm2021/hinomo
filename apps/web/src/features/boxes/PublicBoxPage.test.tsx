@@ -541,6 +541,52 @@ test('opens the item form from the mobile action menu', async () => {
   expect(screen.getByRole('button', { name: '打开箱子操作菜单' })).toBeInTheDocument()
 })
 
+test('guides an editable empty box through recording its first item', async () => {
+  const user = userEvent.setup()
+  mockCreateItem.mockResolvedValue({ id: 'first-item' })
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-new', owner_id: 'owner-1', public_id: 'box-new', box_code: 'BX-00001',
+    space_id: 'space-1', name: '新工具箱', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z', items: [],
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session, undefined, '/b/box-new?onboarding=item')
+
+  const guide = await screen.findByRole('dialog', { name: '开始使用 Nomo' })
+  expect(within(guide).getByRole('button', { name: '记录箱内物品' })).toBeInTheDocument()
+  expect(within(guide).queryByRole('button', { name: '关闭开始使用 Nomo' })).not.toBeInTheDocument()
+
+  await user.click(within(guide).getByRole('button', { name: '记录箱内物品' }))
+  expect(screen.getByRole('dialog', { name: '新增物品' })).toBeInTheDocument()
+  expect(screen.getByTestId('public-location')).toHaveTextContent('/b/box-new?onboarding=item&createItem=1')
+
+  await user.click(screen.getByRole('button', { name: '取消' }))
+  expect(await screen.findByRole('dialog', { name: '开始使用 Nomo' })).toBeInTheDocument()
+  expect(screen.getByTestId('public-location')).toHaveTextContent('/b/box-new?onboarding=item')
+
+  await user.click(screen.getByRole('button', { name: '记录箱内物品' }))
+  await user.type(screen.getByLabelText('物品名称'), '第一件物品')
+  await user.click(screen.getByRole('button', { name: '保存' }))
+
+  await waitFor(() => expect(mockCreateItem).toHaveBeenCalledWith(expect.objectContaining({ name: '第一件物品' })))
+  await waitFor(() => expect(screen.getByTestId('public-location')).toHaveTextContent('/b/box-new'))
+  expect(screen.queryByRole('dialog', { name: '开始使用 Nomo' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: '新增物品' })).not.toBeInTheDocument()
+})
+
+test('does not show a stale first-item guide when the box already has items', async () => {
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-new', owner_id: 'owner-1', public_id: 'box-new', box_code: 'BX-00001',
+    space_id: 'space-1', name: '已有物品的箱子', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z', items: [{ id: 'item-1', name: '锤子', category: null, quantity: 1, description: null }],
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session, undefined, '/b/box-new?onboarding=item')
+
+  expect(await screen.findByRole('heading', { name: '已有物品的箱子' })).toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: '开始使用 Nomo' })).not.toBeInTheDocument()
+})
+
 test('opens new and edited items in desktop modal overlays', async () => {
   const user = userEvent.setup()
   mockMatchMedia.mockReturnValue({ matches: true } as MediaQueryList)
