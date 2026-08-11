@@ -85,6 +85,13 @@ export function PublicBoxPage() {
       setShowItemForm(true)
     }
   }, [editingItem, onboardingItem, searchParams, showItemForm])
+  useEffect(() => {
+    if (searchParams.get('onboarding') !== 'item' || boxQuery.data?.items.length === 0 || !boxQuery.data) return
+    const next = new URLSearchParams(searchParams)
+    next.delete('onboarding')
+    next.delete('createItem')
+    setSearchParams(next, { replace: true })
+  }, [boxQuery.data, searchParams, setSearchParams])
   const clearRevokedVenue = useCallback((error: unknown) => {
     if (!isVenueAccessDenied(error)) return
     for (const queryKey of revokedVenueQueryKeys) {

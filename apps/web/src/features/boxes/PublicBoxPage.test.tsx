@@ -569,7 +569,7 @@ test('guides an editable empty box through recording its first item', async () =
   await user.click(screen.getByRole('button', { name: '保存' }))
 
   await waitFor(() => expect(mockCreateItem).toHaveBeenCalledWith(expect.objectContaining({ name: '第一件物品' })))
-  await waitFor(() => expect(screen.getByTestId('public-location')).toHaveTextContent('/b/box-new'))
+  await waitFor(() => expect(screen.getByTestId('public-location')).toHaveTextContent(/^\/b\/box-new$/))
   expect(screen.queryByRole('dialog', { name: '开始使用 Nomo' })).not.toBeInTheDocument()
   expect(screen.queryByRole('dialog', { name: '新增物品' })).not.toBeInTheDocument()
 })
@@ -585,6 +585,35 @@ test('does not show a stale first-item guide when the box already has items', as
 
   expect(await screen.findByRole('heading', { name: '已有物品的箱子' })).toBeInTheDocument()
   expect(screen.queryByRole('dialog', { name: '开始使用 Nomo' })).not.toBeInTheDocument()
+})
+
+test('does not expose the first-item onboarding flow to a read-only public visitor', async () => {
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-new', owner_id: 'owner-1', public_id: 'box-new', box_code: 'BX-00001',
+    space_id: 'space-1', name: '只读箱子', category: null, description: null,
+    location: null, visibility: 'public', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z', items: [],
+  })
+  renderPublicBox(null, undefined, '/b/box-new?onboarding=item')
+
+  expect(await screen.findByRole('heading', { name: '只读箱子' })).toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: '开始使用 Nomo' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: '新增物品' })).not.toBeInTheDocument()
+})
+
+test('clears stale item-creation URL state when the box already has items', async () => {
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-new', owner_id: 'owner-1', public_id: 'box-new', box_code: 'BX-00001',
+    space_id: 'space-1', name: '已记录箱子', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z', items: [{ id: 'item-1', name: '锤子', category: null, quantity: 1, description: null }],
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session, undefined, '/b/box-new?onboarding=item&createItem=1')
+
+  expect(await screen.findByRole('heading', { name: '已记录箱子' })).toBeInTheDocument()
+  await waitFor(() => expect(screen.getByTestId('public-location')).toHaveTextContent(/^\/b\/box-new$/))
+  expect(screen.queryByRole('dialog', { name: '开始使用 Nomo' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: '新增物品' })).not.toBeInTheDocument()
 })
 
 test('opens new and edited items in desktop modal overlays', async () => {
