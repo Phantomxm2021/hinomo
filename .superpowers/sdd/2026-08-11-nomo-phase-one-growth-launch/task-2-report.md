@@ -47,3 +47,22 @@ Result: all commands exited 0. The build retained two existing warnings: undefin
 - Creating/verifying the `support@hinomo.space` alias, routing it to the founder inbox, and validating a reply’s SPF/DKIM requires access to the email/DNS provider and mailbox. Those operational steps were not available in this worktree; do not deploy until they are completed.
 - `/marketing/three-box-reset-demo.mp4` intentionally does not exist yet. The page handles that failure with its poster fallback, but the launch is not media-ready until the planned binary is supplied.
 - Vitest emitted Node’s experimental localStorage-file warning; the test installs a browser-storage shim and all assertions passed.
+
+## Fix round 1 — review corrections
+
+- Updated the Founding Lifetime offer in both locale catalogs to make the bonus-credit expiry explicit: English now says `20 non-expiring bonus AI Credits`, and Chinese now says `20 个永不过期的赠送 AI Credits`.
+- Added English and Chinese render assertions for that promise.
+- Guarded the consent analytics effect with a per-mounted-page ref. The first transition to accepted consent captures the current locale/device/first state; later locale changes within that same campaign visit do not create another `landing_view`.
+- Added a regression assertion that accepts consent, switches the language, and verifies that the capture count remains one.
+
+Fresh verification after this fix:
+
+```text
+npm run test --workspace=@nomo/web -- --run src/features/marketing/ThreeBoxResetPage.test.tsx src/features/marketing/LandingPage.test.tsx src/app/router.test.tsx
+npm run typecheck
+npm run lint
+npm run build
+git diff --check
+```
+
+Result: 3 test files / 8 tests passed; typecheck, lint, build, and diff check exited 0. The same local build warnings about `%VITE_PUBLIC_APP_ORIGIN%` and the existing large generated chunk remain non-blocking.

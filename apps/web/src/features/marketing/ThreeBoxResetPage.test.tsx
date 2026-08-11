@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../../i18n/I18nProvider'
@@ -58,6 +58,7 @@ it('renders the English three-box reset conversion path', () => {
   expect(screen.getByText(/No card required/)).toBeVisible()
   expect(screen.getByText(/US\$9/)).toBeVisible()
   expect(screen.getByText(/one-time/)).toBeVisible()
+  expect(screen.getByText(/20 non-expiring bonus AI Credits/)).toBeVisible()
   expect(screen.getByText(/Add Nomo to your Home Screen/)).toBeVisible()
 
   const demo = screen.getByTestId('three-box-demo')
@@ -69,7 +70,7 @@ it('renders the English three-box reset conversion path', () => {
     .toHaveAttribute('href', 'mailto:support@hinomo.space')
 })
 
-it('records the current visit only after analytics consent is accepted', () => {
+it('records the current visit only once after analytics consent is accepted', () => {
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
     value: vi.fn(() => ({ matches: false })),
@@ -89,4 +90,8 @@ it('records the current visit only after analytics consent is accepted', () => {
   expect(analytics.captureGrowthEvent).toHaveBeenCalledWith('landing_view', {
     campaign: 'three_box_reset', language: 'en-US', device: 'desktop', first: true,
   })
+
+  fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'zh-CN' } })
+  expect(screen.getByText('不限箱子，20 个永不过期的赠送 AI Credits。不订阅，不自动续费。')).toBeVisible()
+  expect(analytics.captureGrowthEvent).toHaveBeenCalledTimes(1)
 })

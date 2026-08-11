@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from 'react-router-dom'
 import { BrandIcon } from '../../components/BrandIcon'
 import { LanguageSwitcher } from '../../components/LanguageSwitcher'
@@ -19,6 +19,7 @@ export function ThreeBoxResetPage() {
   const { session } = useAuth()
   const { locale, setLocale, t } = useI18n()
   const consent = useSyncExternalStore(subscribeAnalyticsConsent, getAnalyticsConsent, getAnalyticsConsent)
+  const hasCapturedLandingView = useRef(false)
   const [videoUnavailable, setVideoUnavailable] = useState(false)
   const primaryHref = session ? '/app' : '/register?campaign=three_box_reset'
 
@@ -27,7 +28,8 @@ export function ThreeBoxResetPage() {
   }, [t])
 
   useEffect(() => {
-    if (consent !== 'accepted') return
+    if (consent !== 'accepted' || hasCapturedLandingView.current) return
+    hasCapturedLandingView.current = true
     captureGrowthEvent('landing_view', {
       campaign: 'three_box_reset',
       language: locale,
