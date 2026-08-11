@@ -67,6 +67,14 @@ export function DashboardPage() {
     hasItem: allItemTotal > 0,
     firstBoxPublicId: allBoxes[0]?.public_id,
   })
+  const onboardingActionHref = onboardingProgress.currentStep === 'space'
+    ? '/app/spaces?create=1&onboarding=space'
+    : onboardingProgress.currentStep === 'box'
+      ? (() => {
+          const spaceId = new URLSearchParams(location.search).get('space')
+          return `/app/boxes?create=1&onboarding=box${spaceId ? `&space=${encodeURIComponent(spaceId)}` : ''}`
+        })()
+      : onboardingProgress.actionHref
   const [onboardingOpen, setOnboardingOpen] = useState(false)
   const [welcomeSeenPending, setWelcomeSeenPending] = useState(false)
   const [welcomeSeenError, setWelcomeSeenError] = useState(false)
@@ -98,17 +106,13 @@ export function DashboardPage() {
       autoOpenedUserIdRef.current = user.id
       autoOpenedRef.current = false
     }
-    const shouldAutoOpen = currentDashboardRoute
-      && dashboardDataReady
-      && profileReady
-      && allItemTotal === 0
-      && !profileQuery.data?.onboarding_welcome_seen_at
+    const shouldAutoOpen = onboardingAvailable
     if (!shouldAutoOpen || autoOpenedRef.current) return
 
     autoOpenedRef.current = true
     setOnboardingOpen(true)
-    recordWelcomeSeen()
-  }, [allItemTotal, currentDashboardRoute, dashboardDataReady, profileReady, profileQuery.data?.onboarding_welcome_seen_at, recordWelcomeSeen, user?.id])
+    if (!profileQuery.data?.onboarding_welcome_seen_at) recordWelcomeSeen()
+  }, [onboardingAvailable, profileQuery.data?.onboarding_welcome_seen_at, recordWelcomeSeen, user?.id])
 
   const initiallyLoading = (
     (venuesQuery.isPending && venuesQuery.data === undefined)
@@ -305,6 +309,7 @@ export function DashboardPage() {
       open={onboardingOpen && onboardingAvailable}
       busy={welcomeSeenPending}
       progress={onboardingProgress}
+      actionHref={onboardingActionHref}
       onClose={() => setOnboardingOpen(false)}
       onStart={(actionHref) => navigate(actionHref)}
       returnFocusRef={returnFocusRef}

@@ -226,22 +226,14 @@ test('guides a new user to create the first space on desktop and mobile', async 
   expect(screen.queryByRole('region', { name: '最近打开' })).not.toBeInTheDocument()
 })
 
-test('automatically opens the welcome dialog once and keeps a manual guide entry after closing', async () => {
+test('automatically opens the welcome dialog once and keeps a guide entry available', async () => {
   mockListSpaces.mockResolvedValue([])
   mockListBoxes.mockResolvedValue([])
-  const user = userEvent.setup()
   renderDashboard()
 
-  const dialog = await screen.findByRole('dialog', { name: '开始使用 Nomo' })
+  await screen.findByRole('dialog', { name: '开始使用 Nomo' })
   expect(mockMarkOnboardingWelcomeSeen).toHaveBeenCalledTimes(1)
-
-  await user.click(within(dialog).getByRole('button', { name: '关闭开始使用 Nomo' }))
-  expect(screen.queryByRole('dialog', { name: '开始使用 Nomo' })).not.toBeInTheDocument()
-  const guideButton = screen.getByRole('button', { name: '新手指南' })
-
-  await user.click(guideButton)
-  expect(await screen.findByRole('dialog', { name: '开始使用 Nomo' })).toBeInTheDocument()
-  expect(mockMarkOnboardingWelcomeSeen).toHaveBeenCalledTimes(1)
+  expect(screen.getByRole('button', { name: '新手指南' })).toBeInTheDocument()
 })
 
 test('navigates to the current onboarding action after the welcome CTA closes the dialog', async () => {
@@ -253,8 +245,53 @@ test('navigates to the current onboarding action after the welcome CTA closes th
   const dialog = await screen.findByRole('dialog', { name: '开始使用 Nomo' })
   await user.click(within(dialog).getByRole('button', { name: '创建第一个空间' }))
 
-  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/app/spaces?create=1'))
+  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/app/spaces?create=1&onboarding=space'))
   expect(screen.queryByRole('dialog', { name: '开始使用 Nomo' })).not.toBeInTheDocument()
+})
+
+test('resumes the box onboarding step after the welcome exposure was already recorded', async () => {
+  mockGetProfile.mockResolvedValue({ id: 'user-1', onboarding_welcome_seen_at: '2026-08-10T00:00:00.000Z' })
+  mockListSpaces.mockResolvedValue([
+    { id: 'space-home', venue_id: 'venue-home', venue_name: '默认', name: '储藏室', description: null, box_count: 0, item_count: 0 },
+  ])
+  mockListBoxes.mockResolvedValue([])
+  renderDashboard()
+
+  const dialog = await screen.findByRole('dialog', { name: '开始使用 Nomo' })
+  expect(within(dialog).getByRole('heading', { name: '创建第一个箱子' })).toBeInTheDocument()
+  expect(within(dialog).getByRole('button', { name: '创建第一个箱子' })).toBeInTheDocument()
+  expect(mockMarkOnboardingWelcomeSeen).not.toHaveBeenCalled()
+})
+
+test('resumes the item onboarding step after the welcome exposure was already recorded', async () => {
+  mockGetProfile.mockResolvedValue({ id: 'user-1', onboarding_welcome_seen_at: '2026-08-10T00:00:00.000Z' })
+  mockListSpaces.mockResolvedValue([
+    { id: 'space-home', venue_id: 'venue-home', venue_name: '默认', name: '储藏室', description: null, box_count: 1, item_count: 0 },
+  ])
+  mockListBoxes.mockResolvedValue([
+    { id: 'box-1', public_id: 'first-box', box_code: 'BX-1', name: '露营用品', space_id: 'space-home', location: null, visibility: 'private', space_name: '储藏室', cover_object_key: null, item_count: 0, updated_at: '2026-08-03' },
+  ])
+  renderDashboard()
+
+  const dialog = await screen.findByRole('dialog', { name: '开始使用 Nomo' })
+  expect(within(dialog).getByRole('heading', { name: '记录箱内物品' })).toBeInTheDocument()
+  expect(within(dialog).getByRole('button', { name: '记录箱内物品' })).toBeInTheDocument()
+  expect(mockMarkOnboardingWelcomeSeen).not.toHaveBeenCalled()
+})
+
+test('preserves the selected space when the box onboarding CTA navigates to box creation', async () => {
+  mockGetProfile.mockResolvedValue({ id: 'user-1', onboarding_welcome_seen_at: '2026-08-10T00:00:00.000Z' })
+  mockListSpaces.mockResolvedValue([
+    { id: 'space-new', venue_id: 'venue-home', venue_name: '默认', name: '储藏室', description: null, box_count: 0, item_count: 0 },
+  ])
+  mockListBoxes.mockResolvedValue([])
+  const user = userEvent.setup()
+  renderDashboardWithNavigation('/app?onboarding=box&space=space-new')
+
+  const dialog = await screen.findByRole('dialog', { name: '开始使用 Nomo' })
+  await user.click(within(dialog).getByRole('button', { name: '创建第一个箱子' }))
+
+  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/app/boxes?create=1&onboarding=box&space=space-new'))
 })
 
 test('does not show onboarding for an account that already has items', async () => {
@@ -325,7 +362,7 @@ test('keeps the dashboard usable when recording the welcome view fails', async (
 
   expect(await screen.findByRole('dialog', { name: '开始使用 Nomo' })).toBeInTheDocument()
   expect(await screen.findByRole('status', { name: '新手指南状态' })).toHaveTextContent('下次打开时会重试')
-  expect(screen.getByRole('button', { name: '关闭开始使用 Nomo' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: '创建第一个空间' })).toBeEnabled()
 })
 
 test('advances onboarding from space to box and item using real catalogue data', async () => {
