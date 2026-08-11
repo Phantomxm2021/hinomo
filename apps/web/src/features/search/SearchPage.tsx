@@ -8,6 +8,7 @@ import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { SearchInputShell } from '../../components/SearchInputShell'
 import { useI18n } from '../../i18n/I18nProvider'
 import { formatStoragePath } from '../../lib/format-storage-path'
+import { captureGrowthEvent, firstGrowthOccurrence } from '../../lib/analytics'
 import { listBoxes } from '../boxes/boxes.api'
 import { deriveItemAvailability, formatItemAvailability } from '../item-movements/item-movement-status'
 import { searchItems } from './search.api'
@@ -28,6 +29,7 @@ export function SearchPage() {
   const [query, setQuery] = useState(urlQuery.trim())
   const [isComposing, setIsComposing] = useState(false)
   const inputRef = useRef(urlQuery)
+  const completedQueryRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (urlQuery === inputRef.current) return
@@ -92,6 +94,15 @@ export function SearchPage() {
   const bothInitialError = boxesInitialError && itemsInitialError
   const noResults = query && !isLoading && !boxesQuery.isError && !resultsQuery.isError
     && matchingBoxes.length === 0 && items.length === 0
+
+  useEffect(() => {
+    if (!query || !boxesQuery.isSuccess || !resultsQuery.isSuccess || completedQueryRef.current === query) return
+    completedQueryRef.current = query
+    captureGrowthEvent('first_search_completed', {
+      has_results: matchingBoxes.length > 0 || items.length > 0,
+      first: firstGrowthOccurrence('first_search_completed'),
+    })
+  }, [boxesQuery.isSuccess, items.length, matchingBoxes.length, query, resultsQuery.isSuccess])
 
   return (
     <section className="mx-auto flex min-w-0 w-full max-w-5xl flex-col gap-5 lg:gap-8" aria-labelledby="search-title">

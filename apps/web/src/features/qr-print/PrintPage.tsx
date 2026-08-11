@@ -7,6 +7,7 @@ import { ResponsiveOperationError } from '../../components/ResponsiveOperationEr
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { useI18n } from '../../i18n/I18nProvider'
 import { publicAppOrigin } from '../../lib/env'
+import { captureGrowthEvent, firstGrowthOccurrence } from '../../lib/analytics'
 import { listBoxes, type BoxSummary } from '../boxes/boxes.api'
 import { buildLabels, describePdfGenerationFailure, renderLabelsPdf, type PdfGenerationFailure } from './pdf'
 import { PrintBoxSelector } from './PrintBoxSelector'
@@ -101,6 +102,7 @@ export function PrintPage() {
           if (mounted.current) setProgress({ completed, total })
         },
       )
+      captureGrowthEvent('qr_downloaded', { format: 'pdf', first: firstGrowthOccurrence('qr_downloaded') })
     } catch (error) {
       if (mounted.current) {
         console.error('pdf_label_generation_failed', error)

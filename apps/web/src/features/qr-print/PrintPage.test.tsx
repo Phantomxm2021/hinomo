@@ -9,8 +9,10 @@ import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import type { BoxSummary } from '../boxes/boxes.api'
 import { PrintPage } from './PrintPage'
 
-const { mockBoxQrPng, mockListBoxes, mockRenderLabelsPdf } = vi.hoisted(() => ({
+const { mockBoxQrPng, mockCaptureGrowthEvent, mockFirstGrowthOccurrence, mockListBoxes, mockRenderLabelsPdf } = vi.hoisted(() => ({
   mockBoxQrPng: vi.fn(),
+  mockCaptureGrowthEvent: vi.fn(),
+  mockFirstGrowthOccurrence: vi.fn(),
   mockListBoxes: vi.fn(),
   mockRenderLabelsPdf: vi.fn(),
 }))
@@ -23,6 +25,10 @@ vi.mock('./pdf', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./pdf')>()
   return { ...actual, renderLabelsPdf: mockRenderLabelsPdf }
 })
+vi.mock('../../lib/analytics', () => ({
+  captureGrowthEvent: mockCaptureGrowthEvent,
+  firstGrowthOccurrence: mockFirstGrowthOccurrence,
+}))
 
 const boxes: BoxSummary[] = [{
   id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', name: '冬季衣物',
@@ -93,6 +99,8 @@ beforeEach(() => {
     dispatchEvent: vi.fn(),
   }) as MediaQueryList))
   mockListBoxes.mockReset().mockResolvedValue(boxes)
+  mockCaptureGrowthEvent.mockReset()
+  mockFirstGrowthOccurrence.mockReset().mockReturnValue(true)
   mockRenderLabelsPdf.mockReset().mockResolvedValue(undefined)
   mockBoxQrPng.mockReset().mockImplementation((url: string) => Promise.resolve(`data:${url}`))
 })
@@ -100,6 +108,28 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+})
+
+test('captures a PDF download only after label rendering resolves', async () => {
+  const user = userEvent.setup()
+  renderPrint()
+  const desktop = await screen.findByRole('region', { name: '批量标签工作台' })
+  await user.click(within(desktop).getByRole('checkbox', { name: /冬季衣物/ }))
+  await user.click(within(desktop).getByRole('button', { name: '下载 PDF' }))
+
+  await waitFor(() => expect(mockCaptureGrowthEvent).toHaveBeenCalledWith('qr_downloaded', { format: 'pdf', first: true }))
+})
+
+test('does not capture a PDF download when label rendering fails', async () => {
+  const user = userEvent.setup()
+  mockRenderLabelsPdf.mockRejectedValueOnce(new Error('render failed'))
+  renderPrint()
+  const desktop = await screen.findByRole('region', { name: '批量标签工作台' })
+  await user.click(within(desktop).getByRole('checkbox', { name: /冬季衣物/ }))
+  await user.click(within(desktop).getByRole('button', { name: '下载 PDF' }))
+
+  await screen.findByRole('alertdialog')
+  expect(mockCaptureGrowthEvent).not.toHaveBeenCalled()
 })
 
 test('uses the warm print-center header with one accessible page heading', async () => {

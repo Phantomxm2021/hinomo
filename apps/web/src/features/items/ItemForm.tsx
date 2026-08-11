@@ -21,9 +21,10 @@ export type ItemFormProps = {
   onBusyChange?: (busy: boolean) => void
   showHeading?: boolean
   onVenueAccessDenied?: (error: unknown) => void
+  onboarding?: boolean
 }
 
-export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChange, showHeading = true, onVenueAccessDenied }: ItemFormProps) {
+export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChange, showHeading = true, onboarding = false, onVenueAccessDenied }: ItemFormProps) {
   const { locale, t } = useI18n()
   const feedback = useMobileFeedback()
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -53,7 +54,7 @@ export function ItemForm({ boxId, item, onSaved, onCancel, onDelete, onBusyChang
         await updateItem(item.id, changes)
         return item.id
       }
-      const created = await createItem(input)
+      const created = await (onboarding ? createItem(input, true) : createItem(input))
       return created.id
     },
   })

@@ -101,7 +101,9 @@ export function SpacesPage() {
     if (accessDenied) handleVenueAccessDenied(accessQuery.error)
   }, [accessDenied, accessQuery.error, handleVenueAccessDenied])
   const createMutation = useMutation({
-    mutationFn: (input: Parameters<typeof createSpace>[0]) => createSpace(input),
+    mutationFn: (input: Parameters<typeof createSpace>[0]) => searchParams.get('onboarding') === 'space'
+      ? createSpace(input, true)
+      : createSpace(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['spaces'] }),
     onError: handleVenueAccessDenied,
   })

@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSpace, listSpaceLayouts, listSpaces, saveSpaceLayout, updateSpace } from './spaces.api'
 
-const { mockFrom, mockGetSession, mockLayoutSelect, mockOrder, mockRpc, mockSelect, mockUpsert } = vi.hoisted(() => ({
+const { mockCaptureGrowthEvent, mockFirstGrowthOccurrence, mockFrom, mockGetSession, mockLayoutSelect, mockOrder, mockRpc, mockSelect, mockUpsert } = vi.hoisted(() => ({
+  mockCaptureGrowthEvent: vi.fn(),
+  mockFirstGrowthOccurrence: vi.fn(),
   mockFrom: vi.fn(),
   mockGetSession: vi.fn(),
   mockLayoutSelect: vi.fn(),
@@ -18,6 +20,10 @@ vi.mock('../../lib/supabase', () => ({
     rpc: mockRpc,
   },
 }))
+vi.mock('../../lib/analytics', () => ({
+  captureGrowthEvent: mockCaptureGrowthEvent,
+  firstGrowthOccurrence: mockFirstGrowthOccurrence,
+}))
 
 describe('spaces api', () => {
   beforeEach(() => {
@@ -28,6 +34,8 @@ describe('spaces api', () => {
     mockRpc.mockReset()
     mockSelect.mockReset()
     mockUpsert.mockReset()
+    mockCaptureGrowthEvent.mockReset()
+    mockFirstGrowthOccurrence.mockReset().mockReturnValue(true)
     mockFrom.mockImplementation((table: string) => table === 'space_layouts'
       ? { select: mockLayoutSelect, upsert: mockUpsert }
       : { select: mockSelect })
@@ -100,6 +108,16 @@ describe('spaces api', () => {
     expect(mockRpc).toHaveBeenCalledWith('create_space', {
       p_venue_id: 'venue-home', p_name: '卧室', p_description: null,
     })
+    expect(mockCaptureGrowthEvent).toHaveBeenCalledWith('space_created', { onboarding: false, first: true })
+  })
+
+  it('does not capture a space event when the create RPC fails', async () => {
+    const error = new Error('space create failed')
+    mockRpc.mockResolvedValue({ data: null, error })
+
+    await expect(createSpace({ venue_id: 'venue-home', name: '卧室', description: null })).rejects.toBe(error)
+
+    expect(mockCaptureGrowthEvent).not.toHaveBeenCalled()
   })
 
   it('updates the selected venue through the venue-safe RPC without an owner id', async () => {

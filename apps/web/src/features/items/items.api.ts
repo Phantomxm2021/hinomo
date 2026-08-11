@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase'
+import { captureGrowthEvent, firstGrowthOccurrence } from '../../lib/analytics'
 
 export type ItemRecord = {
   id: string
@@ -21,9 +22,10 @@ export type ItemInput = {
 
 export type ItemUpdateInput = Omit<ItemInput, 'box_id'>
 
-export async function createItem(input: ItemInput) {
+export async function createItem(input: ItemInput, onboarding = false) {
   const { data, error } = await supabase.from('items').insert(input).select().single()
   if (error) throw error
+  captureGrowthEvent('first_item_created', { onboarding, method: 'manual', first: firstGrowthOccurrence('first_item_created') })
   return data
 }
 

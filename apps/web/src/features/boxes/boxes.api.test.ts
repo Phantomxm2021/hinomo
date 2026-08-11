@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { isBoxLimitReached } from './box-entitlements.api'
 import { createBox, getBoxByPublicId, listBoxes, listBoxesForVenue, updateBox } from './boxes.api'
 
-const { mockEq, mockFrom, mockGetSession, mockOrder, mockRpc, mockSelect, mockSingle } = vi.hoisted(() => ({
+const { mockCaptureGrowthEvent, mockFirstGrowthOccurrence, mockEq, mockFrom, mockGetSession, mockOrder, mockRpc, mockSelect, mockSingle } = vi.hoisted(() => ({
+  mockCaptureGrowthEvent: vi.fn(),
+  mockFirstGrowthOccurrence: vi.fn(),
   mockEq: vi.fn(),
   mockFrom: vi.fn(),
   mockGetSession: vi.fn(),
@@ -19,6 +21,10 @@ vi.mock('../../lib/supabase', () => ({
     rpc: mockRpc,
   },
 }))
+vi.mock('../../lib/analytics', () => ({
+  captureGrowthEvent: mockCaptureGrowthEvent,
+  firstGrowthOccurrence: mockFirstGrowthOccurrence,
+}))
 
 describe('boxes api', () => {
   beforeEach(() => {
@@ -29,6 +35,8 @@ describe('boxes api', () => {
     mockRpc.mockReset()
     mockSelect.mockReset()
     mockSingle.mockReset()
+    mockCaptureGrowthEvent.mockReset()
+    mockFirstGrowthOccurrence.mockReset().mockReturnValue(true)
     mockFrom.mockReturnValue({ select: mockSelect })
     mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'user-1' } } } })
   })
@@ -126,6 +134,7 @@ describe('boxes api', () => {
       p_description: '冬季用品',
       p_visibility: 'private',
     })
+    expect(mockCaptureGrowthEvent).toHaveBeenCalledWith('box_created', { onboarding: false, first: true })
   })
 
   it('propagates box creation RPC errors', async () => {
@@ -135,6 +144,7 @@ describe('boxes api', () => {
     await expect(createBox({
       space_id: 'space-1', name: '换季衣物', category: null, location: null, description: null, visibility: 'private',
     })).rejects.toBe(error)
+    expect(mockCaptureGrowthEvent).not.toHaveBeenCalled()
   })
 
   it('recognizes only the stable box-limit error code', () => {

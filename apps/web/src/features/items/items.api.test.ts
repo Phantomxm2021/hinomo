@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { deleteItem, updateItem } from './items.api'
+import { createItem, deleteItem, updateItem } from './items.api'
 
 const mocks = vi.hoisted(() => ({
+  captureGrowthEvent: vi.fn(),
+  firstGrowthOccurrence: vi.fn(),
   from: vi.fn(),
   update: vi.fn(),
   delete: vi.fn(),
@@ -13,10 +15,15 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../lib/supabase', () => ({
   supabase: { from: mocks.from },
 }))
+vi.mock('../../lib/analytics', () => ({
+  captureGrowthEvent: mocks.captureGrowthEvent,
+  firstGrowthOccurrence: mocks.firstGrowthOccurrence,
+}))
 
 describe('item mutation visibility', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.firstGrowthOccurrence.mockReturnValue(true)
     mocks.from.mockReturnValue({ update: mocks.update, delete: mocks.delete })
     mocks.update.mockReturnValue({ eq: mocks.eq })
     mocks.delete.mockReturnValue({ eq: mocks.eq })
@@ -34,6 +41,29 @@ describe('item mutation visibility', () => {
     expect(mocks.eq).toHaveBeenCalledWith('id', 'item-1')
     expect(mocks.select).toHaveBeenCalledWith('id')
     expect(mocks.maybeSingle).toHaveBeenCalledOnce()
+  })
+
+  it('captures a manual first-item event only after an item insert succeeds', async () => {
+    const insert = vi.fn().mockReturnValue({ select: mocks.select })
+    mocks.from.mockReturnValue({ insert, update: mocks.update, delete: mocks.delete })
+    mocks.select.mockReturnValue({ single: vi.fn().mockResolvedValue({ data: { id: 'item-1' }, error: null }) })
+
+    await createItem({ box_id: 'box-1', name: 'Lantern', category: null, quantity: 1, description: null })
+
+    expect(mocks.captureGrowthEvent).toHaveBeenCalledWith('first_item_created', {
+      onboarding: false, method: 'manual', first: true,
+    })
+  })
+
+  it('does not capture an item event when the insert fails', async () => {
+    const insert = vi.fn().mockReturnValue({ select: mocks.select })
+    mocks.from.mockReturnValue({ insert, update: mocks.update, delete: mocks.delete })
+    const error = new Error('insert failed')
+    mocks.select.mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error }) })
+
+    await expect(createItem({ box_id: 'box-1', name: 'Lantern', category: null, quantity: 1, description: null })).rejects.toBe(error)
+
+    expect(mocks.captureGrowthEvent).not.toHaveBeenCalled()
   })
 
   it.each([

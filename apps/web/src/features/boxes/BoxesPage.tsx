@@ -553,6 +553,7 @@ export function BoxesPage() {
       <CreateBoxModal
         open={creating}
         initialSpaceId={onboardingBox ? searchParams.get('space') ?? undefined : undefined}
+        onboarding={onboardingBox || onboardingIncomplete}
         onClose={closeCreate}
         onCompleted={(box) => {
           if (onboardingBox || onboardingIncomplete) {

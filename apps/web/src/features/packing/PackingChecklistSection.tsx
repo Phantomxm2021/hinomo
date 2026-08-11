@@ -5,6 +5,7 @@ import { AppIcon } from '../../components/AppIcon'
 import { useMobileFeedback } from '../../components/mobile-feedback'
 import { useI18n } from '../../i18n/I18nProvider'
 import { classifyFeedbackError } from '../../lib/feedback-errors'
+import { captureGrowthEvent, firstGrowthOccurrence } from '../../lib/analytics'
 import { getVenueAccessSummary, isVenueAccessDenied } from '../venues/venue-sharing.api'
 import { PackingAuthorizedImage } from './PackingAuthorizedImage'
 import {
@@ -191,6 +192,7 @@ export function PackingChecklistSection({ boxId, venueId, onVenueAccessDenied }:
   const [open, setOpen] = useState(false)
   const [promotionTasks, setPromotionTasks] = useState<Array<{ item: PackingDetectedItem; promotionId: string }>>([])
   const handledPromotionsRef = useRef(new Set<string>())
+  const handledAnalysisRevisionsRef = useRef(new Set<string>())
   const sessionsQuery = useQuery({
     queryKey: ['packing-sessions', boxId],
     queryFn: async () => {
@@ -228,6 +230,19 @@ export function PackingChecklistSection({ boxId, venueId, onVenueAccessDenied }:
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['packing-sessions', boxId] }) },
     onError: reportError,
   })
+
+  useEffect(() => {
+    for (const session of sessionsQuery.data ?? []) {
+      if (session.status !== 'ready' && session.status !== 'partial_failed') continue
+      const key = `${session.id}:${session.current_revision}:${session.status}`
+      if (handledAnalysisRevisionsRef.current.has(key)) continue
+      handledAnalysisRevisionsRef.current.add(key)
+      captureGrowthEvent('ai_analysis_completed', {
+        result: session.status === 'ready' ? 'ready' : 'partial',
+        first: firstGrowthOccurrence('ai_analysis_completed'),
+      })
+    }
+  }, [sessionsQuery.data])
 
   useEffect(() => {
     for (const error of [sessionsQuery.error, itemsQuery.error, ...promotionQueries.map((query) => query.error)]) {

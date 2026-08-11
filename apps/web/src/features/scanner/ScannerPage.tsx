@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { useMobileFeedback } from '../../components/mobile-feedback'
 import { useI18n } from '../../i18n/I18nProvider'
+import { captureGrowthEvent, firstGrowthOccurrence } from '../../lib/analytics'
 import { parseNomoBoxPath } from './scanner-url'
 
 type CameraErrorKey = 'scanner.secureContext' | 'scanner.permissionDenied' | 'scanner.noCamera' | 'scanner.cameraStartFailed'
@@ -44,6 +45,7 @@ export function ScannerPage() {
             }
             handledRef.current = true
             scanControls.stop()
+            captureGrowthEvent('qr_scanned', { destination: 'box', first: firstGrowthOccurrence('qr_scanned') })
             navigate(path)
           },
         )

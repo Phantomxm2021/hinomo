@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase'
+import { captureGrowthEvent, firstGrowthOccurrence } from '../../lib/analytics'
 
 export type SpaceSummary = {
   id: string
@@ -82,7 +83,7 @@ export async function listSpaces(): Promise<SpaceSummary[]> {
   return mapSpaceRows(legacy.data ?? [])
 }
 
-export async function createSpace(input: SpaceInput) {
+export async function createSpace(input: SpaceInput, onboarding = false) {
   const { data, error } = await supabase.rpc('create_space', {
     p_venue_id: input.venue_id,
     p_name: input.name,
@@ -92,6 +93,7 @@ export async function createSpace(input: SpaceInput) {
   if (error) throw error
   const created = data?.[0]
   if (!created) throw new Error('space_creation_empty')
+  captureGrowthEvent('space_created', { onboarding, first: firstGrowthOccurrence('space_created') })
   return created
 }
 

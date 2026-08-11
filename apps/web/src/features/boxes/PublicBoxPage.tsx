@@ -429,6 +429,7 @@ export function PublicBoxPage() {
             setDeleteTarget(editingItem)
           } : undefined}
           onVenueAccessDenied={clearRevokedVenue}
+          onboarding={Boolean(onboardingItem && !editingItem)}
         />
       ) : null}
 

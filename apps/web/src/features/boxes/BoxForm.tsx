@@ -23,10 +23,11 @@ export type BoxFormProps = {
   onLimitReached?: () => void
   onSaved?: () => void
   canChangeVisibility?: boolean
+  onboarding?: boolean
   onVenueAccessDenied?: (error: unknown) => void
 }
 
-export function BoxForm({ boxId, initialSpaceId, presentation, onBusyChange, onCompleted, onLimitReached, onSaved, canChangeVisibility = true, onVenueAccessDenied }: BoxFormProps) {
+export function BoxForm({ boxId, initialSpaceId, presentation, onBusyChange, onCompleted, onLimitReached, onSaved, canChangeVisibility = true, onboarding = false, onVenueAccessDenied }: BoxFormProps) {
   const { locale, t } = useI18n()
   const editing = Boolean(boxId)
   const feedback = useMobileFeedback()
@@ -45,7 +46,7 @@ export function BoxForm({ boxId, initialSpaceId, presentation, onBusyChange, onC
   const mediaUpload = useMediaUpload()
   const mediaStatus = uploadStageLabel(mediaUpload.stage)
   const createMutation = useMutation({
-    mutationFn: (input: Parameters<typeof createBox>[0]) => createBox(input),
+    mutationFn: (input: Parameters<typeof createBox>[0]) => onboarding ? createBox(input, true) : createBox(input),
   })
   const updateMutation = useMutation({
     mutationFn: (input: Parameters<typeof updateBox>[1]) => updateBox(boxId!, input),

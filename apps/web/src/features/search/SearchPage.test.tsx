@@ -8,13 +8,19 @@ import { SearchPage } from './SearchPage'
 import { I18nProvider, useI18n } from '../../i18n/I18nProvider'
 import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 
-const { mockListBoxes, mockSearchItems } = vi.hoisted(() => ({
+const { mockCaptureGrowthEvent, mockFirstGrowthOccurrence, mockListBoxes, mockSearchItems } = vi.hoisted(() => ({
+  mockCaptureGrowthEvent: vi.fn(),
+  mockFirstGrowthOccurrence: vi.fn(),
   mockListBoxes: vi.fn(),
   mockSearchItems: vi.fn(),
 }))
 
 vi.mock('./search.api', () => ({ searchItems: mockSearchItems }))
 vi.mock('../boxes/boxes.api', () => ({ listBoxes: mockListBoxes }))
+vi.mock('../../lib/analytics', () => ({
+  captureGrowthEvent: mockCaptureGrowthEvent,
+  firstGrowthOccurrence: mockFirstGrowthOccurrence,
+}))
 
 const boxes = [
   {
@@ -61,10 +67,31 @@ function renderSearch(initialEntry = '/app/search', client: QueryClient | undefi
 beforeEach(() => {
   mockSearchItems.mockReset()
   mockListBoxes.mockReset()
+  mockCaptureGrowthEvent.mockReset()
+  mockFirstGrowthOccurrence.mockReset().mockReturnValue(true)
   mockListBoxes.mockResolvedValue(boxes)
 })
 
 afterEach(cleanup)
+
+test('captures resolved search results without the query text', async () => {
+  mockSearchItems.mockResolvedValue([])
+  renderSearch('/app/search?q=充电器')
+
+  await waitFor(() => expect(mockCaptureGrowthEvent).toHaveBeenCalledWith('first_search_completed', {
+    has_results: true, first: true,
+  }))
+  expect(mockCaptureGrowthEvent.mock.calls.flat()).not.toContain('充电器')
+})
+
+test('does not capture a search event when either enabled query errors', async () => {
+  mockListBoxes.mockRejectedValue(new Error('network'))
+  mockSearchItems.mockResolvedValue([])
+  renderSearch('/app/search?q=充电器')
+
+  await screen.findByRole('alertdialog')
+  expect(mockCaptureGrowthEvent).not.toHaveBeenCalled()
+})
 
 test('shows grouped result-row skeletons while an initial search is pending', async () => {
   mockListBoxes.mockReturnValue(new Promise(() => undefined))

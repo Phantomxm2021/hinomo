@@ -3,7 +3,9 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { MobileFeedbackProvider } from '../../components/MobileFeedbackProvider'
 import { ScannerPage } from './ScannerPage'
 
-const { mockNavigate, mockReaderCreate, mockScannerStart } = vi.hoisted(() => ({
+const { mockCaptureGrowthEvent, mockFirstGrowthOccurrence, mockNavigate, mockReaderCreate, mockScannerStart } = vi.hoisted(() => ({
+  mockCaptureGrowthEvent: vi.fn(),
+  mockFirstGrowthOccurrence: vi.fn(),
   mockNavigate: vi.fn(),
   mockReaderCreate: vi.fn(),
   mockScannerStart: vi.fn(),
@@ -25,11 +27,17 @@ vi.mock('@zxing/browser', () => ({
     decodeFromConstraints = mockScannerStart
   },
 }))
+vi.mock('../../lib/analytics', () => ({
+  captureGrowthEvent: mockCaptureGrowthEvent,
+  firstGrowthOccurrence: mockFirstGrowthOccurrence,
+}))
 
 beforeEach(() => {
   mockNavigate.mockReset()
   mockReaderCreate.mockReset()
   mockScannerStart.mockReset()
+  mockCaptureGrowthEvent.mockReset()
+  mockFirstGrowthOccurrence.mockReset().mockReturnValue(true)
 })
 afterEach(() => {
   cleanup()
@@ -106,6 +114,7 @@ test('stops scanner controls that resolve after the page unmounts', async () => 
 
   await waitFor(() => expect(lateStop).toHaveBeenCalledOnce())
   expect(mockNavigate).not.toHaveBeenCalled()
+  expect(mockCaptureGrowthEvent).not.toHaveBeenCalled()
   expect(screen.queryByRole('status')).not.toBeInTheDocument()
 })
 
@@ -149,6 +158,8 @@ test('keeps scanning after an invalid code and navigates for the next valid Nomo
 
   expect(stop).toHaveBeenCalledOnce()
   expect(mockNavigate).toHaveBeenCalledWith('/b/123e4567-e89b-12d3-a456-426614174000')
+  expect(mockCaptureGrowthEvent).toHaveBeenCalledWith('qr_scanned', { destination: 'box', first: true })
+  expect(mockCaptureGrowthEvent.mock.calls.flat()).not.toContain('http://localhost:5173/b/123e4567-e89b-12d3-a456-426614174000')
 })
 
 test('stops active scanner controls when unmounted', async () => {

@@ -1,4 +1,5 @@
 import type { Database } from '../../lib/database.types'
+import { captureGrowthEvent, firstGrowthOccurrence } from '../../lib/analytics'
 import { supabase } from '../../lib/supabase'
 import type { ItemRecord } from '../items/items.api'
 
@@ -140,7 +141,7 @@ async function listBoxesByVenue(venueId?: string): Promise<BoxSummary[]> {
   }))
 }
 
-export async function createBox(input: BoxInput): Promise<CreatedBox> {
+export async function createBox(input: BoxInput, onboarding = false): Promise<CreatedBox> {
   const { data: sessionData } = await supabase.auth.getSession()
   const ownerId = sessionData.session?.user.id
   if (!ownerId) throw new Error('authentication is required')
@@ -157,6 +158,7 @@ export async function createBox(input: BoxInput): Promise<CreatedBox> {
   if (error) throw error
   const created = data?.[0]
   if (!created) throw new Error('box_creation_empty')
+  captureGrowthEvent('box_created', { onboarding, first: firstGrowthOccurrence('box_created') })
   return created
 }
 

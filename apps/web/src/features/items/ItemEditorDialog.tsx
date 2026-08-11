@@ -14,6 +14,7 @@ export type ItemEditorDialogProps = {
   onDelete?: () => void
   onBusyChange?: (busy: boolean) => void
   onVenueAccessDenied?: (error: unknown) => void
+  onboarding?: boolean
 }
 
 export function ItemEditorDialog({
@@ -26,6 +27,7 @@ export function ItemEditorDialog({
   onDelete,
   onBusyChange,
   onVenueAccessDenied,
+  onboarding,
 }: ItemEditorDialogProps) {
   const { t } = useI18n()
   const [busy, setBusy] = useState(false)
@@ -60,6 +62,7 @@ export function ItemEditorDialog({
         onCancel={close}
         onDelete={onDelete ? deleteItem : undefined}
         onVenueAccessDenied={onVenueAccessDenied}
+        onboarding={onboarding}
       />
     </ResponsiveEditorDialog>
   )

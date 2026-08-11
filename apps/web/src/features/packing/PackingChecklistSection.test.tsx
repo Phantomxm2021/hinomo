@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   reanalyze: vi.fn(), getPhoto: vi.fn(), getPromotion: vi.fn(), mergeItems: vi.fn(),
   getVenueAccess: vi.fn(),
   onVenueAccessDenied: vi.fn(),
+  captureGrowthEvent: vi.fn(),
+  firstGrowthOccurrence: vi.fn(),
 }))
 
 vi.mock('./packing.api', () => ({
@@ -26,6 +28,10 @@ vi.mock('./PackingAuthorizedImage', () => ({ PackingAuthorizedImage: ({ alt }: {
 vi.mock('../venues/venue-sharing.api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../venues/venue-sharing.api')>()),
   getVenueAccessSummary: mocks.getVenueAccess,
+}))
+vi.mock('../../lib/analytics', () => ({
+  captureGrowthEvent: mocks.captureGrowthEvent,
+  firstGrowthOccurrence: mocks.firstGrowthOccurrence,
 }))
 
 const item = {
@@ -46,6 +52,7 @@ function renderSection() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.firstGrowthOccurrence.mockReturnValue(true)
   mocks.listSessions.mockResolvedValue([{ id: 'session-1', status: 'ready', current_revision: 1 }])
   mocks.getVenueAccess.mockResolvedValue({ venue_id: 'venue-1', role: 'member' })
   mocks.listItems.mockResolvedValue([item])
@@ -55,6 +62,25 @@ beforeEach(() => {
   mocks.getPhoto.mockResolvedValue({ id: 'photo-1', object_key: 'packing/original.webp' })
 })
 afterEach(cleanup)
+
+test('captures one completed AI analysis per terminal session revision despite polling repeats', async () => {
+  const { queryClient } = renderSection()
+
+  await waitFor(() => expect(mocks.captureGrowthEvent).toHaveBeenCalledWith('ai_analysis_completed', {
+    result: 'ready', first: true,
+  }))
+
+  await queryClient.invalidateQueries({ queryKey: ['packing-sessions', 'box-1'] })
+  expect(mocks.captureGrowthEvent).toHaveBeenCalledTimes(1)
+})
+
+test('does not capture an AI analysis event while a session is still queued', async () => {
+  mocks.listSessions.mockResolvedValue([{ id: 'session-1', status: 'queued', current_revision: 1 }])
+  renderSection()
+
+  await waitFor(() => expect(mocks.listSessions).toHaveBeenCalled())
+  expect(mocks.captureGrowthEvent).not.toHaveBeenCalled()
+})
 
 test('keeps secondary review actions behind a compact menu', async () => {
   const user = userEvent.setup()

@@ -568,7 +568,7 @@ test('guides an editable empty box through recording its first item', async () =
   await user.type(screen.getByLabelText('物品名称'), '第一件物品')
   await user.click(screen.getByRole('button', { name: '保存' }))
 
-  await waitFor(() => expect(mockCreateItem).toHaveBeenCalledWith(expect.objectContaining({ name: '第一件物品' })))
+  await waitFor(() => expect(mockCreateItem).toHaveBeenCalledWith(expect.objectContaining({ name: '第一件物品' }), true))
   await waitFor(() => expect(screen.getByTestId('public-location')).toHaveTextContent(/^\/b\/box-new$/))
   expect(screen.queryByRole('dialog', { name: '开始使用 Nomo' })).not.toBeInTheDocument()
   expect(screen.queryByRole('dialog', { name: '新增物品' })).not.toBeInTheDocument()
