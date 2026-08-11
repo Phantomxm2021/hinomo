@@ -123,6 +123,7 @@ export function BoxesPage() {
   const catalogueError = boxesQuery.isError || venuesQuery.isError
   const selectedSpace = searchParams.get('space') ?? ''
   const creating = searchParams.get('create') === '1'
+  const onboardingBox = searchParams.get('onboarding') === 'box'
   const purchaseResult = searchParams.get('purchase')
   const purchaseSessionId = searchParams.get('session_id')
   const editingBoxId = searchParams.get('edit')
@@ -285,10 +286,18 @@ export function BoxesPage() {
   }
 
   const closeCreate = useCallback(() => {
+    if (onboardingBox) {
+      if (createBusy) return
+      const next = new URLSearchParams({ onboarding: 'box' })
+      const onboardingSpaceId = searchParams.get('space')
+      if (onboardingSpaceId) next.set('space', onboardingSpaceId)
+      navigate(`/app?${next.toString()}`, { replace: true })
+      return
+    }
     const next = new URLSearchParams(searchParams)
     next.delete('create')
     setSearchParams(next, { replace: true })
-  }, [searchParams, setSearchParams])
+  }, [createBusy, navigate, onboardingBox, searchParams, setSearchParams])
 
   const closePaywall = useCallback(() => {
     checkoutMutation.reset()
@@ -524,8 +533,17 @@ export function BoxesPage() {
       />
       <CreateBoxModal
         open={creating}
+        initialSpaceId={onboardingBox ? searchParams.get('space') ?? undefined : undefined}
         onClose={closeCreate}
         onCompleted={(box) => {
+          if (onboardingBox) {
+            setCreateBusy(false)
+            setCreateCompletionPending(false)
+            setCreateSucceeded(false)
+            setCreatedBox(null)
+            navigate(`/b/${encodeURIComponent(box.public_id)}?onboarding=item`, { replace: true })
+            return
+          }
           setCreatedBox(box)
           setCreateCompletionPending(true)
           setCreateBusy(false)

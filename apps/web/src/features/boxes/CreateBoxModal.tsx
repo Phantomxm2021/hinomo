@@ -6,6 +6,7 @@ import type { CreatedBox } from './boxes.api'
 
 export function CreateBoxModal({
   open,
+  initialSpaceId,
   onClose,
   onCompleted,
   onBusyChange,
@@ -14,6 +15,7 @@ export function CreateBoxModal({
   onVenueAccessDenied,
 }: {
   open: boolean
+  initialSpaceId?: string
   onClose: () => void
   onCompleted: (box: CreatedBox) => void
   onBusyChange?: (busy: boolean) => void
@@ -36,7 +38,7 @@ export function CreateBoxModal({
 
   return (
     <ResponsiveEditorDialog open={open} title={t('boxes.create')} busy={busy} onClose={onClose} maxWidthClassName="max-w-3xl">
-      <BoxForm presentation="modal" onBusyChange={changeBusy} onCompleted={onCompleted} onLimitReached={onLimitReached} canChangeVisibility={canChangeVisibility} onVenueAccessDenied={onVenueAccessDenied} />
+      <BoxForm presentation="modal" initialSpaceId={initialSpaceId} onBusyChange={changeBusy} onCompleted={onCompleted} onLimitReached={onLimitReached} canChangeVisibility={canChangeVisibility} onVenueAccessDenied={onVenueAccessDenied} />
     </ResponsiveEditorDialog>
   )
 }

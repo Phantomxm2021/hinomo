@@ -25,12 +25,12 @@ vi.mock('../media/useMediaUpload', () => ({
   useMediaUpload: () => ({ stage: 'idle', upload: mockUpload, reset: mockUploadReset }),
 }))
 
-function renderForm(onLimitReached = vi.fn(), boxId?: string, onVenueAccessDenied = vi.fn(), onCompleted = vi.fn()) {
+function renderForm(onLimitReached = vi.fn(), boxId?: string, onVenueAccessDenied = vi.fn(), onCompleted = vi.fn(), initialSpaceId?: string) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <MemoryRouter>
       <MobileFeedbackProvider><QueryClientProvider client={client}>
-        <BoxForm boxId={boxId} presentation="modal" onLimitReached={onLimitReached} onVenueAccessDenied={onVenueAccessDenied} onCompleted={onCompleted} />
+        <BoxForm boxId={boxId} presentation="modal" onLimitReached={onLimitReached} onVenueAccessDenied={onVenueAccessDenied} onCompleted={onCompleted} initialSpaceId={initialSpaceId} />
       </QueryClientProvider></MobileFeedbackProvider>
     </MemoryRouter>,
   )
@@ -61,6 +61,15 @@ beforeEach(() => {
 })
 
 afterEach(cleanup)
+
+test('prefills the space selected by onboarding after spaces load', async () => {
+  mockListSpaces.mockResolvedValueOnce([
+    { id: 'space-new', name: '新空间', description: null, box_count: 0 },
+  ])
+  renderForm(vi.fn(), undefined, vi.fn(), vi.fn(), 'space-new')
+
+  expect(await screen.findByLabelText('空间')).toHaveValue('space-new')
+})
 
 test('preserves entered values and reports the authoritative box limit without a generic save error', async () => {
   const user = userEvent.setup()

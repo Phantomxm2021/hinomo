@@ -16,6 +16,7 @@ import { createBox, getBox, type CreatedBox, updateBox } from './boxes.api'
 
 export type BoxFormProps = {
   boxId?: string
+  initialSpaceId?: string
   presentation: 'page' | 'modal'
   onBusyChange?: (busy: boolean) => void
   onCompleted?: (box: CreatedBox) => void
@@ -25,11 +26,12 @@ export type BoxFormProps = {
   onVenueAccessDenied?: (error: unknown) => void
 }
 
-export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimitReached, onSaved, canChangeVisibility = true, onVenueAccessDenied }: BoxFormProps) {
+export function BoxForm({ boxId, initialSpaceId, presentation, onBusyChange, onCompleted, onLimitReached, onSaved, canChangeVisibility = true, onVenueAccessDenied }: BoxFormProps) {
   const { locale, t } = useI18n()
   const editing = Boolean(boxId)
   const feedback = useMobileFeedback()
   const initializedBoxId = useRef<string | undefined>(undefined)
+  const initializedCreateSpace = useRef(false)
   const spacesQuery = useQuery({ queryKey: ['spaces'], queryFn: listSpaces })
   const boxQuery = useQuery({
     queryKey: ['box-edit', boxId],
@@ -56,6 +58,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimi
     register,
     handleSubmit,
     reset,
+    setValue,
     trigger,
     formState: { errors },
   } = useForm<BoxFormValues>({
@@ -84,6 +87,7 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimi
 
   useEffect(() => {
     initializedBoxId.current = undefined
+    initializedCreateSpace.current = false
     setCoverFile(null)
     setSaved(false)
     setShowAdvanced(false)
@@ -93,6 +97,12 @@ export function BoxForm({ boxId, presentation, onBusyChange, onCompleted, onLimi
     resetCreateMutation()
     resetUpdateMutation()
   }, [boxId, resetCreateMutation, resetMediaUpload, resetUpdateMutation])
+
+  useEffect(() => {
+    if (editing || initializedCreateSpace.current || spacesQuery.data === undefined) return
+    initializedCreateSpace.current = true
+    if (initialSpaceId) setValue('space_id', initialSpaceId)
+  }, [editing, initialSpaceId, setValue, spacesQuery.data])
 
   useEffect(() => {
     if (!boxId || !boxQuery.data || initializedBoxId.current === boxId) return

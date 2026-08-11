@@ -72,12 +72,13 @@ vi.mock('../media/AuthorizedImage', () => ({
 
 vi.mock('./CreateBoxModal', async () => {
   const { useEffect } = await import('react')
-  function MockCreateBoxModal({ open, onClose, onCompleted, onBusyChange, onLimitReached }: {
+  function MockCreateBoxModal({ open, onClose, onCompleted, onBusyChange, onLimitReached, initialSpaceId }: {
     open: boolean
     onClose: () => void
     onCompleted: (box: unknown) => void
     onBusyChange?: (busy: boolean) => void
     onLimitReached?: () => void
+    initialSpaceId?: string
   }) {
     useEffect(() => {
       if (!open) return
@@ -92,8 +93,10 @@ vi.mock('./CreateBoxModal', async () => {
     }, [open])
     return open ? (
       <div role="dialog" aria-label="创建箱子">
+        <output data-testid="initial-space-id">{initialSpaceId}</output>
         <button type="button" onClick={onClose}>关闭测试模态</button>
         <button type="button" onClick={() => onCompleted({ id: 'box-new', public_id: 'public-new', name: '书籍' })}>完成测试创建</button>
+        <button type="button" onClick={() => onCompleted({ id: 'box-new', public_id: 'box-new', name: '引导箱子' })}>完成引导创建</button>
         <button type="button" onClick={() => onCompleted({ id: 'box-new', public_id: 'public-new', name: '待补封面' })}>暂不上传封面</button>
         <button type="button" onClick={() => onBusyChange?.(true)}>开始忙碌</button>
         <button type="button" onClick={() => onBusyChange?.(false)}>结束忙碌</button>
@@ -176,6 +179,9 @@ function renderBoxes(initialEntry = '/app/boxes', locale: 'zh-CN' | 'en-US' = 'z
         <LocationProbe />
       </>
     ),
+  }, {
+    path: '*',
+    element: <LocationProbe />,
   }], { initialEntries: [initialEntry] })
   const app = (
     <QueryClientProvider client={client}>
@@ -636,6 +642,31 @@ test('opens creation from the URL and closes it without losing catalogue state',
   expect(screen.queryByRole('dialog', { name: '创建箱子' })).not.toBeInTheDocument()
   expect(screen.getByTestId('location')).toHaveTextContent('?space=space-1')
   expect(screen.getByTestId('navigation-type')).toHaveTextContent('REPLACE')
+})
+
+test('continues onboarding to the new box item flow without rendering the normal success card', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  const { router } = renderBoxes('/app/boxes?create=1&onboarding=box&space=space-new')
+
+  await screen.findByRole('dialog', { name: '创建箱子' })
+  expect(screen.getByTestId('initial-space-id')).toHaveTextContent('space-new')
+  await user.click(screen.getByRole('button', { name: '完成引导创建' }))
+
+  await waitFor(() => expect(router.state.location.pathname).toBe('/b/box-new'))
+  expect(router.state.location.search).toBe('?onboarding=item')
+  expect(screen.queryByRole('link', { name: '记录箱内物品' })).not.toBeInTheDocument()
+})
+
+test('returns onboarding box cancellation to the dashboard space step', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  const { router } = renderBoxes('/app/boxes?create=1&onboarding=box&space=space-new')
+
+  await user.click(await screen.findByRole('button', { name: '关闭测试模态' }))
+
+  await waitFor(() => expect(router.state.location.pathname).toBe('/app'))
+  expect(router.state.location.search).toBe('?onboarding=box&space=space-new')
 })
 
 test('closes, refreshes, announces success, renders the new card, and restores focus after creation completes', async () => {
