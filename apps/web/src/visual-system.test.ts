@@ -129,6 +129,10 @@ test('keeps global accessibility and output media rules', () => {
   expect(css).toContain('@media print')
 })
 
+test('allows the authentication visual title to wrap within its card', () => {
+  expect(css).toMatch(/\.auth-story h2\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*break-word;/s)
+})
+
 test('defines the warm heading hierarchy inside the base layer', () => {
   const baseStart = css.indexOf('@layer base {')
   const baseEnd = css.indexOf('@media (prefers-reduced-motion: reduce)')

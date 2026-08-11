@@ -244,6 +244,9 @@ export function SpacesPage() {
       } else {
         const created = await createMutation.mutateAsync(input)
         if (searchParams.get('onboarding') === 'space') {
+          setEditorOpen(false)
+          setEditTarget(null)
+          reset({ venue_id: '', name: '', description: '' })
           navigate(`/app?onboarding=box&space=${encodeURIComponent(created.id)}`, { replace: true })
           return
         }

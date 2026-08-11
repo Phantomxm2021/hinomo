@@ -330,7 +330,9 @@ html {
 .auth-story h2 {
   max-width: 100%;
   font-size: min(var(--text-display), 9cqw);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
+  text-wrap: balance;
 }
 
 .auth-form-frame {
