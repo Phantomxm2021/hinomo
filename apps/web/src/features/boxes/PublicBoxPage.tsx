@@ -246,11 +246,7 @@ export function PublicBoxPage() {
     movementMutation.reset()
     setMovementItem(item)
   }
-  const refreshItems = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['box', publicId] }),
-      queryClient.invalidateQueries({ queryKey: ['items', box.id] }),
-    ])
+  const refreshItems = () => {
     if (onboardingItem) {
       suppressOnboardingItemOpenRef.current = true
       const next = new URLSearchParams(searchParams)
@@ -260,6 +256,10 @@ export function PublicBoxPage() {
     }
     setShowItemForm(false)
     setEditingItem(null)
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['box', publicId] }),
+      queryClient.invalidateQueries({ queryKey: ['items', box.id] }),
+    ]).catch(() => undefined)
   }
   const printLabel = async () => {
     setPrinting(true)

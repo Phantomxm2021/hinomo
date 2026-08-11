@@ -574,6 +574,29 @@ test('guides an editable empty box through recording its first item', async () =
   expect(screen.queryByRole('dialog', { name: '新增物品' })).not.toBeInTheDocument()
 })
 
+test('closes a saved item editor when its cache refresh fails', async () => {
+  const user = userEvent.setup()
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  vi.spyOn(client, 'invalidateQueries').mockRejectedValue(new Error('refresh failed'))
+  mockCreateItem.mockResolvedValue({ id: 'first-item' })
+  mockGetBoxByPublicId.mockResolvedValue({
+    id: 'box-new', owner_id: 'owner-1', public_id: 'box-new', box_code: 'BX-00001',
+    space_id: 'space-1', name: '新工具箱', category: null, description: null,
+    location: null, visibility: 'private', space_name: '车库',
+    updated_at: '2026-07-29T10:00:00Z', items: [],
+  })
+  renderPublicBox({ user: { id: 'owner-1' } } as Session, client, '/b/box-new')
+
+  await user.click(await screen.findByRole('button', { name: '新增物品' }))
+  await user.type(screen.getByLabelText('物品名称'), '第一件物品')
+  await user.click(screen.getByRole('button', { name: '保存' }))
+
+  await waitFor(() => expect(mockCreateItem).toHaveBeenCalledOnce())
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: '新增物品' })).not.toBeInTheDocument())
+  expect(screen.queryByRole('button', { name: '保存' })).not.toBeInTheDocument()
+  expect(mockCreateItem).toHaveBeenCalledOnce()
+})
+
 test('does not show a stale first-item guide when the box already has items', async () => {
   mockGetBoxByPublicId.mockResolvedValue({
     id: 'box-new', owner_id: 'owner-1', public_id: 'box-new', box_code: 'BX-00001',
