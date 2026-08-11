@@ -86,7 +86,8 @@ purchase / promotion / refund
 ## 6. Stripe 边界
 
 - `billing-checkout`：验证用户，确保 Stripe Customer，根据受控 action 创建一次性 Checkout Session。
-- `stripe-webhook`：使用原始请求体校验签名，处理 `checkout.session.completed` 和 `charge.refunded`。
+- `stripe-webhook`：使用原始请求体校验签名，处理 `checkout.session.completed`、`checkout.session.async_payment_succeeded`、`checkout.session.async_payment_failed` 和 `charge.refunded`。
+- `checkout.session.async_payment_succeeded` 与已完成付款走同一 fulfillment 路径；`checkout.session.async_payment_failed` 只记录结果，不发放权益或 credits。
 - 付款成功后以 Checkout Session ID 作为幂等源发放长期有效 purchased grant。Founding Lifetime 还必须同时携带受控 `offer_code='founding_lifetime_v1'`，并以 `founding-lifetime-bonus:<checkout-session-id>` 幂等发放 20 个永不过期 promotional Credits；重复活跃权益同样执行该幂等 bonus grant，已退款 tombstone 则不发放。
 - 全额退款收回该订单尚未使用的 credits；Founding Lifetime 全额退款还必须撤销权益并按相同 founder-bonus source 收回未使用的 promotional Credits。已消耗额度不会生成负余额。部分退款首发不自动按比例收回，需人工审核。
 - 不部署 Customer Portal，不订阅 invoice 或 `customer.subscription.*` 事件。
