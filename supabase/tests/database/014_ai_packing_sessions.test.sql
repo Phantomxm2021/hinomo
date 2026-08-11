@@ -13,6 +13,23 @@ select tests.create_supabase_user('packing-other');
 select tests.clear_authentication();
 set local role postgres;
 
+delete from public.credit_transactions
+where user_id in (
+  tests.get_supabase_uid('packing-owner'),
+  tests.get_supabase_uid('packing-other')
+) and idempotency_key in (
+  'grant:promotional:signup:' || tests.get_supabase_uid('packing-owner') || ':growth-launch-v1',
+  'grant:promotional:signup:' || tests.get_supabase_uid('packing-other') || ':growth-launch-v1'
+);
+delete from public.credit_grants
+where user_id in (
+  tests.get_supabase_uid('packing-owner'),
+  tests.get_supabase_uid('packing-other')
+) and kind = 'promotional' and source_reference in (
+  'signup:' || tests.get_supabase_uid('packing-owner') || ':growth-launch-v1',
+  'signup:' || tests.get_supabase_uid('packing-other') || ':growth-launch-v1'
+);
+
 create temporary table packing_test_state (
   owner_id uuid not null,
   other_id uuid not null,

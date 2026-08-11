@@ -9,6 +9,8 @@
 - `1 张提交分析的装箱照片 = 1 credit`。未提交的草稿不消耗。
 - Stripe 只负责一次性收款和退款；Nomo Postgres 是 credit 余额、预留和消费的实时权威。
 - 已购 credits 默认长期有效。只有促销/补偿 credits 可通过 `expires_at` 设置期限。
+- `202608110002_growth_launch_credits.sql` 部署后新创建的每个账号会获得一次 `10` 个 promotional Credits；`effective_at` 起 30 天后过期。该 signup grant 的来源标识固定为 `signup:<user-id>:growth-launch-v1`，对应流水为 `grant:promotional:signup:<user-id>:growth-launch-v1`。
+- 该 migration 只影响部署后创建的用户。更早的 seed 用户如需补发，必须由 service role 明确执行受控发放操作，并记录独立、可追溯的 `source_reference`；不得把历史补发伪装成新的 signup grant。
 - 所有 credit 页面和拦截 Sheet 沿用 Apple App 设计语言：内容优先、克制色彩、大圆角、毛玻璃遮罩、44px 以上触控区、安全区与明确反馈。
 
 ## 2. 为什么按照片计费

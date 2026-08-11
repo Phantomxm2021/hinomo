@@ -64,6 +64,10 @@ B. 家庭共享后端：
 
 C. 发布 Functions 和前端，等待旧缓存退出，最后执行：
    202608080003_box_entitlements_enforce.sql
+
+D. Onboarding 完成状态与首发 Credits：
+   202608110001_onboarding_completion.sql
+   202608110002_growth_launch_credits.sql
 ```
 
 这两个顺序不能改：
@@ -72,6 +76,28 @@ C. 发布 Functions 和前端，等待旧缓存退出，最后执行：
 - 家庭共享的 `001 → 005` 必须完整执行后再打开邀请入口。
 
 每个 migration 完成后，在 Dashboard 确认 schema reload 成功。若 SQL 报错，不要跳过继续执行；记录错误并先修复。
+
+`202608110002_growth_launch_credits.sql` 必须紧接在 `202608110001_onboarding_completion.sql` 之后执行。它只会给部署后新创建的账号发放一次 10 Credits、30 天有效的 promotional grant；不会回填既有用户。若受控 seed 用户需要补发，必须由 service role 显式操作并记录独立的 `source_reference`，不能使用 signup 来源标识。
+
+部署后可只针对一个受控测试用户运行以下只读核验（将 UUID 替换为该用户，勿扩大查询范围）：
+
+```sql
+select
+  grants.original_credits,
+  grants.remaining_credits,
+  grants.effective_at,
+  grants.expires_at,
+  grants.source_reference,
+  transactions.idempotency_key,
+  transactions.credit_amount
+from public.credit_grants grants
+left join public.credit_transactions transactions
+  on transactions.grant_id = grants.id
+  and transactions.kind = 'grant'
+where grants.user_id = '<controlled-test-user-uuid>'::uuid
+  and grants.kind = 'promotional'
+  and grants.source_reference = 'signup:<controlled-test-user-uuid>:growth-launch-v1';
+```
 
 ## 3. 配置服务端密钥
 

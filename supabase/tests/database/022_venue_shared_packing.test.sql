@@ -53,6 +53,30 @@ union all
 select private_box_id, auth.uid(), space_id, 'Private packing box', 'private' from shared_packing_state;
 select tests.clear_authentication();
 set local role postgres;
+delete from public.credit_transactions
+where user_id in (
+  tests.get_supabase_uid('shared-packing-owner'),
+  tests.get_supabase_uid('shared-packing-member'),
+  tests.get_supabase_uid('shared-packing-other-member'),
+  tests.get_supabase_uid('shared-packing-outsider')
+) and idempotency_key in (
+  'grant:promotional:signup:' || tests.get_supabase_uid('shared-packing-owner') || ':growth-launch-v1',
+  'grant:promotional:signup:' || tests.get_supabase_uid('shared-packing-member') || ':growth-launch-v1',
+  'grant:promotional:signup:' || tests.get_supabase_uid('shared-packing-other-member') || ':growth-launch-v1',
+  'grant:promotional:signup:' || tests.get_supabase_uid('shared-packing-outsider') || ':growth-launch-v1'
+);
+delete from public.credit_grants
+where user_id in (
+  tests.get_supabase_uid('shared-packing-owner'),
+  tests.get_supabase_uid('shared-packing-member'),
+  tests.get_supabase_uid('shared-packing-other-member'),
+  tests.get_supabase_uid('shared-packing-outsider')
+) and kind = 'promotional' and source_reference in (
+  'signup:' || tests.get_supabase_uid('shared-packing-owner') || ':growth-launch-v1',
+  'signup:' || tests.get_supabase_uid('shared-packing-member') || ':growth-launch-v1',
+  'signup:' || tests.get_supabase_uid('shared-packing-other-member') || ':growth-launch-v1',
+  'signup:' || tests.get_supabase_uid('shared-packing-outsider') || ':growth-launch-v1'
+);
 insert into public.venue_members (venue_id, user_id)
 select venue_id, member_id from shared_packing_state
 union all

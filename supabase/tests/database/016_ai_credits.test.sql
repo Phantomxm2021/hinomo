@@ -7,6 +7,23 @@ select tests.create_supabase_user('credit-empty');
 select tests.clear_authentication();
 set local role postgres;
 
+delete from public.credit_transactions
+where user_id in (
+  tests.get_supabase_uid('credit-buyer'),
+  tests.get_supabase_uid('credit-empty')
+) and idempotency_key in (
+  'grant:promotional:signup:' || tests.get_supabase_uid('credit-buyer') || ':growth-launch-v1',
+  'grant:promotional:signup:' || tests.get_supabase_uid('credit-empty') || ':growth-launch-v1'
+);
+delete from public.credit_grants
+where user_id in (
+  tests.get_supabase_uid('credit-buyer'),
+  tests.get_supabase_uid('credit-empty')
+) and kind = 'promotional' and source_reference in (
+  'signup:' || tests.get_supabase_uid('credit-buyer') || ':growth-launch-v1',
+  'signup:' || tests.get_supabase_uid('credit-empty') || ':growth-launch-v1'
+);
+
 create temporary table credit_test_state (
   buyer_id uuid not null,
   empty_id uuid not null,
