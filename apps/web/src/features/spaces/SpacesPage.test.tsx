@@ -94,10 +94,13 @@ function renderOnboardingSpaces(initialEntry = '/app/spaces?create=1&onboarding=
   }
 
   return render(
-    <Routes>
-      <Route path="/app/spaces" element={<SpacesPage />} />
-      <Route path="/app" element={<RouteLocation />} />
-    </Routes>,
+    <>
+      <RouteLocation />
+      <Routes>
+        <Route path="/app/spaces" element={<SpacesPage />} />
+        <Route path="/app" element={<div />} />
+      </Routes>
+    </>,
     { wrapper: Wrapper },
   )
 }
@@ -327,7 +330,7 @@ test('continues onboarding to box creation after creating a space', async () => 
   await user.type(within(dialog).getByLabelText('空间名称'), '客厅')
   await user.click(within(dialog).getByRole('button', { name: '创建空间' }))
 
-  expect(await screen.findByTestId('route-location')).toHaveTextContent('/app?onboarding=box&space=space-new')
+  await waitFor(() => expect(screen.getByTestId('route-location')).toHaveTextContent('/app?onboarding=box&space=space-new'))
   expect(screen.queryByText('空间已创建')).not.toBeInTheDocument()
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
@@ -340,7 +343,21 @@ test('returns to the space onboarding step when creation is cancelled', async ()
   const dialog = await screen.findByRole('dialog', { name: '创建空间' })
   await user.click(within(dialog).getByRole('button', { name: '取消' }))
 
-  expect(await screen.findByTestId('route-location')).toHaveTextContent('/app?onboarding=space')
+  await waitFor(() => expect(screen.getByTestId('route-location')).toHaveTextContent('/app?onboarding=space'))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+test('closes an edit without leaving the spaces route during onboarding', async () => {
+  const user = userEvent.setup()
+  mockListSpaces.mockResolvedValue([
+    { id: 'space-home', venue_id: 'venue-home', name: '家', description: null, box_count: 0, item_count: 0 },
+  ])
+  renderOnboardingSpaces('/app/spaces?onboarding=space')
+
+  await user.click(await screen.findByRole('button', { name: '编辑家' }))
+  await user.click(screen.getByRole('button', { name: '取消' }))
+
+  expect(screen.getByTestId('route-location')).toHaveTextContent('/app/spaces?onboarding=space')
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
 

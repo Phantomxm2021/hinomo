@@ -177,7 +177,7 @@ export function SpacesPage() {
 
   const closeEditor = useCallback(() => {
     if (editorPending) return
-    if (searchParams.get('onboarding') === 'space') {
+    if (searchParams.get('onboarding') === 'space' && !editTarget) {
       navigate('/app?onboarding=space', { replace: true })
       return
     }
@@ -187,7 +187,7 @@ export function SpacesPage() {
     resetCreateMutation()
     resetUpdateMutation()
     clearCreateRequest()
-  }, [clearCreateRequest, editorPending, navigate, reset, resetCreateMutation, resetUpdateMutation, searchParams])
+  }, [clearCreateRequest, editorPending, editTarget, navigate, reset, resetCreateMutation, resetUpdateMutation, searchParams])
 
   useEffect(() => {
     if (!editorOpen && editorOpenerRef.current) restoreEditorFocus()
