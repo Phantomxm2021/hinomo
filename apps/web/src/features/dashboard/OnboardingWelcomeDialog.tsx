@@ -7,6 +7,7 @@ export type OnboardingWelcomeDialogProps = {
   open: boolean
   busy: boolean
   progress: OnboardingProgress
+  actionHref?: string
   onClose: () => void
   onStart: (actionHref: string) => void
   returnFocusRef?: RefObject<HTMLElement | null>
@@ -16,11 +17,13 @@ export function OnboardingWelcomeDialog({
   open,
   busy,
   progress,
+  actionHref,
   onClose,
   onStart,
   returnFocusRef,
 }: OnboardingWelcomeDialogProps) {
   const { t } = useI18n()
+  const resolvedActionHref = actionHref ?? progress.actionHref
   const steps: ReadonlyArray<{ id: OnboardingStep; label: string }> = [
     { id: 'space', label: t('onboarding.stepDetails.space.label') },
     { id: 'box', label: t('onboarding.stepDetails.box.label') },
@@ -37,6 +40,7 @@ export function OnboardingWelcomeDialog({
       open={open}
       title={t('onboarding.title')}
       busy={busy}
+      dismissible={false}
       onClose={onClose}
       returnFocusRef={returnFocusRef}
       maxWidthClassName="max-w-xl"
@@ -83,7 +87,7 @@ export function OnboardingWelcomeDialog({
           disabled={busy}
           onClick={() => {
             onClose()
-            onStart(progress.actionHref)
+            onStart(resolvedActionHref)
           }}
         >
           {copy.action}

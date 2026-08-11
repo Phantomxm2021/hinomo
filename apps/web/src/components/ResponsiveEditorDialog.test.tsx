@@ -47,6 +47,37 @@ test('blocks every dismissal path while busy', async () => {
   expect(onClose).not.toHaveBeenCalled()
 })
 
+test('does not expose dismissal controls when dismissible is false', async () => {
+  const onClose = vi.fn()
+  const user = userEvent.setup()
+  render(
+    <ResponsiveEditorDialog open title="新手引导" busy={false} dismissible={false} onClose={onClose}>
+      <input aria-label="名称" />
+    </ResponsiveEditorDialog>,
+  )
+
+  expect(screen.queryByRole('button', { name: '关闭新手引导' })).not.toBeInTheDocument()
+  await user.keyboard('{Escape}')
+  fireEvent.mouseDown(screen.getByTestId('editor-dialog-backdrop'))
+
+  expect(onClose).not.toHaveBeenCalled()
+})
+
+test('closes by Escape and backdrop by default', async () => {
+  const onClose = vi.fn()
+  const user = userEvent.setup()
+  render(
+    <ResponsiveEditorDialog open title="编辑" busy={false} onClose={onClose}>
+      <input aria-label="名称" />
+    </ResponsiveEditorDialog>,
+  )
+
+  await user.keyboard('{Escape}')
+  fireEvent.mouseDown(screen.getByTestId('editor-dialog-backdrop'))
+
+  expect(onClose).toHaveBeenCalledTimes(2)
+})
+
 test('lets a topmost action sheet consume Escape before the editor', async () => {
   const user = userEvent.setup()
   const onClose = vi.fn()

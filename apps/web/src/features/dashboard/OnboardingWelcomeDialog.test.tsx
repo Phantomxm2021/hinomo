@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useEffect, type PropsWithChildren } from 'react'
 import { afterEach, expect, test, vi } from 'vitest'
@@ -62,32 +62,34 @@ test('focuses the primary action when it opens', async () => {
   await waitFor(() => expect(screen.getByRole('button', { name: '创建第一个空间' })).toHaveFocus())
 })
 
-test('closes before starting the current action', async () => {
+test('closes before starting the actionHref override', async () => {
   const user = userEvent.setup()
   const events: string[] = []
   const onClose = vi.fn(() => events.push('close'))
   const onStart = vi.fn(() => events.push('start'))
   const progress = getOnboardingProgress({ hasSpace: false, hasBox: false, hasItem: false })
 
-  render(<OnboardingWelcomeDialog open busy={false} progress={progress} onClose={onClose} onStart={onStart} />)
+  render(<OnboardingWelcomeDialog open busy={false} progress={progress} actionHref="/app/onboarding" onClose={onClose} onStart={onStart} />)
 
   await user.click(screen.getByRole('button', { name: '创建第一个空间' }))
 
   expect(onClose).toHaveBeenCalledTimes(1)
-  expect(onStart).toHaveBeenCalledWith('/app/spaces?create=1')
+  expect(onStart).toHaveBeenCalledWith('/app/onboarding')
   expect(events).toEqual(['close', 'start'])
 })
 
-test('calls onClose from the close button', async () => {
+test('does not expose dismissal UI', async () => {
   const user = userEvent.setup()
   const onClose = vi.fn()
   const progress = getOnboardingProgress({ hasSpace: false, hasBox: false, hasItem: false })
 
   render(<OnboardingWelcomeDialog open busy={false} progress={progress} onClose={onClose} onStart={vi.fn()} />)
 
-  await user.click(screen.getByRole('button', { name: '关闭开始使用 Nomo' }))
+  expect(screen.queryByRole('button', { name: '关闭开始使用 Nomo' })).not.toBeInTheDocument()
+  await user.keyboard('{Escape}')
+  fireEvent.mouseDown(screen.getByTestId('editor-dialog-backdrop'))
 
-  expect(onClose).toHaveBeenCalledTimes(1)
+  expect(onClose).not.toHaveBeenCalled()
 })
 
 test('disables every action while busy', async () => {
@@ -99,11 +101,8 @@ test('disables every action while busy', async () => {
   render(<OnboardingWelcomeDialog open busy progress={progress} onClose={onClose} onStart={onStart} />)
 
   const cta = screen.getByRole('button', { name: '创建第一个空间' })
-  const close = screen.getByRole('button', { name: '关闭开始使用 Nomo' })
   expect(cta).toBeDisabled()
-  expect(close).toBeDisabled()
   await user.click(cta)
-  await user.click(close)
   expect(onClose).not.toHaveBeenCalled()
   expect(onStart).not.toHaveBeenCalled()
 })

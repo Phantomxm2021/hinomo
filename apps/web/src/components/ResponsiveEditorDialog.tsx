@@ -9,6 +9,7 @@ export type ResponsiveEditorDialogProps = {
   busy: boolean
   onClose: () => void
   children: ReactNode
+  dismissible?: boolean
   initialFocusSelector?: string
   maxWidthClassName?: string
   returnFocusRef?: RefObject<HTMLElement | null>
@@ -44,6 +45,7 @@ export function ResponsiveEditorDialog({
   busy,
   onClose,
   children,
+  dismissible = true,
   initialFocusSelector = 'select:not(:disabled), input:not(:disabled), textarea:not(:disabled)',
   maxWidthClassName = 'max-w-lg',
   returnFocusRef,
@@ -53,8 +55,8 @@ export function ResponsiveEditorDialog({
   const dialogRef = useRef<HTMLElement | null>(null)
   const titleId = useId()
   const close = useCallback(() => {
-    if (!busy) onClose()
-  }, [busy, onClose])
+    if (dismissible && !busy) onClose()
+  }, [busy, dismissible, onClose])
   const closeRef = useRef(close)
   const initialFocusSelectorRef = useRef(initialFocusSelector)
   const returnFocusRefRef = useRef(returnFocusRef)
@@ -149,9 +151,11 @@ export function ResponsiveEditorDialog({
         <span className="pointer-events-none fixed size-px overflow-hidden opacity-0" data-editor-focus-sentinel tabIndex={0} onFocus={() => getControls(dialogRef.current).at(-1)?.focus()} />
         <div className="mb-5 flex items-center justify-between gap-4">
           <h2 className="m-0 text-section-title font-bold" id={titleId}>{title}</h2>
-          <button className="grid size-11 flex-none place-items-center rounded-control border border-line bg-surface text-ink" type="button" aria-label={t('common.closeWithTitle', { title })} disabled={busy} onClick={close}>
-            <AppIcon name="close" />
-          </button>
+          {dismissible ? (
+            <button className="grid size-11 flex-none place-items-center rounded-control border border-line bg-surface text-ink" type="button" aria-label={t('common.closeWithTitle', { title })} disabled={busy} onClick={close}>
+              <AppIcon name="close" />
+            </button>
+          ) : null}
         </div>
         {children}
         <span className="pointer-events-none fixed size-px overflow-hidden opacity-0" data-editor-focus-sentinel tabIndex={0} onFocus={() => getControls(dialogRef.current)[0]?.focus()} />
