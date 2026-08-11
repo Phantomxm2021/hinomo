@@ -288,9 +288,8 @@ export function BoxesPage() {
   const closeCreate = useCallback(() => {
     if (onboardingBox) {
       if (createBusy) return
-      const next = new URLSearchParams({ onboarding: 'box' })
-      const onboardingSpaceId = searchParams.get('space')
-      if (onboardingSpaceId) next.set('space', onboardingSpaceId)
+      const next = new URLSearchParams(searchParams)
+      next.delete('create')
       navigate(`/app?${next.toString()}`, { replace: true })
       return
     }

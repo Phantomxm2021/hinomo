@@ -658,15 +658,15 @@ test('continues onboarding to the new box item flow without rendering the normal
   expect(screen.queryByRole('link', { name: '记录箱内物品' })).not.toBeInTheDocument()
 })
 
-test('returns onboarding box cancellation to the dashboard space step', async () => {
+test('returns onboarding box cancellation to the dashboard space step while preserving unrelated parameters', async () => {
   const user = userEvent.setup()
   mockListBoxes.mockResolvedValue(boxes)
-  const { router } = renderBoxes('/app/boxes?create=1&onboarding=box&space=space-new')
+  const { router } = renderBoxes('/app/boxes?create=1&onboarding=box&space=space-new&source=welcome')
 
   await user.click(await screen.findByRole('button', { name: '关闭测试模态' }))
 
   await waitFor(() => expect(router.state.location.pathname).toBe('/app'))
-  expect(router.state.location.search).toBe('?onboarding=box&space=space-new')
+  expect(router.state.location.search).toBe('?onboarding=box&space=space-new&source=welcome')
 })
 
 test('closes, refreshes, announces success, renders the new card, and restores focus after creation completes', async () => {
