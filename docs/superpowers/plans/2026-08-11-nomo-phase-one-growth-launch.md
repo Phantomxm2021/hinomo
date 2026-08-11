@@ -145,7 +145,7 @@ Also use `// @ts-expect-error` compile assertions for forbidden properties such 
 
 - [ ] **Step 3: Run the focused tests and confirm failure**
 
-Run: `npm test -- --run apps/web/src/lib/analytics.test.ts apps/web/src/components/AnalyticsConsentBanner.test.tsx apps/web/src/features/profile/GeneralSettingsPage.test.tsx`
+Run: `npm run test --workspace=@nomo/web -- --run src/lib/analytics.test.ts src/components/AnalyticsConsentBanner.test.tsx src/features/profile/GeneralSettingsPage.test.tsx`
 
 Expected: FAIL because the analytics module and consent UI do not exist.
 
@@ -191,7 +191,7 @@ In `LiveAuthProvider`, call `identifyAnalyticsUser(liveAuthState.session.user.id
 
 - [ ] **Step 6: Run focused tests and static checks**
 
-Run: `npm test -- --run apps/web/src/lib/analytics.test.ts apps/web/src/components/AnalyticsConsentBanner.test.tsx apps/web/src/features/profile/GeneralSettingsPage.test.tsx apps/web/src/features/auth/AuthProvider.test.tsx`
+Run: `npm run test --workspace=@nomo/web -- --run src/lib/analytics.test.ts src/components/AnalyticsConsentBanner.test.tsx src/features/profile/GeneralSettingsPage.test.tsx src/features/auth/AuthProvider.test.tsx`
 
 Expected: PASS.
 
@@ -244,7 +244,7 @@ Also assert that the founder offer appears after the workflow/demo section in DO
 
 - [ ] **Step 2: Run the focused tests and confirm failure**
 
-Run: `npm test -- --run apps/web/src/features/marketing/ThreeBoxResetPage.test.tsx apps/web/src/app/router.test.tsx`
+Run: `npm run test --workspace=@nomo/web -- --run src/features/marketing/ThreeBoxResetPage.test.tsx src/app/router.test.tsx`
 
 Expected: FAIL because the route and page do not exist.
 
@@ -277,7 +277,7 @@ Create and verify the public alias `support@hinomo.space`, route it to the found
 
 - [ ] **Step 5: Run tests and build**
 
-Run: `npm test -- --run apps/web/src/features/marketing/ThreeBoxResetPage.test.tsx apps/web/src/features/marketing/LandingPage.test.tsx apps/web/src/app/router.test.tsx`
+Run: `npm run test --workspace=@nomo/web -- --run src/features/marketing/ThreeBoxResetPage.test.tsx src/features/marketing/LandingPage.test.tsx src/app/router.test.tsx`
 
 Expected: PASS.
 
@@ -326,7 +326,7 @@ Add a second assertion that an unrecognized query value becomes `organic` and an
 
 - [ ] **Step 2: Run the registration test and confirm failure**
 
-Run: `npm test -- --run apps/web/src/features/auth/RegisterPage.test.tsx`
+Run: `npm run test --workspace=@nomo/web -- --run src/features/auth/RegisterPage.test.tsx`
 
 Expected: FAIL because the field and metadata are absent.
 
@@ -338,7 +338,7 @@ Allow only the literal `three_box_reset`; map every other value to `organic`. Af
 
 - [ ] **Step 4: Run tests and commit**
 
-Run: `npm test -- --run apps/web/src/features/auth/RegisterPage.test.tsx apps/web/src/features/task8-english-smoke.test.tsx`
+Run: `npm run test --workspace=@nomo/web -- --run src/features/auth/RegisterPage.test.tsx src/features/task8-english-smoke.test.tsx`
 
 Expected: PASS.
 
@@ -491,7 +491,7 @@ Refund tests must require both `revoke_account_entitlement` and `revoke_unused_c
 
 - [ ] **Step 3: Run focused tests and confirm failure**
 
-Run: `npm test -- --run apps/web/src/features/credits/CreditsPage.test.tsx apps/web/src/features/credits/credits.api.test.ts apps/web/src/features/boxes/BoxLimitPaywall.test.tsx apps/web/src/features/boxes/box-entitlements.api.test.ts apps/web/src/features/boxes/BoxesPage.test.tsx`
+Run: `npm run test --workspace=@nomo/web -- --run src/features/credits/CreditsPage.test.tsx src/features/credits/credits.api.test.ts src/features/boxes/BoxLimitPaywall.test.tsx src/features/boxes/box-entitlements.api.test.ts src/features/boxes/BoxesPage.test.tsx`
 
 Expected: FAIL on old HKD prices and missing analytics.
 
@@ -527,7 +527,7 @@ Replace HKD amounts with the four exact USD amounts in both authoritative docs. 
 
 - [ ] **Step 7: Run tests, typechecks, and commit**
 
-Run: `npm test -- --run apps/web/src/features/credits/CreditsPage.test.tsx apps/web/src/features/credits/credits.api.test.ts apps/web/src/features/boxes/BoxLimitPaywall.test.tsx apps/web/src/features/boxes/box-entitlements.api.test.ts apps/web/src/features/boxes/BoxesPage.test.tsx`
+Run: `npm run test --workspace=@nomo/web -- --run src/features/credits/CreditsPage.test.tsx src/features/credits/credits.api.test.ts src/features/boxes/BoxLimitPaywall.test.tsx src/features/boxes/box-entitlements.api.test.ts src/features/boxes/BoxesPage.test.tsx`
 
 Run: `npm run typecheck:billing && deno test --config supabase/functions/deno.json supabase/functions/billing-checkout/index_test.ts supabase/functions/stripe-webhook/index_test.ts`
 
@@ -571,7 +571,7 @@ Pass onboarding state explicitly from the UI call sites where available; use `fa
 
 - [ ] **Step 2: Run focused tests and confirm failure**
 
-Run: `npm test -- --run apps/web/src/features/spaces/spaces.api.test.ts apps/web/src/features/boxes/boxes.api.test.ts apps/web/src/features/items/items.api.test.ts apps/web/src/features/packing/PackingChecklistSection.test.tsx apps/web/src/features/search/SearchPage.test.tsx apps/web/src/features/qr-print/PrintPage.test.tsx apps/web/src/features/scanner/ScannerPage.test.tsx`
+Run: `npm run test --workspace=@nomo/web -- --run src/features/spaces/spaces.api.test.ts src/features/boxes/boxes.api.test.ts src/features/items/items.api.test.ts src/features/packing/PackingChecklistSection.test.tsx src/features/search/SearchPage.test.tsx src/features/qr-print/PrintPage.test.tsx src/features/scanner/ScannerPage.test.tsx`
 
 Expected: FAIL on missing event calls.
 
@@ -621,7 +621,7 @@ Assert both locales disclose that analytics is optional, that it uses a third-pa
 
 - [ ] **Step 2: Run and confirm failure**
 
-Run: `npm test -- --run apps/web/src/features/legal/LegalDocumentPage.test.tsx`
+Run: `npm run test --workspace=@nomo/web -- --run src/features/legal/LegalDocumentPage.test.tsx`
 
 Expected: FAIL on the old policy date/content.
 
@@ -646,7 +646,7 @@ The document must say: do not contact users without opt-in; never paste emails o
 
 - [ ] **Step 5: Test and commit**
 
-Run: `npm test -- --run apps/web/src/features/legal/LegalDocumentPage.test.tsx`
+Run: `npm run test --workspace=@nomo/web -- --run src/features/legal/LegalDocumentPage.test.tsx`
 
 Expected: PASS.
 
