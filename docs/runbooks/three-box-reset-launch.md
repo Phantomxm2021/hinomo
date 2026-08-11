@@ -8,6 +8,7 @@ This is the release gate for the English Three-Box Reset. Perform Test Mode firs
 - [ ] Apply only pending migrations, in repository order, using the deployment guide’s forward-only sequence.
 - [ ] Verify the schema migration table lists every expected migration and record the result.
 - [ ] Verify a controlled Test account can complete signup, create a space, create a box, create an item, search it, and print/download a label.
+- [ ] For any specific account created before the growth-credit signup migration, follow the [historical credits backfill runbook](./growth-credits-backfill.md); never add user IDs to Git or run a blanket backfill migration.
 - [ ] Run `npm run test:db`. If local Supabase is unavailable, mark this a release blocker and run it in the configured staging environment before promotion.
 
 ## 2. Stripe Test Mode prices and mapping
