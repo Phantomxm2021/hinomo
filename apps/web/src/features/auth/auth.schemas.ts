@@ -27,6 +27,7 @@ export function createRegisterSchema(t: Translate) {
       (accepted) => accepted,
       t('auth.legal.legalRequired'),
     ),
+    growthContactOptIn: z.boolean(),
   })
 }
 

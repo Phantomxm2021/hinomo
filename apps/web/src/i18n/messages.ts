@@ -274,6 +274,7 @@ const zhMessages = {
     legal: {
       consentPrefix: '我已阅读并同意',
       legalRequired: '请阅读并同意服务条款和隐私政策',
+      growthContactOptIn: '接收整理建议和一次性创始人优惠。我可以随时取消订阅。',
     },
   },
   legal: {
@@ -1448,6 +1449,7 @@ const enMessages = {
     legal: {
       consentPrefix: 'I have read and agree to the',
       legalRequired: 'Please agree to the Terms of Service and Privacy Policy',
+      growthContactOptIn: 'Email me setup tips and the one-time founder offer. I can unsubscribe anytime.',
     },
   },
   legal: {

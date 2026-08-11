@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ResponsiveOperationError } from '../../components/ResponsiveOperationError'
 import { useI18n } from '../../i18n/I18nProvider'
+import { captureGrowthEvent, identifyAnalyticsUser } from '../../lib/analytics'
 import { supabase } from '../../lib/supabase'
 import { LEGAL_POLICY_VERSION } from '../legal/legal-policy'
 import { getAuthErrorKey, type AuthErrorKey } from './auth-errors'
@@ -17,6 +18,9 @@ export function RegisterPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const returnTo = safeReturnTo((location.state as { returnTo?: unknown } | null)?.returnTo)
+  const signupCampaign = new URLSearchParams(location.search).get('campaign') === 'three_box_reset'
+    ? 'three_box_reset'
+    : 'organic'
   const [submitErrorKey, setSubmitErrorKey] = useState<AuthErrorKey | null>(null)
   const [success, setSuccess] = useState(false)
   const [submitAttempted, setSubmitAttempted] = useState(false)
@@ -28,7 +32,7 @@ export function RegisterPage() {
   } = useForm<RegisterValues>({
     resolver: zodResolver(createRegisterSchema(t)),
     mode: 'onChange',
-    defaultValues: { acceptLegal: false },
+    defaultValues: { acceptLegal: false, growthContactOptIn: false },
   })
 
   useLocalizedFormValidation({
@@ -39,7 +43,7 @@ export function RegisterPage() {
     submitAttempted,
   })
 
-  const submit = handleSubmit(async ({ displayName, email, password }) => {
+  const submit = handleSubmit(async ({ displayName, email, password, growthContactOptIn }) => {
     setSubmitErrorKey(null)
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -53,6 +57,8 @@ export function RegisterPage() {
               privacy_version: LEGAL_POLICY_VERSION,
               accepted_at: new Date().toISOString(),
             },
+            growth_contact_opt_in_at: growthContactOptIn ? new Date().toISOString() : null,
+            signup_campaign: signupCampaign,
           },
         },
       })
@@ -60,6 +66,12 @@ export function RegisterPage() {
         setSubmitErrorKey(getAuthErrorKey(error))
         return
       }
+      if (data.user?.id) identifyAnalyticsUser(data.user.id)
+      captureGrowthEvent('signup_completed', {
+        campaign: signupCampaign,
+        language: locale,
+        contact_opt_in: growthContactOptIn,
+      })
       if (data.session) {
         navigate(returnTo, { replace: true })
         return
@@ -144,6 +156,17 @@ export function RegisterPage() {
             {errors.acceptLegal ? (
               <p id="register-accept-legal-error" role="alert">{errors.acceptLegal.message}</p>
             ) : null}
+          </div>
+
+          <div className="auth-legal-consent">
+            <label htmlFor="register-growth-contact-opt-in">
+              <input
+                id="register-growth-contact-opt-in"
+                type="checkbox"
+                {...register('growthContactOptIn')}
+              />
+              <span>{t('auth.legal.growthContactOptIn')}</span>
+            </label>
           </div>
 
           {submitErrorKey ? <ResponsiveOperationError message={t(submitErrorKey)} /> : null}

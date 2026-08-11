@@ -6,21 +6,49 @@ import { I18nProvider } from '../../i18n/I18nProvider'
 import { LEGAL_POLICY_VERSION } from '../legal/legal-policy'
 import { RegisterPage } from './RegisterPage'
 
-const { mockSignUp } = vi.hoisted(() => ({ mockSignUp: vi.fn() }))
+const { mockSignUp, mockCaptureGrowthEvent, mockIdentifyAnalyticsUser } = vi.hoisted(() => ({
+  mockSignUp: vi.fn(),
+  mockCaptureGrowthEvent: vi.fn(),
+  mockIdentifyAnalyticsUser: vi.fn(),
+}))
 
 vi.mock('../../lib/supabase', () => ({
   supabase: { auth: { signUp: mockSignUp } },
 }))
 
+vi.mock('../../lib/analytics', () => ({
+  captureGrowthEvent: mockCaptureGrowthEvent,
+  identifyAnalyticsUser: mockIdentifyAnalyticsUser,
+}))
+
+function installStorage() {
+  const values = new Map<string, string>()
+  const storage: Storage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => { values.set(key, value) },
+    removeItem: (key) => { values.delete(key) },
+    clear: () => { values.clear() },
+    key: (index) => [...values.keys()][index] ?? null,
+    get length() { return values.size },
+  }
+  Object.defineProperty(window, 'localStorage', { configurable: true, value: storage })
+}
+
 describe('RegisterPage', () => {
   beforeEach(() => {
+    installStorage()
     mockSignUp.mockReset()
+    mockCaptureGrowthEvent.mockReset()
+    mockIdentifyAnalyticsUser.mockReset()
     mockSignUp.mockResolvedValue({ data: { session: null }, error: null })
+    window.localStorage.setItem('nomo-locale', 'zh-CN')
   })
   afterEach(cleanup)
 
-  function renderRegister(returnTo?: string) {
-    const entry: InitialEntry = returnTo ? { pathname: '/register', state: { returnTo } } : '/register'
+  function renderRegister(returnTo?: string, search = '') {
+    const entry: InitialEntry = returnTo
+      ? { pathname: '/register', search, state: { returnTo } }
+      : `/register${search}`
     const router = createMemoryRouter([
       { path: '/register', element: <RegisterPage /> },
       { path: '/join/venue', element: <h1>加入场地</h1> },
@@ -67,6 +95,7 @@ describe('RegisterPage', () => {
 
     await user.click(screen.getByRole('checkbox', { name: /我已阅读并同意/ }))
     expect(submitButton).toBeEnabled()
+    expect(screen.getByRole('checkbox', { name: /接收整理建议/ })).not.toBeChecked()
   })
 
   it('registers and asks the user to verify their email', async () => {
@@ -96,12 +125,64 @@ describe('RegisterPage', () => {
             privacy_version: LEGAL_POLICY_VERSION,
             accepted_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
           },
+          growth_contact_opt_in_at: null,
+          signup_campaign: 'organic',
         },
       },
     })
     expect(await screen.findByRole('status')).toHaveTextContent(
       '请查收验证邮件',
     )
+  })
+
+  it('records opted-in three-box campaign signup without blocking registration', async () => {
+    const user = userEvent.setup()
+    window.localStorage.setItem('nomo-locale', 'en-US')
+    mockSignUp.mockResolvedValue({ data: { user: { id: 'user-123' }, session: null }, error: null })
+    renderRegister(undefined, '?campaign=three_box_reset')
+
+    const contactOptIn = screen.getByRole('checkbox', { name: /Email me setup tips/ })
+    expect(contactOptIn).not.toBeChecked()
+    await user.type(screen.getByLabelText('Nickname'), 'Nomo')
+    await user.type(screen.getByLabelText('Email'), 'new@example.com')
+    await user.type(screen.getByLabelText('Password'), 'secure-password')
+    await user.click(screen.getByRole('checkbox', { name: /I have read and agree/ }))
+    expect(screen.getByRole('button', { name: 'Sign up' })).toBeEnabled()
+    await user.click(contactOptIn)
+    await user.click(screen.getByRole('button', { name: 'Sign up' }))
+
+    expect(mockSignUp).toHaveBeenCalledWith(expect.objectContaining({
+      options: { data: expect.objectContaining({
+        signup_campaign: 'three_box_reset',
+        growth_contact_opt_in_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+      }) },
+    }))
+    expect(mockIdentifyAnalyticsUser).toHaveBeenCalledWith('user-123')
+    expect(mockCaptureGrowthEvent).toHaveBeenCalledWith('signup_completed', {
+      campaign: 'three_box_reset', language: 'en-US', contact_opt_in: true,
+    })
+  })
+
+  it('treats unknown campaigns as organic and records no optional contact consent', async () => {
+    const user = userEvent.setup()
+    mockSignUp.mockResolvedValue({ data: { user: { id: 'user-456' }, session: null }, error: null })
+    renderRegister(undefined, '?campaign=untrusted')
+
+    await user.type(screen.getByLabelText('昵称'), '小诺')
+    await user.type(screen.getByLabelText('邮箱'), 'new@example.com')
+    await user.type(screen.getByLabelText('密码'), 'secure-password')
+    await user.click(screen.getByRole('checkbox', { name: /我已阅读并同意/ }))
+    await user.click(screen.getByRole('button', { name: '注册' }))
+
+    expect(mockSignUp).toHaveBeenCalledWith(expect.objectContaining({
+      options: { data: expect.objectContaining({
+        signup_campaign: 'organic',
+        growth_contact_opt_in_at: null,
+      }) },
+    }))
+    expect(mockCaptureGrowthEvent).toHaveBeenCalledWith('signup_completed', {
+      campaign: 'organic', language: 'zh-CN', contact_opt_in: false,
+    })
   })
 
   it('keeps registration disabled when the nickname is missing', async () => {
