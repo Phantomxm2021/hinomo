@@ -150,6 +150,7 @@ test('keeps scanning after an invalid code and navigates for the next valid Nomo
   expect(mockScannerStart).toHaveBeenCalledOnce()
   expect(stop).not.toHaveBeenCalled()
   expect(mockNavigate).not.toHaveBeenCalled()
+  expect(mockCaptureGrowthEvent).not.toHaveBeenCalled()
   emitScan?.(
     { getText: () => 'http://localhost:5173/b/123e4567-e89b-12d3-a456-426614174000' },
     undefined,

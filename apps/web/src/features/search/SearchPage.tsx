@@ -96,13 +96,13 @@ export function SearchPage() {
     && matchingBoxes.length === 0 && items.length === 0
 
   useEffect(() => {
-    if (!query || !boxesQuery.isSuccess || !resultsQuery.isSuccess || completedQueryRef.current === query) return
+    if (!query || !boxesQuery.isSuccess || boxesQuery.isFetching || !resultsQuery.isSuccess || resultsQuery.isFetching || completedQueryRef.current === query) return
     completedQueryRef.current = query
     captureGrowthEvent('first_search_completed', {
       has_results: matchingBoxes.length > 0 || items.length > 0,
       first: firstGrowthOccurrence('first_search_completed'),
     })
-  }, [boxesQuery.isSuccess, items.length, matchingBoxes.length, query, resultsQuery.isSuccess])
+  }, [boxesQuery.isFetching, boxesQuery.isSuccess, items.length, matchingBoxes.length, query, resultsQuery.isFetching, resultsQuery.isSuccess])
 
   return (
     <section className="mx-auto flex min-w-0 w-full max-w-5xl flex-col gap-5 lg:gap-8" aria-labelledby="search-title">

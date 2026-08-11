@@ -24,3 +24,10 @@
 ## Scope notes
 
 - No Task 7 or Task 8 documentation was added or modified.
+
+## Fix round 1
+
+- Search capture now requires both enabled queries to be successful and no longer fetching, which prevents emitting from cached data while a refetch is in flight or fails.
+- AI completion deduplication now uses only the session ID and revision, so a `partial_failed` to `ready` transition for the same revision cannot emit twice.
+- Scanner coverage now asserts no event immediately after an invalid QR, before exercising a valid QR; decoded QR content remains excluded from payload assertions.
+- Revalidated affected focused tests (39 passing), TypeScript typecheck, and lint.

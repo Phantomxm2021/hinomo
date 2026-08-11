@@ -234,7 +234,7 @@ export function PackingChecklistSection({ boxId, venueId, onVenueAccessDenied }:
   useEffect(() => {
     for (const session of sessionsQuery.data ?? []) {
       if (session.status !== 'ready' && session.status !== 'partial_failed') continue
-      const key = `${session.id}:${session.current_revision}:${session.status}`
+      const key = `${session.id}:${session.current_revision}`
       if (handledAnalysisRevisionsRef.current.has(key)) continue
       handledAnalysisRevisionsRef.current.add(key)
       captureGrowthEvent('ai_analysis_completed', {

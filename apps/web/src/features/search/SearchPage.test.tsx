@@ -93,6 +93,19 @@ test('does not capture a search event when either enabled query errors', async (
   expect(mockCaptureGrowthEvent).not.toHaveBeenCalled()
 })
 
+test('does not capture a search event from cached results when the refetch fails', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client.setQueryData(['boxes'], boxes)
+  client.setQueryData(['search-items', '充电器'], [])
+  mockListBoxes.mockRejectedValue(new Error('boxes refresh failed'))
+  mockSearchItems.mockRejectedValue(new Error('items refresh failed'))
+
+  renderSearch('/app/search?q=充电器', client)
+
+  await screen.findByRole('alertdialog')
+  expect(mockCaptureGrowthEvent).not.toHaveBeenCalled()
+})
+
 test('shows grouped result-row skeletons while an initial search is pending', async () => {
   mockListBoxes.mockReturnValue(new Promise(() => undefined))
   mockSearchItems.mockReturnValue(new Promise(() => undefined))

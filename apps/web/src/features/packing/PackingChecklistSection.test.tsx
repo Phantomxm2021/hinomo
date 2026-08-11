@@ -82,6 +82,21 @@ test('does not capture an AI analysis event while a session is still queued', as
   expect(mocks.captureGrowthEvent).not.toHaveBeenCalled()
 })
 
+test('does not emit again when the same terminal revision moves from partial failure to ready', async () => {
+  mocks.listSessions
+    .mockResolvedValueOnce([{ id: 'session-1', status: 'partial_failed', current_revision: 1 }])
+    .mockResolvedValueOnce([{ id: 'session-1', status: 'ready', current_revision: 1 }])
+  const { queryClient } = renderSection()
+
+  await waitFor(() => expect(mocks.captureGrowthEvent).toHaveBeenCalledWith('ai_analysis_completed', {
+    result: 'partial', first: true,
+  }))
+  await queryClient.invalidateQueries({ queryKey: ['packing-sessions', 'box-1'] })
+
+  await waitFor(() => expect(mocks.listSessions).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(mocks.captureGrowthEvent).toHaveBeenCalledTimes(1))
+})
+
 test('keeps secondary review actions behind a compact menu', async () => {
   const user = userEvent.setup()
   renderSection()
