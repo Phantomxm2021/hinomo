@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
@@ -128,7 +128,21 @@ test('forwards revoked access from a box create mutation to the page handler', a
   await waitFor(() => expect(onVenueAccessDenied).toHaveBeenCalledWith({ code: 'venue_access_denied' }))
 })
 
-test('continues with the created box when its cover upload is skipped', async () => {
+test('completes a box without a cover without showing a cover recovery prompt', async () => {
+  const user = userEvent.setup()
+  const onCompleted = vi.fn()
+  mockCreateBox.mockResolvedValue({ id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', name: '无封面箱' })
+  renderForm(vi.fn(), undefined, vi.fn(), onCompleted)
+
+  await user.selectOptions(await screen.findByLabelText('空间'), 'space-home')
+  await user.type(screen.getByLabelText('箱子名称'), '无封面箱')
+  await user.click(screen.getByRole('button', { name: '创建箱子' }))
+
+  await waitFor(() => expect(onCompleted).toHaveBeenCalledWith(expect.objectContaining({ id: 'box-1' })))
+  expect(screen.queryByText('箱子记录已创建，但封面未完成。')).not.toBeInTheDocument()
+})
+
+test('continues with the created box when its optional cover upload fails', async () => {
   const user = userEvent.setup()
   const onCompleted = vi.fn()
   mockCreateBox.mockResolvedValue({ id: 'box-1', public_id: 'public-1', box_code: 'BX-00001', name: '无封面箱' })
@@ -140,7 +154,6 @@ test('continues with the created box when its cover upload is skipped', async ()
   await user.upload(screen.getByLabelText('箱子封面（可选）'), new File(['cover'], 'cover.png', { type: 'image/png' }))
   await user.click(screen.getByRole('button', { name: '创建箱子' }))
 
-  const dialog = await screen.findByRole('alertdialog', { name: '图片上传失败，已保留填写内容。' })
-  await user.click(within(dialog).getByRole('button', { name: '暂不上传封面' }))
-  expect(onCompleted).toHaveBeenCalledOnce()
+  await waitFor(() => expect(onCompleted).toHaveBeenCalledWith(expect.objectContaining({ id: 'box-1' })))
+  expect(screen.queryByRole('alertdialog', { name: '图片上传失败，已保留填写内容。' })).not.toBeInTheDocument()
 })

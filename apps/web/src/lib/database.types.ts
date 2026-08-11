@@ -644,6 +644,7 @@ export type Database = {
           display_name: string | null
           id: string
           locale: string
+          onboarding_completed_at: string | null
           onboarding_welcome_seen_at: string | null
           updated_at: string
         }
@@ -653,6 +654,7 @@ export type Database = {
           display_name?: string | null
           id: string
           locale?: string
+          onboarding_completed_at?: string | null
           onboarding_welcome_seen_at?: string | null
           updated_at?: string
         }
@@ -662,6 +664,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           locale?: string
+          onboarding_completed_at?: string | null
           onboarding_welcome_seen_at?: string | null
           updated_at?: string
         }

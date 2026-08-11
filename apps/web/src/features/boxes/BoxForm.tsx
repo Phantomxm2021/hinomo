@@ -41,7 +41,6 @@ export function BoxForm({ boxId, initialSpaceId, presentation, onBusyChange, onC
   const [saved, setSaved] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [coverFile, setCoverFile] = useState<File | null>(null)
-  const [pendingBox, setPendingBox] = useState<CreatedBox | null>(null)
   const [mediaError, setMediaError] = useState(false)
   const mediaUpload = useMediaUpload()
   const mediaStatus = uploadStageLabel(mediaUpload.stage)
@@ -78,7 +77,7 @@ export function BoxForm({ boxId, initialSpaceId, presentation, onBusyChange, onC
     previousLocaleRef.current = locale
   }, [errors, locale, trigger])
   const busy = createMutation.isPending || updateMutation.isPending || isUploadPending(mediaUpload.stage)
-  const dismissalBlocked = busy || (!editing && Boolean(pendingBox))
+  const dismissalBlocked = busy
   const advancedVisible = editing || showAdvanced
 
   useEffect(() => {
@@ -92,7 +91,6 @@ export function BoxForm({ boxId, initialSpaceId, presentation, onBusyChange, onC
     setSaved(false)
     setShowAdvanced(false)
     setMediaError(false)
-    setPendingBox(null)
     resetMediaUpload()
     resetCreateMutation()
     resetUpdateMutation()
@@ -137,17 +135,9 @@ export function BoxForm({ boxId, initialSpaceId, presentation, onBusyChange, onC
         onSaved?.()
         return
       }
-      if (pendingBox) {
-        await uploadCover(pendingBox)
-        onCompleted?.(pendingBox)
-      }
     } catch {
       setMediaError(true)
     }
-  }
-
-  function finishWithoutCover() {
-    if (pendingBox) onCompleted?.(pendingBox)
   }
 
   useEffect(() => {
@@ -156,7 +146,6 @@ export function BoxForm({ boxId, initialSpaceId, presentation, onBusyChange, onC
   }, [feedback, onSaved, saved, t])
 
   const submit = handleSubmit(async (values) => {
-    if (!editing && pendingBox) return
     let recordSaved = false
     const input = {
       space_id: values.space_id,
@@ -181,9 +170,10 @@ export function BoxForm({ boxId, initialSpaceId, presentation, onBusyChange, onC
       }
       const box = await createMutation.mutateAsync(input)
       recordSaved = true
-      setPendingBox(box)
-      await uploadCover(box)
       onCompleted?.(box)
+      if (coverFile) {
+        void uploadCover(box).catch(() => feedback.notify(t('boxes.coverUploadFailed')))
+      }
     } catch (error) {
       onVenueAccessDenied?.(error)
       if (!editing && isBoxLimitReached(error)) {
@@ -301,38 +291,24 @@ export function BoxForm({ boxId, initialSpaceId, presentation, onBusyChange, onC
         ) : null}
         {saved ? <p className="hidden lg:block" role="status">{t('boxes.saved')}</p> : null}
         {mediaStatus ? <p className="hidden lg:block" role="status">{t('boxes.mediaProcessing', { status: t(mediaStatus) })}</p> : null}
-        {!editing && pendingBox ? (
-          <div className="hidden gap-3 rounded-control border border-danger/30 bg-danger/5 p-4 lg:grid" role="status">
-            <p>{t('boxes.coverIncomplete')}</p>
-            <div className="flex flex-wrap gap-2">
-              {coverFile ? (
-                <button className="min-h-11 w-fit rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold text-danger" type="button" disabled={busy} onClick={() => void retryCoverUpload()}>
-                  {mediaError ? t('boxes.retryUpload') : t('boxes.uploadCover')}
-                </button>
-              ) : null}
-              <button className="min-h-11 w-fit rounded-control border border-line bg-surface px-4 py-2 font-bold text-ink" type="button" disabled={busy} onClick={finishWithoutCover}>{t('boxes.skipCover')}</button>
-            </div>
-          </div>
-        ) : mediaError ? (
+        {mediaError ? (
           <div className="hidden gap-3 rounded-control border border-danger/30 bg-danger/5 p-4 lg:grid" role="status">
             <p>{t('boxes.coverUploadError')}</p>
             <button className="min-h-11 w-fit rounded-control border border-danger/30 bg-surface px-4 py-2 font-bold text-danger" type="button" onClick={() => void retryCoverUpload()}>{t('boxes.retryUpload')}</button>
           </div>
         ) : null}
-        {mediaError ? <ResponsiveOperationError message={t('boxes.coverUploadError')} onRetry={() => void retryCoverUpload()} onCancel={pendingBox ? finishWithoutCover : undefined} cancelLabel={pendingBox ? t('boxes.skipCover') : undefined} /> : null}
-        {!editing && pendingBox ? null : (
-          <button
-            className="mt-2 min-h-12 w-full rounded-control border border-brand bg-brand px-5 py-2 font-bold text-white hover:bg-brand-strong sm:min-h-11 sm:w-auto"
-            type="submit"
-            disabled={busy}
-          >
-            {createMutation.isPending || updateMutation.isPending
-              ? t('common.processing')
-              : editing
-                ? t('boxes.saveChanges')
-                : t('boxes.create')}
-          </button>
-        )}
+        {mediaError ? <ResponsiveOperationError message={t('boxes.coverUploadError')} onRetry={() => void retryCoverUpload()} /> : null}
+        <button
+          className="mt-2 min-h-12 w-full rounded-control border border-brand bg-brand px-5 py-2 font-bold text-white hover:bg-brand-strong sm:min-h-11 sm:w-auto"
+          type="submit"
+          disabled={busy}
+        >
+          {createMutation.isPending || updateMutation.isPending
+            ? t('common.processing')
+            : editing
+              ? t('boxes.saveChanges')
+              : t('boxes.create')}
+        </button>
       </form>
     </section>
   )

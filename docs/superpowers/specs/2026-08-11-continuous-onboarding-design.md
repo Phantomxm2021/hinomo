@@ -9,16 +9,16 @@
 ## 范围与边界
 
 - 基础激活仍由真实数据推导：至少一个空间、至少一个箱子、至少一件物品。
-- 不新增数据库字段、RPC、持久化流程状态或全局 Provider。
 - 已有 `profiles.onboarding_welcome_seen_at` 继续只记录首次曝光，不表示完成状态。
-- 未完成用户回到 Dashboard 时自动恢复当前步骤；完成第一件物品后停止引导。
+- 新增 `profiles.onboarding_completed_at` 作为唯一的完成标记；未完成用户回到 Dashboard 时自动恢复当前步骤。
+- 第一件物品插入时由数据库触发器标记箱子所有者完成引导；完成后即使删空空间、箱子和物品，也不再出现引导。
 - 正常创建入口、编辑入口、付费限制和场地权限不改变。
 
 ## 交互流程
 
 ### 1. 当前步骤引导
 
-Dashboard 使用现有业务查询推导当前步骤。只要账号尚未完成三步，进入 Dashboard 就展示现有引导弹窗：
+Dashboard 使用完成标记和现有业务查询推导当前步骤。只要账号尚未完成三步，进入 Dashboard 就展示现有引导弹窗：
 
 - 没有空间：显示“创建第一个空间”；
 - 有空间、没有箱子：显示“创建第一个箱子”；
@@ -59,7 +59,8 @@ URL 参数仅用于衔接正在执行的动作和预选目标；步骤本身始�
 
 - `ResponsiveEditorDialog` 增加可选的不可关闭模式；默认行为不变。
 - `OnboardingWelcomeDialog` 传入不可关闭模式和可选 CTA URL 覆盖，供 Dashboard 与箱子详情复用。
-- `DashboardPage` 不再以 `onboarding_welcome_seen_at` 阻止未完成流程的恢复；首次展示时仍调用现有记录 API。
+- `DashboardPage` 以 `onboarding_completed_at` 阻止已完成流程的重开，不以 `onboarding_welcome_seen_at` 阻止未完成流程恢复；首次展示时仍调用现有记录 API。
+- 数据库在 `items` 插入后写入 `onboarding_completed_at`，将完成状态与前端页面和 URL 参数解耦。
 - `SpacesPage` 在 `onboarding=space` 成功或取消时执行上述导航。
 - `CreateBoxModal` / `BoxForm` 接收可选初始空间 ID；`BoxesPage` 在 `onboarding=box` 成功时转入物品步骤。
 - `PublicBoxPage` 识别 `onboarding=item` 与 `createItem=1`，复用 `ItemEditorDialog`。
@@ -68,6 +69,7 @@ URL 参数仅用于衔接正在执行的动作和预选目标；步骤本身始�
 
 - 非关闭式引导没有关闭按钮，Esc 和遮罩不能退出；CTA 仍可进入动作。
 - 未完成账号即使首次曝光已记录，进入 Dashboard 仍恢复正确步骤。
+- 已完成账号即使后来删除全部空间、箱子和物品，也不会再次出现引导。
 - 空间创建成功后显示箱子引导，且箱子表单预选新空间；取消空间创建返回空间引导。
 - 箱子创建成功后显示物品引导；物品 CTA 打开现有编辑器；取消后回到物品引导。
 - 第一件物品保存后移除引导参数，不再显示引导。

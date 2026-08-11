@@ -9,6 +9,7 @@ import { Skeleton, SkeletonGroup } from '../../components/Skeleton'
 import { useI18n } from '../../i18n/I18nProvider'
 import { useMobileFeedback } from '../../components/mobile-feedback'
 import { useAuth } from '../auth/auth-context'
+import { getProfile } from '../profile/profile.api'
 import { useSelectedVenue } from '../venues/selected-venue'
 import { listVenues } from '../venues/venues.api'
 import { getVenueAccessSummary, isVenueAccessDenied, revokedVenueQueryKeys } from '../venues/venue-sharing.api'
@@ -58,6 +59,7 @@ export function BoxesPage() {
   const [editCompletionPending, setEditCompletionPending] = useState(false)
   const [createSucceeded, setCreateSucceeded] = useState(false)
   const [createdBox, setCreatedBox] = useState<CreatedBox | null>(null)
+  const [onboardingCreatedBox, setOnboardingCreatedBox] = useState<CreatedBox | null>(null)
   const [paywallOpen, setPaywallOpen] = useState(false)
   const [memberLimitReached, setMemberLimitReached] = useState(false)
   const [purchaseConfirmation, setPurchaseConfirmation] = useState<PurchaseConfirmationState>('idle')
@@ -66,6 +68,11 @@ export function BoxesPage() {
   const purchaseConfirmationRunRef = useRef(0)
   const handledPurchaseResultRef = useRef<string | null>(null)
   const venuesQuery = useQuery({ queryKey: ['venues'], queryFn: listVenues })
+  const profileQuery = useQuery({
+    queryKey: ['profile', session?.user.id],
+    queryFn: () => getProfile(session!.user.id),
+    enabled: Boolean(session?.user.id),
+  })
   const venues = venuesQuery.data ?? []
   const [selectedVenueId] = useSelectedVenue(venues, session?.user.id)
   const boxesQuery = useQuery({
@@ -124,6 +131,7 @@ export function BoxesPage() {
   const selectedSpace = searchParams.get('space') ?? ''
   const creating = searchParams.get('create') === '1'
   const onboardingBox = searchParams.get('onboarding') === 'box'
+  const onboardingIncomplete = profileQuery.data?.onboarding_completed_at === null
   const purchaseResult = searchParams.get('purchase')
   const purchaseSessionId = searchParams.get('session_id')
   const editingBoxId = searchParams.get('edit')
@@ -333,6 +341,13 @@ export function BoxesPage() {
   }, [closeCreate, createBusy, createCompletionPending, creating])
 
   useEffect(() => {
+    if (!onboardingCreatedBox || createBusy) return
+    void queryClient.invalidateQueries({ queryKey: ['boxes'] })
+    void queryClient.invalidateQueries({ queryKey: ['box-plan'] })
+    navigate(`/b/${encodeURIComponent(onboardingCreatedBox.public_id)}?onboarding=item`, { replace: true })
+  }, [createBusy, navigate, onboardingCreatedBox, queryClient])
+
+  useEffect(() => {
     if (editCompletionPending && editingBoxId && !editBusy) {
       setEditCompletionPending(false)
       closeEdit()
@@ -535,12 +550,12 @@ export function BoxesPage() {
         initialSpaceId={onboardingBox ? searchParams.get('space') ?? undefined : undefined}
         onClose={closeCreate}
         onCompleted={(box) => {
-          if (onboardingBox) {
+          if (onboardingBox || onboardingIncomplete) {
             setCreateBusy(false)
             setCreateCompletionPending(false)
             setCreateSucceeded(false)
             setCreatedBox(null)
-            navigate(`/b/${encodeURIComponent(box.public_id)}?onboarding=item`, { replace: true })
+            setOnboardingCreatedBox(box)
             return
           }
           setCreatedBox(box)

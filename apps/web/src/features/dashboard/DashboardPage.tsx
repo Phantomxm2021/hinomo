@@ -60,7 +60,11 @@ export function DashboardPage() {
   const dashboardDataReady = venuesQuery.isSuccess && spacesQuery.isSuccess && boxesQuery.isSuccess
   const profileReady = profileQuery.isSuccess
   const currentDashboardRoute = location.pathname === '/app'
-  const onboardingAvailable = currentDashboardRoute && dashboardDataReady && profileReady && allItemTotal === 0
+  const onboardingAvailable = currentDashboardRoute
+    && dashboardDataReady
+    && profileReady
+    && !profileQuery.data?.onboarding_completed_at
+    && allItemTotal === 0
   const onboardingProgress = getOnboardingProgress({
     hasSpace: allSpaces.length > 0,
     hasBox: allBoxes.length > 0,

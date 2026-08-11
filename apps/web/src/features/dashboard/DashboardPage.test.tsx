@@ -47,7 +47,7 @@ beforeEach(() => {
   mockMarkOnboardingWelcomeSeen.mockReset()
   mockUseAuth.mockReset()
   mockUseAuth.mockReturnValue({ session: { user: { id: 'user-1' } } })
-  mockGetProfile.mockResolvedValue({ id: 'user-1', onboarding_welcome_seen_at: null })
+  mockGetProfile.mockResolvedValue({ id: 'user-1', onboarding_welcome_seen_at: null, onboarding_completed_at: null })
   mockMarkOnboardingWelcomeSeen.mockResolvedValue(undefined)
   mockListVenues.mockResolvedValue([
     { id: 'venue-home', name: '默认', description: null, is_default: true, space_count: 2 },
@@ -226,7 +226,7 @@ test('guides a new user to create the first space on desktop and mobile', async 
   expect(screen.queryByRole('region', { name: '最近打开' })).not.toBeInTheDocument()
 })
 
-test('automatically opens the welcome dialog once and keeps a guide entry available', async () => {
+test('automatically opens the welcome dialog and keeps a guide entry while onboarding is incomplete', async () => {
   mockListSpaces.mockResolvedValue([])
   mockListBoxes.mockResolvedValue([])
   renderDashboard()
@@ -279,8 +279,24 @@ test('resumes the item onboarding step after the welcome exposure was already re
   expect(mockMarkOnboardingWelcomeSeen).not.toHaveBeenCalled()
 })
 
+test('never reopens onboarding for a user who completed it, even with no remaining content', async () => {
+  mockGetProfile.mockResolvedValue({
+    id: 'user-1',
+    onboarding_welcome_seen_at: '2026-08-10T00:00:00.000Z',
+    onboarding_completed_at: '2026-08-10T00:05:00.000Z',
+  })
+  mockListSpaces.mockResolvedValue([])
+  mockListBoxes.mockResolvedValue([])
+  renderDashboard()
+
+  expect(await screen.findByText('空间总览')).toBeInTheDocument()
+  await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
+  expect(screen.queryByRole('dialog', { name: '开始使用 Nomo' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '新手指南' })).not.toBeInTheDocument()
+})
+
 test('preserves the selected space when the box onboarding CTA navigates to box creation', async () => {
-  mockGetProfile.mockResolvedValue({ id: 'user-1', onboarding_welcome_seen_at: '2026-08-10T00:00:00.000Z' })
+  mockGetProfile.mockResolvedValue({ id: 'user-1', onboarding_welcome_seen_at: null, onboarding_completed_at: null })
   mockListSpaces.mockResolvedValue([
     { id: 'space-new', venue_id: 'venue-home', venue_name: '默认', name: '储藏室', description: null, box_count: 0, item_count: 0 },
   ])
@@ -295,7 +311,7 @@ test('preserves the selected space when the box onboarding CTA navigates to box 
 })
 
 test('canonicalizes encoded selected space when the box onboarding CTA navigates to box creation', async () => {
-  mockGetProfile.mockResolvedValue({ id: 'user-1', onboarding_welcome_seen_at: '2026-08-10T00:00:00.000Z' })
+  mockGetProfile.mockResolvedValue({ id: 'user-1', onboarding_welcome_seen_at: null, onboarding_completed_at: null })
   mockListSpaces.mockResolvedValue([
     { id: 'space home/1', venue_id: 'venue-home', venue_name: '默认', name: '储藏室', description: null, box_count: 0, item_count: 0 },
   ])
@@ -314,7 +330,7 @@ test('canonicalizes encoded selected space when the box onboarding CTA navigates
 })
 
 test('keeps the item onboarding CTA on the first box without onboarding parameters', async () => {
-  mockGetProfile.mockResolvedValue({ id: 'user-1', onboarding_welcome_seen_at: '2026-08-10T00:00:00.000Z' })
+  mockGetProfile.mockResolvedValue({ id: 'user-1', onboarding_welcome_seen_at: null, onboarding_completed_at: null })
   mockListSpaces.mockResolvedValue([
     { id: 'space-home', venue_id: 'venue-home', venue_name: '默认', name: '储藏室', description: null, box_count: 1, item_count: 0 },
   ])

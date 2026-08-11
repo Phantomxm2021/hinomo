@@ -12,6 +12,7 @@ const {
   mockDeleteBox,
   mockGetVenueAccessSummary,
   mockGetBoxPlanSummary,
+  mockGetProfile,
   mockListBoxes,
   mockListVenues,
   mockModalCleanupSawStatus,
@@ -21,6 +22,7 @@ const {
   mockDeleteBox: vi.fn(),
   mockGetVenueAccessSummary: vi.fn(),
   mockGetBoxPlanSummary: vi.fn(),
+  mockGetProfile: vi.fn(),
   mockListBoxes: vi.fn(),
   mockListVenues: vi.fn(),
   mockModalCleanupSawStatus: vi.fn(),
@@ -44,6 +46,8 @@ vi.mock('../venues/venues.api', () => ({ listVenues: mockListVenues }))
 vi.mock('../auth/auth-context', () => ({
   useAuth: () => ({ session: { user: { id: 'user-1' } } }),
 }))
+
+vi.mock('../profile/profile.api', () => ({ getProfile: mockGetProfile }))
 
 vi.mock('./box-entitlements.api', () => ({
   getVenueBoxPlanSummary: mockGetBoxPlanSummary,
@@ -222,6 +226,7 @@ beforeEach(() => {
   mockDeleteBox.mockReset()
   mockGetVenueAccessSummary.mockReset()
   mockGetBoxPlanSummary.mockReset()
+  mockGetProfile.mockReset().mockResolvedValue({ id: 'user-1', onboarding_completed_at: '2026-08-11T00:00:00.000Z' })
   mockListBoxes.mockReset()
   mockListVenues.mockReset()
   mockNotify.mockReset()
@@ -656,6 +661,30 @@ test('continues onboarding to the new box item flow without rendering the normal
   await waitFor(() => expect(router.state.location.pathname).toBe('/b/box-new'))
   expect(router.state.location.search).toBe('?onboarding=item')
   expect(screen.queryByRole('link', { name: '记录箱内物品' })).not.toBeInTheDocument()
+})
+
+test('continues onboarding after the form had previously reported it was busy', async () => {
+  const user = userEvent.setup()
+  mockListBoxes.mockResolvedValue(boxes)
+  const { router } = renderBoxes('/app/boxes?create=1&onboarding=box&space=space-new')
+
+  await user.click(await screen.findByRole('button', { name: '开始忙碌' }))
+  await user.click(screen.getByRole('button', { name: '完成引导创建' }))
+
+  await waitFor(() => expect(router.state.location.pathname).toBe('/b/box-new'))
+  expect(router.state.location.search).toBe('?onboarding=item')
+})
+
+test('continues an incomplete user from the ordinary box creation URL', async () => {
+  const user = userEvent.setup()
+  mockGetProfile.mockResolvedValue({ id: 'user-1', onboarding_completed_at: null })
+  mockListBoxes.mockResolvedValue(boxes)
+  const { router } = renderBoxes('/app/boxes?create=1')
+
+  await user.click(await screen.findByRole('button', { name: '完成引导创建' }))
+
+  await waitFor(() => expect(router.state.location.pathname).toBe('/b/box-new'))
+  expect(router.state.location.search).toBe('?onboarding=item')
 })
 
 test('returns onboarding box cancellation to the dashboard space step while preserving unrelated parameters', async () => {
