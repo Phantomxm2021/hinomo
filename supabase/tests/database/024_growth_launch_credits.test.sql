@@ -1,5 +1,5 @@
 begin;
-select plan(12);
+select plan(16);
 
 create extension if not exists "basejump-supabase_test_helpers" with schema tests;
 select tests.create_supabase_user('growth-credit-user');
@@ -46,9 +46,31 @@ select public.grant_credits(
   'backfill:' || tests.get_supabase_uid('growth-backfill-user') || ':growth-launch-v1',
   'Nomo launch credits backfill'
 );
-select is((select count(*)::integer from public.credit_grants where source_reference = 'backfill:' || tests.get_supabase_uid('growth-backfill-user') || ':growth-launch-v1'), 1,
+select is((select kind::text from public.credit_grants
+  where user_id = tests.get_supabase_uid('growth-backfill-user')
+    and source_reference = 'backfill:' || tests.get_supabase_uid('growth-backfill-user') || ':growth-launch-v1'),
+  'promotional', 'historical backfill grant is promotional');
+select is((select original_credits from public.credit_grants
+  where user_id = tests.get_supabase_uid('growth-backfill-user')
+    and source_reference = 'backfill:' || tests.get_supabase_uid('growth-backfill-user') || ':growth-launch-v1'),
+  10, 'historical backfill grants ten original credits');
+select is((select remaining_credits from public.credit_grants
+  where user_id = tests.get_supabase_uid('growth-backfill-user')
+    and source_reference = 'backfill:' || tests.get_supabase_uid('growth-backfill-user') || ':growth-launch-v1'),
+  10, 'historical backfill starts with ten remaining credits');
+select ok((select expires_at between effective_at + interval '30 days' - interval '5 seconds'
+  and effective_at + interval '30 days' + interval '5 seconds'
+  from public.credit_grants
+  where user_id = tests.get_supabase_uid('growth-backfill-user')
+    and source_reference = 'backfill:' || tests.get_supabase_uid('growth-backfill-user') || ':growth-launch-v1'),
+  'historical backfill expires in thirty days');
+select is((select count(*)::integer from public.credit_grants
+  where user_id = tests.get_supabase_uid('growth-backfill-user')
+    and source_reference = 'backfill:' || tests.get_supabase_uid('growth-backfill-user') || ':growth-launch-v1'), 1,
   'repeating a historical backfill source keeps one grant');
-select is((select count(*)::integer from public.credit_transactions where idempotency_key = 'grant:promotional:backfill:' || tests.get_supabase_uid('growth-backfill-user') || ':growth-launch-v1'), 1,
+select is((select count(*)::integer from public.credit_transactions
+  where user_id = tests.get_supabase_uid('growth-backfill-user')
+    and idempotency_key = 'grant:promotional:backfill:' || tests.get_supabase_uid('growth-backfill-user') || ':growth-launch-v1'), 1,
   'repeating a historical backfill source keeps one ledger row');
 
 select private.grant_growth_launch_credits(tests.get_supabase_uid('growth-credit-user'), pg_catalog.now());
