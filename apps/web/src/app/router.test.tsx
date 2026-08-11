@@ -16,6 +16,13 @@ test('matches the public venue join page outside the protected app routes', () =
   expect(matches?.some((match) => match.route.path === '/app')).toBe(false)
 })
 
+test('matches the public three-box reset campaign outside the protected app routes', () => {
+  const matches = matchRoutes(router.routes, '/3-box-reset')
+
+  expect(matches?.at(-1)?.route.path).toBe('/3-box-reset')
+  expect(matches?.some((match) => match.route.path === '/app')).toBe(false)
+})
+
 test('matches the protected venue family members page before the app fallback route', () => {
   const matches = matchRoutes(router.routes, '/app/venues/home/members')
 

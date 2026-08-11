@@ -82,6 +82,7 @@ export default defineConfig({
       VITE_SUPABASE_URL: 'http://127.0.0.1:54321',
       VITE_SUPABASE_ANON_KEY: 'test-anon-key',
       VITE_PUBLIC_APP_ORIGIN: 'http://localhost:5173',
+      VITE_PUBLIC_SUPPORT_EMAIL: 'support@hinomo.space',
     },
   },
 })

@@ -25,9 +25,11 @@ import { AppShell } from './AppShell'
 import { RequireAuth } from './RequireAuth'
 import { RootEntry } from './RootEntry'
 import { AuthLayout } from './AuthLayout'
+import { ThreeBoxResetPage } from '../features/marketing/ThreeBoxResetPage'
 
 export const router = createBrowserRouter([
   { path: '/', element: <RootEntry /> },
+  { path: '/3-box-reset', element: <ThreeBoxResetPage /> },
   {
     element: <AuthLayout />,
     children: [

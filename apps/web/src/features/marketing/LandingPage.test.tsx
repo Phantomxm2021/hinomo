@@ -27,5 +27,6 @@ it('renders the global English locale without the Chinese hero title', () => {
 
   expect(screen.getByRole('heading', { name: 'Put away. Never lost.' })).toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: '收起来。也找得回来。' })).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Support' })).toHaveAttribute('href', 'mailto:support@hinomo.space')
   expect(document.documentElement.lang).toBe('en-US')
 })

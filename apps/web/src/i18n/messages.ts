@@ -158,6 +158,34 @@ const zhMessages = {
       rights: '保留所有权利。',
     },
   },
+  threeBoxReset: {
+    documentTitle: 'Nomo｜三箱整理法',
+    nav: { login: '登录', open: '打开 Nomo' },
+    hero: {
+      eyebrow: '给搬家、车库、地下室和阁楼的整理方法',
+      title: '装一次，以后随时找到。',
+      body: '先处理眼前的三只箱子。拍下箱内物品、贴好标签，以后搜索或扫码就能找到。',
+      cta: '免费整理 3 只箱子',
+      noCard: '无需银行卡',
+    },
+    demo: { title: '看看三箱如何重获秩序', fallback: '演示视频准备中，先从这张整理预览开始。' },
+    workflow: {
+      title: '只需三步',
+      photoTitle: '拍下箱内物品', photoBody: '用手机拍照，把清单留在 Nomo。',
+      labelTitle: '给箱子贴标签', labelBody: '添加名称或二维码，让每只箱子都有身份。',
+      findTitle: '以后搜索或扫码', findBody: '需要的时候，不用重新翻箱倒柜。',
+    },
+    install: {
+      title: '把 Nomo 添加到主屏幕',
+      body: '它直接在浏览器中运行，像一个随手可开的整理工具。',
+      iphone: 'iPhone Safari：点分享按钮，选择“添加到主屏幕”。',
+      android: 'Android Chrome：打开菜单，选择“安装应用”或“添加到主屏幕”。',
+    },
+    free: { title: '三箱免费整理', body: '包含 10 个即将过期的 AI 点数，用来把拍下的物品变成可搜索清单。' },
+    founder: { title: '创始终身版', price: 'US$9 一次付费', body: '不限箱子，额外送 20 个 AI 点数。不订阅，不自动续费。' },
+    finalCta: '开始免费整理',
+    footer: { privacy: '隐私政策', terms: '服务条款', support: '支持' },
+  },
   auth: {
     layout: {
       productLabel: 'Nomo 产品介绍',
@@ -1303,6 +1331,34 @@ const enMessages = {
       account: 'Get started',
       rights: 'All rights reserved.',
     },
+  },
+  threeBoxReset: {
+    documentTitle: 'Nomo | The 3-Box Reset',
+    nav: { login: 'Sign in', open: 'Open Nomo' },
+    hero: {
+      eyebrow: 'A reset for moving, garages, basements, and attics',
+      title: 'Pack once. Find anything later.',
+      body: 'Start with the three boxes in front of you. Photograph what is inside, label each box, then search or scan it later.',
+      cta: 'Organize 3 boxes free',
+      noCard: 'No card required',
+    },
+    demo: { title: 'See the three-box reset in action', fallback: 'The demo video is on its way. Start with this organizing preview instead.' },
+    workflow: {
+      title: 'Three simple steps',
+      photoTitle: 'Photograph the contents', photoBody: 'Use your phone to save what is in each box to Nomo.',
+      labelTitle: 'Label the box', labelBody: 'Add a name or QR label so every box has an identity.',
+      findTitle: 'Search or scan later', findBody: 'When you need something, there is no need to unpack everything again.',
+    },
+    install: {
+      title: 'Add Nomo to your Home Screen',
+      body: 'It runs in your browser and stays one tap away like an app.',
+      iphone: 'iPhone Safari: tap Share, then choose Add to Home Screen.',
+      android: 'Android Chrome: open the menu, then choose Install app or Add to Home screen.',
+    },
+    free: { title: 'The 3-Box Reset', body: 'Organize three boxes free, plus 10 AI Credits that expire so you can turn photos into a searchable list.' },
+    founder: { title: 'Founding Lifetime', price: 'US$9 one-time', body: 'Unlimited boxes, 20 bonus Credits, and no subscription.' },
+    finalCta: 'Start your free reset',
+    footer: { privacy: 'Privacy policy', terms: 'Terms of service', support: 'Support' },
   },
   auth: {
     layout: {
