@@ -78,6 +78,18 @@ test('closes before starting the actionHref override', async () => {
   expect(events).toEqual(['close', 'start'])
 })
 
+test('starts the progress action when actionHref is not supplied', async () => {
+  const user = userEvent.setup()
+  const onStart = vi.fn()
+  const progress = getOnboardingProgress({ hasSpace: false, hasBox: false, hasItem: false })
+
+  render(<OnboardingWelcomeDialog open busy={false} progress={progress} onClose={vi.fn()} onStart={onStart} />)
+
+  await user.click(screen.getByRole('button', { name: '创建第一个空间' }))
+
+  expect(onStart).toHaveBeenCalledWith(progress.actionHref)
+})
+
 test('does not expose dismissal UI', async () => {
   const user = userEvent.setup()
   const onClose = vi.fn()
