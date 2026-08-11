@@ -28,6 +28,7 @@ test('growth activation creates a space, box, and item then reaches search and p
   await useEnglish(page)
   await installMockBackend(page, createMockState())
   await page.goto('/register?campaign=three_box_reset')
+  await page.getByRole('button', { name: 'No thanks' }).click()
   await page.getByLabel('Nickname').fill('growth activation')
   await page.getByRole('textbox', { name: 'Email', exact: true }).fill('growth-activation@example.com')
   await page.getByLabel('Password').fill('correct-horse-battery-staple')
@@ -58,7 +59,7 @@ test('growth activation creates a space, box, and item then reaches search and p
   await expect(page.getByText('HDMI cable', { exact: true })).toBeVisible()
 
   await page.goto('/app/search')
-  await page.getByRole('search').getByRole('textbox').fill('HDMI cable')
+  await page.getByRole('search').getByRole('searchbox').fill('HDMI cable')
   await expect(page.getByText(/HDMI cable × 1/)).toBeVisible()
 
   await page.goto('/app/print')
