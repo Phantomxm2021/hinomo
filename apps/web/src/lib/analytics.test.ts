@@ -68,14 +68,16 @@ describe('analytics boundary', () => {
 
     setAnalyticsConsent('accepted')
 
-    expect(mockInit).toHaveBeenCalledWith('phc_test', expect.objectContaining({
-      autocapture: false,
-      capture_pageview: false,
-      capture_pageleave: false,
-      disable_session_recording: true,
-      opt_out_capturing_by_default: true,
-    }))
-    expect(mockOptInCapturing).toHaveBeenCalledOnce()
+    await vi.waitFor(() => {
+      expect(mockInit).toHaveBeenCalledWith('phc_test', expect.objectContaining({
+        autocapture: false,
+        capture_pageview: false,
+        capture_pageleave: false,
+        disable_session_recording: true,
+        opt_out_capturing_by_default: true,
+      }))
+      expect(mockOptInCapturing).toHaveBeenCalledOnce()
+    })
   })
 
   it('identifies and resets only the supplied user id after consent', async () => {
@@ -83,7 +85,7 @@ describe('analytics boundary', () => {
     setAnalyticsConsent('accepted')
 
     identifyAnalyticsUser('00000000-0000-4000-8000-000000000001')
-    expect(mockIdentify).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000001')
+    await vi.waitFor(() => expect(mockIdentify).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000001'))
 
     resetAnalyticsUser()
     expect(mockReset).toHaveBeenCalledOnce()
@@ -104,6 +106,7 @@ describe('analytics boundary', () => {
   it('opts out if a user later withdraws consent', async () => {
     const { setAnalyticsConsent } = await loadAnalytics()
     setAnalyticsConsent('accepted')
+    await vi.waitFor(() => expect(mockInit).toHaveBeenCalledOnce())
 
     setAnalyticsConsent('declined')
 

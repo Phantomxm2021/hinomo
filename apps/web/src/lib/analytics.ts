@@ -1,4 +1,3 @@
-import posthog from 'posthog-js/dist/module.no-external'
 import { env } from './env'
 
 export type AnalyticsConsent = 'unset' | 'accepted' | 'declined'
@@ -24,6 +23,10 @@ export type FirstGrowthEventName = Exclude<keyof GrowthEventMap, 'checkout_start
 const consentKey = 'nomo-analytics-consent'
 const firstOccurrencePrefix = 'nomo-growth-first:'
 const listeners = new Set<() => void>()
+type PostHogClient = typeof import('posthog-js/dist/module.no-external').default
+
+let posthog: PostHogClient | null = null
+let initialization: Promise<PostHogClient | null> | null = null
 let initialized = false
 
 function browserStorage() {
@@ -35,24 +38,37 @@ function hasAnalyticsConfiguration() {
   return Boolean(env.VITE_POSTHOG_KEY && env.VITE_POSTHOG_HOST)
 }
 
-function initializeAnalytics() {
-  if (getAnalyticsConsent() !== 'accepted' || !hasAnalyticsConfiguration()) return
-
-  if (!initialized) {
-    posthog.init(env.VITE_POSTHOG_KEY!, {
-      api_host: env.VITE_POSTHOG_HOST,
-      autocapture: false,
-      capture_pageview: false,
-      capture_pageleave: false,
-      defaults: '2026-05-30',
-      disable_session_recording: true,
-      opt_out_capturing_by_default: true,
-      persistence: 'localStorage+cookie',
-      person_profiles: 'identified_only',
-    })
-    initialized = true
+function initializeAnalytics(): Promise<PostHogClient | null> {
+  if (getAnalyticsConsent() !== 'accepted' || !hasAnalyticsConfiguration()) return Promise.resolve(null)
+  if (initialized && posthog) {
+    posthog.opt_in_capturing()
+    return Promise.resolve(posthog)
   }
-  posthog.opt_in_capturing()
+  if (!initialization) {
+    const loading = import('posthog-js/dist/module.no-external').then(({ default: client }) => {
+      if (getAnalyticsConsent() !== 'accepted') return null
+      client.init(env.VITE_POSTHOG_KEY!, {
+        api_host: env.VITE_POSTHOG_HOST,
+        autocapture: false,
+        capture_pageview: false,
+        capture_pageleave: false,
+        defaults: '2026-05-30',
+        disable_session_recording: true,
+        opt_out_capturing_by_default: true,
+        persistence: 'localStorage+cookie',
+        person_profiles: 'identified_only',
+      })
+      posthog = client
+      initialized = true
+      client.opt_in_capturing()
+      return client
+    }).catch(() => null)
+    initialization = loading.then((client) => {
+      if (!client) initialization = null
+      return client
+    })
+  }
+  return initialization
 }
 
 export function getAnalyticsConsent(): AnalyticsConsent {
@@ -67,16 +83,16 @@ export function subscribeAnalyticsConsent(listener: () => void) {
 
 export function setAnalyticsConsent(consent: Exclude<AnalyticsConsent, 'unset'>) {
   browserStorage()?.setItem(consentKey, consent)
-  if (consent === 'accepted') initializeAnalytics()
-  if (consent === 'declined' && initialized) posthog.opt_out_capturing()
+  if (consent === 'accepted') void initializeAnalytics()
+  if (consent === 'declined' && initialized) posthog?.opt_out_capturing()
   listeners.forEach((listener) => listener())
 }
 
 export function captureGrowthEvent<K extends keyof GrowthEventMap>(name: K, properties: GrowthEventMap[K]): void {
   if (getAnalyticsConsent() !== 'accepted') return
-  initializeAnalytics()
-  if (!initialized) return
-  posthog.capture(name, properties)
+  void initializeAnalytics().then((client) => {
+    if (client && getAnalyticsConsent() === 'accepted') client.capture(name, properties)
+  })
 }
 
 export function firstGrowthOccurrence(name: FirstGrowthEventName): boolean {
@@ -92,12 +108,13 @@ export function firstGrowthOccurrence(name: FirstGrowthEventName): boolean {
 
 export function identifyAnalyticsUser(userId: string): void {
   if (getAnalyticsConsent() !== 'accepted') return
-  initializeAnalytics()
-  if (initialized) posthog.identify(userId)
+  void initializeAnalytics().then((client) => {
+    if (client && getAnalyticsConsent() === 'accepted') client.identify(userId)
+  })
 }
 
 export function resetAnalyticsUser(): void {
-  if (initialized) posthog.reset()
+  if (initialized) posthog?.reset()
 }
 
-initializeAnalytics()
+void initializeAnalytics()

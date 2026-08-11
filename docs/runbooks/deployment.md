@@ -2,6 +2,8 @@
 
 > 只看这份主流程即可完成当前版本上线。历史迁移说明、专项配置和完整回滚 SQL 已移到[详细参考附录](./deployment-details-archive.md)。
 >
+> Three-Box Reset campaign promotion additionally requires the complete [Three-Box Reset launch runbook](./three-box-reset-launch.md). Its real-device, consent, Stripe, analytics, campaign-media, and launch-record gates are release requirements, not optional marketing checks.
+>
 > 当前版本包含：家庭共享场地、共享箱子/物品、活动记录、AI 装箱、AI Credits，以及免费用户最多 3 个箱子的付费解锁。
 
 ## 先判断：你属于哪一种部署
@@ -198,5 +200,9 @@ Cloudflare Pages：
 - 测试结果、执行时间、执行人和未完成的环境阻塞。
 
 完整 SQL、历史迁移、详细监控查询、退款人工处置、R2/AI 首次配置和 forward-only 回滚说明见[详细参考附录](./deployment-details-archive.md)。
+
+## 9. Three-Box Reset campaign gate
+
+当本次发布包含 `/3-box-reset`、渠道内容或创始人优惠时，在生产切换前完成并归档[Three-Box Reset launch runbook](./three-box-reset-launch.md)。该 runbook 定义了 Test Mode Stripe 观察、PostHog 同意边界与事件 allowlist、iPhone Safari/Android Chrome 实机、PWA/二维码/PDF/AI 以及生产 canary 的检查清单。没有通过 `npm run test:db` 的环境、缺失经批准真实 demo MP4 的环境、或缺少实机记录的环境不得提升。
 
 最后更新：2026-08-09（当前版本：家庭共享 + 箱子权益 + AI 装箱/Credits）。
