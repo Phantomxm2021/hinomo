@@ -119,7 +119,7 @@ test('keeps General as a mobile page with its language selector', () => {
 
   expect(screen.getByRole('navigation', { name: '设置导航' })).toBeInTheDocument()
   expect(screen.getByLabelText('语言')).toBeInTheDocument()
-  expect(screen.getByLabelText('Analytics')).toHaveValue('declined')
+  expect(screen.getByLabelText('分析')).toHaveValue('declined')
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
 
@@ -127,7 +127,7 @@ test('lets a user change their analytics decision', async () => {
   const user = userEvent.setup()
   renderPage()
 
-  await user.selectOptions(screen.getByLabelText('Analytics'), 'accepted')
+  await user.selectOptions(screen.getByLabelText('分析'), 'accepted')
 
   expect(localStorage.getItem('nomo-analytics-consent')).toBe('accepted')
 })

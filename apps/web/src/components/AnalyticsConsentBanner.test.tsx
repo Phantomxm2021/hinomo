@@ -27,16 +27,16 @@ test('asks for optional, content-free analytics consent and saves the decision',
   const user = userEvent.setup()
   render(<AnalyticsConsentBanner />)
 
-  expect(screen.getByText(/analytics are optional and never include your stored content/i)).toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: 'Allow analytics' }))
+  expect(screen.getByText('分析功能为可选项，绝不会包含你保存的内容。')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '允许分析' }))
 
   expect(localStorage.getItem('nomo-analytics-consent')).toBe('accepted')
-  expect(screen.queryByRole('button', { name: 'Allow analytics' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '允许分析' })).not.toBeInTheDocument()
 })
 
 test('does not render once a choice has already been made', () => {
   localStorage.setItem('nomo-analytics-consent', 'declined')
   render(<AnalyticsConsentBanner />)
 
-  expect(screen.queryByRole('button', { name: 'No thanks' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '暂不允许' })).not.toBeInTheDocument()
 })

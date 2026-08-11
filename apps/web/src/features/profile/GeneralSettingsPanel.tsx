@@ -31,18 +31,18 @@ export function GeneralSettingsPanel({ locale, onLocaleChange, presentation }: G
           <LanguageSwitcher locale={locale} onChange={onLocaleChange} />
         </div>
       </section>
-      <h2 className={headingClassName}>Analytics</h2>
-      <section className={cardClassName} role="group" aria-label="Analytics settings">
+      <h2 className={headingClassName}>{t('analytics.title')}</h2>
+      <section className={cardClassName} role="group" aria-label={t('analytics.settingsLabel')}>
         <div className={rowClassName}>
-          <span>Content-free analytics</span>
+          <span>{t('analytics.contentFree')}</span>
           <select
-            aria-label="Analytics"
+            aria-label={t('analytics.title')}
             className="rounded-full border border-line bg-surface px-3 py-2 text-meta font-bold text-ink outline-none transition focus-visible:ring-2 focus-visible:ring-brand/40"
             value={analyticsConsent === 'accepted' ? 'accepted' : 'declined'}
             onChange={(event) => setAnalyticsConsent(event.target.value as 'accepted' | 'declined')}
           >
-            <option value="accepted">Allowed</option>
-            <option value="declined">Not allowed</option>
+            <option value="accepted">{t('analytics.allowed')}</option>
+            <option value="declined">{t('analytics.notAllowed')}</option>
           </select>
         </div>
       </section>

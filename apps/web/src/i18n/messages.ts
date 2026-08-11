@@ -1129,6 +1129,17 @@ const zhMessages = {
     generalLoading: '正在加载通用设置',
     generalLoadFailed: '设置加载失败，请重试',
   },
+  analytics: {
+    title: '分析',
+    consentLabel: '分析功能授权',
+    settingsLabel: '分析设置',
+    contentFree: '不含内容的分析',
+    description: '分析功能为可选项，绝不会包含你保存的内容。',
+    allow: '允许分析',
+    decline: '暂不允许',
+    allowed: '已允许',
+    notAllowed: '不允许',
+  },
 } as const
 
 type LocalizedShape<T> = {
@@ -2263,6 +2274,17 @@ const enMessages = {
     backToSettings: 'Back to Settings',
     generalLoading: 'Loading general settings',
     generalLoadFailed: 'Could not load settings. Please try again.',
+  },
+  analytics: {
+    title: 'Analytics',
+    consentLabel: 'Analytics consent',
+    settingsLabel: 'Analytics settings',
+    contentFree: 'Content-free analytics',
+    description: 'Analytics are optional and never include your stored content.',
+    allow: 'Allow analytics',
+    decline: 'No thanks',
+    allowed: 'Allowed',
+    notAllowed: 'Not allowed',
   },
 } as const satisfies LocalizedShape<typeof zhMessages>
 
