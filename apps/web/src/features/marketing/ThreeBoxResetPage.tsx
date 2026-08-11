@@ -61,11 +61,11 @@ export function ThreeBoxResetPage() {
       <main>
         <section className="mx-auto grid max-w-6xl gap-10 px-5 py-16 sm:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-24">
           <div>
-            <p className="text-xs font-bold tracking-[0.16em] text-brand-strong uppercase">{t('threeBoxReset.hero.eyebrow')}</p>
+            <p className="text-xs font-bold tracking-[0.16em] text-ink uppercase">{t('threeBoxReset.hero.eyebrow')}</p>
             <h1 className="mt-5 max-w-3xl text-5xl leading-[0.95] font-extrabold tracking-[-0.065em] sm:text-7xl">{t('threeBoxReset.hero.title')}</h1>
             <p className="mt-7 max-w-xl text-lg leading-8 text-muted sm:text-xl">{t('threeBoxReset.hero.body')}</p>
             <div className="mt-9 flex flex-wrap items-center gap-4">
-              <Link className="inline-flex min-h-13 items-center justify-center rounded-full bg-brand px-7 font-bold text-white no-underline shadow-float transition hover:bg-brand-strong" to={primaryHref}>{t('threeBoxReset.hero.cta')}</Link>
+            <Link className="inline-flex min-h-13 items-center justify-center rounded-full bg-brand-strong px-7 font-bold text-white no-underline shadow-float transition hover:bg-[#b64322]" to={primaryHref}>{t('threeBoxReset.hero.cta')}</Link>
               <span className="text-sm font-semibold text-muted">{t('threeBoxReset.hero.noCard')}</span>
             </div>
           </div>
@@ -76,7 +76,7 @@ export function ThreeBoxResetPage() {
 
         <section className="bg-[#30271e] px-5 py-16 text-white sm:px-8" data-testid="three-box-demo">
           <div className="mx-auto max-w-4xl">
-            <h2 className="text-3xl font-extrabold tracking-[-0.04em] sm:text-4xl">{t('threeBoxReset.demo.title')}</h2>
+            <h2 className="text-3xl font-extrabold tracking-[-0.04em] text-white sm:text-4xl">{t('threeBoxReset.demo.title')}</h2>
             <div className="mt-7 overflow-hidden rounded-[1.5rem] bg-black shadow-float">
               {videoUnavailable ? (
                 <div className="relative"><img className="aspect-video w-full object-cover opacity-80" src="/landing/hero-home-v2.jpg" alt="" /><p className="absolute inset-x-5 bottom-5 rounded-xl bg-ink/80 p-3 text-sm text-white">{t('threeBoxReset.demo.fallback')}</p></div>
@@ -106,7 +106,7 @@ export function ThreeBoxResetPage() {
         </section>
 
         <section className="mx-auto grid max-w-6xl gap-6 px-5 py-20 sm:px-8 md:grid-cols-2">
-          <article className="rounded-[2rem] bg-brand p-8 text-white" data-testid="three-box-free-offer"><h2 className="text-3xl font-extrabold tracking-[-0.04em] text-white">{t('threeBoxReset.free.title')}</h2><p className="mt-4 max-w-md leading-7 text-white/85">{t('threeBoxReset.free.body')}</p></article>
+          <article className="rounded-[2rem] bg-brand-strong p-8 text-white" data-testid="three-box-free-offer"><h2 className="text-3xl font-extrabold tracking-[-0.04em] text-white">{t('threeBoxReset.free.title')}</h2><p className="mt-4 max-w-md leading-7 text-white">{t('threeBoxReset.free.body')}</p></article>
           <article className="rounded-[2rem] bg-ink p-8 text-white" data-testid="founding-lifetime-offer"><h2 className="text-3xl font-extrabold tracking-[-0.04em] text-white">{t('threeBoxReset.founder.title')}</h2><p className="mt-4 text-2xl font-bold text-[#efac8e]">{t('threeBoxReset.founder.price')}</p><p className="mt-3 max-w-md leading-7 text-white/75">{t('threeBoxReset.founder.body')}</p></article>
         </section>
 

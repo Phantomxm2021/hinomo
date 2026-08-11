@@ -51,9 +51,12 @@ it('renders the English three-box reset conversion path', () => {
   )
 
   expect(screen.getByRole('heading', { name: 'Pack once. Find anything later.' })).toBeVisible()
+  expect(screen.getByText('A reset for moving, garages, basements, and attics')).toHaveClass('text-ink')
   expect(screen.getByText('The 3-Box Reset')).toBeVisible()
   expect(screen.getByRole('link', { name: 'Organize 3 boxes free' }))
     .toHaveAttribute('href', '/register?campaign=three_box_reset')
+  expect(screen.getByRole('link', { name: 'Organize 3 boxes free' }))
+    .toHaveClass('bg-brand-strong', 'text-white')
   expect(screen.getByText(/10 AI Credits/)).toBeVisible()
   expect(screen.getByText(/No card required/)).toBeVisible()
   expect(screen.getByText(/US\$9/)).toBeVisible()
@@ -63,10 +66,13 @@ it('renders the English three-box reset conversion path', () => {
 
   const freeOffer = screen.getByTestId('three-box-free-offer')
   const founderOffer = screen.getByTestId('founding-lifetime-offer')
+  const demo = screen.getByTestId('three-box-demo')
+  expect(within(demo).getByRole('heading')).toHaveClass('text-white')
+  expect(freeOffer).toHaveClass('bg-brand-strong')
   expect(within(freeOffer).getByRole('heading')).toHaveClass('text-white')
+  expect(within(freeOffer).getByText(/Organize three boxes free/)).toHaveClass('text-white')
   expect(within(founderOffer).getByRole('heading')).toHaveClass('text-white')
 
-  const demo = screen.getByTestId('three-box-demo')
   const workflow = screen.getByTestId('three-box-workflow')
   expect(demo.compareDocumentPosition(founderOffer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   expect(workflow.compareDocumentPosition(founderOffer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
