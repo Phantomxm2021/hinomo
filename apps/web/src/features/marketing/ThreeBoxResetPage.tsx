@@ -77,11 +77,11 @@ export function ThreeBoxResetPage() {
         <section className="bg-[#30271e] px-5 py-16 text-white sm:px-8" data-testid="three-box-demo">
           <div className="mx-auto max-w-4xl">
             <h2 className="text-3xl font-extrabold tracking-[-0.04em] text-white sm:text-4xl">{t('threeBoxReset.demo.title')}</h2>
-            <div className="mt-7 overflow-hidden rounded-[1.5rem] bg-black shadow-float">
+            <div className="mt-7 aspect-video overflow-hidden rounded-[1.5rem] bg-black shadow-float">
               {videoUnavailable ? (
-                <div className="relative"><img className="aspect-video w-full object-cover opacity-80" src="/landing/hero-home-v2.jpg" alt="" /><p className="absolute inset-x-5 bottom-5 rounded-xl bg-ink/80 p-3 text-sm text-white">{t('threeBoxReset.demo.fallback')}</p></div>
+                <div className="relative h-full w-full"><img className="h-full w-full object-cover opacity-80" src="/landing/hero-home-v2.jpg" alt="" /><p className="absolute inset-x-5 bottom-5 rounded-xl bg-ink/80 p-3 text-sm text-white">{t('threeBoxReset.demo.fallback')}</p></div>
               ) : (
-                <video className="aspect-video w-full" controls playsInline preload="metadata" poster="/landing/hero-home-v2.jpg" onError={() => setVideoUnavailable(true)}>
+                <video className="h-full w-full object-cover" controls playsInline preload="metadata" poster="/landing/hero-home-v2.jpg" onError={() => setVideoUnavailable(true)}>
                   <source src="/marketing/three-box-reset-demo.mp4" type="video/mp4" />
                   {t('threeBoxReset.demo.fallback')}
                 </video>
