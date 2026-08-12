@@ -28,6 +28,7 @@ test('box details and scanner states contain only controlled product data', () =
   rerender(<CaptureState state="scanner" />)
   expect(screen.getByRole('heading', { name: 'Scan to view' })).toBeVisible()
   expect(screen.getByLabelText('QR scanner view')).toBeVisible()
+  expect(screen.getByRole('img', { name: 'Live scanner view of the labeled Box 1' })).toHaveAttribute('src', '/creative/box-1-closed-labeled-user.png')
 })
 
 test('camera and confirmation share one real packing photo with explicit choices', () => {
