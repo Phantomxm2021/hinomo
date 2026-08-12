@@ -12,6 +12,9 @@
     "ui-box-1-inventory.png",
     "ui-scanner.png"
   ],
+  "label_sources": [
+    { "file": "nomo-box-bx-00038.png", "width": 925, "height": 640 }
+  ],
   "references": [
     { "index": 0, "file": "00-three-open-boxes.png" },
     { "index": 1, "file": "01-box-1-open-empty.png" },

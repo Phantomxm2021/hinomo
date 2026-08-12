@@ -14,6 +14,7 @@ export const REQUIRED_SECTIONS = [
 
 const EXPECTED_REFERENCE_COUNT = 12
 const EXPECTED_UI_SOURCE_COUNT = 5
+const EXPECTED_LABEL_SOURCE_COUNT = 1
 const EXPECTED_PROMPT_COUNT = 11
 
 async function readManifest(root) {
@@ -38,7 +39,7 @@ async function requireDimensions(file, width, height) {
 
 export async function verifyManifestFiles(root) {
   const manifest = await readManifest(root)
-  const { format, references, ui_sources: uiSources } = manifest
+  const { format, references, ui_sources: uiSources, label_sources: labelSources } = manifest
 
   if (format?.width !== 1920 || format?.height !== 1080 || format?.fps !== 30 || format?.duration_seconds !== 38) {
     throw new Error('manifest format must be 1920x1080, 30 fps, and 38 seconds')
@@ -64,6 +65,18 @@ export async function verifyManifestFiles(root) {
     const file = path.join(root, 'source', 'ui', filename)
     await requireFile(file, `missing UI source: ${filename}`)
     await requireDimensions(file, 1290, 2796)
+  }
+
+  if (!Array.isArray(labelSources) || labelSources.length !== EXPECTED_LABEL_SOURCE_COUNT) {
+    throw new Error(`manifest must define ${EXPECTED_LABEL_SOURCE_COUNT} label source`)
+  }
+  for (const source of labelSources) {
+    if (typeof source?.file !== 'string' || !Number.isInteger(source.width) || !Number.isInteger(source.height)) {
+      throw new Error('label source must define file, width, and height')
+    }
+    const file = path.join(root, 'source', 'labels', source.file)
+    await requireFile(file, `missing label source: ${source.file}`)
+    await requireDimensions(file, source.width, source.height)
   }
 
   return manifest
