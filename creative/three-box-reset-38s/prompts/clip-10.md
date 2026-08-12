@@ -1,23 +1,26 @@
-# Clip 10 — Return to Box 1 inventory
+# Clip 10 — Scan and open Box 1
 
-Duration: 2 seconds
+Duration: 4 seconds
 
 subject_definitions:
-- `<Picture 10>` is the exact first frame: the protected Nomo scanner phone is next to the same clean, unlabeled Box 1.
-- `<Picture 6>` is the exact final frame: the protected Nomo Box 1 inventory screen lists the three matching items.
-- `the phone screen` is protected in both supplied states; the transition uses a direct cut between those exact states.
+- `<Picture 10>` is the authentic Nomo `Scan to view` screen on the product-stage background.
+- `<Picture 11>` is the same scanner phone in the room, facing the QR area on the same complete label from `<Picture 9>`.
+- `<Picture 7>` is the matching Box details inventory after the scan.
+- `the phone screen` and `the Nomo Box label` are protected layers.
 
 summary:
-One direct cut returns to the saved Box 1 inventory; it is not represented as a label scan.
+[keyframe completion] The scanner moves to the same real label, confirms once, then hard-cuts to the saved Box details screen.
 
 retention_analysis:
-This two-second payoff reconnects the packed physical box to its saved Nomo inventory without inventing an unsupported interaction.
+- `<Picture 10>`: fully_preserved - the scanner interface begins exact.
+- `<Picture 11>`: fully_preserved - the scanner faces the same fixed label in the room.
+- `<Picture 7>`: fully_preserved - the final inventory is shown by direct cut.
 
 detailed_description:
-Start pixel-aligned to `<Picture 10>`. From 0.0 to 0.70 seconds, hold the phone and clean, closed carton still; the carton has no label or QR code. At 0.70 seconds, perform one direct hard cut to `<Picture 6>`—no dissolve, wipe, morph, simulated page animation, scan beam, confirmation cue, or intermediate screen. From 0.70 to 2.0 seconds, hold the authentic Box 1 inventory exactly as supplied: `3 items`, `3 total`, HDMI cable, Power adapter, and Tape measure remain sharp and stationary. Preserve phone geometry and screen pixels. Do not add a success message, popup, button, extra item, new page, hand, label, second device, cursor, or generated typography. Do not scroll or change counts.
+Begin on `<Picture 10>`. At 0.55 seconds make one direct match cut into `<Picture 11>`; retain the exact white iPhone, scanner pixels, room, closed carton, and complete label. The phone settles toward the QR area without generating a live camera feed. At 2.45 seconds brighten the existing scanner beam for no more than six frames and make one subtle device haptic movement. At 2.75 seconds hard cut directly to `<Picture 7>` and hold its saved HDMI cable inventory through 4.0 seconds. Do not redraw the QR, label, interface, or inventory; do not add success copy, popup, second device, hand, search, review action, or navigation animation.
 
 overall_soundscape:
-One soft transition tick at the direct cut, then quiet room tone. No speech, scan confirmation, repeated beep, alarm, or camera shutter.
+One restrained device movement, one muted scan confirmation, then a soft cut tick.
 
 non_diegetic_music:
-None in the generated clip. Add the single continuous campaign music bed during final editing.
+None in the generated clip; add the continuous campaign bed in editing.

@@ -158,17 +158,18 @@ export async function composeReferences({ packageRoot = defaultPackageRoot, outp
   const picture0 = await normalizePhysical(generated(files.master))
   const picture1 = await normalizePhysical(generated(files.empty))
   const picture2 = await normalizePhysical(generated(files.packed))
-  const picture7 = await normalizePhysical(generated(files.closed))
+  const closedBox = await normalizePhysical(generated(files.closed))
 
   const picture3 = await placePhone(picture2, ui('ui-camera-capture.png'), 1240, 20)
   const picture4 = await placePhone(neutralBackground, ui('ui-photo-confirmation.png'), 700, 20)
   const picture5 = await placePhone(neutralBackground, ui('ui-ai-pending.png'), 700, 20)
-  const picture6 = await placePhone(neutralBackground, ui('ui-box-details.png'), 700, 20)
-  const picture9 = await placePhone(neutralBackground, ui('ui-scanner.png'), 700, 20)
+  const picture6 = await placePhone(neutralBackground, ui('ui-ai-after-add.png'), 700, 20)
+  const picture7 = await placePhone(neutralBackground, ui('ui-box-details.png'), 700, 20)
+  const picture10 = await placePhone(neutralBackground, ui('ui-scanner.png'), 700, 20)
 
   const attachedLabel = await createAttachedLabel({ labelPath })
-  const picture8 = await sharp(picture7).composite([{ input: attachedLabel, left: FULL_LABEL_PLACEMENT.left, top: FULL_LABEL_PLACEMENT.top }]).png().toBuffer()
-  const picture10 = await placePhone(picture8, ui('ui-scanner.png'), 180, 20)
+  const picture9 = await sharp(closedBox).composite([{ input: attachedLabel, left: FULL_LABEL_PLACEMENT.left, top: FULL_LABEL_PLACEMENT.top }]).png().toBuffer()
+  const picture11 = await placePhone(picture9, ui('ui-scanner.png'), 180, 20)
 
   const pictures = [
     ['00-three-open-boxes.png', picture0],
@@ -177,12 +178,13 @@ export async function composeReferences({ packageRoot = defaultPackageRoot, outp
     ['03-iphone-capturing-box.png', picture3],
     ['04-iphone-ai-results-before.png', picture4],
     ['05-iphone-ai-results-after.png', picture5],
-    ['06-iphone-box-1-inventory.png', picture6],
-    ['07-box-1-closed-unlabeled.png', picture7],
-    ['08-box-1-closed-labeled.png', picture8],
-    ['09-iphone-scanner.png', picture9],
-    ['10-iphone-scanning-label.png', picture10],
-    ['11-nomo-cta.png', await sharp(cta).png().toBuffer()],
+    ['06-iphone-ai-after-add.png', picture6],
+    ['07-iphone-box-details.png', picture7],
+    ['08-box-1-closed-unlabeled.png', closedBox],
+    ['09-box-1-closed-labeled.png', picture9],
+    ['10-iphone-scanner.png', picture10],
+    ['11-iphone-scanning-label.png', picture11],
+    ['12-nomo-cta.png', await sharp(cta).png().toBuffer()],
   ]
 
   for (const [filename, data] of pictures) {

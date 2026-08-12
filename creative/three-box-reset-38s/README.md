@@ -5,7 +5,7 @@
 ## 目录
 
 - `manifest.json`：尺寸、时长、参考图索引和每段镜头映射的唯一清单。
-- `references/`：上传给 ComfyUI 的 12 张 1920 × 1080 参考图。
+- `references/`：上传给 ComfyUI 的 13 张 1920 × 1080 参考图。
 - `prompts/clip-01.md`–`clip-11.md`：可直接使用的 H3 英文提示词。
 - `prompts/master-edit.md`：精确到秒的画面、字幕/旁白、声音和剪辑规则。
 - `source/ui/`：从 Nomo 受控网页状态导出的 5 张真实移动端界面截图。
@@ -21,17 +21,18 @@ ComfyUI 中第一张图就是 `<Picture 0>`，不是 `<Picture 1>`。严格按�
 | `<Picture 0>` | `00-three-open-boxes.png` | 三个打开的空箱 |
 | `<Picture 1>` | `01-box-1-open-empty.png` | Box 1 空箱近景 |
 | `<Picture 2>` | `02-box-1-open-packed.png` | Box 1 已装入三件物品 |
-| `<Picture 3>` | `03-iphone-capturing-box.png` | Nomo AI packing 实际界面 |
-| `<Picture 4>` | `04-iphone-ai-results-before.png` | Add to list 前 |
-| `<Picture 5>` | `05-iphone-ai-results-after.png` | HDMI 行消失后 |
-| `<Picture 6>` | `06-iphone-box-1-inventory.png` | Box 1 三件物品库存 |
-| `<Picture 7>` | `07-box-1-closed-unlabeled.png` | 已合箱、无二维码 |
-| `<Picture 8>` | `08-box-1-closed-labeled.png` | 已合箱、保持干净无标签 |
-| `<Picture 9>` | `09-iphone-scanner.png` | Nomo Scan to view 界面 |
-| `<Picture 10>` | `10-iphone-scanning-label.png` | 扫描器与同一个无标签纸箱 |
-| `<Picture 11>` | `11-nomo-cta.png` | 最终 CTA |
+| `<Picture 3>` | `03-iphone-capturing-box.png` | 真实相机取景：箱内物品 |
+| `<Picture 4>` | `04-iphone-ai-results-before.png` | 拍照确认：Retake / Use Photo |
+| `<Picture 5>` | `05-iphone-ai-results-after.png` | AI smart list：3 项待添加 |
+| `<Picture 6>` | `06-iphone-ai-after-add.png` | 添加 HDMI 后：2 项待添加 |
+| `<Picture 7>` | `07-iphone-box-details.png` | Box details：已保存 HDMI |
+| `<Picture 8>` | `08-box-1-closed-unlabeled.png` | 正确合箱、尚未贴标 |
+| `<Picture 9>` | `09-box-1-closed-labeled.png` | 贴上完整 Nomo Box 二维码信息标签 |
+| `<Picture 10>` | `10-iphone-scanner.png` | Nomo Scan to view 界面 |
+| `<Picture 11>` | `11-iphone-scanning-label.png` | 扫描同一张完整标签 |
+| `<Picture 12>` | `12-nomo-cta.png` | 最终 CTA |
 
-上传后先目视核对第一张节点输入显示为索引 0，最后一张显示为索引 11。如果工作流会自动重新排序，改为逐张连接或显式写入索引。
+上传后先目视核对第一张节点输入显示为索引 0，最后一张显示为索引 12。如果工作流会自动重新排序，改为逐张连接或显式写入索引。
 
 ## 2. 分段生成映射
 
@@ -42,14 +43,14 @@ ComfyUI 中第一张图就是 `<Picture 0>`，不是 `<Picture 1>`。严格按�
 | 01 | 3s | 单锚点（I2VA-like） | 0 |
 | 02 | 4s | 首尾帧（FL2VA-like） | 1 → 2 |
 | 03 | 4s | 单锚点（I2VA-like） | 3 |
-| 04 | 4s | 单锚点（I2VA-like） | 4 |
-| 05 | 4s | 首尾帧（FL2VA-like） | 4 → 5 |
-| 06 | 3s | 单锚点（I2VA-like） | 6 |
-| 07 | 4s | 首尾帧（FL2VA-like） | 2 → 7 |
-| 08 | 4s | 首尾帧（FL2VA-like） | 7 → 8 |
-| 09 | 4s | 首尾帧（FL2VA-like） | 9 → 10 |
-| 10 | 2s | 首尾帧（FL2VA-like） | 10 → 6 |
-| 11 | 2s | 单锚点（I2VA-like） | 11 |
+| 04 | 3s | 单锚点（I2VA-like） | 4 |
+| 05 | 4s | 单锚点（I2VA-like） | 5 |
+| 06 | 3s | 首尾帧（FL2VA-like） | 5 → 6 |
+| 07 | 3s | 单锚点（I2VA-like） | 7 |
+| 08 | 4s | 首尾帧（FL2VA-like） | 2 → 8 |
+| 09 | 4s | 首尾帧（FL2VA-like） | 8 → 9 |
+| 10 | 4s | 多关键帧（Ref2VA-like） | 10 → 11 → 7 |
+| 11 | 2s | 单锚点（I2VA-like） | 12 |
 
 `I2VA-like` 和 `FL2VA-like` 描述的是参考图使用方式；实际节点仍使用你的 H3 Ref2VA 工作流。把对应 `clip-XX.md` 中从 `subject_definitions:` 到 `non_diegetic_music:` 的完整内容粘贴为该段提示词。
 

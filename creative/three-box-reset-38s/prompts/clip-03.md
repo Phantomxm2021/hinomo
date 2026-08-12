@@ -1,22 +1,22 @@
-# Clip 03 — Photograph the packed items
+# Clip 03 — Take the packing photo
 
 Duration: 4 seconds
 
 subject_definitions:
-- `<Picture 3>` is the exact visual reference: the open packed Box 1 remains visible in the warm room, and the same silver iPhone 17 Pro Max presents the authentic Nomo `AI packing` screen.
-- `the phone screen` is a protected product layer. Its pixels, text, colors, spacing, Dynamic Island, and device geometry must not be redrawn or reinterpreted.
+- `<Picture 3>` is the exact first-frame anchor: the white iPhone 17 Pro Max shows the authentic camera interface and its live view contains the same open, packed Box 1.
+- `the phone screen` is a protected layer; its camera controls and live carton image must not be redrawn.
 
 summary:
-The phone steadies beside the packed open carton, a fingertip performs one deliberate `Take a photo` action, and a restrained shutter confirmation registers without changing the authentic UI.
+[keyframe completion] One finger takes one photograph of the packed Box 1.
 
 retention_analysis:
-The frame links the physical contents to the real product in one glance. One clear tap is more credible than a montage and keeps the audience oriented before the AI result appears.
+- `<Picture 3>`: fully_preserved - the phone, open carton, three items, room, and camera interface remain fixed.
 
 detailed_description:
-Begin exactly from `<Picture 3>`. Preserve the same open Box 1, three objects, room, camera perspective, phone position, silver frame, black bezel, and authentic Nomo screen. Add only subtle human handling: an anonymous hand supports the phone from the lower right edge without covering any text, and a single fingertip enters from the right. Between 0.6 and 1.4 seconds, the device settles by less than one degree and the finger approaches the orange `Take a photo` button. At 1.55 seconds, tap the button once, with physical contact and immediate release. Register one short, low-opacity white shutter pulse over only the dark capture preview region, then return to the exact screen pixels from `<Picture 3>` by 2.0 seconds. Hold the composition through 4.0 seconds with restrained natural hand micro-motion. Do not add another button, photo thumbnail, progress bar, object, label, QR code, screen, camera lens, or phone. Do not change, warp, scroll, translate, replace, or regenerate any UI text. The carton flaps remain fully open and stationary; the packed objects do not move.
+Begin exactly on `<Picture 3>`. The open carton contains the same HDMI cable, white power adapter, and tape measure visible in the protected camera preview. An anonymous hand supports the phone; one fingertip reaches only the existing white shutter button, touches it once at 1.35 seconds, and lifts immediately. At the tap, make one short, restrained exposure pulse inside the existing preview only. Keep the white iPhone frame, black bezel, camera controls, open flaps, packed objects, room, and perspective unchanged. Do not add text, a second phone, label, QR code, thumbnail, new control, or any automatic motion.
 
 overall_soundscape:
-Quiet room tone, minimal hand-on-device rustle, one soft tactile tap, and one clean muted camera shutter. No speech, notification voice, crowd, or exaggerated flash sound.
+Quiet room tone, a light fingertip tap, and one soft camera shutter.
 
 non_diegetic_music:
-None in the generated clip. Add the single continuous campaign music bed during final editing.
+None in the generated clip; add the continuous campaign bed in editing.

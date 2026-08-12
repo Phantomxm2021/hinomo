@@ -12,7 +12,7 @@ export const REQUIRED_SECTIONS = [
   'non_diegetic_music:',
 ]
 
-const EXPECTED_REFERENCE_COUNT = 12
+const EXPECTED_REFERENCE_COUNT = 13
 const EXPECTED_UI_SOURCE_COUNT = 6
 const EXPECTED_LABEL_SOURCE_COUNT = 1
 const EXPECTED_PROMPT_COUNT = 11
@@ -83,7 +83,7 @@ export async function verifyManifestFiles(root) {
 }
 
 export function verifyPromptText(text) {
-  if (/<Picture (?:1[2-9]|[2-9]\d)>/.test(text)) throw new Error('out-of-range picture')
+  if (/<Picture (?:1[3-9]|[2-9]\d)>/.test(text)) throw new Error('out-of-range picture')
   if (/search from|Review button|view details/i.test(text)) throw new Error('forbidden story action')
 
   const durations = [...text.matchAll(/Duration:\s*(\d+(?:\.\d+)?) seconds/g)].map((match) => Number(match[1]))

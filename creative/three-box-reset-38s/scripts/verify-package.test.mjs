@@ -11,7 +11,7 @@ test('requires the frozen zero-based reference set', async () => {
   await writeFile(path.join(root, 'manifest.json'), JSON.stringify({
     format: { width: 1920, height: 1080, fps: 30, duration_seconds: 38 },
     ui_sources: [],
-    references: Array.from({ length: 12 }, (_, index) => ({
+    references: Array.from({ length: 13 }, (_, index) => ({
       index,
       file: `${String(index).padStart(2, '0')}-frame.png`,
     })),
@@ -22,7 +22,7 @@ test('requires the frozen zero-based reference set', async () => {
 
 test('rejects forbidden story actions and unresolved references', () => {
   assert.throws(() => verifyPromptText('Search from the AI result list.'), /forbidden story action/)
-  assert.throws(() => verifyPromptText('Use <Picture 12>.'), /out-of-range picture/)
+  assert.throws(() => verifyPromptText('Use <Picture 13>.'), /out-of-range picture/)
 })
 
 test('accepts ordered H3 sections and a duration no longer than five seconds', () => {

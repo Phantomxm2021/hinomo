@@ -23,12 +23,13 @@
     { "index": 3, "file": "03-iphone-capturing-box.png" },
     { "index": 4, "file": "04-iphone-ai-results-before.png" },
     { "index": 5, "file": "05-iphone-ai-results-after.png" },
-    { "index": 6, "file": "06-iphone-box-1-inventory.png" },
-    { "index": 7, "file": "07-box-1-closed-unlabeled.png" },
-    { "index": 8, "file": "08-box-1-closed-labeled.png" },
-    { "index": 9, "file": "09-iphone-scanner.png" },
-    { "index": 10, "file": "10-iphone-scanning-label.png" },
-    { "index": 11, "file": "11-nomo-cta.png" }
+    { "index": 6, "file": "06-iphone-ai-after-add.png" },
+    { "index": 7, "file": "07-iphone-box-details.png" },
+    { "index": 8, "file": "08-box-1-closed-unlabeled.png" },
+    { "index": 9, "file": "09-box-1-closed-labeled.png" },
+    { "index": 10, "file": "10-iphone-scanner.png" },
+    { "index": 11, "file": "11-iphone-scanning-label.png" },
+    { "index": 12, "file": "12-nomo-cta.png" }
   ],
   "clips": [
     { "clip": 1, "file": "clip-01.md", "duration_seconds": 3, "mode": "single_anchor", "references": [0] },
@@ -36,11 +37,11 @@
     { "clip": 3, "file": "clip-03.md", "duration_seconds": 4, "mode": "single_anchor", "references": [3] },
     { "clip": 4, "file": "clip-04.md", "duration_seconds": 4, "mode": "single_anchor", "references": [4] },
     { "clip": 5, "file": "clip-05.md", "duration_seconds": 4, "mode": "endpoint_pair", "references": [4, 5] },
-    { "clip": 6, "file": "clip-06.md", "duration_seconds": 3, "mode": "single_anchor", "references": [6] },
-    { "clip": 7, "file": "clip-07.md", "duration_seconds": 4, "mode": "endpoint_pair", "references": [2, 7] },
-    { "clip": 8, "file": "clip-08.md", "duration_seconds": 4, "mode": "endpoint_pair", "references": [7, 8] },
-    { "clip": 9, "file": "clip-09.md", "duration_seconds": 4, "mode": "endpoint_pair", "references": [9, 10] },
-    { "clip": 10, "file": "clip-10.md", "duration_seconds": 2, "mode": "endpoint_pair", "references": [10, 6] },
-    { "clip": 11, "file": "clip-11.md", "duration_seconds": 2, "mode": "single_anchor", "references": [11] }
+    { "clip": 6, "file": "clip-06.md", "duration_seconds": 3, "mode": "endpoint_pair", "references": [5, 6] },
+    { "clip": 7, "file": "clip-07.md", "duration_seconds": 3, "mode": "single_anchor", "references": [7] },
+    { "clip": 8, "file": "clip-08.md", "duration_seconds": 4, "mode": "endpoint_pair", "references": [2, 8] },
+    { "clip": 9, "file": "clip-09.md", "duration_seconds": 4, "mode": "endpoint_pair", "references": [8, 9] },
+    { "clip": 10, "file": "clip-10.md", "duration_seconds": 4, "mode": "endpoint_pair", "references": [10, 11, 7] },
+    { "clip": 11, "file": "clip-11.md", "duration_seconds": 2, "mode": "single_anchor", "references": [12] }
   ]
 }

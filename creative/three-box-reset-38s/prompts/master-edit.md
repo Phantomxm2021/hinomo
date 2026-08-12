@@ -1,41 +1,31 @@
 # 3-Box Reset — 38-second master edit
 
-## Technical target
+- Canvas: 1920 × 1080, 16:9; 30 fps; exactly 38.00 seconds.
+- Upload order is zero-based `<Picture 0>` through `<Picture 12>`.
 
-- Canvas: 1920 × 1080, 16:9
-- Frame rate: 30 fps constant
-- Duration: exactly 38.00 seconds
-- Delivery: H.264 MP4, high profile, 15–25 Mbps, AAC 48 kHz
-- Reference indexing: ComfyUI zero-based `<Picture 0>` through `<Picture 11>`
-- Generation: render each clip separately with its own prompt, then assemble on the locked timeline below
-
-## Locked timeline
-
-| Time | Clip | References | Picture action | Post-production caption / voice-over |
-| --- | --- | --- | --- | --- |
-| 00:00–00:03 | 01 | `<Picture 0>` | Three open, empty, unlabeled cartons; restrained push | Three boxes. One simple reset. |
-| 00:03–00:07 | 02 | `<Picture 1>` → `<Picture 2>` | Place HDMI cable, power adapter, and tape measure into Box 1 | Pack what belongs together. |
-| 00:07–00:11 | 03 | `<Picture 3>` | One authentic Nomo `Take a photo` action | Photograph items as you pack. |
-| 00:11–00:15 | 04 | `<Picture 4>` | Hold the authentic AI result list | AI turns photos into a list. |
-| 00:15–00:19 | 05 | `<Picture 4>` → `<Picture 5>` | Tap `Add to list`; the HDMI row disappears | Add each item to Box 1. |
-| 00:19–00:22 | 06 | `<Picture 6>` | Hold the completed three-item Box 1 inventory | Your inventory is saved. |
-| 00:22–00:26 | 07 | `<Picture 2>` → `<Picture 7>` | Hands close short flaps first, then long flaps | Close the box. |
-| 00:26–00:30 | 08 | `<Picture 7>` → `<Picture 8>` | Hold on the finished, clean closed carton | Your box is packed. |
-| 00:30–00:34 | 09 | `<Picture 9>` → `<Picture 10>` | Bring the authentic Nomo scanner into the room beside the unlabeled box | Nomo keeps it organized. |
-| 00:34–00:36 | 10 | `<Picture 10>` → `<Picture 6>` | Direct cut to the saved Box 1 inventory | Your inventory is ready. |
-| 00:36–00:38 | 11 | `<Picture 11>` | Protected Nomo CTA; two-percent push | Organize 3 boxes free. |
+| Time | Clip | References | Caption / voice-over |
+| --- | --- | --- | --- |
+| 00:00–00:03 | 01 | 0 | Three boxes. One simple reset. |
+| 00:03–00:07 | 02 | 1 → 2 | Pack what belongs together. |
+| 00:07–00:11 | 03 | 3 | Photograph what is inside. |
+| 00:11–00:14 | 04 | 4 | Confirm the photo. |
+| 00:14–00:18 | 05 | 5 | AI recognizes the items. |
+| 00:18–00:21 | 06 | 5 → 6 | Add the first item. |
+| 00:21–00:24 | 07 | 7 | Your box inventory starts here. |
+| 00:24–00:28 | 08 | 2 → 8 | Close the box. |
+| 00:28–00:32 | 09 | 8 → 9 | Attach one Nomo Box label. |
+| 00:32–00:36 | 10 | 10 → 11 → 7 | Scan later. Find what is inside. |
+| 00:36–00:38 | 11 | 12 | Organize 3 boxes free. |
 
 ## Editorial rules
 
-- Use direct cuts at all clip boundaries. Do not use dissolves, AI morphs, film-burns, or generic transition templates.
-- Add captions and voice-over only in post-production; do not ask H3 to render typography. Keep captions in safe negative space and never cover a phone screen, packed object, or carton flap.
-- Use one calm, clear English voice across the full edit. Read the timeline lines naturally; do not add claims, prices, subscription language, or unsupported functionality.
-- Run one continuous warm minimal music bed at approximately 96–102 BPM under all clips. Start spare, add a light pulse on the AI result, keep the finish calm, then resolve cleanly under the CTA.
-- Retain each generated clip's practical foley. Normalize dialogue/voice-over first, music second, and foley third; avoid loud whooshes and repeated notification sounds.
-- Preserve the exact supplied Nomo screen pixels. If a generated clip distorts a protected UI, re-composite the corresponding screen layer from `<Picture 3>`–`<Picture 6>` or `<Picture 9>`–`<Picture 10>` during editing. This correction does not create a new reference index.
-- The carton stays clean and unlabeled throughout. The carton remains open through 00:22 and closes only under continuous hand contact in Clip 07.
-- Do not add any unsupported navigation, extra control, dialog, second phone, extra item, separate box lid, detached flap, person identity, or third-party mark.
+- Use hard cuts only. Add captions and voice-over in post, never in H3.
+- Preserve protected UI and the full QR label pixel-for-pixel; re-composite from supplied references if H3 distorts them.
+- The camera and confirmation views must show the same packed Box 1 photo. `Use Photo` is the only confirmation action; `Retake` remains untouched.
+- Only HDMI cable is submitted in Clip 06. The remaining two candidates stay pending; Box details shows the saved HDMI cable.
+- The carton closes only under hand contact. The label appears once after closure, then the same label is scanned once.
+- Do not add search, review controls, invented navigation, additional labels, or QR-only stickers.
 
 ## Final quality gate
 
-Check the assembled 38-second timeline frame by frame at every cut. Confirm exact duration, zero-based reference mapping, no QR label on the carton, correct flap order, readable authentic UI, HDMI-row removal after one tap, three-item inventory, static CTA typography, synchronized foley, and no accidental personal data.
+Check exact duration, Picture 0–12 ordering, physical item continuity, camera/confirmation-photo continuity, one Add-to-list mutation, one post-closure label, one scan, readable locked UI, and static CTA typography.
