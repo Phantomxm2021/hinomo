@@ -86,7 +86,7 @@ function AiResultState({ after }: { after: boolean }) {
             <div className="flex items-end justify-between gap-3 border-b border-line/60 px-4 py-4"><div><p className="text-[0.7rem] font-extrabold uppercase tracking-[0.14em] text-brand-strong">Recognized items</p><h2 className="mt-1 text-[1.55rem] font-extrabold text-ink">{items.length} items found</h2></div><span className="mb-1 rounded-full bg-success/12 px-3 py-1 text-xs font-extrabold text-success">Analysis complete</span></div>
             <div>{items.map((item) => <DetectedItemCard key={item.name} item={item} />)}</div>
           </section>
-          {after ? <p className="mt-4 rounded-control bg-brand/10 px-4 py-3 text-center text-sm font-bold text-brand-strong">HDMI cable is being added to Box 1</p> : null}
+          {after ? <p className="mt-4 rounded-control bg-brand/10 px-4 py-3 text-center text-sm font-bold text-brand-strong">HDMI cable added to Box 1</p> : null}
         </div>
       </section>
     </MobileFrame>
@@ -97,14 +97,15 @@ function InventoryState() {
   const items = [
     { name: 'HDMI cable', description: 'Black braided video cable' },
     { name: 'Power adapter', description: 'Compact white wall adapter' },
+    { name: 'Tape measure', description: 'Small beige household tool' },
   ]
   return (
     <MobileFrame>
       <section className="h-full bg-canvas">
         <BrandHeader eyebrow="Living room · BX-001" title="Box 1" onBack />
         <div className="px-5 py-5">
-          <section className="rounded-[1.55rem] bg-ink p-5 text-white shadow-float"><div className="flex items-center justify-between"><span className="grid size-14 place-items-center rounded-[1rem] bg-white/12"><AppIcon name="box" size={27} /></span><span className="rounded-full bg-white/12 px-3 py-1 text-xs font-extrabold">2 items</span></div><p className="mt-5 text-[1.75rem] font-extrabold text-white">Box 1</p><p className="mt-1 text-sm text-white/65">Living room storage · Updated just now</p></section>
-          <div className="mt-6 flex items-center justify-between"><h2 className="text-[1.25rem] font-extrabold text-ink">Inside this box</h2><span className="text-sm font-bold text-muted">2 total</span></div>
+          <section className="rounded-[1.55rem] bg-ink p-5 text-white shadow-float"><div className="flex items-center justify-between"><span className="grid size-14 place-items-center rounded-[1rem] bg-white/12"><AppIcon name="box" size={27} /></span><span className="rounded-full bg-white/12 px-3 py-1 text-xs font-extrabold">3 items</span></div><p className="mt-5 text-[1.75rem] font-extrabold text-white">Box 1</p><p className="mt-1 text-sm text-white/65">Living room storage · Updated just now</p></section>
+          <div className="mt-6 flex items-center justify-between"><h2 className="text-[1.25rem] font-extrabold text-ink">Inside this box</h2><span className="text-sm font-bold text-muted">3 total</span></div>
           <section className="mt-3 overflow-hidden rounded-[1.3rem] border border-line bg-surface shadow-soft">{items.map((item) => <article className="flex items-center gap-3 border-b border-line/60 p-4 last:border-0" key={item.name}><span className="grid size-14 shrink-0 place-items-center rounded-[0.9rem] bg-brand/10 text-brand"><AppIcon name={item.name === 'HDMI cable' ? 'scan' : 'plus'} size={25} /></span><div><h3 className="font-extrabold text-ink">{item.name}</h3><p className="mt-1 text-sm text-muted">{item.description}</p><p className="mt-1 text-sm font-bold text-ink">Quantity 1</p></div></article>)}</section>
         </div>
       </section>

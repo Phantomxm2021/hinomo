@@ -11,6 +11,7 @@ test('pre-add and post-add states differ only by promoted item visibility', () =
 
   rerender(<CaptureState state="ai-after" />)
   expect(screen.queryByText('HDMI cable')).not.toBeInTheDocument()
+  expect(screen.getByText('HDMI cable added to Box 1')).toBeVisible()
   expect(screen.getByText('Power adapter')).toBeVisible()
   expect(screen.queryByText(/search/i)).not.toBeInTheDocument()
   expect(screen.queryByText(/review/i)).not.toBeInTheDocument()
@@ -21,6 +22,8 @@ test('inventory and scanner states contain only controlled product data', () => 
   expect(screen.getByRole('heading', { name: 'Box 1' })).toBeVisible()
   expect(screen.getByText('HDMI cable')).toBeVisible()
   expect(screen.getByText('Power adapter')).toBeVisible()
+  expect(screen.getByText('Tape measure')).toBeVisible()
+  expect(screen.getByText('3 total')).toBeVisible()
 
   rerender(<CaptureState state="scanner" />)
   expect(screen.getByRole('heading', { name: 'Scan to view' })).toBeVisible()
