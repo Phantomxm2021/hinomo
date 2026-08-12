@@ -4,40 +4,44 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import sharp from 'sharp'
-import { FULL_LABEL_PLACEMENT, composeReferences, createAttachedLabel } from './compose-references.mjs'
+import { composeReferences } from './compose-references.mjs'
 
 const packageRoot = path.resolve(import.meta.dirname, '..')
 
 async function rawRegion(file, region) {
-  return sharp(file).extract(region).raw().toBuffer()
+  return sharp(file).extract(region).removeAlpha().raw().toBuffer()
 }
 
-test('places one full horizontal label on the front face and reuses it in Picture 10', async () => {
+async function rawImage(file) {
+  return sharp(file).removeAlpha().raw().toBuffer()
+}
+
+test('keeps the closed carton free of a QR label in Pictures 8 and 10', async () => {
   const outputDir = await mkdtemp(path.join(os.tmpdir(), 'nomo-video-label-'))
   try {
-    assert.deepEqual(FULL_LABEL_PLACEMENT, {
+    const formerLabelArea = {
       left: 845,
       top: 700,
       width: 350,
       height: 242,
-    })
+    }
 
-    const attachedLabel = await createAttachedLabel({
-      labelPath: path.join(packageRoot, 'source', 'labels', 'nomo-box-bx-00038.png'),
-    })
-    const foreground = await sharp(attachedLabel).trim({ background: '#00000000' }).metadata()
-    assert.ok((foreground.width ?? 0) > 280, 'the attached paper must span the horizontal information card')
-    assert.ok((foreground.width ?? 0) / (foreground.height ?? 1) > 1.35, 'the attached paper must not regress to a square QR-only sticker')
+    await composeReferences({ packageRoot, outputDir })
 
-    const result = await composeReferences({ packageRoot, outputDir })
-    assert.deepEqual(result.labelPlacement, FULL_LABEL_PLACEMENT)
+    const picture7 = path.join(outputDir, '07-box-1-closed-unlabeled.png')
+    const picture8 = path.join(outputDir, '08-box-1-closed-labeled.png')
+    const picture10 = path.join(outputDir, '10-iphone-scanning-label.png')
 
-    const picture7 = await rawRegion(path.join(outputDir, '07-box-1-closed-unlabeled.png'), FULL_LABEL_PLACEMENT)
-    const picture8 = await rawRegion(path.join(outputDir, '08-box-1-closed-labeled.png'), FULL_LABEL_PLACEMENT)
-    const picture10 = await rawRegion(path.join(outputDir, '10-iphone-scanning-label.png'), FULL_LABEL_PLACEMENT)
-
-    assert.notDeepEqual(picture8, picture7, 'Picture 8 must add the complete label')
-    assert.deepEqual(picture10, picture8, 'Picture 10 must reuse identical transformed label pixels')
+    assert.deepEqual(
+      await rawImage(picture8),
+      await rawImage(picture7),
+      'Picture 8 must remain the same clean, unlabeled carton',
+    )
+    assert.deepEqual(
+      await rawRegion(picture10, formerLabelArea),
+      await rawRegion(picture7, formerLabelArea),
+      'Picture 10 must not place a QR label in the former label area',
+    )
   } finally {
     await rm(outputDir, { recursive: true, force: true })
   }
