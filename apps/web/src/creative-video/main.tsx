@@ -4,10 +4,10 @@ import '../index.css'
 import { CaptureState, type CaptureStateName } from './CaptureStates'
 
 const requestedState = new URLSearchParams(window.location.search).get('state')
-const captureStates = new Set<CaptureStateName>(['capture', 'ai-before', 'ai-after', 'inventory', 'scanner'])
+const captureStates = new Set<CaptureStateName>(['camera-capture', 'photo-confirmation', 'ai-pending', 'ai-after-add', 'box-details', 'scanner'])
 const state: CaptureStateName = requestedState && captureStates.has(requestedState as CaptureStateName)
   ? requestedState as CaptureStateName
-  : 'capture'
+  : 'camera-capture'
 
 window.localStorage.setItem('nomo-locale', 'en-US')
 

@@ -9,10 +9,11 @@ const outputDir = path.join(packageRoot, 'source', 'ui')
 const baseUrl = process.env.NOMO_CAPTURE_ORIGIN ?? 'http://127.0.0.1:4173'
 
 const states = new Map([
-  ['capture', 'ui-packing-capture.png'],
-  ['ai-before', 'ui-ai-results-before.png'],
-  ['ai-after', 'ui-ai-results-after.png'],
-  ['inventory', 'ui-box-1-inventory.png'],
+  ['camera-capture', 'ui-camera-capture.png'],
+  ['photo-confirmation', 'ui-photo-confirmation.png'],
+  ['ai-pending', 'ui-ai-pending.png'],
+  ['ai-after-add', 'ui-ai-after-add.png'],
+  ['box-details', 'ui-box-details.png'],
   ['scanner', 'ui-scanner.png'],
 ])
 
