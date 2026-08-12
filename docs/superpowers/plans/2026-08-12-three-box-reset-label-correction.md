@@ -190,7 +190,7 @@ test('places one full horizontal label on the front face and reuses it in Pictur
   const result = await composeReferences({ packageRoot, outputDir })
   assert.deepEqual(result.labelPlacement, {
     left: 845,
-    top: 735,
+    top: 700,
     width: 350,
     height: 242,
   })
@@ -258,7 +258,7 @@ Normalize the output to exactly 350 × 242 transparent pixels without stretching
 
 - [ ] **Step 5: Compose Pictures 8 and 10 from the same background**
 
-Composite the one `attachedLabel` buffer at `left=845`, `top=735` on Picture 7 to create Picture 8. Continue deriving Picture 10 by placing the phone over Picture 8, so the label-region pixels outside the phone remain byte-identical.
+Composite the one `attachedLabel` buffer at `left=845`, `top=700` on Picture 7 to create Picture 8. Continue deriving Picture 10 by placing the phone over Picture 8, so the label-region pixels outside the phone remain byte-identical. The corrected top coordinate comes from the full-resolution carton-face audit: the visible paper occupies approximately x=865–1145 and y=710–920, inside the front face without touching the floor.
 
 - [ ] **Step 6: Run GREEN, regenerate, and inspect full resolution**
 
@@ -313,7 +313,7 @@ State that the scanner approaches the QR area inside the same complete horizonta
 
 - [ ] **Step 3: Update README lock-layer instructions**
 
-Replace the square `x=1110, y=570, w=150, h=150` instruction with the tested full-label placement `x=845, y=735, w=350, h=242`. Explain that the entire transformed card—not only its QR area—is the protected overlay.
+Replace the square `x=1110, y=570, w=150, h=150` instruction with the tested full-label placement `x=845, y=700, w=350, h=242`. Explain that the entire transformed card—not only its QR area—is the protected overlay.
 
 - [ ] **Step 4: Run complete verification**
 

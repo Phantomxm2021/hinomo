@@ -4,15 +4,17 @@ import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url))
-const packageRoot = path.resolve(scriptDir, '..')
-const repositoryRoot = path.resolve(packageRoot, '..', '..')
-const generatedDir = path.join(packageRoot, 'source', 'generated')
-const uiDir = path.join(packageRoot, 'source', 'ui')
-const referenceDir = path.join(packageRoot, 'references')
-const qrPath = path.join(repositoryRoot, 'apps', 'web', 'public', 'landing', 'nomo-qr.png')
+const defaultPackageRoot = path.resolve(scriptDir, '..')
 
 const canvas = { width: 1920, height: 1080 }
 const phone = { width: 520, height: 1040, screenX: 20, screenY: 20, screenWidth: 480, screenHeight: 1000 }
+
+export const FULL_LABEL_PLACEMENT = {
+  left: 845,
+  top: 700,
+  width: 350,
+  height: 242,
+}
 
 const files = {
   master: '00-three-open-boxes-source.png',
@@ -20,10 +22,6 @@ const files = {
   packed: '02-box-1-open-packed-source.png',
   closed: '07-box-1-closed-unlabeled-source.png',
 }
-
-const output = (name) => path.join(referenceDir, name)
-const generated = (name) => path.join(generatedDir, name)
-const ui = (name) => path.join(uiDir, name)
 
 const normalizePhysical = (source) => sharp(source)
   .resize(canvas.width, canvas.height, { fit: 'cover', position: 'centre' })
@@ -114,12 +112,48 @@ async function placePhone(background, screenPath, x, y) {
     .toBuffer()
 }
 
-async function createQrLabel() {
-  const qr = await sharp(qrPath).resize(126, 126, { fit: 'contain' }).png().toBuffer()
-  return sharp({ create: { width: 150, height: 150, channels: 4, background: '#fffdf9' } })
+export async function createAttachedLabel({ labelPath }) {
+  const paper = await sharp(labelPath)
+    .resize(295, 182, { fit: 'fill' })
+    .rotate(7, { background: '#00000000' })
+    .png()
+    .toBuffer()
+
+  const metadata = await sharp(paper).metadata()
+  const paperWidth = metadata.width ?? 0
+  const paperHeight = metadata.height ?? 0
+  const alpha = await sharp(paper)
+    .ensureAlpha()
+    .extractChannel(3)
+    .blur(2.4)
+    .linear(0.2)
+    .raw()
+    .toBuffer()
+  const shadow = await sharp({
+    create: {
+      width: paperWidth,
+      height: paperHeight,
+      channels: 3,
+      background: { r: 66, g: 43, b: 27 },
+    },
+  })
+    .joinChannel(alpha, { raw: { width: paperWidth, height: paperHeight, channels: 1 } })
+    .png()
+    .toBuffer()
+
+  const left = Math.floor((FULL_LABEL_PLACEMENT.width - paperWidth) / 2)
+  const top = Math.floor((FULL_LABEL_PLACEMENT.height - paperHeight) / 2) - 2
+  return sharp({
+    create: {
+      width: FULL_LABEL_PLACEMENT.width,
+      height: FULL_LABEL_PLACEMENT.height,
+      channels: 4,
+      background: '#00000000',
+    },
+  })
     .composite([
-      { input: qr, left: 12, top: 12 },
-      { input: Buffer.from('<svg width="150" height="150" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="148" height="148" rx="8" fill="none" stroke="#d8cbbb" stroke-width="2"/></svg>'), left: 0, top: 0 },
+      { input: shadow, left: left + 3, top: top + 5 },
+      { input: paper, left, top },
     ])
     .png()
     .toBuffer()
@@ -151,42 +185,64 @@ const cta = Buffer.from(`
   </svg>
 `)
 
-await mkdir(referenceDir, { recursive: true })
+export async function composeReferences({ packageRoot = defaultPackageRoot, outputDir = path.join(packageRoot, 'references') } = {}) {
+  const generatedDir = path.join(packageRoot, 'source', 'generated')
+  const uiDir = path.join(packageRoot, 'source', 'ui')
+  const labelPath = path.join(packageRoot, 'source', 'labels', 'nomo-box-bx-00038.png')
+  const generated = (name) => path.join(generatedDir, name)
+  const ui = (name) => path.join(uiDir, name)
 
-const picture0 = await normalizePhysical(generated(files.master))
-const picture1 = await normalizePhysical(generated(files.empty))
-const picture2 = await normalizePhysical(generated(files.packed))
-const picture7 = await normalizePhysical(generated(files.closed))
+  await mkdir(outputDir, { recursive: true })
 
-const picture3 = await placePhone(picture2, ui('ui-packing-capture.png'), 1240, 20)
-const picture4 = await placePhone(neutralBackground, ui('ui-ai-results-before.png'), 700, 20)
-const picture5 = await placePhone(neutralBackground, ui('ui-ai-results-after.png'), 700, 20)
-const picture6 = await placePhone(neutralBackground, ui('ui-box-1-inventory.png'), 700, 20)
-const picture9 = await placePhone(neutralBackground, ui('ui-scanner.png'), 700, 20)
+  const picture0 = await normalizePhysical(generated(files.master))
+  const picture1 = await normalizePhysical(generated(files.empty))
+  const picture2 = await normalizePhysical(generated(files.packed))
+  const picture7 = await normalizePhysical(generated(files.closed))
 
-const qrLabel = await createQrLabel()
-const picture8 = await sharp(picture7)
-  .composite([{ input: qrLabel, left: 1110, top: 570 }])
-  .png()
-  .toBuffer()
-const picture10 = await placePhone(picture8, ui('ui-scanner.png'), 180, 20)
+  const picture3 = await placePhone(picture2, ui('ui-packing-capture.png'), 1240, 20)
+  const picture4 = await placePhone(neutralBackground, ui('ui-ai-results-before.png'), 700, 20)
+  const picture5 = await placePhone(neutralBackground, ui('ui-ai-results-after.png'), 700, 20)
+  const picture6 = await placePhone(neutralBackground, ui('ui-box-1-inventory.png'), 700, 20)
+  const picture9 = await placePhone(neutralBackground, ui('ui-scanner.png'), 700, 20)
 
-const pictures = [
-  ['00-three-open-boxes.png', picture0],
-  ['01-box-1-open-empty.png', picture1],
-  ['02-box-1-open-packed.png', picture2],
-  ['03-iphone-capturing-box.png', picture3],
-  ['04-iphone-ai-results-before.png', picture4],
-  ['05-iphone-ai-results-after.png', picture5],
-  ['06-iphone-box-1-inventory.png', picture6],
-  ['07-box-1-closed-unlabeled.png', picture7],
-  ['08-box-1-closed-labeled.png', picture8],
-  ['09-iphone-scanner.png', picture9],
-  ['10-iphone-scanning-label.png', picture10],
-  ['11-nomo-cta.png', await sharp(cta).png().toBuffer()],
-]
+  const attachedLabel = await createAttachedLabel({ labelPath })
+  const picture8 = await sharp(picture7)
+    .composite([{ input: attachedLabel, left: FULL_LABEL_PLACEMENT.left, top: FULL_LABEL_PLACEMENT.top }])
+    .png()
+    .toBuffer()
+  const picture10 = await placePhone(picture8, ui('ui-scanner.png'), 180, 20)
 
-for (const [filename, data] of pictures) {
-  await sharp(data).png().toFile(output(filename))
-  process.stdout.write(`composed ${filename}\n`)
+  const pictures = [
+    ['00-three-open-boxes.png', picture0],
+    ['01-box-1-open-empty.png', picture1],
+    ['02-box-1-open-packed.png', picture2],
+    ['03-iphone-capturing-box.png', picture3],
+    ['04-iphone-ai-results-before.png', picture4],
+    ['05-iphone-ai-results-after.png', picture5],
+    ['06-iphone-box-1-inventory.png', picture6],
+    ['07-box-1-closed-unlabeled.png', picture7],
+    ['08-box-1-closed-labeled.png', picture8],
+    ['09-iphone-scanner.png', picture9],
+    ['10-iphone-scanning-label.png', picture10],
+    ['11-nomo-cta.png', await sharp(cta).png().toBuffer()],
+  ]
+
+  for (const [filename, data] of pictures) {
+    await sharp(data).png().toFile(path.join(outputDir, filename))
+    process.stdout.write(`composed ${filename}\n`)
+  }
+
+  return { labelPlacement: FULL_LABEL_PLACEMENT }
+}
+
+async function main() {
+  await composeReferences()
+}
+
+const invokedAsScript = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+if (invokedAsScript) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error)
+    process.exitCode = 1
+  })
 }
