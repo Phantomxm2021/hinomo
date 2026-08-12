@@ -6,10 +6,11 @@
     "duration_seconds": 38
   },
   "ui_sources": [
-    "ui-packing-capture.png",
-    "ui-ai-results-before.png",
-    "ui-ai-results-after.png",
-    "ui-box-1-inventory.png",
+    "ui-camera-capture.png",
+    "ui-photo-confirmation.png",
+    "ui-ai-pending.png",
+    "ui-ai-after-add.png",
+    "ui-box-details.png",
     "ui-scanner.png"
   ],
   "label_sources": [
