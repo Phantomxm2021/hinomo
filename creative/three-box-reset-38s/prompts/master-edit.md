@@ -8,8 +8,8 @@
 | 00:00–00:03 | 01 | 0 | Three boxes. One simple reset. |
 | 00:03–00:07 | 02 | 1 → 2 | Pack what belongs together. |
 | 00:07–00:11 | 03 | 3 | Photograph what is inside. |
-| 00:11–00:14 | 04 | 4 | Confirm the photo. |
-| 00:14–00:18 | 05 | 5 | AI recognizes the items. |
+| 00:11–00:14 | 04 | 4 → 5 | Confirm the photo. AI recognizes the items. |
+| 00:14–00:18 | 05 | 5 | Review the recognized items. |
 | 00:18–00:21 | 06 | 5 → 6 | Add the first item. |
 | 00:21–00:24 | 07 | 7 | Your box inventory starts here. |
 | 00:24–00:28 | 08 | 2 → 8 | Close the box. |

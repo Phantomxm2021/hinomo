@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -52,4 +52,11 @@ detailed_description:
 overall_soundscape:
 non_diegetic_music:`
   assert.throws(() => verifyPromptText(prompt), /clip exceeds five seconds/)
+})
+
+test('Clip 04 confirms the photo and reaches the pending AI list', async () => {
+  const prompt = await readFile(path.resolve(import.meta.dirname, '..', 'prompts', 'clip-04.md'), 'utf8')
+  assert.match(prompt, /<Picture 5>/)
+  assert.match(prompt, /direct hard cut/i)
+  assert.match(prompt, /Use Photo/)
 })
