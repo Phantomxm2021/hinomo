@@ -1,4 +1,4 @@
-import { normalizeLocalizedItem, normalizeSearchAliases } from './localization.ts'
+import { normalizeLocalizedItem, normalizeLocalizedText, normalizeSearchAliases } from './localization.ts'
 
 Deno.test('uses a Chinese alias when a Chinese session receives an English name', () => {
   const item = normalizeLocalizedItem({
@@ -29,6 +29,19 @@ Deno.test('accepts Unicode Latin letters in an English display name', () => {
   }, 'en-US')
 
   if (item.name !== 'café') throw new Error('Unicode Latin display name was rejected')
+})
+
+Deno.test('rejects Chinese text and mixed Han text in English display fields', () => {
+  for (const value of ['白色电源适配器', 'White 白色 power adapter']) {
+    let rejected = false
+    try { normalizeLocalizedText(value, 'en-US') } catch { rejected = true }
+    if (!rejected) throw new Error(`Chinese text was accepted in an English field: ${value}`)
+  }
+})
+
+Deno.test('allows Chinese fields to retain Latin brands and model abbreviations', () => {
+  const value = normalizeLocalizedText('Apple USB-C 电源适配器', 'zh-CN')
+  if (value !== 'Apple USB-C 电源适配器') throw new Error('Chinese field lost its preserved model text')
 })
 
 Deno.test('rejects a locale mismatch without a usable target alias', () => {

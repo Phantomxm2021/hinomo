@@ -30,6 +30,14 @@ function hasTargetScript(value: string, locale: PackingLocale): boolean {
     : /\p{Script=Latin}/u.test(value)
 }
 
+function matchesTargetLanguage(value: string, locale: PackingLocale): boolean {
+  if (!hasTargetScript(value, locale)) return false
+  // English display fields may preserve Latin brand/model tokens, but a Han
+  // phrase is still a language mismatch. Chinese fields may legitimately
+  // combine Han with a brand, model number, or industry abbreviation.
+  return locale !== 'en-US' || !/\p{Script=Han}/u.test(value)
+}
+
 function normalizeText(value: string): string {
   // NFKC makes visually equivalent model output (for example full-width
   // Latin characters) compare and search consistently. Only outer whitespace
@@ -94,6 +102,17 @@ export type NormalizedLocalizedItem = {
   searchAliases: string[]
 }
 
+/** Normalize and validate a nullable natural-language display field. */
+export function normalizeLocalizedText(value: unknown, locale: PackingLocale): string | null {
+  if (!isPackingLocale(locale)) throw new Error('packing_output_locale_invalid')
+  if (value === null || value === undefined) return null
+  if (typeof value !== 'string') throw new Error('packing_output_locale_invalid')
+  const normalized = normalizeText(value)
+  if (!normalized) return normalized
+  if (!matchesTargetLanguage(normalized, locale)) throw new Error('packing_output_locale_invalid')
+  return normalized
+}
+
 /**
  * Normalize a localized model item for the selected packing-session locale.
  *
@@ -113,9 +132,9 @@ export function normalizeLocalizedItem(
   const byLocale = LOCALES.map((key) => normalizeAliasList(input.search_aliases?.[key]))
   const targetAliases = locale === 'zh-CN' ? byLocale[0] : byLocale[1]
 
-  const displayName = hasTargetScript(normalizedName, locale)
+  const displayName = matchesTargetLanguage(normalizedName, locale)
     ? normalizedName
-    : targetAliases.find((alias) => hasTargetScript(alias, locale))
+    : targetAliases.find((alias) => matchesTargetLanguage(alias, locale))
 
   if (!displayName) throw new Error('packing_output_locale_invalid')
 

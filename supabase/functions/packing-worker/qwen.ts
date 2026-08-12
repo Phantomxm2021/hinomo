@@ -267,7 +267,7 @@ const cropValidationContract = `JSON 结构必须严格为 {"schema_version":${s
 const searchAliasesContract = `JSON 结构必须严格为 {"schema_version":${schemaVersionLiteral},"search_aliases":{"zh-CN":[string],"en-US":[string]}}。每个数组最多 8 项；只输出当前名称、类别的可验证同义词、翻译、品牌或型号表达，不得添加照片或输入中不存在的新事实。`
 
 export function buildLanguageRepairPrompt(consolidation: unknown, locale: PackingLocale): string {
-  return `以下是已经通过结构校验的装箱清单 JSON。仅将自然语言字段改为${locale === 'zh-CN' ? '简体中文' : 'English'}并补齐 bilingual search_aliases；只修改自然语言字段和别名。必须原样保留 schema_version、所有 item/instance 的 client_id、所有 evidence_photo_ids、数量、visibility、needs_review、tracking_status 以及其它结构字段，不得改变事实、合并或拆分项目，也不得添加任何新事实。只返回严格 JSON，且必须满足以下结构：${consolidationContract}\n已校验清单：${JSON.stringify(consolidation)}`
+  return `以下是已经通过结构校验的装箱清单 JSON。仅将自然语言字段改为${locale === 'zh-CN' ? '简体中文' : 'English'}，不得混入另一种语言，并补齐 bilingual search_aliases；只修改自然语言字段和别名。必须原样保留 schema_version、所有 item/instance 的 client_id、所有 evidence_photo_ids、数量、visibility、needs_review、tracking_status 以及其它结构字段，不得改变事实、合并或拆分项目，也不得添加任何新事实。只返回严格 JSON，且必须满足以下结构：${consolidationContract}\n已校验清单：${JSON.stringify(consolidation)}`
 }
 
 export function buildSearchAliasesPrompt(input: { name: string; category: string | null }, locale: PackingLocale): string {
@@ -281,7 +281,7 @@ export function observeAtlas(services: PackingServices, usage: QwenUsageContext,
 
 export function consolidateObservations(services: PackingServices, usage: QwenUsageContext, observations: unknown[], locale: PackingLocale = 'zh-CN') {
   return callQwen({ services, usage, system: rulesForLocale(locale), schema: consolidationSchema,
-    text: `根据以下按时间排列且已经过校验的观察构建物理实例。同一个真实物体跨照片只能生成一个实例；后来新增的同款物体必须生成另一个实例。聚合清单和数量。名称、类别、描述及实例临时名称使用目标语言；同时输出 zh-CN 和 en-US 两组搜索别名。无法确认时 needs_review=true。${consolidationContract}\n观察数据：${JSON.stringify(observations)}` })
+    text: `根据以下按时间排列且已经过校验的观察构建物理实例。同一个真实物体跨照片只能生成一个实例；后来新增的同款物体必须生成另一个实例。聚合清单和数量。名称、类别、描述及实例临时名称必须全部使用目标语言，不要在目标语言句子中夹杂另一种语言；品牌、型号和行业缩写可以保留原文，但要与目标语言的通用名组合。同时输出 zh-CN 和 en-US 两组搜索别名。无法确认时 needs_review=true。${consolidationContract}\n观察数据：${JSON.stringify(observations)}` })
 }
 
 export function reviewOriginalObservation(services: PackingServices, usage: QwenUsageContext, input: { photoId: string; proposedLabel: string; image: Uint8Array; imageMimeType: PackingImageMimeType }, locale: PackingLocale = 'zh-CN') {

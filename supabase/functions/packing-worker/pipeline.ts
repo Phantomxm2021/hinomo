@@ -11,7 +11,7 @@ import {
   type ConsolidationOutput,
   type QwenResult,
 } from './qwen.ts'
-import { normalizeLocalizedItem, normalizeSearchAliases } from './localization.ts'
+import { normalizeLocalizedItem, normalizeLocalizedText, normalizeSearchAliases } from './localization.ts'
 import { readMedia, writeMedia, type PackingServices } from './services.ts'
 import {
   PACKING_LAYOUT_VERSION,
@@ -187,7 +187,12 @@ export async function validateConsolidationLocale(
   repairDurationMs: number
 }> {
   const validate = (value: ConsolidationOutput): void => {
-    for (const item of value.items) normalizeLocalizedItem(item, locale)
+    for (const item of value.items) {
+      normalizeLocalizedItem(item, locale)
+      normalizeLocalizedText(item.category, locale)
+      normalizeLocalizedText(item.description, locale)
+      for (const instance of item.instances) normalizeLocalizedText(instance.provisional_name, locale)
+    }
   }
   try {
     validate(consolidation)
@@ -214,7 +219,17 @@ export async function validateConsolidationLocale(
 
 export function prepareDetectedItem(item: ConsolidatedItem, locale: PackingSession['output_locale']) {
   const localized = normalizeLocalizedItem(item, locale)
-  return { ...item, name: localized.name, search_aliases: localized.searchAliases }
+  return {
+    ...item,
+    name: localized.name,
+    category: normalizeLocalizedText(item.category, locale),
+    description: normalizeLocalizedText(item.description, locale),
+    instances: item.instances.map((instance) => ({
+      ...instance,
+      provisional_name: normalizeLocalizedText(instance.provisional_name, locale) ?? instance.provisional_name,
+    })),
+    search_aliases: localized.searchAliases,
+  }
 }
 
 async function materialize(services: PackingServices, job: ClaimedJob): Promise<void> {

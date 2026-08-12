@@ -20,7 +20,7 @@ function item(overrides: Partial<ConsolidatedItem> = {}): ConsolidatedItem {
     needs_review: false,
     instances: [{
       client_id: 'instance-1',
-      provisional_name: 'keyboard',
+      provisional_name: '键盘',
       first_seen_photo_id: 'P001',
       last_seen_photo_id: 'P001',
       representative_photo_id: 'P001',
@@ -39,7 +39,11 @@ Deno.test('prepares a Chinese display name and flattened aliases for storage', (
 })
 
 Deno.test('prepares an English display name while retaining Chinese search aliases', () => {
-  const prepared = prepareDetectedItem(item({ name: '键盘' }), 'en-US')
+  const prepared = prepareDetectedItem(item({
+    name: '键盘',
+    category: 'computer accessory',
+    instances: [{ ...item().instances[0]!, provisional_name: 'keyboard' }],
+  }), 'en-US')
   if (prepared.name !== 'keyboard') throw new Error('English display name was not selected')
   if (!prepared.search_aliases.includes('键盘')) throw new Error('Chinese alias was not persisted')
 })
@@ -108,6 +112,36 @@ Deno.test('language repair rejects changes to evidence or quantities', async () 
     rejected = error instanceof Error && error.message === 'packing_language_repair_changed_facts'
   }
   if (!rejected) throw new Error('language repair changed facts were accepted')
+})
+
+Deno.test('language repair catches Chinese descriptions and categories in an English result', async () => {
+  const original = {
+    schema_version: '2',
+    items: [item({
+      name: 'white power adapter',
+      category: '电子设备',
+      description: '白色电源适配器，用于电子设备供电。',
+      instances: [{ ...item().instances[0]!, provisional_name: '白色电源适配器' }],
+    })],
+  } as ConsolidationOutput
+  let repairCalls = 0
+  const repaired = {
+    ...original,
+    items: [item({
+      name: 'white power adapter',
+      category: 'power accessories',
+      description: 'White power adapter for electronic devices.',
+      instances: [{ ...item().instances[0]!, provisional_name: 'white power adapter' }],
+    })],
+  } as ConsolidationOutput
+  const result = await validateConsolidationLocale(original, 'en-US', async () => {
+    repairCalls += 1
+    return { data: repaired, inputTokens: 1, outputTokens: 1, durationMs: 1 }
+  })
+  if (repairCalls !== 1) throw new Error(`expected one repair call, got ${repairCalls}`)
+  if (result.data.items[0]?.description !== 'White power adapter for electronic devices.') {
+    throw new Error('English repair did not replace the Chinese description')
+  }
 })
 
 function aliasJob(overrides: Partial<PackingSearchAliasJob> = {}): PackingSearchAliasJob {
