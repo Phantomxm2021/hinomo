@@ -1,0 +1,29 @@
+{
+  "format": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "duration_seconds": 38
+  },
+  "ui_sources": [
+    "ui-packing-capture.png",
+    "ui-ai-results-before.png",
+    "ui-ai-results-after.png",
+    "ui-box-1-inventory.png",
+    "ui-scanner.png"
+  ],
+  "references": [
+    { "index": 0, "file": "00-three-open-boxes.png" },
+    { "index": 1, "file": "01-box-1-open-empty.png" },
+    { "index": 2, "file": "02-box-1-open-packed.png" },
+    { "index": 3, "file": "03-iphone-capturing-box.png" },
+    { "index": 4, "file": "04-iphone-ai-results-before.png" },
+    { "index": 5, "file": "05-iphone-ai-results-after.png" },
+    { "index": 6, "file": "06-iphone-box-1-inventory.png" },
+    { "index": 7, "file": "07-box-1-closed-unlabeled.png" },
+    { "index": 8, "file": "08-box-1-closed-labeled.png" },
+    { "index": 9, "file": "09-iphone-scanner.png" },
+    { "index": 10, "file": "10-iphone-scanning-label.png" },
+    { "index": 11, "file": "11-nomo-cta.png" }
+  ]
+}
