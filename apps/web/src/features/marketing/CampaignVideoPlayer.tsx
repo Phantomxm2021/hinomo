@@ -74,9 +74,7 @@ export function CampaignVideoPlayer({ src, poster, onError }: CampaignVideoPlaye
         onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
         onVolumeChange={(event) => setIsMuted(event.currentTarget.muted)}
         onError={onError}
-        onClick={() => {
-          if (isPlaying) videoRef.current?.pause()
-        }}
+        onClick={() => void togglePlayback()}
       >
         <source src={src} type="video/mp4" />
       </video>

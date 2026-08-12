@@ -35,6 +35,16 @@ it('plays, seeks, and mutes through the custom controls', async () => {
   expect(video.muted).toBe(true)
 })
 
+it('starts playback when a paused video frame is clicked', () => {
+  render(<CampaignVideoPlayer src="/demo.mp4" poster="/poster.jpg" onError={() => {}} />)
+  const video = document.querySelector('video') as HTMLVideoElement
+  const play = vi.spyOn(video, 'play').mockResolvedValue(undefined)
+
+  fireEvent.click(video)
+
+  expect(play).toHaveBeenCalled()
+})
+
 it('hides the central play button after playback starts', () => {
   render(<CampaignVideoPlayer src="/demo.mp4" poster="/poster.jpg" onError={() => {}} />)
   const video = document.querySelector('video') as HTMLVideoElement
@@ -50,6 +60,7 @@ it('reveals playback controls on hover while active and pauses when the video is
   const pause = vi.spyOn(video, 'pause').mockImplementation(() => {})
 
   fireEvent.play(video)
+  Object.defineProperty(video, 'paused', { configurable: true, get: () => false })
 
   const controls = screen.getByTestId('campaign-video-controls')
   expect(controls).toHaveClass('sm:opacity-0', 'sm:group-hover:opacity-100')
