@@ -6,6 +6,7 @@ import { useI18n } from '../../i18n/I18nProvider'
 import { captureGrowthEvent, firstGrowthOccurrence, getAnalyticsConsent, subscribeAnalyticsConsent } from '../../lib/analytics'
 import { env } from '../../lib/env'
 import { useAuth } from '../auth/auth-context'
+import { CampaignVideoPlayer } from './CampaignVideoPlayer'
 
 function deviceCategory() {
   if (typeof window === 'undefined') return 'desktop' as const
@@ -81,10 +82,7 @@ export function ThreeBoxResetPage() {
               {videoUnavailable ? (
                 <div className="relative h-full w-full"><img className="h-full w-full object-cover opacity-80" src="/landing/hero-home-v2.jpg" alt="" /><p className="absolute inset-x-5 bottom-5 rounded-xl bg-ink/80 p-3 text-sm text-white">{t('threeBoxReset.demo.fallback')}</p></div>
               ) : (
-                <video className="h-full w-full object-cover" controls playsInline preload="metadata" poster="/landing/hero-home-v2.jpg" onError={() => setVideoUnavailable(true)}>
-                  <source src="/marketing/three-box-reset-demo.mp4" type="video/mp4" />
-                  {t('threeBoxReset.demo.fallback')}
-                </video>
+                <CampaignVideoPlayer src="/marketing/three-box-reset-demo.mp4" poster="/landing/hero-home-v2.jpg" onError={() => setVideoUnavailable(true)} />
               )}
             </div>
           </div>

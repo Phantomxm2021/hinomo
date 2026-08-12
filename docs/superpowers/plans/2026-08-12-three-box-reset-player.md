@@ -94,7 +94,7 @@ type CampaignVideoPlayerProps = {
 <button aria-label={isMuted ? 'Unmute video' : 'Mute video'} onClick={toggleMute} />
 ```
 
-Use cream, deep-brown, and orange Tailwind classes, with the lower strip visible during hover, focus, or pause and `focus-visible` outlines.
+Use cream, deep-brown, and orange Tailwind classes. Render only the central play button before playback; once active, render the lower strip and let clicking the video pause it. Keep `focus-visible` outlines.
 
 - [ ] **Step 4: Run focused player tests and verify GREEN**
 
