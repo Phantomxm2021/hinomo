@@ -9,8 +9,6 @@ const defaultPackageRoot = path.resolve(scriptDir, '..')
 const canvas = { width: 1920, height: 1080 }
 const phone = { width: 520, height: 1040, screenX: 20, screenY: 20, screenWidth: 480, screenHeight: 1000 }
 
-export const FULL_LABEL_PLACEMENT = { left: 845, top: 700, width: 350, height: 242 }
-
 const files = {
   master: '00-three-open-boxes-source.png',
   empty: '01-box-1-open-empty-source.png',
@@ -107,19 +105,6 @@ async function placePhone(background, screenPath, x, y) {
     .toBuffer()
 }
 
-async function createAttachedLabel({ labelPath }) {
-  const paper = await sharp(labelPath).resize(295, 182, { fit: 'fill' }).rotate(7, { background: '#00000000' }).png().toBuffer()
-  const metadata = await sharp(paper).metadata()
-  const width = metadata.width ?? 0
-  const height = metadata.height ?? 0
-  const alpha = await sharp(paper).ensureAlpha().extractChannel(3).blur(2.4).linear(0.2).raw().toBuffer()
-  const shadow = await sharp({ create: { width, height, channels: 3, background: { r: 66, g: 43, b: 27 } } }).joinChannel(alpha, { raw: { width, height, channels: 1 } }).png().toBuffer()
-  const left = Math.floor((FULL_LABEL_PLACEMENT.width - width) / 2)
-  const top = Math.floor((FULL_LABEL_PLACEMENT.height - height) / 2) - 2
-  return sharp({ create: { width: FULL_LABEL_PLACEMENT.width, height: FULL_LABEL_PLACEMENT.height, channels: 4, background: '#00000000' } })
-    .composite([{ input: shadow, left: left + 3, top: top + 5 }, { input: paper, left, top }]).png().toBuffer()
-}
-
 const cta = Buffer.from(`
   <svg width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
     <defs>
@@ -149,7 +134,7 @@ const cta = Buffer.from(`
 export async function composeReferences({ packageRoot = defaultPackageRoot, outputDir = path.join(packageRoot, 'references') } = {}) {
   const generatedDir = path.join(packageRoot, 'source', 'generated')
   const uiDir = path.join(packageRoot, 'source', 'ui')
-  const labelPath = path.join(packageRoot, 'source', 'labels', 'nomo-box-bx-00038.png')
+  const labeledCartonPath = path.join(packageRoot, 'source', 'physical', 'box-1-closed-labeled-user.png')
   const generated = (name) => path.join(generatedDir, name)
   const ui = (name) => path.join(uiDir, name)
 
@@ -167,8 +152,7 @@ export async function composeReferences({ packageRoot = defaultPackageRoot, outp
   const picture7 = await placePhone(neutralBackground, ui('ui-box-details.png'), 700, 20)
   const picture10 = await placePhone(neutralBackground, ui('ui-scanner.png'), 700, 20)
 
-  const attachedLabel = await createAttachedLabel({ labelPath })
-  const picture9 = await sharp(closedBox).composite([{ input: attachedLabel, left: FULL_LABEL_PLACEMENT.left, top: FULL_LABEL_PLACEMENT.top }]).png().toBuffer()
+  const picture9 = await normalizePhysical(labeledCartonPath)
   const picture11 = await placePhone(picture9, ui('ui-scanner.png'), 180, 20)
 
   const pictures = [
@@ -192,7 +176,7 @@ export async function composeReferences({ packageRoot = defaultPackageRoot, outp
     process.stdout.write(`composed ${filename}\n`)
   }
 
-  return { labelPlacement: FULL_LABEL_PLACEMENT }
+  return {}
 }
 
 async function main() {
