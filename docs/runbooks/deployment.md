@@ -76,6 +76,7 @@ D. Onboarding 完成状态与首发 Credits：
 
 E. AI 装箱 promotion 兼容修复：
    202608120001_fix_packing_promotion_finalize.sql
+   202608120002_fix_packing_promotion_venue_guard.sql
 ```
 
 这两个顺序不能改：
