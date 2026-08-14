@@ -89,29 +89,42 @@ Deno.test('language repair is not repeated when the first repair remains invalid
   if (repairCalls !== 1) throw new Error(`expected one repair call, got ${repairCalls}`)
 })
 
-Deno.test('language repair rejects changes to evidence or quantities', async () => {
+Deno.test('language repair preserves original facts when the model drifts', async () => {
   const original = {
     schema_version: '2',
     items: [item({ search_aliases: { 'zh-CN': [], 'en-US': ['keyboard'] } })],
   } as ConsolidationOutput
-  let rejected = false
-  try {
-    await validateConsolidationLocale(original, 'zh-CN', async () => ({
-      data: {
-        ...original,
-        items: [item({
-          search_aliases: { 'zh-CN': ['键盘'], 'en-US': ['keyboard'] },
-          quantity: { kind: 'exact', value: 2 },
-        })],
-      },
-      inputTokens: 1,
-      outputTokens: 1,
-      durationMs: 1,
-    }))
-  } catch (error) {
-    rejected = error instanceof Error && error.message === 'packing_language_repair_changed_facts'
+  const repaired = {
+    ...original,
+    items: [item({
+      name: '键盘',
+      search_aliases: { 'zh-CN': ['键盘'], 'en-US': ['keyboard'] },
+      quantity: { kind: 'exact', value: 2 },
+      visibility: 'occluded',
+      needs_review: true,
+      instances: [{
+        ...item().instances[0]!,
+        provisional_name: '键盘',
+        tracking_status: 'ambiguous',
+        evidence_photo_ids: ['P001', 'P002'],
+      }],
+    })],
+  } as ConsolidationOutput
+  const result = await validateConsolidationLocale(original, 'zh-CN', async () => ({
+    data: repaired,
+    inputTokens: 1,
+    outputTokens: 1,
+    durationMs: 1,
+  }))
+  const resultItem = result.data.items[0]!
+  const resultInstance = resultItem.instances[0]!
+  if (resultItem.name !== '键盘') throw new Error('language repair did not update the display name')
+  if (resultItem.quantity.value !== 1 || resultItem.visibility !== 'clear' || resultItem.needs_review !== false) {
+    throw new Error('language repair did not preserve item facts')
   }
-  if (!rejected) throw new Error('language repair changed facts were accepted')
+  if (resultInstance.tracking_status !== 'tracked' || JSON.stringify(resultInstance.evidence_photo_ids) !== '["P001"]') {
+    throw new Error('language repair did not preserve instance facts')
+  }
 })
 
 Deno.test('language repair catches Chinese descriptions and categories in an English result', async () => {

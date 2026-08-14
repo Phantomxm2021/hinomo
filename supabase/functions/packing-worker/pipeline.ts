@@ -139,39 +139,42 @@ function hasQwenMetrics(value: ConsolidationRepairResult): value is QwenResult<C
   return 'data' in value && 'inputTokens' in value && 'outputTokens' in value && 'durationMs' in value
 }
 
-function sameJson(left: unknown, right: unknown): boolean {
-  return JSON.stringify(left) === JSON.stringify(right)
-}
-
-/** A language-only repair may not change the model's evidence or facts. */
-function assertRepairPreservesFacts(before: ConsolidationOutput, after: ConsolidationOutput): void {
+/**
+ * Apply only language fields from a repair response. The repair model receives
+ * the full JSON for context, but its factual fields are never trusted: item
+ * quantities, visibility, review state and every instance/evidence reference
+ * always come from the original consolidation result.
+ */
+function mergeLanguageRepair(before: ConsolidationOutput, after: ConsolidationOutput): ConsolidationOutput {
   if (before.schema_version !== after.schema_version || before.items.length !== after.items.length) {
     throw new Error('packing_language_repair_changed_facts')
   }
   const afterById = new Map(after.items.map((item) => [item.client_id, item]))
-  for (const item of before.items) {
+  if (afterById.size !== after.items.length) throw new Error('packing_language_repair_changed_facts')
+  const items = before.items.map((item) => {
     const repaired = afterById.get(item.client_id)
-    if (!repaired
-      || repaired.quantity.kind !== item.quantity.kind
-      || repaired.quantity.value !== item.quantity.value
-      || repaired.visibility !== item.visibility
-      || repaired.needs_review !== item.needs_review
-      || repaired.instances.length !== item.instances.length) {
+    if (!repaired || repaired.instances.length !== item.instances.length) {
       throw new Error('packing_language_repair_changed_facts')
     }
     const repairedInstances = new Map(repaired.instances.map((instance) => [instance.client_id, instance]))
-    for (const instance of item.instances) {
+    if (repairedInstances.size !== repaired.instances.length) throw new Error('packing_language_repair_changed_facts')
+    const instances = item.instances.map((instance) => {
       const repairedInstance = repairedInstances.get(instance.client_id)
-      if (!repairedInstance
-        || repairedInstance.first_seen_photo_id !== instance.first_seen_photo_id
-        || repairedInstance.last_seen_photo_id !== instance.last_seen_photo_id
-        || repairedInstance.representative_photo_id !== instance.representative_photo_id
-        || repairedInstance.tracking_status !== instance.tracking_status
-        || !sameJson(repairedInstance.evidence_photo_ids, instance.evidence_photo_ids)) {
+      if (!repairedInstance) {
         throw new Error('packing_language_repair_changed_facts')
       }
+      return { ...instance, provisional_name: repairedInstance.provisional_name }
+    })
+    return {
+      ...item,
+      name: repaired.name,
+      category: repaired.category,
+      description: repaired.description,
+      search_aliases: repaired.search_aliases,
+      instances,
     }
-  }
+  })
+  return { ...before, items }
 }
 
 /** Validate and, at most once, repair the language of a consolidation result. */
@@ -202,8 +205,8 @@ export async function validateConsolidationLocale(
   }
 
   const repairedResult = await repair(consolidation, locale)
-  const repaired = hasQwenMetrics(repairedResult) ? repairedResult.data : repairedResult
-  assertRepairPreservesFacts(consolidation, repaired)
+  const repairedOutput = hasQwenMetrics(repairedResult) ? repairedResult.data : repairedResult
+  const repaired = mergeLanguageRepair(consolidation, repairedOutput)
   validate(repaired)
   const repairMetrics = hasQwenMetrics(repairedResult)
     ? repairedResult
