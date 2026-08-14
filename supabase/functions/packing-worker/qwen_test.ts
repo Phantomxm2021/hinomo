@@ -122,13 +122,16 @@ Deno.test('rejects bilingual aliases when a locale key is missing', () => {
   if (!rejected) throw new Error('missing locale alias key was accepted')
 })
 
-Deno.test('language repair prompt is text-only and preserves evidence fields', () => {
+Deno.test('language repair prompt is text-only and excludes factual fields', () => {
   const prompt = buildLanguageRepairPrompt({
     schema_version: '2',
     items: [],
   }, 'zh-CN')
-  if (!prompt.includes('只修改自然语言字段')) throw new Error('repair prompt does not constrain edits')
-  if (!prompt.includes('evidence')) throw new Error('repair prompt does not preserve evidence')
+  if (!prompt.includes('只返回语言字段')) throw new Error('repair prompt does not constrain the response shape')
+  if (!prompt.includes('事实字段由服务端原样保留')) throw new Error('repair prompt does not preserve facts')
+  if (prompt.includes('quantity') || prompt.includes('evidence_photo_ids')) {
+    throw new Error('repair prompt asks the model to rewrite factual fields')
+  }
   if (!prompt.includes('简体中文')) throw new Error('repair prompt has no locale rule')
   if (prompt.includes('image_url')) throw new Error('repair prompt unexpectedly requests an image')
 })

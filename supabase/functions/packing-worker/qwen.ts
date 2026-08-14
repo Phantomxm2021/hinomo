@@ -79,6 +79,26 @@ export const consolidationSchema = z.object({
   })),
 })
 
+/**
+ * Language repair is intentionally a patch-shaped response. Factual fields
+ * are not part of this schema because the server always takes them from the
+ * original consolidation result.
+ */
+export const languageRepairSchema = z.object({
+  schema_version: schemaVersionSchema,
+  items: z.array(z.object({
+    client_id: z.string().min(1),
+    name: z.string().min(1).max(120),
+    category: z.string().max(80).nullable(),
+    description: z.string().max(500).nullable(),
+    search_aliases: localizedAliasesSchema,
+    instances: z.array(z.object({
+      client_id: z.string().min(1),
+      provisional_name: z.string().min(1).max(120),
+    })).min(1),
+  })),
+})
+
 export const localizationSchema = z.object({
   schema_version: schemaVersionSchema,
   photo_id: z.string().regex(/^P\d{3}$/),
@@ -112,6 +132,7 @@ export const searchAliasesSchema = z.object({
 })
 
 export type ConsolidationOutput = z.output<typeof consolidationSchema>
+export type LanguageRepairOutput = z.output<typeof languageRepairSchema>
 export type SearchAliasesOutput = z.output<typeof searchAliasesSchema>
 
 export type QwenResult<T> = {
@@ -265,9 +286,10 @@ const reviewContract = `JSON 结构必须严格为 {"schema_version":${schemaVer
 const localizationContract = `JSON 结构必须严格为 {"schema_version":${schemaVersionLiteral},"photo_id":"PNNN","instance_id":string,"bbox":[number,number,number,number],"visible_fraction":"fully_visible|mostly_visible|partially_visible","crop_suitable":boolean,"reason":string|null}。bbox 使用 Qwen 原生 1000×1000 相对坐标系，四个值均在 0～1000。`
 const cropValidationContract = `JSON 结构必须严格为 {"schema_version":${schemaVersionLiteral},"valid":boolean,"reason":string|null}。`
 const searchAliasesContract = `JSON 结构必须严格为 {"schema_version":${schemaVersionLiteral},"search_aliases":{"zh-CN":[string],"en-US":[string]}}。每个数组最多 8 项；只输出当前名称、类别的可验证同义词、翻译、品牌或型号表达，不得添加照片或输入中不存在的新事实。`
+const languageRepairContract = `JSON 结构必须严格为 {"schema_version":${schemaVersionLiteral},"items":[{"client_id":string,"name":string,"category":string|null,"description":string|null,"search_aliases":{"zh-CN":[string],"en-US":[string]},"instances":[{"client_id":string,"provisional_name":string}]}]}。只返回语言字段；数量、可见性、审核状态、照片证据和实例关系由服务端从原始结果保留。`
 
 export function buildLanguageRepairPrompt(consolidation: unknown, locale: PackingLocale): string {
-  return `以下是已经通过结构校验的装箱清单 JSON。仅将自然语言字段改为${locale === 'zh-CN' ? '简体中文' : 'English'}，不得混入另一种语言，并补齐 bilingual search_aliases；只修改自然语言字段和别名。必须原样保留 schema_version、所有 item/instance 的 client_id、所有 evidence_photo_ids、数量、visibility、needs_review、tracking_status 以及其它结构字段，不得改变事实、合并或拆分项目，也不得添加任何新事实。只返回严格 JSON，且必须满足以下结构：${consolidationContract}\n已校验清单：${JSON.stringify(consolidation)}`
+  return `以下是已经通过结构校验的装箱清单 JSON。仅将自然语言字段改为${locale === 'zh-CN' ? '简体中文' : 'English'}，不得混入另一种语言，并补齐 bilingual search_aliases。只返回语言字段；事实字段由服务端原样保留，不要自行重写数量、可见性、审核状态、照片证据或实例关系。不得合并或拆分项目，也不得添加任何新事实。只返回严格 JSON，且必须满足以下结构：${languageRepairContract}\n已校验清单：${JSON.stringify(consolidation)}`
 }
 
 export function buildSearchAliasesPrompt(input: { name: string; category: string | null }, locale: PackingLocale): string {
@@ -300,7 +322,7 @@ export function validateItemCrop(services: PackingServices, usage: QwenUsageCont
 }
 
 export function repairConsolidationLanguage(services: PackingServices, usage: QwenUsageContext, input: { consolidation: ConsolidationOutput; locale: PackingLocale }) {
-  return callQwen({ services, usage, system: rulesForLocale(input.locale), schema: consolidationSchema,
+  return callQwen({ services, usage, system: rulesForLocale(input.locale), schema: languageRepairSchema,
     text: buildLanguageRepairPrompt(input.consolidation, input.locale) })
 }
 

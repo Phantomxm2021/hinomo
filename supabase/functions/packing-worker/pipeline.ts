@@ -9,6 +9,7 @@ import {
   reviewOriginalObservation,
   validateItemCrop,
   type ConsolidationOutput,
+  type LanguageRepairOutput,
   type QwenResult,
 } from './qwen.ts'
 import { normalizeLocalizedItem, normalizeLocalizedText, normalizeSearchAliases } from './localization.ts'
@@ -133,9 +134,9 @@ async function track(services: PackingServices, job: ClaimedJob): Promise<void> 
 export type ConsolidatedInstance = ConsolidationOutput['items'][number]['instances'][number]
 export type ConsolidatedItem = ConsolidationOutput['items'][number]
 
-type ConsolidationRepairResult = ConsolidationOutput | QwenResult<ConsolidationOutput>
+type ConsolidationRepairResult = LanguageRepairOutput | QwenResult<LanguageRepairOutput>
 
-function hasQwenMetrics(value: ConsolidationRepairResult): value is QwenResult<ConsolidationOutput> {
+function hasQwenMetrics(value: ConsolidationRepairResult): value is QwenResult<LanguageRepairOutput> {
   return 'data' in value && 'inputTokens' in value && 'outputTokens' in value && 'durationMs' in value
 }
 
@@ -145,7 +146,7 @@ function hasQwenMetrics(value: ConsolidationRepairResult): value is QwenResult<C
  * quantities, visibility, review state and every instance/evidence reference
  * always come from the original consolidation result.
  */
-function mergeLanguageRepair(before: ConsolidationOutput, after: ConsolidationOutput): ConsolidationOutput {
+function mergeLanguageRepair(before: ConsolidationOutput, after: LanguageRepairOutput): ConsolidationOutput {
   if (before.schema_version !== after.schema_version || before.items.length !== after.items.length) {
     throw new Error('packing_language_repair_changed_facts')
   }
