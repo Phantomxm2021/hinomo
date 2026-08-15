@@ -505,3 +505,10 @@ export async function claimPackingSearchAliasJobs(services: PackingServices): Pr
   databaseError(error, 'alias_job_claim_failed')
   return (data ?? []) as PackingSearchAliasJob[]
 }
+
+/** Whether another job is ready now, so the worker can continue without polling. */
+export async function hasDuePackingWork(services: PackingServices): Promise<boolean> {
+  const { data, error } = await services.database.rpc('has_due_packing_work')
+  databaseError(error, 'due_work_check_failed')
+  return data === true
+}

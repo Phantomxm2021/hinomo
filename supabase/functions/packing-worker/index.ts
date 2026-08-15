@@ -1,6 +1,7 @@
 import {
   claimPackingJobs,
   claimPackingSearchAliasJobs,
+  hasDuePackingWork,
   processPackingJob,
   processPackingSearchAliasJob,
 } from './pipeline.ts'
@@ -41,7 +42,9 @@ async function runOnce(): Promise<void> {
       }
     }),
   ])
-  if (jobs.length > 0 || aliasJobs.length > 0) await wakeSelf()
+  if ((jobs.length > 0 || aliasJobs.length > 0) && await hasDuePackingWork(services)) {
+    await wakeSelf()
+  }
 }
 
 Deno.serve((request) => {

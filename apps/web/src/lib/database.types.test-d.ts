@@ -20,6 +20,8 @@ type PackingItemRow = Database['public']['Tables']['items']['Row']
 type PackingItemUpdate = Database['public']['Tables']['items']['Update']
 type PackingDetectedItemRow = Database['public']['Tables']['packing_detected_items']['Row']
 type AliasJob = Database['public']['Functions']['claim_packing_search_alias_jobs']['Returns'][number]
+type HasDuePackingWorkArgs = Database['public']['Functions']['has_due_packing_work']['Args']
+type HasDuePackingWorkResult = Database['public']['Functions']['has_due_packing_work']['Returns']
 type VenueActivityArgs = Database['public']['Functions']['list_venue_activity']['Args']
 type VenueActivityRow = Database['public']['Functions']['list_venue_activity']['Returns'][number]
 
@@ -121,6 +123,8 @@ const validAliasJob: AliasJob = {
   output_locale: 'zh-CN',
   session_id: '00000000-0000-0000-0000-000000000003',
 }
+const validHasDuePackingWorkArgs = {} satisfies HasDuePackingWorkArgs
+const validHasDuePackingWorkResult: HasDuePackingWorkResult = true
 const validVenueActivityArgs = {
   p_venue_id: '00000000-0000-0000-0000-000000000004',
   p_event_code: 'item_moved',
@@ -175,6 +179,8 @@ void itemAliases
 void detectedItemAliases
 void itemUpdateWithAliases
 void validAliasJob
+void validHasDuePackingWorkArgs
+void validHasDuePackingWorkResult
 void validVenueActivityArgs
 void validVenueActivityActor
 void validVenueActivityEvent

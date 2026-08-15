@@ -1,5 +1,6 @@
 import {
   prepareDetectedItem,
+  hasDuePackingWork,
   processPackingSearchAliasJob,
   validateConsolidationLocale,
   type ConsolidatedItem,
@@ -174,6 +175,19 @@ function aliasJob(overrides: Partial<PackingSearchAliasJob> = {}): PackingSearch
 function fakeServices(rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>) {
   return { database: { rpc }, qwenApiKey: 'test', qwenBaseUrl: 'https://example.invalid', qwenModel: 'test-model' } as unknown as PackingServices
 }
+
+Deno.test('checks whether immediate packing work remains before self-waking', async () => {
+  const calls: Array<{ name: string; args: Record<string, unknown> }> = []
+  const services = fakeServices(async (name, args) => {
+    calls.push({ name, args })
+    return { data: true, error: null }
+  })
+  const due = await hasDuePackingWork(services)
+  if (!due) throw new Error('due packing work was not reported')
+  if (JSON.stringify(calls) !== JSON.stringify([{ name: 'has_due_packing_work' }])) {
+    throw new Error(`unexpected due-work RPC: ${JSON.stringify(calls)}`)
+  }
+})
 
 Deno.test('historical alias jobs normalize model output before completing', async () => {
   const calls: Array<{ name: string; args: Record<string, unknown> }> = []

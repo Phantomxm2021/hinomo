@@ -942,6 +942,10 @@ export type Database = {
         Args: { p_box_id: string }
         Returns: Database['public']['Tables']['packing_sessions']['Row']
       }
+      has_due_packing_work: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       claim_packing_search_alias_jobs: {
         Args: { p_batch_size?: number; p_lease_seconds?: number }
         Returns: {

@@ -1,5 +1,5 @@
 begin;
-select plan(23);
+select plan(30);
 
 create extension if not exists "basejump-supabase_test_helpers" with schema tests;
 
@@ -35,6 +35,57 @@ set local role postgres;
 update public.packing_sessions
 set status = 'ready'::public.packing_session_status, current_revision = 1
 where id = (select session_id from alias_test_state);
+select is(
+  private.has_due_packing_work(),
+  false,
+  'idle packing queues do not request an Edge Function wake'
+);
+insert into public.packing_analysis_jobs (
+  session_id, stage, scope_key, status, attempts, next_attempt_at, input_fingerprint
+) values (
+  (select session_id from alias_test_state),
+  'observe'::public.packing_job_stage,
+  'conditional-wake-due',
+  'pending'::public.packing_job_status,
+  0,
+  pg_catalog.now() - interval '1 second',
+  'conditional-wake-due'
+);
+select is(
+  private.has_due_packing_work(),
+  true,
+  'a due packing job requests an Edge Function wake'
+);
+update public.packing_analysis_jobs
+set status = 'completed'::public.packing_job_status
+where session_id = (select session_id from alias_test_state)
+  and scope_key = 'conditional-wake-due';
+insert into public.packing_analysis_jobs (
+  session_id, stage, scope_key, status, attempts, next_attempt_at, lease_expires_at, input_fingerprint
+) values (
+  (select session_id from alias_test_state),
+  'observe'::public.packing_job_stage,
+  'conditional-wake-expired-lease',
+  'processing'::public.packing_job_status,
+  1,
+  pg_catalog.now(),
+  pg_catalog.now() - interval '1 second',
+  'conditional-wake-expired-lease'
+);
+select is(
+  private.has_due_packing_work(),
+  true,
+  'an expired packing lease requests an Edge Function wake'
+);
+update public.packing_analysis_jobs
+set status = 'completed'::public.packing_job_status
+where session_id = (select session_id from alias_test_state)
+  and scope_key = 'conditional-wake-expired-lease';
+select is(
+  private.has_due_packing_work(),
+  false,
+  'completed packing jobs do not request an Edge Function wake'
+);
 insert into public.packing_detected_items (
   id, session_id, box_id, analysis_revision, name, category, description,
   quantity_kind, quantity_value, visibility, crop_status, cover_object_key,
@@ -147,6 +198,19 @@ select trigger_is('public', 'packing_sessions', 'packing_sessions_wake_edge_func
   'private.wake_packing_edge_function()', 'queued sessions wake the Edge Function');
 select is((select count(*)::integer from cron.job where jobname = 'invoke-packing-edge-function'), 1,
   'Cron fallback invokes the packing Edge Function');
+select like(
+  (select command from cron.job where jobname = 'invoke-packing-edge-function'),
+  '%private.invoke_packing_edge_function_if_due()%',
+  'packing cron only invokes the Edge Function when work is due'
+);
+select ok(
+  has_function_privilege('service_role', 'public.has_due_packing_work()', 'execute'),
+  'service role can check whether packing work is due'
+);
+select ok(
+  not has_function_privilege('authenticated', 'public.has_due_packing_work()', 'execute'),
+  'authenticated users cannot check packing worker queue state'
+);
 
 select has_table('public', 'packing_search_alias_jobs', 'historical alias backfill queue exists');
 select has_function('public', 'claim_packing_search_alias_jobs', array['integer', 'integer'],
