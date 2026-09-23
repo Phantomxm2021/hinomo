@@ -7,6 +7,7 @@ import { captureGrowthEvent, firstGrowthOccurrence, getAnalyticsConsent, subscri
 import { env } from '../../lib/env'
 import { useAuth } from '../auth/auth-context'
 import { CampaignVideoPlayer } from './CampaignVideoPlayer'
+import { MainlandIcpRegistration } from './MainlandIcpRegistration'
 
 function deviceCategory() {
   if (typeof window === 'undefined') return 'desktop' as const
@@ -111,7 +112,7 @@ export function ThreeBoxResetPage() {
         <section className="bg-[#df6538] px-5 py-16 text-center text-white sm:px-8"><Link className="inline-flex min-h-13 items-center justify-center rounded-full bg-white px-8 font-bold text-ink no-underline shadow-float" to={primaryHref}>{t('threeBoxReset.finalCta')}</Link></section>
       </main>
 
-      <footer className="bg-ink px-5 py-8 text-sm text-white/65 sm:px-8"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4"><span>© {new Date().getFullYear()} Nomo</span><div className="flex flex-wrap gap-5"><Link className="text-inherit no-underline hover:text-white" to={`/legal/privacy?lang=${locale}`}>{t('threeBoxReset.footer.privacy')}</Link><Link className="text-inherit no-underline hover:text-white" to={`/legal/terms?lang=${locale}`}>{t('threeBoxReset.footer.terms')}</Link><a className="text-inherit no-underline hover:text-white" href={`mailto:${env.VITE_PUBLIC_SUPPORT_EMAIL}`}>{t('threeBoxReset.footer.support')}</a></div></div></footer>
+      <footer className="bg-ink px-5 py-8 text-sm text-white/65 sm:px-8"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4"><span>© {new Date().getFullYear()} Nomo</span><div className="flex flex-wrap gap-5"><Link className="text-inherit no-underline hover:text-white" to={`/legal/privacy?lang=${locale}`}>{t('threeBoxReset.footer.privacy')}</Link><Link className="text-inherit no-underline hover:text-white" to={`/legal/terms?lang=${locale}`}>{t('threeBoxReset.footer.terms')}</Link><a className="text-inherit no-underline hover:text-white" href={`mailto:${env.VITE_PUBLIC_SUPPORT_EMAIL}`}>{t('threeBoxReset.footer.support')}</a><MainlandIcpRegistration /></div></div></footer>
     </div>
   )
 }
